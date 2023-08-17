@@ -23,6 +23,16 @@ impl CellCoord {
         }
     }
 
+    fn cardinal_to_slot(&self, slot: &Slot) -> Option<Cardinal> {
+        if self == &slot.cell {
+            return Some(slot.interface.to_cardinal());
+        }
+        if self == &slot.get_other_cell() {
+            return Some(slot.interface.to_cardinal().opposite());
+        }
+        None
+    }
+
     fn get_slot(&self, cardinal: Cardinal) -> Slot {
         match cardinal {
             Cardinal::N => Slot {
@@ -68,6 +78,13 @@ impl CellCoord {
             },
         }
     }
+
+    fn get_shared_slot(&self, other: &Self) -> Option<Slot> {
+        if let Some(cardinal) = self.cardinal_to(other) {
+            return Some(self.get_slot(cardinal));
+        }
+        None
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -107,6 +124,16 @@ impl Slot {
         }
         println!("other cell is not neighbor");
         return false;
+    }
+
+    fn get_shared_cell(&self, other: &Self) -> Option<CellCoord> {
+        if self.get_other_cell() == other.cell {
+            return Some(self.cell);
+        }
+        if self.cell == other.get_other_cell() {
+            return Some(other.cell);
+        }
+        None
     }
 
     fn get_other_cell(&self) -> CellCoord {
@@ -167,8 +194,24 @@ impl TrackConnection {}
 
 #[derive(Clone, Copy)]
 struct Track {
-    slot0: Slot,
-    slot1: Slot,
+    cell: CellCoord,
+    orientation: Orientation,
+}
+
+impl Track {
+    fn from_slots(slot1: Slot, slot2: Slot) -> Option<Self> {
+        let cell = slot1.get_shared_cell(&slot2)?;
+        let card1 = cell.cardinal_to(&slot1.cell)?;
+        let card2 = cell.cardinal_to(&slot2.cell)?;
+        let orientation = Orientation::from_cardinals(card1, card2);
+        Some(Self { cell, orientation })
+    }
+
+    fn from_cells(cell1: CellCoord, cell2: CellCoord, cell3: CellCoord) -> Option<Self> {
+        let slot0 = cell1.get_shared_slot(&cell2)?;
+        let slot1 = cell2.get_shared_slot(&cell3)?;
+        Self::from_slots(slot0, slot1)
+    }
 }
 
 fn main() {
