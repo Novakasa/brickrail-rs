@@ -1,5 +1,5 @@
+#![allow(dead_code)]
 use bevy::prelude::*;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -11,16 +11,7 @@ struct CellCoord {
 
 impl CellCoord {
     fn cardinal_to(&self, other: &Self) -> Option<Cardinal> {
-        let dx = other.x - self.x;
-        let dy = other.y - self.y;
-        let dl = other.l - self.l;
-        match (dx, dy, dl) {
-            (0, 1, 0) => Some(Cardinal::N),
-            (0, -1, 0) => Some(Cardinal::S),
-            (1, 0, 0) => Some(Cardinal::E),
-            (-1, 0, 0) => Some(Cardinal::W),
-            _ => None,
-        }
+        Some(Cardinal::from_deltas(other.x - self.x, other.y - self.y)?)
     }
 
     fn cardinal_to_slot(&self, slot: &Slot) -> Option<Cardinal> {
@@ -34,48 +25,23 @@ impl CellCoord {
     }
 
     fn get_slot(&self, cardinal: Cardinal) -> Slot {
-        match cardinal {
-            Cardinal::N => Slot {
+        if let Some(interface) = CellInterface::from_cardinal(cardinal) {
+            return Slot {
                 cell: *self,
-                interface: CellInterface::N,
-            },
-            Cardinal::E => Slot {
-                cell: *self,
-                interface: CellInterface::E,
-            },
-            Cardinal::S => Slot {
-                cell: self.get_cardinal_neighbor(Cardinal::S),
-                interface: CellInterface::N,
-            },
-            Cardinal::W => Slot {
-                cell: self.get_cardinal_neighbor(Cardinal::W),
-                interface: CellInterface::E,
-            },
+                interface,
+            };
         }
+        return Slot {
+            cell: self.get_cardinal_neighbor(cardinal),
+            interface: CellInterface::from_cardinal(cardinal.opposite()).unwrap(),
+        };
     }
 
     fn get_cardinal_neighbor(&self, cardinal: Cardinal) -> Self {
-        match cardinal {
-            Cardinal::N => CellCoord {
-                x: self.x,
-                y: self.y + 1,
-                l: self.l,
-            },
-            Cardinal::S => CellCoord {
-                x: self.x,
-                y: self.y - 1,
-                l: self.l,
-            },
-            Cardinal::E => CellCoord {
-                x: self.x + 1,
-                y: self.y,
-                l: self.l,
-            },
-            Cardinal::W => CellCoord {
-                x: self.x - 1,
-                y: self.y,
-                l: self.l,
-            },
+        Self {
+            x: self.x + cardinal.dx(),
+            y: self.y + cardinal.dy(),
+            l: self.l,
         }
     }
 
@@ -98,6 +64,14 @@ impl CellInterface {
         match self {
             CellInterface::N => Cardinal::N,
             CellInterface::E => Cardinal::E,
+        }
+    }
+
+    fn from_cardinal(cardinal: Cardinal) -> Option<Self> {
+        match cardinal {
+            Cardinal::N => Some(CellInterface::N),
+            Cardinal::E => Some(CellInterface::E),
+            _ => None,
         }
     }
 }
@@ -151,12 +125,38 @@ enum Cardinal {
 }
 
 impl Cardinal {
+    fn from_deltas(dx: i32, dy: i32) -> Option<Self> {
+        match (dx, dy) {
+            (0, 1) => Some(Cardinal::N),
+            (0, -1) => Some(Cardinal::S),
+            (1, 0) => Some(Cardinal::E),
+            (-1, 0) => Some(Cardinal::W),
+            _ => None,
+        }
+    }
+
     fn opposite(&self) -> Self {
         match self {
             Cardinal::N => Cardinal::S,
             Cardinal::S => Cardinal::N,
             Cardinal::E => Cardinal::W,
             Cardinal::W => Cardinal::E,
+        }
+    }
+
+    fn dx(&self) -> i32 {
+        match self {
+            Cardinal::E => 1,
+            Cardinal::W => -1,
+            _ => 0,
+        }
+    }
+
+    fn dy(&self) -> i32 {
+        match self {
+            Cardinal::N => 1,
+            Cardinal::S => -1,
+            _ => 0,
         }
     }
 }
@@ -242,6 +242,7 @@ mod test {
     #[test]
     fn test_slot_connectivity() {
         use super::*;
+        use strum::IntoEnumIterator;
 
         let slot1 = Slot {
             cell: CellCoord { x: 0, y: 0, l: 0 },
@@ -256,6 +257,24 @@ mod test {
             } else {
                 assert!(slot1.can_connect_to(&slot2));
                 assert!(slot2.can_connect_to(&slot1));
+            }
+        }
+
+        let slot1 = Slot {
+            cell: CellCoord { x: 0, y: 0, l: 0 },
+            interface: CellInterface::N,
+        };
+
+        let cell2 = CellCoord { x: 0, y: 2, l: 0 };
+
+        for cardinal in Cardinal::iter() {
+            let slot2 = cell2.get_slot(cardinal);
+            if cardinal == Cardinal::S {
+                assert!(slot1.can_connect_to(&slot2));
+                assert!(slot2.can_connect_to(&slot1));
+            } else {
+                assert!(!slot1.can_connect_to(&slot2));
+                assert!(!slot2.can_connect_to(&slot1));
             }
         }
     }
