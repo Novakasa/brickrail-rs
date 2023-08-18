@@ -186,11 +186,25 @@ impl Orientation {
 }
 
 struct TrackConnection {
-    track1: Track,
-    track2: Track,
+    track1: DirectedTrack,
+    track2: DirectedTrack,
 }
 
 impl TrackConnection {}
+
+struct DirectedTrack {
+    from_slot: Slot,
+    to_slot: Slot,
+}
+
+impl DirectedTrack {
+    fn opposite(&self) -> Self {
+        Self {
+            from_slot: self.to_slot,
+            to_slot: self.from_slot,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Track {
