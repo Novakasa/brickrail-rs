@@ -1,5 +1,6 @@
 use crate::layout::Layout;
 use crate::layout_primitives::*;
+use crate::utils::bresenham_line;
 use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -61,18 +62,25 @@ fn update_draw_track(
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
 ) {
-    if let Some(last_cell) = track_build_state.hover_cells.last() {
-        let cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
-        if cell != *last_cell {
-            track_build_state.hover_cells.push(cell);
-            println!("{:?}", track_build_state.hover_cells);
-            track_build_state.build(&mut layout);
-        }
+    let last_cell = track_build_state.hover_cells.last();
+    if last_cell.is_none() {
+        return;
+    }
+    let start = (last_cell.unwrap().x, last_cell.unwrap().y);
+    let mouse_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
+    if mouse_cell == *last_cell.unwrap() {
+        return;
+    }
+    for point in bresenham_line(start, (mouse_cell.x, mouse_cell.y)).iter() {
+        let cell = CellID::new(point.0, point.1, 0);
+        track_build_state.hover_cells.push(cell);
+        println!("{:?}", track_build_state.hover_cells);
+        track_build_state.build(&mut layout);
     }
 }
 
 fn draw_build_cells(
-    mut track_build_state: ResMut<TrackBuildState>,
+    track_build_state: Res<TrackBuildState>,
     layout: Res<Layout>,
     mut gizmos: Gizmos,
     mouse_world_pos: Res<MousePosWorld>,

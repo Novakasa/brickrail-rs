@@ -3,6 +3,7 @@ use bevy::prelude::*;
 mod editor;
 mod layout;
 mod layout_primitives;
+mod utils;
 
 use editor::EditorPlugin;
 use layout::LayoutPlugin;
