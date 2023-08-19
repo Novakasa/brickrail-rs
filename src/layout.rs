@@ -1,6 +1,6 @@
 use crate::layout_primitives::*;
 use bevy::prelude::*;
-use petgraph::graphmap::{DiGraphMap, UnGraphMap};
+use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource)]
 pub struct Layout {

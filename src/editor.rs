@@ -71,6 +71,27 @@ fn update_draw_track(
     }
 }
 
+fn draw_build_cells(
+    mut track_build_state: ResMut<TrackBuildState>,
+    layout: Res<Layout>,
+    mut gizmos: Gizmos,
+    mouse_world_pos: Res<MousePosWorld>,
+) {
+    for cell in track_build_state.hover_cells.iter() {
+        gizmos.circle_2d(
+            cell.get_vec2() * layout.scale,
+            layout.scale * 0.25,
+            Color::GRAY,
+        );
+    }
+    let cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
+    gizmos.circle_2d(
+        cell.get_vec2() * layout.scale,
+        layout.scale * 0.25,
+        Color::RED,
+    );
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -81,7 +102,12 @@ impl Plugin for EditorPlugin {
         app.add_systems(Startup, spawn_camera);
         app.add_systems(
             Update,
-            (init_draw_track, exit_draw_track, update_draw_track),
+            (
+                init_draw_track,
+                exit_draw_track,
+                update_draw_track,
+                draw_build_cells,
+            ),
         );
     }
 }

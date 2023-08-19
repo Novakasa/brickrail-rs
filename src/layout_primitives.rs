@@ -15,8 +15,8 @@ impl CellID {
 
     pub fn from_vec2(pos: Vec2) -> Self {
         Self {
-            x: (pos.x - 0.5) as i32,
-            y: (pos.y - 0.5) as i32,
+            x: (pos.x + 0.5).floor() as i32,
+            y: (pos.y + 0.5).floor() as i32,
             l: 0,
         }
     }
@@ -120,6 +120,9 @@ impl Slot {
         }
         if self.cell == other.cell {
             return Some(self.cell);
+        }
+        if self.get_other_cell() == other.get_other_cell() {
+            return Some(self.get_other_cell());
         }
         None
     }
@@ -311,8 +314,11 @@ impl TrackID {
 
     pub fn from_slots(slot1: Slot, slot2: Slot) -> Option<Self> {
         let cell = slot1.get_shared_cell(&slot2)?;
+        //println!("{:?}", cell);
         let card1 = cell.cardinal_to_slot(&slot1)?;
+        //println!("{:?}", card1);
         let card2 = cell.cardinal_to_slot(&slot2)?;
+        //println!("{:?}", card2);
         let orientation = Orientation::from_cardinals(card1, card2)?;
         Some(Self { cell, orientation })
     }
@@ -415,5 +421,20 @@ mod test {
 
         let track = TrackID::from_cells(cell1, cell2, cell1);
         assert_eq!(track, None);
+    }
+
+    #[test]
+    fn test_get_diagonal_track() {
+        let cell1 = CellID::new(0, 0, 0);
+        let cell2 = CellID::new(1, 0, 0);
+        let cell3 = CellID::new(1, -1, 0);
+
+        let slot1 = cell1.get_slot(cell1.cardinal_to(&cell2).unwrap());
+        let slot2 = cell2.get_slot(cell2.cardinal_to(&cell3).unwrap());
+
+        assert_eq!(slot1.get_shared_cell(&slot2), Some(cell2));
+
+        let track = TrackID::from_cells(cell1, cell2, cell3);
+        assert_eq!(track, Some(TrackID::new(cell2, Orientation::SW)));
     }
 }
