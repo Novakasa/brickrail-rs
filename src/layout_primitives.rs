@@ -1,7 +1,8 @@
 #![allow(dead_code)]
+use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
 pub struct CellID {
     pub x: i32,
     pub y: i32,
@@ -9,6 +10,10 @@ pub struct CellID {
 }
 
 impl CellID {
+    pub fn new(x: i32, y: i32, l: i32) -> Self {
+        Self { x, y, l }
+    }
+
     pub fn cardinal_to(&self, other: &Self) -> Option<Cardinal> {
         Some(Cardinal::from_deltas(other.x - self.x, other.y - self.y)?)
     }
@@ -31,12 +36,12 @@ impl CellID {
             };
         }
         return Slot {
-            cell: self.get_cardinal_neighbor(cardinal),
+            cell: self.get_neighbor(cardinal),
             interface: CellInterface::from_cardinal(cardinal.opposite()).unwrap(),
         };
     }
 
-    pub fn get_cardinal_neighbor(&self, cardinal: Cardinal) -> Self {
+    pub fn get_neighbor(&self, cardinal: Cardinal) -> Self {
         Self {
             x: self.x + cardinal.dx(),
             y: self.y + cardinal.dy(),
@@ -49,6 +54,10 @@ impl CellID {
             return Some(self.get_slot(cardinal));
         }
         None
+    }
+
+    pub fn get_vec2(&self) -> Vec2 {
+        Vec2::new(self.x as f32, self.y as f32)
     }
 }
 
@@ -106,8 +115,11 @@ impl Slot {
     }
 
     pub fn get_other_cell(&self) -> CellID {
-        self.cell
-            .get_cardinal_neighbor(self.interface.to_cardinal())
+        self.cell.get_neighbor(self.interface.to_cardinal())
+    }
+
+    pub fn get_vec2(&self) -> Vec2 {
+        self.cell.get_vec2() + 0.5 * self.interface.to_cardinal().get_vec2()
     }
 }
 
@@ -154,10 +166,14 @@ impl Cardinal {
             _ => 0,
         }
     }
+
+    pub fn get_vec2(&self) -> Vec2 {
+        Vec2::new(self.dx() as f32, self.dy() as f32)
+    }
 }
 
-#[derive(Clone, Copy)]
-enum Orientation {
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+pub enum Orientation {
     NS,
     NE,
     NW,
@@ -187,15 +203,15 @@ impl Orientation {
                 Self::EW => Cardinal::E,
             },
             TrackDirection::Backward => match self {
-                Self::NS | Self::SE | Self::SW => Cardinal::S,
-                Self::NE | Self::NW => Cardinal::N,
-                Self::EW => Cardinal::W,
+                Self::NW | Self::SW | Self::EW => Cardinal::W,
+                Self::NE | Self::SE => Cardinal::E,
+                Self::NS => Cardinal::S,
             },
         }
     }
 }
 
-struct TrackConnection {
+pub struct TrackConnection {
     // DirectedTrackIDs point at each other to avoid bias
     track1: DirectedTrackID,
     track2: DirectedTrackID,
@@ -207,6 +223,17 @@ impl TrackConnection {
     }
 }
 
+pub struct DirectedTrackConnection {
+    from_track: DirectedTrackID,
+    to_track: DirectedTrackID,
+}
+
+impl DirectedTrackConnection {
+    pub fn is_continuous(&self) -> bool {
+        self.from_track.to_slot() == self.to_track.from_slot()
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Turn {
     Left,
@@ -214,8 +241,8 @@ enum Turn {
     Right,
 }
 
-#[derive(Clone, Copy)]
-enum TrackDirection {
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TrackDirection {
     Forward,
     Backward,
 }
@@ -229,9 +256,9 @@ impl TrackDirection {
     }
 }
 
-#[derive(Clone, Copy)]
-struct DirectedTrackID {
-    track: Track,
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DirectedTrackID {
+    track: TrackID,
     direction: TrackDirection,
 }
 
@@ -248,15 +275,27 @@ impl DirectedTrackID {
             .cell
             .get_slot(self.track.orientation.get_cardinal(self.direction))
     }
+
+    pub fn from_slot(&self) -> Slot {
+        self.track.cell.get_slot(
+            self.track
+                .orientation
+                .get_cardinal(self.direction.opposite()),
+        )
+    }
 }
 
-#[derive(Clone, Copy)]
-struct Track {
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+pub struct TrackID {
     cell: CellID,
     orientation: Orientation,
 }
 
-impl Track {
+impl TrackID {
+    pub fn new(cell: CellID, orientation: Orientation) -> Self {
+        Self { cell, orientation }
+    }
+
     pub fn from_slots(slot1: Slot, slot2: Slot) -> Option<Self> {
         let cell = slot1.get_shared_cell(&slot2)?;
         let card1 = cell.cardinal_to(&slot1.cell)?;
@@ -269,6 +308,13 @@ impl Track {
         let slot0 = cell1.get_shared_slot(&cell2)?;
         let slot1 = cell2.get_shared_slot(&cell3)?;
         Self::from_slots(slot0, slot1)
+    }
+
+    pub fn get_directed(&self, dir: TrackDirection) -> DirectedTrackID {
+        DirectedTrackID {
+            track: *self,
+            direction: dir,
+        }
     }
 }
 
