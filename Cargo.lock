@@ -703,6 +703,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mouse_tracking_plugin"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57b69978853d62a9d3732c54fd307901ec94480d1ecac197aaacad39c33e9bc1"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_pancam"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1130,6 +1139,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_framepace",
+ "bevy_mouse_tracking_plugin",
  "bevy_pancam",
  "itertools",
  "petgraph",

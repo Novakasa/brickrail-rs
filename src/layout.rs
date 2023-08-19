@@ -6,10 +6,18 @@ use petgraph::graphmap::{DiGraphMap, UnGraphMap};
 pub struct Layout {
     // track_graph: UnGraphMap<TrackID, TrackConnection>,
     directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
+    pub scale: f32,
 }
 
 impl Layout {
-    fn add_track(&mut self, track: TrackID) {
+    pub fn add_track(&mut self, track: TrackID) {
+        if self
+            .directed_graph
+            .contains_node(track.get_directed(TrackDirection::Forward))
+        {
+            println!("track {:?} already exists", track);
+            return;
+        }
         self.directed_graph
             .add_node(track.get_directed(TrackDirection::Forward));
         self.directed_graph
@@ -18,7 +26,7 @@ impl Layout {
 }
 
 fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>) {
-    let scale = 50.0;
+    let scale = layout.scale;
     for track in layout.directed_graph.nodes() {
         gizmos.line_2d(
             track.from_slot().get_vec2() * scale,
@@ -40,6 +48,7 @@ impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Layout {
             directed_graph: DiGraphMap::new(),
+            scale: 40.0,
         });
         app.add_systems(Startup, spawn_tracks);
         app.add_systems(Update, draw_tracks);

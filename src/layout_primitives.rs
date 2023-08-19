@@ -1,8 +1,7 @@
-#![allow(dead_code)]
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct CellID {
     pub x: i32,
     pub y: i32,
@@ -12,6 +11,14 @@ pub struct CellID {
 impl CellID {
     pub fn new(x: i32, y: i32, l: i32) -> Self {
         Self { x, y, l }
+    }
+
+    pub fn from_vec2(pos: Vec2) -> Self {
+        Self {
+            x: (pos.x - 0.5) as i32,
+            y: (pos.y - 0.5) as i32,
+            l: 0,
+        }
     }
 
     pub fn cardinal_to(&self, other: &Self) -> Option<Cardinal> {
@@ -61,7 +68,7 @@ impl CellID {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum CellInterface {
     N,
     E,
@@ -84,7 +91,7 @@ impl CellInterface {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Slot {
     cell: CellID,
     interface: CellInterface,
@@ -106,10 +113,13 @@ impl Slot {
 
     pub fn get_shared_cell(&self, other: &Self) -> Option<CellID> {
         if self.get_other_cell() == other.cell {
-            return Some(self.cell);
+            return Some(other.cell);
         }
         if self.cell == other.get_other_cell() {
-            return Some(other.cell);
+            return Some(self.cell);
+        }
+        if self.cell == other.cell {
+            return Some(self.cell);
         }
         None
     }
@@ -172,7 +182,7 @@ impl Cardinal {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum Orientation {
     NS,
     NE,
@@ -183,16 +193,19 @@ pub enum Orientation {
 }
 
 impl Orientation {
-    pub fn from_cardinals(slot1: Cardinal, slot2: Cardinal) -> Self {
-        match (&slot1, &slot2) {
+    pub fn from_cardinals(slot1: Cardinal, slot2: Cardinal) -> Option<Self> {
+        if slot1 == slot2 {
+            return None;
+        }
+        Some(match (&slot1, &slot2) {
             (Cardinal::N, Cardinal::S) => Orientation::NS,
             (Cardinal::N, Cardinal::E) => Orientation::NE,
             (Cardinal::N, Cardinal::W) => Orientation::NW,
             (Cardinal::S, Cardinal::E) => Orientation::SE,
             (Cardinal::S, Cardinal::W) => Orientation::SW,
             (Cardinal::E, Cardinal::W) => Orientation::EW,
-            _ => Self::from_cardinals(slot2, slot1),
-        }
+            _ => Self::from_cardinals(slot2, slot1)?,
+        })
     }
 
     pub fn get_cardinal(&self, dir: TrackDirection) -> Cardinal {
@@ -285,7 +298,7 @@ impl DirectedTrackID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct TrackID {
     cell: CellID,
     orientation: Orientation,
@@ -298,9 +311,9 @@ impl TrackID {
 
     pub fn from_slots(slot1: Slot, slot2: Slot) -> Option<Self> {
         let cell = slot1.get_shared_cell(&slot2)?;
-        let card1 = cell.cardinal_to(&slot1.cell)?;
-        let card2 = cell.cardinal_to(&slot2.cell)?;
-        let orientation = Orientation::from_cardinals(card1, card2);
+        let card1 = cell.cardinal_to_slot(&slot1)?;
+        let card2 = cell.cardinal_to_slot(&slot2)?;
+        let orientation = Orientation::from_cardinals(card1, card2)?;
         Some(Self { cell, orientation })
     }
 
@@ -321,11 +334,11 @@ impl TrackID {
 #[cfg(test)]
 mod test {
 
+    use super::*;
+    use strum::IntoEnumIterator;
+
     #[test]
     fn test_slot_connectivity() {
-        use super::*;
-        use strum::IntoEnumIterator;
-
         let slot1 = Slot {
             cell: CellID { x: 0, y: 0, l: 0 },
             interface: CellInterface::N,
@@ -359,5 +372,48 @@ mod test {
                 assert!(!slot2.can_connect_to(&slot1));
             }
         }
+    }
+
+    #[test]
+    fn test_shared_slot() {
+        let cell1 = CellID::new(0, 0, 0);
+
+        for cardinal in Cardinal::iter() {
+            let cell2 = cell1.get_neighbor(cardinal);
+            assert_eq!(
+                cell1.get_shared_slot(&cell2),
+                Some(cell1.get_slot(cardinal))
+            );
+
+            let cell3 = cell2.get_neighbor(cardinal);
+            assert_eq!(cell1.get_shared_slot(&cell3), None,);
+        }
+    }
+
+    #[test]
+    fn test_get_track() {
+        let cell1 = CellID::new(0, 0, 0);
+        let cell2 = CellID::new(1, 0, 0);
+        let cell3 = CellID::new(2, 0, 0);
+
+        let slot1 = cell1.get_slot(Cardinal::E);
+        let slot2 = cell2.get_slot(Cardinal::E);
+
+        assert_eq!(slot1.get_shared_cell(&slot2), Some(cell2));
+
+        assert_eq!(cell1.cardinal_to(&cell2), Some(Cardinal::E));
+        assert_eq!(cell2.cardinal_to(&cell1), Some(Cardinal::W));
+
+        assert_eq!(cell2.cardinal_to(&cell3), Some(Cardinal::E));
+        assert_eq!(cell3.cardinal_to(&cell2), Some(Cardinal::W));
+
+        let track = TrackID::from_slots(slot1, slot2);
+        assert_eq!(track, Some(TrackID::new(cell2, Orientation::EW)));
+
+        let track = TrackID::from_cells(cell1, cell2, cell3);
+        assert_eq!(track, Some(TrackID::new(cell2, Orientation::EW)));
+
+        let track = TrackID::from_cells(cell1, cell2, cell1);
+        assert_eq!(track, None);
     }
 }
