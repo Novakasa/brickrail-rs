@@ -10,8 +10,8 @@ pub fn bresenham_line(start: (i32, i32), stop: (i32, i32)) -> Vec<(i32, i32)> {
         while current.1 != stop.1 {
             current.1 += delta.1.signum();
             points.push(current);
-            return points;
         }
+        return points;
     }
 
     let ybyx = delta.1 as f32 / delta.0 as f32;

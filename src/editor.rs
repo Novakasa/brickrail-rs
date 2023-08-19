@@ -8,6 +8,7 @@ use bevy_pancam::{PanCam, PanCamPlugin};
 #[derive(Resource, Default)]
 struct TrackBuildState {
     hover_cells: Vec<CellID>,
+    hover_track: Option<TrackID>,
 }
 
 impl TrackBuildState {
@@ -18,7 +19,13 @@ impl TrackBuildState {
                 self.hover_cells[1],
                 self.hover_cells[2],
             ) {
+                if let Some(track_b) = self.hover_track {
+                    if let Some(connection) = track_b.get_connection_to(track) {
+                        layout.connect_tracks(connection);
+                    }
+                }
                 layout.add_track(track);
+                self.hover_track = Some(track);
             }
             self.hover_cells.remove(0);
         }
@@ -53,7 +60,8 @@ fn exit_draw_track(
     mouse_buttons: Res<Input<MouseButton>>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
-        track_build_state.hover_cells = vec![]
+        track_build_state.hover_cells = vec![];
+        track_build_state.hover_track = None;
     }
 }
 
@@ -68,9 +76,6 @@ fn update_draw_track(
     }
     let start = (last_cell.unwrap().x, last_cell.unwrap().y);
     let mouse_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
-    if mouse_cell == *last_cell.unwrap() {
-        return;
-    }
     for point in bresenham_line(start, (mouse_cell.x, mouse_cell.y)).iter() {
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);

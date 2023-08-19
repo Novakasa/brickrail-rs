@@ -23,23 +23,32 @@ impl Layout {
         self.directed_graph
             .add_node(track.get_directed(TrackDirection::Backward));
     }
+
+    pub fn connect_tracks(&mut self, connection: TrackConnection) {
+        let connect_a = connection.to_directed(ConnectionDirection::Forward);
+        self.directed_graph
+            .add_edge(connect_a.from_track, connect_a.to_track, connect_a);
+        let connect_b = connection.to_directed(ConnectionDirection::Backward);
+        self.directed_graph
+            .add_edge(connect_b.from_track, connect_b.to_track, connect_b);
+    }
 }
 
 fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>) {
     let scale = layout.scale;
     for track in layout.directed_graph.nodes() {
-        gizmos.line_2d(
-            track.from_slot().get_vec2() * scale,
-            track.to_slot().get_vec2() * scale,
-            Color::GOLD,
-        );
+        let center_pos = track.get_center_vec2();
+        let to_pos = track.to_slot().get_vec2();
+        let end_pos = center_pos + 0.7 * (to_pos - center_pos);
+        // println!("{:?} {:?}", center_pos, end_pos);
+        gizmos.line_2d(center_pos * scale, end_pos * scale, Color::GOLD);
     }
 }
 
 fn spawn_tracks(mut layout: ResMut<Layout>) {
-    layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::SW));
-    layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::EW));
-    layout.add_track(TrackID::new(CellID::new(2, 3, 0), Orientation::SE));
+    // layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::SW));
+    // layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::EW));
+    // layout.add_track(TrackID::new(CellID::new(2, 3, 0), Orientation::SE));
 }
 
 pub struct LayoutPlugin {}

@@ -211,37 +211,86 @@ impl Orientation {
         })
     }
 
+    pub fn get_cardinals(&self) -> (Cardinal, Cardinal) {
+        match self {
+            Orientation::NS => (Cardinal::N, Cardinal::S),
+            Orientation::NE => (Cardinal::N, Cardinal::E),
+            Orientation::NW => (Cardinal::N, Cardinal::W),
+            Orientation::SE => (Cardinal::S, Cardinal::E),
+            Orientation::SW => (Cardinal::S, Cardinal::W),
+            Orientation::EW => (Cardinal::E, Cardinal::W),
+        }
+    }
+
     pub fn get_cardinal(&self, dir: TrackDirection) -> Cardinal {
         match dir {
-            TrackDirection::Forward => match self {
-                Self::NS | Self::NE | Self::NW => Cardinal::N,
-                Self::SE | Self::SW => Cardinal::S,
-                Self::EW => Cardinal::E,
+            TrackDirection::Forward => self.get_cardinals().0,
+            TrackDirection::Backward => self.get_cardinals().1,
+        }
+    }
+
+    pub fn get_direction_to(&self, cardinal: Cardinal) -> Option<TrackDirection> {
+        let (card1, card2) = self.get_cardinals();
+        if cardinal == card1 {
+            return Some(TrackDirection::Forward);
+        }
+        if cardinal == card2 {
+            return Some(TrackDirection::Backward);
+        }
+        return None;
+    }
+}
+
+pub enum ConnectionDirection {
+    Forward,
+    Backward,
+}
+
+pub struct TrackConnection {
+    // DirectedTrackIDs point at each other to avoid bias
+    // They are sorted according to track_a < track_b
+    track_a: DirectedTrackID,
+    track_b: DirectedTrackID,
+}
+
+impl TrackConnection {
+    pub fn new(track_a: DirectedTrackID, track_b: DirectedTrackID) -> Self {
+        if track_a < track_b {
+            Self { track_a, track_b }
+        } else {
+            Self { track_b, track_a }
+        }
+    }
+
+    pub fn track_a(&self) -> DirectedTrackID {
+        self.track_a
+    }
+
+    pub fn track_b(&self) -> DirectedTrackID {
+        self.track_b
+    }
+
+    pub fn is_continuous(&self) -> bool {
+        self.track_a.to_slot() == self.track_b.to_slot()
+    }
+
+    pub fn to_directed(&self, dir: ConnectionDirection) -> DirectedTrackConnection {
+        match dir {
+            ConnectionDirection::Forward => DirectedTrackConnection {
+                from_track: self.track_a,
+                to_track: self.track_b.opposite(),
             },
-            TrackDirection::Backward => match self {
-                Self::NW | Self::SW | Self::EW => Cardinal::W,
-                Self::NE | Self::SE => Cardinal::E,
-                Self::NS => Cardinal::S,
+            ConnectionDirection::Backward => DirectedTrackConnection {
+                from_track: self.track_b,
+                to_track: self.track_a.opposite(),
             },
         }
     }
 }
 
-pub struct TrackConnection {
-    // DirectedTrackIDs point at each other to avoid bias
-    track1: DirectedTrackID,
-    track2: DirectedTrackID,
-}
-
-impl TrackConnection {
-    pub fn is_continuous(&self) -> bool {
-        self.track1.to_slot() == self.track2.to_slot()
-    }
-}
-
 pub struct DirectedTrackConnection {
-    from_track: DirectedTrackID,
-    to_track: DirectedTrackID,
+    pub from_track: DirectedTrackID,
+    pub to_track: DirectedTrackID,
 }
 
 impl DirectedTrackConnection {
@@ -299,6 +348,13 @@ impl DirectedTrackID {
                 .get_cardinal(self.direction.opposite()),
         )
     }
+    pub fn cell(&self) -> CellID {
+        self.track.cell
+    }
+
+    pub fn get_center_vec2(&self) -> Vec2 {
+        (self.to_slot().get_vec2() + self.from_slot().get_vec2()) * 0.5
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -334,6 +390,23 @@ impl TrackID {
             track: *self,
             direction: dir,
         }
+    }
+
+    pub fn get_directed_to_cardinal(&self, cardinal: Cardinal) -> Option<DirectedTrackID> {
+        Some(DirectedTrackID {
+            track: *self,
+            direction: self.orientation.get_direction_to(cardinal)?,
+        })
+    }
+
+    pub fn get_connection_to(&self, other: TrackID) -> Option<TrackConnection> {
+        let cardinal = self.cell.cardinal_to(&other.cell)?;
+        let track1 = self.get_directed_to_cardinal(cardinal)?;
+        let track2 = other.get_directed_to_cardinal(cardinal.opposite())?;
+        Some(TrackConnection {
+            track_a: track1,
+            track_b: track2,
+        })
     }
 }
 
