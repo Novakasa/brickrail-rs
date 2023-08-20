@@ -37,23 +37,19 @@ impl Layout {
 fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>) {
     let scale = layout.scale;
     for track in layout.directed_graph.nodes() {
-        let center_pos = track.get_center_vec2();
-        let end_pos = center_pos + track.get_delta_vec() * 0.2;
-        // println!("{:?} {:?}", center_pos, end_pos);
-        gizmos.line_2d(center_pos * scale, end_pos * scale, Color::GOLD);
+        track.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
     }
 
-    for (from, to, connection) in layout.directed_graph.all_edges() {
-        let start = from.get_center_vec2() + from.get_delta_vec() * 0.2;
-        let end = to.get_center_vec2() - to.get_delta_vec() * 0.2;
-        gizmos.line_2d(start * scale, end * scale, Color::GOLD);
+    for (_, _, connection) in layout.directed_graph.all_edges() {
+        connection.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
     }
 }
 
-fn spawn_tracks(mut layout: ResMut<Layout>) {
-    // layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::SW));
-    // layout.add_track(TrackID::new(CellID::new(3, 3, 0), Orientation::EW));
-    // layout.add_track(TrackID::new(CellID::new(2, 3, 0), Orientation::SE));
+fn print_sizes() {
+    println!("{:?}", std::mem::size_of::<CellID>());
+    println!("{:?}", std::mem::size_of::<TrackID>());
+    println!("{:?}", std::mem::size_of::<DirectedTrackID>());
+    println!("{:?}", std::mem::size_of::<DirectedTrackConnection>());
 }
 
 pub struct LayoutPlugin {}
@@ -64,7 +60,7 @@ impl Plugin for LayoutPlugin {
             directed_graph: DiGraphMap::new(),
             scale: 40.0,
         });
-        app.add_systems(Startup, spawn_tracks);
+        app.add_systems(Startup, print_sizes);
         app.add_systems(Update, draw_tracks);
     }
 }

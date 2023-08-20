@@ -297,6 +297,12 @@ impl DirectedTrackConnection {
     pub fn is_continuous(&self) -> bool {
         self.from_track.to_slot() == self.to_track.from_slot()
     }
+
+    pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos, scale: f32, color: Color) {
+        let start = self.from_track.get_center_vec2() + self.from_track.get_delta_vec() * 0.2;
+        let end = self.to_track.get_center_vec2() - self.to_track.get_delta_vec() * 0.2;
+        gizmos.line_2d(start * scale, end * scale, color);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -357,7 +363,14 @@ impl DirectedTrackID {
     }
 
     pub fn get_delta_vec(&self) -> Vec2 {
-        (self.to_slot().get_vec2() - self.from_slot().get_vec2())
+        self.to_slot().get_vec2() - self.from_slot().get_vec2()
+    }
+
+    pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos, scale: f32, color: Color) {
+        let center_pos = self.get_center_vec2();
+        let end_pos = center_pos + self.get_delta_vec() * 0.2;
+        // println!("{:?} {:?}", center_pos, end_pos);
+        gizmos.line_2d(center_pos * scale, end_pos * scale, color);
     }
 }
 
@@ -411,6 +424,13 @@ impl TrackID {
             track_a: track1,
             track_b: track2,
         })
+    }
+
+    pub fn dirtracks(&self) -> [DirectedTrackID; 2] {
+        [
+            self.get_directed(TrackDirection::Forward),
+            self.get_directed(TrackDirection::Backward),
+        ]
     }
 }
 

@@ -19,12 +19,12 @@ impl TrackBuildState {
                 self.hover_cells[1],
                 self.hover_cells[2],
             ) {
+                layout.add_track(track);
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection) = track_b.get_connection_to(track) {
                         layout.connect_tracks(connection);
                     }
                 }
-                layout.add_track(track);
                 self.hover_track = Some(track);
             }
             self.hover_cells.remove(0);
@@ -79,7 +79,7 @@ fn update_draw_track(
     for point in bresenham_line(start, (mouse_cell.x, mouse_cell.y)).iter() {
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);
-        println!("{:?}", track_build_state.hover_cells);
+        // println!("{:?}", track_build_state.hover_cells);
         track_build_state.build(&mut layout);
     }
 }
@@ -103,6 +103,14 @@ fn draw_build_cells(
         layout.scale * 0.25,
         Color::RED,
     );
+
+    let scale = layout.scale;
+
+    if let Some(track) = track_build_state.hover_track {
+        for dirtrack in track.dirtracks() {
+            dirtrack.draw_with_gizmos(&mut gizmos, scale, Color::RED)
+        }
+    }
 }
 
 pub struct EditorPlugin;
