@@ -38,10 +38,15 @@ fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>) {
     let scale = layout.scale;
     for track in layout.directed_graph.nodes() {
         let center_pos = track.get_center_vec2();
-        let to_pos = track.to_slot().get_vec2();
-        let end_pos = center_pos + 0.7 * (to_pos - center_pos);
+        let end_pos = center_pos + track.get_delta_vec() * 0.2;
         // println!("{:?} {:?}", center_pos, end_pos);
         gizmos.line_2d(center_pos * scale, end_pos * scale, Color::GOLD);
+    }
+
+    for (from, to, connection) in layout.directed_graph.all_edges() {
+        let start = from.get_center_vec2() + from.get_delta_vec() * 0.2;
+        let end = to.get_center_vec2() - to.get_delta_vec() * 0.2;
+        gizmos.line_2d(start * scale, end * scale, Color::GOLD);
     }
 }
 

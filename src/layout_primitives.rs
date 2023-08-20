@@ -355,6 +355,10 @@ impl DirectedTrackID {
     pub fn get_center_vec2(&self) -> Vec2 {
         (self.to_slot().get_vec2() + self.from_slot().get_vec2()) * 0.5
     }
+
+    pub fn get_delta_vec(&self) -> Vec2 {
+        (self.to_slot().get_vec2() - self.from_slot().get_vec2())
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
