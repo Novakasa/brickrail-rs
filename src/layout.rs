@@ -1,5 +1,5 @@
 use crate::layout_primitives::*;
-use bevy::{diagnostic::LogDiagnosticsPlugin, prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap};
 use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource)]

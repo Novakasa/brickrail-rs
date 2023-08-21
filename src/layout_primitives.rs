@@ -1,11 +1,14 @@
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-pub struct LogicalBlock {}
+pub struct Block {
+    start_track: TrackID,
+    end_track: TrackID,
+}
 
 pub enum MarkerKey {
-    Enter(LogicalBlock),
-    In(LogicalBlock),
+    Enter,
+    In,
     None,
 }
 
@@ -355,10 +358,28 @@ pub enum Facing {
     Backward,
 }
 
+impl Facing {
+    fn opposite(&self) -> Facing {
+        match self {
+            Facing::Forward => Facing::Backward,
+            Facing::Backward => Facing::Forward,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LogicalTrackID {
     dirtrack: DirectedTrackID,
     facing: Facing,
+}
+
+impl LogicalTrackID {
+    fn reversed(&self) -> LogicalTrackID {
+        LogicalTrackID {
+            dirtrack: self.dirtrack.opposite(),
+            facing: self.facing.opposite(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
