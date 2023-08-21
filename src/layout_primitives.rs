@@ -1,6 +1,34 @@
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
+pub struct LogicalBlock {}
+
+pub enum MarkerKey {
+    Enter(LogicalBlock),
+    In(LogicalBlock),
+    None,
+}
+
+pub enum MarkerSpeed {
+    Slow,
+    Cruise,
+    Fast,
+}
+
+pub enum MarkerColor {
+    Red,
+    Blue,
+    Yellow,
+    Green,
+}
+
+pub struct LogicalMarker {
+    logical_track: LogicalTrackID,
+    color: MarkerColor,
+    speed: MarkerSpeed,
+    key: MarkerKey,
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct CellID {
     pub x: i32,
@@ -568,5 +596,12 @@ mod test {
 
         let track = TrackID::from_cells(cell1, cell2, cell3);
         assert_eq!(track, Some(TrackID::new(cell2, Orientation::SW)));
+    }
+
+    #[test]
+    fn test_infinity() {
+        assert!(f32::INFINITY > 1000.0);
+        assert!(f32::INFINITY + 1000.0 == f32::INFINITY);
+        assert!(f32::INFINITY.is_infinite());
     }
 }

@@ -1,5 +1,5 @@
 use crate::layout_primitives::*;
-use bevy::prelude::*;
+use bevy::{diagnostic::LogDiagnosticsPlugin, prelude::*, utils::HashMap};
 use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource)]
@@ -7,6 +7,7 @@ pub struct Layout {
     // track_graph: UnGraphMap<TrackID, TrackConnection>,
     directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
+    markers: HashMap<LogicalTrackID, LogicalMarker>,
     pub scale: f32,
 }
 
@@ -76,6 +77,7 @@ impl Plugin for LayoutPlugin {
         app.insert_resource(Layout {
             directed_graph: DiGraphMap::new(),
             logical_graph: DiGraphMap::new(),
+            markers: HashMap::new(),
             scale: 40.0,
         });
         app.add_systems(Startup, print_sizes);
