@@ -224,18 +224,18 @@ impl Orientation {
 
     pub fn get_cardinal(&self, dir: TrackDirection) -> Cardinal {
         match dir {
-            TrackDirection::Forward => self.get_cardinals().0,
-            TrackDirection::Backward => self.get_cardinals().1,
+            TrackDirection::Aligned => self.get_cardinals().0,
+            TrackDirection::Misaligned => self.get_cardinals().1,
         }
     }
 
     pub fn get_direction_to(&self, cardinal: Cardinal) -> Option<TrackDirection> {
         let (card1, card2) = self.get_cardinals();
         if cardinal == card1 {
-            return Some(TrackDirection::Forward);
+            return Some(TrackDirection::Aligned);
         }
         if cardinal == card2 {
-            return Some(TrackDirection::Backward);
+            return Some(TrackDirection::Misaligned);
         }
         return None;
     }
@@ -246,6 +246,7 @@ pub enum ConnectionDirection {
     Backward,
 }
 
+#[derive(Debug)]
 pub struct TrackConnection {
     // DirectedTrackIDs point at each other to avoid bias
     // They are sorted according to track_a < track_b
@@ -286,8 +287,16 @@ impl TrackConnection {
             },
         }
     }
+
+    pub fn directed_connections(&self) -> [DirectedTrackConnection; 2] {
+        [
+            self.to_directed(ConnectionDirection::Forward),
+            self.to_directed(ConnectionDirection::Backward),
+        ]
+    }
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct DirectedTrackConnection {
     pub from_track: DirectedTrackID,
     pub to_track: DirectedTrackID,
@@ -313,21 +322,33 @@ enum Turn {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TrackDirection {
+pub enum Facing {
     Forward,
     Backward,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LogicalTrackID {
+    dirtrack: DirectedTrackID,
+    facing: Facing,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum TrackDirection {
+    Aligned,
+    Misaligned,
 }
 
 impl TrackDirection {
     pub fn opposite(&self) -> Self {
         match self {
-            TrackDirection::Forward => TrackDirection::Backward,
-            TrackDirection::Backward => TrackDirection::Forward,
+            TrackDirection::Aligned => TrackDirection::Misaligned,
+            TrackDirection::Misaligned => TrackDirection::Aligned,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct DirectedTrackID {
     track: TrackID,
     direction: TrackDirection,
@@ -371,6 +392,20 @@ impl DirectedTrackID {
         let end_pos = center_pos + self.get_delta_vec() * 0.2;
         // println!("{:?} {:?}", center_pos, end_pos);
         gizmos.line_2d(center_pos * scale, end_pos * scale, color);
+    }
+
+    pub fn get_logical(&self, facing: Facing) -> LogicalTrackID {
+        LogicalTrackID {
+            dirtrack: *self,
+            facing,
+        }
+    }
+
+    pub fn logical_tracks(&self) -> [LogicalTrackID; 2] {
+        [
+            self.get_logical(Facing::Forward),
+            self.get_logical(Facing::Backward),
+        ]
     }
 }
 
@@ -428,8 +463,8 @@ impl TrackID {
 
     pub fn dirtracks(&self) -> [DirectedTrackID; 2] {
         [
-            self.get_directed(TrackDirection::Forward),
-            self.get_directed(TrackDirection::Backward),
+            self.get_directed(TrackDirection::Aligned),
+            self.get_directed(TrackDirection::Misaligned),
         ]
     }
 }

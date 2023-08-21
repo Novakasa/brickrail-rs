@@ -6,6 +6,7 @@ use petgraph::graphmap::DiGraphMap;
 pub struct Layout {
     // track_graph: UnGraphMap<TrackID, TrackConnection>,
     directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
+    logical_graph: DiGraphMap<LogicalTrackID, ()>,
     pub scale: f32,
 }
 
@@ -13,24 +14,40 @@ impl Layout {
     pub fn add_track(&mut self, track: TrackID) {
         if self
             .directed_graph
-            .contains_node(track.get_directed(TrackDirection::Forward))
+            .contains_node(track.get_directed(TrackDirection::Aligned))
         {
             println!("track {:?} already exists", track);
             return;
         }
-        self.directed_graph
-            .add_node(track.get_directed(TrackDirection::Forward));
-        self.directed_graph
-            .add_node(track.get_directed(TrackDirection::Backward));
+
+        for dirtrack in track.dirtracks() {
+            self.directed_graph.add_node(dirtrack);
+            for logical_track in dirtrack.logical_tracks() {
+                self.logical_graph.add_node(logical_track);
+            }
+        }
     }
 
     pub fn connect_tracks(&mut self, connection: TrackConnection) {
-        let connect_a = connection.to_directed(ConnectionDirection::Forward);
-        self.directed_graph
-            .add_edge(connect_a.from_track, connect_a.to_track, connect_a);
-        let connect_b = connection.to_directed(ConnectionDirection::Backward);
-        self.directed_graph
-            .add_edge(connect_b.from_track, connect_b.to_track, connect_b);
+        let directed = connection.to_directed(ConnectionDirection::Forward);
+        if self
+            .directed_graph
+            .contains_edge(directed.from_track, directed.to_track)
+        {
+            println!("Connection already exists");
+            return;
+        }
+        for directed in connection.directed_connections() {
+            self.directed_graph
+                .add_edge(directed.from_track, directed.to_track, directed);
+            for facing in [Facing::Forward, Facing::Backward] {
+                self.logical_graph.add_edge(
+                    directed.from_track.get_logical(facing),
+                    directed.to_track.get_logical(facing),
+                    (),
+                );
+            }
+        }
     }
 }
 
@@ -58,6 +75,7 @@ impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Layout {
             directed_graph: DiGraphMap::new(),
+            logical_graph: DiGraphMap::new(),
             scale: 40.0,
         });
         app.add_systems(Startup, print_sizes);
