@@ -48,7 +48,7 @@ pub struct Marker {
     pub logicals: HashMap<(TrackDirection, Facing), LogicalMarker>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LogicalMarker {
     pub speed: MarkerSpeed,
     pub key: MarkerKey,
@@ -418,13 +418,7 @@ impl DirectedTrackConnection {
         if self.curve_index() != 0 {
             return 0.0;
         }
-        (self
-            .to_track
-            .interpolate_pos(-self.to_track.straight_length())
-            - self
-                .from_track
-                .interpolate_pos(self.from_track.straight_length()))
-        .length()
+        (self.from_track.straight_end() - self.to_track.opposite().straight_end()).length()
     }
 
     pub fn connection_length(&self) -> f32 {
