@@ -4,10 +4,9 @@ use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource)]
 pub struct Layout {
-    // track_graph: UnGraphMap<TrackID, TrackConnection>,
     directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
-    markers: HashMap<LogicalTrackID, LogicalMarker>,
+    markers: HashMap<TrackID, Marker>,
     pub scale: f32,
 }
 
@@ -49,6 +48,23 @@ impl Layout {
                 );
             }
         }
+    }
+
+    pub fn add_marker(&mut self, marker: Marker) {
+        for dirtrack in marker.track.dirtracks() {
+            for logical_track in dirtrack.logical_tracks() {
+                if let Some(logical_marker) = marker
+                    .logicals
+                    .get(&(dirtrack.direction, logical_track.facing))
+                {
+                    if logical_marker.key == MarkerKey::In {
+                        self.logical_graph
+                            .add_edge(logical_track, logical_track.reversed(), ());
+                    }
+                }
+            }
+        }
+        self.markers.insert(marker.track, marker);
     }
 }
 

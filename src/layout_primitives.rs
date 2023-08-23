@@ -1,35 +1,55 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use strum_macros::EnumIter;
 
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct Block {
-    start_track: TrackID,
-    end_track: TrackID,
+    track1: DirectedTrackID,
+    track2: DirectedTrackID,
 }
 
+impl Block {
+    pub fn new(track1: DirectedTrackID, track2: DirectedTrackID) -> Self {
+        if track2 < track1 {
+            Self::new(track2, track1)
+        } else {
+            Self { track1, track2 }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerKey {
-    Enter,
+    Enter(LogicalTrackID), // refer to in marker track
     In,
     None,
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerSpeed {
     Slow,
     Cruise,
     Fast,
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerColor {
+    Any,
     Red,
     Blue,
     Yellow,
     Green,
 }
 
+pub struct Marker {
+    pub track: TrackID,
+    pub color: MarkerColor,
+    pub logicals: HashMap<(TrackDirection, Facing), LogicalMarker>,
+}
+
+#[derive(Debug)]
 pub struct LogicalMarker {
-    logical_track: LogicalTrackID,
-    color: MarkerColor,
-    speed: MarkerSpeed,
-    key: MarkerKey,
+    pub speed: MarkerSpeed,
+    pub key: MarkerKey,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -352,7 +372,7 @@ enum Turn {
     Right,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Facing {
     Forward,
     Backward,
@@ -367,14 +387,14 @@ impl Facing {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct LogicalTrackID {
-    dirtrack: DirectedTrackID,
-    facing: Facing,
+    pub dirtrack: DirectedTrackID,
+    pub facing: Facing,
 }
 
 impl LogicalTrackID {
-    fn reversed(&self) -> LogicalTrackID {
+    pub fn reversed(&self) -> LogicalTrackID {
         LogicalTrackID {
             dirtrack: self.dirtrack.opposite(),
             facing: self.facing.opposite(),
@@ -399,8 +419,8 @@ impl TrackDirection {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct DirectedTrackID {
-    track: TrackID,
-    direction: TrackDirection,
+    pub track: TrackID,
+    pub direction: TrackDirection,
 }
 
 impl DirectedTrackID {
