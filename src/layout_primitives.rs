@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{prelude::*, utils::HashMap};
 use strum_macros::EnumIter;
 
@@ -290,6 +292,17 @@ impl Orientation {
         }
         return None;
     }
+
+    pub fn turn_index(&self) -> i32 {
+        match self {
+            Self::EW => 4,
+            Self::NE => 1,
+            Self::NS => 2,
+            Self::NW => 3,
+            Self::SE => 7,
+            Self::SW => 5,
+        }
+    }
 }
 
 pub enum ConnectionDirection {
@@ -362,6 +375,77 @@ impl DirectedTrackConnection {
         let start = self.from_track.get_center_vec2() + self.from_track.get_delta_vec() * 0.2;
         let end = self.to_track.get_center_vec2() - self.to_track.get_delta_vec() * 0.2;
         gizmos.line_2d(start * scale, end * scale, color);
+    }
+
+    fn curve_index(&self) -> i32 {
+        ((self.to_track.dir_index() - self.from_track.dir_index() + 12) % 8) - 4
+    }
+
+    fn curve_radius(&self) -> f32 {
+        match self.curve_index().abs() {
+            0 => 0.0,
+            1 => 0.5 + 0.25 * 2.0_f32.sqrt(),
+            2 => 0.25 * 2.0_f32.sqrt(),
+            i => panic!("invalid curve_index! {:?}", i),
+        }
+    }
+
+    fn curve_length(&self) -> f32 {
+        self.curve_radius() * self.curve_index().abs() as f32
+    }
+
+    fn curve_center(&self) -> Vec2 {
+        self.from_track.straight_end()
+            - self.from_track.normal() * self.curve_radius() * self.curve_index().signum() as f32
+    }
+
+    fn curve_delta_angle(&self) -> f32 {
+        -self.curve_index() as f32 * 0.25 * PI
+    }
+
+    fn curve_start_angle(&self) -> f32 {
+        let normal = self.from_track.normal() * self.curve_index() as f32;
+        normal.y.atan2(normal.x)
+    }
+
+    fn interpolate_curve(&self, dist: f32) -> Vec2 {
+        let angle =
+            self.curve_start_angle() + self.curve_delta_angle() * dist / self.curve_length();
+        self.curve_center() + Vec2::from_angle(angle) * self.curve_radius()
+    }
+
+    fn straight_length(&self) -> f32 {
+        if self.curve_index() != 0 {
+            return 0.0;
+        }
+        (self
+            .to_track
+            .interpolate_pos(-self.to_track.straight_length())
+            - self
+                .from_track
+                .interpolate_pos(self.from_track.straight_length()))
+        .length()
+    }
+
+    pub fn connection_length(&self) -> f32 {
+        self.from_track.straight_length()
+            + self.curve_length()
+            + self.to_track.straight_length()
+            + self.straight_length()
+    }
+
+    pub fn interpolate_pos(&self, dist: f32) -> Vec2 {
+        if dist < self.from_track.straight_length() {
+            return self.from_track.interpolate_pos(dist);
+        }
+
+        if dist - self.from_track.straight_length() < self.curve_length() {
+            return self.interpolate_curve(dist - self.from_track.straight_length());
+        }
+
+        return self
+            .to_track
+            .interpolate_pos(dist - self.connection_length());
     }
 }
 
@@ -456,6 +540,19 @@ impl DirectedTrackID {
         self.to_slot().get_vec2() - self.from_slot().get_vec2()
     }
 
+    pub fn tangent(&self) -> Vec2 {
+        self.get_delta_vec().normalize()
+    }
+
+    pub fn normal(&self) -> Vec2 {
+        let tangent = self.tangent();
+        Vec2::new(-tangent.y, tangent.x)
+    }
+
+    pub fn interpolate_pos(&self, dist: f32) -> Vec2 {
+        self.get_center_vec2() + self.tangent() * dist
+    }
+
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos, scale: f32, color: Color) {
         let center_pos = self.get_center_vec2();
         let end_pos = center_pos + self.get_delta_vec() * 0.2;
@@ -475,6 +572,25 @@ impl DirectedTrackID {
             self.get_logical(Facing::Forward),
             self.get_logical(Facing::Backward),
         ]
+    }
+
+    pub fn dir_index(&self) -> i32 {
+        match self.direction {
+            TrackDirection::Aligned => self.track.orientation.turn_index(),
+            TrackDirection::Misaligned => (self.track.orientation.turn_index() + 4) % 8,
+        }
+    }
+
+    fn straight_length(&self) -> f32 {
+        if self.dir_index() % 2 == 0 {
+            0.5 - 0.25 * 2.0_f32.sqrt()
+        } else {
+            0.0
+        }
+    }
+
+    fn straight_end(&self) -> Vec2 {
+        self.interpolate_pos(self.straight_length())
     }
 }
 

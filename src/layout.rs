@@ -68,14 +68,21 @@ impl Layout {
     }
 }
 
-fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>) {
+fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>, time: Res<Time>) {
     let scale = layout.scale;
+
+    let dist = time.elapsed_seconds() % 1.0;
     for track in layout.directed_graph.nodes() {
         track.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
     }
 
     for (_, _, connection) in layout.directed_graph.all_edges() {
+        if connection.from_track < connection.to_track {
+            continue;
+        }
         connection.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
+        let pos = connection.interpolate_pos(dist * connection.connection_length());
+        gizmos.circle_2d(pos * scale, 0.05 * scale, Color::GREEN);
     }
 }
 
