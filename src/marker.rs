@@ -4,7 +4,7 @@ use crate::layout_primitives::*;
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerKey {
-    Enter(LogicalTrackID), // refer to in marker track
+    Enter,
     In,
     None,
 }

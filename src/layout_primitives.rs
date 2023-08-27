@@ -11,6 +11,10 @@ pub struct BlockID {
     track2: DirectedTrackID,
 }
 
+pub struct LogicalBlock {
+    in_track: LogicalTrackID,
+}
+
 impl BlockID {
     pub fn new(track1: DirectedTrackID, track2: DirectedTrackID) -> Self {
         if track2 < track1 {

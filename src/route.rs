@@ -3,6 +3,14 @@ use bevy::utils::HashMap;
 use crate::layout_primitives::*;
 use crate::marker::*;
 
+pub enum TrainInstruction {
+    Stop,
+    Run {
+        flip_heading: bool,
+        speed: MarkerSpeed,
+    },
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum RouteStatus {
     Incomplete,
