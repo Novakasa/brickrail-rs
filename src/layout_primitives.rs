@@ -1,15 +1,17 @@
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use strum_macros::EnumIter;
 
+pub struct TrainID {}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub struct Block {
+pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
 }
 
-impl Block {
+impl BlockID {
     pub fn new(track1: DirectedTrackID, track2: DirectedTrackID) -> Self {
         if track2 < track1 {
             Self::new(track2, track1)
@@ -17,41 +19,6 @@ impl Block {
             Self { track1, track2 }
         }
     }
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum MarkerKey {
-    Enter(LogicalTrackID), // refer to in marker track
-    In,
-    None,
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum MarkerSpeed {
-    Slow,
-    Cruise,
-    Fast,
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum MarkerColor {
-    Any,
-    Red,
-    Blue,
-    Yellow,
-    Green,
-}
-
-pub struct Marker {
-    pub track: TrackID,
-    pub color: MarkerColor,
-    pub logicals: HashMap<(TrackDirection, Facing), LogicalMarker>,
-}
-
-#[derive(Debug, Clone)]
-pub struct LogicalMarker {
-    pub speed: MarkerSpeed,
-    pub key: MarkerKey,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -644,6 +611,16 @@ impl TrackID {
         [
             self.get_directed(TrackDirection::Aligned),
             self.get_directed(TrackDirection::Misaligned),
+        ]
+    }
+
+    pub fn logical_tracks(&self) -> [LogicalTrackID; 4] {
+        use {Facing::*, TrackDirection::*};
+        [
+            self.get_directed(Aligned).get_logical(Forward),
+            self.get_directed(Aligned).get_logical(Backward),
+            self.get_directed(Misaligned).get_logical(Forward),
+            self.get_directed(Misaligned).get_logical(Backward),
         ]
     }
 }

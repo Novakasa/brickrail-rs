@@ -1,4 +1,5 @@
 use crate::layout_primitives::*;
+use crate::marker::*;
 use bevy::{prelude::*, utils::HashMap};
 use petgraph::graphmap::DiGraphMap;
 
@@ -8,18 +9,11 @@ pub struct Layout {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
     markers: HashMap<TrackID, Marker>,
     pub scale: f32,
+    locked_tracks: HashMap<TrackID, TrainID>,
 }
 
 impl Layout {
     pub fn add_track(&mut self, track: TrackID) {
-        if self
-            .directed_graph
-            .contains_node(track.get_directed(TrackDirection::Aligned))
-        {
-            println!("track {:?} already exists", track);
-            return;
-        }
-
         for dirtrack in track.dirtracks() {
             self.directed_graph.add_node(dirtrack);
             for logical_track in dirtrack.logical_tracks() {
@@ -29,14 +23,6 @@ impl Layout {
     }
 
     pub fn connect_tracks(&mut self, connection: TrackConnection) {
-        let directed = connection.to_directed(ConnectionDirection::Forward);
-        if self
-            .directed_graph
-            .contains_edge(directed.from_track, directed.to_track)
-        {
-            println!("Connection already exists");
-            return;
-        }
         for directed in connection.directed_connections() {
             self.directed_graph
                 .add_edge(directed.from_track, directed.to_track, directed);
@@ -51,17 +37,11 @@ impl Layout {
     }
 
     pub fn add_marker(&mut self, marker: Marker) {
-        for dirtrack in marker.track.dirtracks() {
-            for logical_track in dirtrack.logical_tracks() {
-                if let Some(logical_marker) = marker
-                    .logicals
-                    .get(&(dirtrack.direction, logical_track.facing))
-                {
-                    if logical_marker.key == MarkerKey::In {
-                        self.logical_graph
-                            .add_edge(logical_track, logical_track.reversed(), ());
-                    }
-                }
+        for logical_track in marker.track.logical_tracks() {
+            let logical_marker = marker.collapse_logical(logical_track).unwrap();
+            if logical_marker.key == MarkerKey::In {
+                self.logical_graph
+                    .add_edge(logical_track, logical_track.reversed(), ());
             }
         }
         self.markers.insert(marker.track, marker);
@@ -102,6 +82,7 @@ impl Plugin for LayoutPlugin {
             logical_graph: DiGraphMap::new(),
             markers: HashMap::new(),
             scale: 40.0,
+            locked_tracks: HashMap::new(),
         });
         app.add_systems(Startup, print_sizes);
         app.add_systems(Update, draw_tracks);
