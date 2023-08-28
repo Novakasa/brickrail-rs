@@ -33,7 +33,7 @@ struct LogicalMarkerData {
 pub struct Marker {
     pub track: TrackID,
     pub color: MarkerColor,
-    logical_data: HashMap<(TrackDirection, Facing), LogicalMarkerData>,
+    logical_data: HashMap<LogicalTrackID, LogicalMarkerData>,
 }
 
 impl Marker {
@@ -41,10 +41,7 @@ impl Marker {
         if logical_track.dirtrack.track != self.track {
             return None;
         }
-        let logical = self
-            .logical_data
-            .get(&(logical_track.dirtrack.direction, logical_track.facing))
-            .unwrap();
+        let logical = self.logical_data.get(&logical_track).unwrap();
         return Some(LogicalMarker {
             track: logical_track,
             color: self.color,

@@ -3,13 +3,17 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-pub struct TrainID {}
+pub struct TrainID {
+    index: i32,
+}
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
 }
+
+impl BlockID {}
 
 pub struct LogicalBlock {
     in_track: LogicalTrackID,

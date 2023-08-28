@@ -1,15 +1,16 @@
 use crate::layout_primitives::*;
 use crate::marker::*;
+use bevy::utils::HashSet;
 use bevy::{prelude::*, utils::HashMap};
 use petgraph::graphmap::DiGraphMap;
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct Layout {
     directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
     markers: HashMap<TrackID, Marker>,
+    blocks: HashSet<BlockID>,
     pub scale: f32,
-    locked_tracks: HashMap<TrackID, TrainID>,
 }
 
 impl Layout {
@@ -78,11 +79,8 @@ pub struct LayoutPlugin {}
 impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Layout {
-            directed_graph: DiGraphMap::new(),
-            logical_graph: DiGraphMap::new(),
-            markers: HashMap::new(),
             scale: 40.0,
-            locked_tracks: HashMap::new(),
+            ..Default::default()
         });
         app.add_systems(Startup, print_sizes);
         app.add_systems(Update, draw_tracks);
