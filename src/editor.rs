@@ -1,9 +1,25 @@
 use crate::layout::Layout;
 use crate::layout_primitives::*;
+use crate::section::TrackSection;
 use crate::utils::bresenham_line;
 use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
+
+#[derive(Default)]
+enum Selection {
+    #[default]
+    None,
+    Tracks(TrackSection),
+    Block(BlockID),
+    Train(TrainID),
+    Switch(DirectedTrackID),
+}
+
+#[derive(Resource, Default)]
+struct EditorSelection {
+    selection: Selection,
+}
 
 #[derive(Resource, Default)]
 struct TrackBuildState {

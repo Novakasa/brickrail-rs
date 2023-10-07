@@ -116,7 +116,7 @@ impl RouteLeg {
             LegStatus::Completed => true,
             LegStatus::Running(index) => {
                 for (i, marker) in self.markers.iter().enumerate().rev() {
-                    if marker.key == MarkerKey::Enter {
+                    if let MarkerKey::Enter(_) = marker.key {
                         return false;
                     }
                     if i == index {

@@ -4,8 +4,8 @@ use crate::layout_primitives::*;
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerKey {
-    Enter,
-    In,
+    Enter(LogicalBlockID),
+    In(LogicalBlockID),
     None,
 }
 

@@ -40,7 +40,7 @@ impl Layout {
     pub fn add_marker(&mut self, marker: Marker) {
         for logical_track in marker.track.logical_tracks() {
             let logical_marker = marker.collapse_logical(logical_track).unwrap();
-            if logical_marker.key == MarkerKey::In {
+            if let MarkerKey::In(_) = logical_marker.key {
                 self.logical_graph
                     .add_edge(logical_track, logical_track.reversed(), ());
             }

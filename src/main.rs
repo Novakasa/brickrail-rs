@@ -5,6 +5,7 @@ mod layout;
 mod layout_primitives;
 mod marker;
 mod route;
+mod section;
 mod utils;
 
 use editor::EditorPlugin;

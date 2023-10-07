@@ -15,8 +15,11 @@ pub struct BlockID {
 
 impl BlockID {}
 
-pub struct LogicalBlock {
-    in_track: LogicalTrackID,
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub struct LogicalBlockID {
+    block: BlockID,
+    direction: TrackDirection,
+    facing: Facing,
 }
 
 impl BlockID {
@@ -452,6 +455,10 @@ impl LogicalTrackID {
             dirtrack: self.dirtrack.opposite(),
             facing: self.facing.opposite(),
         }
+    }
+
+    pub fn track(&self) -> TrackID {
+        self.dirtrack.track
     }
 }
 
