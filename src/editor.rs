@@ -6,10 +6,9 @@ use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 
-#[derive(Default)]
-enum Selection {
-    #[default]
-    None,
+enum GenericRef {
+    Cell(CellID),
+    Track(TrackID),
     Tracks(TrackSection),
     Block(BlockID),
     Train(TrainID),
@@ -17,8 +16,14 @@ enum Selection {
 }
 
 #[derive(Resource, Default)]
-struct EditorSelection {
-    selection: Selection,
+struct SelectionState {
+    selection: Option<GenericRef>,
+    drag_select: bool,
+}
+
+#[derive(Resource, Default)]
+struct HoverState {
+    hover: Option<GenericRef>,
 }
 
 #[derive(Resource, Default)]
@@ -28,13 +33,14 @@ struct TrackBuildState {
 }
 
 impl TrackBuildState {
-    fn build(&mut self, layout: &mut Layout) {
+    fn build(&mut self, layout: &mut Layout, commands: &mut Commands) {
         while self.hover_cells.len() > 2 {
             if let Some(track) = TrackID::from_cells(
                 self.hover_cells[0],
                 self.hover_cells[1],
                 self.hover_cells[2],
             ) {
+                commands.spawn(Selectable::new(GenericRef::Track(track)));
                 layout.add_track(track);
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection) = track_b.get_connection_to(track) {
@@ -48,9 +54,20 @@ impl TrackBuildState {
     }
 }
 
+#[derive(Component)]
+struct Selectable {
+    ref_id: GenericRef,
+}
+
+impl Selectable {
+    pub fn new(ref_id: GenericRef) -> Self {
+        Self { ref_id: ref_id }
+    }
+}
+
 fn spawn_camera(mut commands: Commands) {
     let pancam = PanCam {
-        grab_buttons: vec![MouseButton::Middle, MouseButton::Left],
+        grab_buttons: vec![MouseButton::Middle],
         ..default()
     };
     commands
@@ -85,6 +102,7 @@ fn update_draw_track(
     mut layout: ResMut<Layout>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
+    mut commands: Commands,
 ) {
     let last_cell = track_build_state.hover_cells.last();
     if last_cell.is_none() {
@@ -96,7 +114,7 @@ fn update_draw_track(
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);
         // println!("{:?}", track_build_state.hover_cells);
-        track_build_state.build(&mut layout);
+        track_build_state.build(&mut layout, &mut commands);
     }
 }
 
@@ -129,6 +147,15 @@ fn draw_build_cells(
     }
 }
 
+fn init_select(
+    buttons: Res<Input<MouseButton>>,
+    mut mouse_world_pos: ResMut<MousePosWorld>,
+    q_selectable: Query<Entity, &Selectable>,
+    selection_state: Res<SelectionState>,
+) {
+    if buttons.just_pressed(MouseButton::Left) {}
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -136,6 +163,8 @@ impl Plugin for EditorPlugin {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.insert_resource(TrackBuildState::default());
+        app.insert_resource(HoverState::default());
+        app.insert_resource(SelectionState::default());
         app.add_systems(Startup, spawn_camera);
         app.add_systems(
             Update,
@@ -144,6 +173,7 @@ impl Plugin for EditorPlugin {
                 exit_draw_track,
                 update_draw_track,
                 draw_build_cells,
+                init_select,
             ),
         );
     }

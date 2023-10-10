@@ -8,18 +8,15 @@ pub struct TrainID {
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub enum BlockDirection {
+    Aligned,
+    Misaligned,
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
-}
-
-impl BlockID {}
-
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub struct LogicalBlockID {
-    block: BlockID,
-    direction: TrackDirection,
-    facing: Facing,
 }
 
 impl BlockID {
@@ -30,6 +27,13 @@ impl BlockID {
             Self { track1, track2 }
         }
     }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub struct LogicalBlockID {
+    block: BlockID,
+    direction: BlockDirection,
+    facing: Facing,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
