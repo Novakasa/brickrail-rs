@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.11.1", features = ["dynamic_linking", "serialize"] }
+bevy-inspector-egui = "0.20.0"
 bevy_framepace = "0.13.3"
 bevy_mouse_tracking_plugin = "0.6.0"
 bevy_pancam = "0.9.0"

@@ -3,27 +3,36 @@ use crate::layout_primitives::*;
 use crate::section::TrackSection;
 use crate::utils::bresenham_line;
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 
-enum GenericRef {
+#[derive(Component)]
+enum GenericID {
     Cell(CellID),
     Track(TrackID),
-    Tracks(TrackSection),
     Block(BlockID),
     Train(TrainID),
     Switch(DirectedTrackID),
 }
 
+#[derive(Default)]
+enum Selection {
+    #[default]
+    None,
+    Single(GenericID),
+    Multi(Vec<GenericID>),
+}
+
 #[derive(Resource, Default)]
 struct SelectionState {
-    selection: Option<GenericRef>,
+    selection: Selection,
     drag_select: bool,
 }
 
 #[derive(Resource, Default)]
 struct HoverState {
-    hover: Option<GenericRef>,
+    hover: Option<GenericID>,
 }
 
 #[derive(Resource, Default)]
@@ -35,19 +44,19 @@ struct TrackBuildState {
 impl TrackBuildState {
     fn build(&mut self, layout: &mut Layout, commands: &mut Commands) {
         while self.hover_cells.len() > 2 {
-            if let Some(track) = TrackID::from_cells(
+            if let Some(track_id) = TrackID::from_cells(
                 self.hover_cells[0],
                 self.hover_cells[1],
                 self.hover_cells[2],
             ) {
-                commands.spawn(Selectable::new(GenericRef::Track(track)));
-                layout.add_track(track);
+                commands.spawn(TrackBundle::new(track_id));
+                layout.add_track(track_id);
                 if let Some(track_b) = self.hover_track {
-                    if let Some(connection) = track_b.get_connection_to(track) {
+                    if let Some(connection) = track_b.get_connection_to(track_id) {
                         layout.connect_tracks(connection);
                     }
                 }
-                self.hover_track = Some(track);
+                self.hover_track = Some(track_id);
             }
             self.hover_cells.remove(0);
         }
@@ -55,13 +64,27 @@ impl TrackBuildState {
 }
 
 #[derive(Component)]
-struct Selectable {
-    ref_id: GenericRef,
+struct Track {
+    id: TrackID,
 }
 
-impl Selectable {
-    pub fn new(ref_id: GenericRef) -> Self {
-        Self { ref_id: ref_id }
+#[derive(Component, Default)]
+struct Selectable {}
+
+#[derive(Bundle)]
+struct TrackBundle {
+    selectable: Selectable,
+    track: Track,
+    id: GenericID,
+}
+
+impl TrackBundle {
+    pub fn new(track_id: TrackID) -> Self {
+        Self {
+            id: GenericID::Track(track_id),
+            track: Track { id: track_id },
+            selectable: Selectable::default(),
+        }
     }
 }
 
@@ -150,7 +173,7 @@ fn draw_build_cells(
 fn init_select(
     buttons: Res<Input<MouseButton>>,
     mut mouse_world_pos: ResMut<MousePosWorld>,
-    q_selectable: Query<Entity, &Selectable>,
+    q_selectable: Query<Entity, &GenericID>,
     selection_state: Res<SelectionState>,
 ) {
     if buttons.just_pressed(MouseButton::Left) {}
@@ -162,6 +185,7 @@ impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
+        app.add_plugins(WorldInspectorPlugin::default());
         app.insert_resource(TrackBuildState::default());
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
