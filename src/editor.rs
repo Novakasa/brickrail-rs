@@ -69,13 +69,16 @@ struct Track {
 }
 
 #[derive(Component, Default)]
-struct Selectable {}
+struct Selectable {
+    selected: bool,
+}
 
 #[derive(Bundle)]
 struct TrackBundle {
     selectable: Selectable,
     track: Track,
     id: GenericID,
+    name: Name,
 }
 
 impl TrackBundle {
@@ -84,6 +87,7 @@ impl TrackBundle {
             id: GenericID::Track(track_id),
             track: Track { id: track_id },
             selectable: Selectable::default(),
+            name: Name::new(format!("{:}", track_id)),
         }
     }
 }

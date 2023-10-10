@@ -1,7 +1,8 @@
+use core::fmt;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter};
 
 pub struct TrainID {
     index: i32,
@@ -641,6 +642,16 @@ impl TrackID {
             self.get_directed(Misaligned).get_logical(Forward),
             self.get_directed(Misaligned).get_logical(Backward),
         ]
+    }
+}
+
+impl fmt::Display for TrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "T({},{},{},{:?})",
+            self.cell.x, self.cell.y, self.cell.l, self.orientation
+        )
     }
 }
 
