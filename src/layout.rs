@@ -14,6 +14,15 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn has_track(&self, track: TrackID) -> bool {
+        for logical_track in track.logical_tracks() {
+            if self.logical_graph.contains_node(logical_track) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn add_track(&mut self, track: TrackID) {
         for dirtrack in track.dirtracks() {
             self.directed_graph.add_node(dirtrack);
