@@ -4,6 +4,8 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use strum_macros::{Display, EnumIter};
 
+use crate::utils::distance_to_segment;
+
 pub struct TrainID {
     index: i32,
 }
@@ -22,7 +24,7 @@ pub struct BlockID {
 
 impl BlockID {
     pub fn new(track1: DirectedTrackID, track2: DirectedTrackID) -> Self {
-        if track2 < track1 {
+        if track2.cell() < track1.cell() {
             Self::new(track2, track1)
         } else {
             Self { track1, track2 }
@@ -293,15 +295,15 @@ pub enum ConnectionDirection {
     Backward,
 }
 
-#[derive(Debug)]
-pub struct TrackConnection {
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub struct TrackConnectionID {
     // DirectedTrackIDs point at each other to avoid bias
     // They are sorted according to track_a < track_b
     track_a: DirectedTrackID,
     track_b: DirectedTrackID,
 }
 
-impl TrackConnection {
+impl TrackConnectionID {
     pub fn new(track_a: DirectedTrackID, track_b: DirectedTrackID) -> Self {
         if track_a < track_b {
             Self { track_a, track_b }
@@ -322,34 +324,47 @@ impl TrackConnection {
         self.track_a.to_slot() == self.track_b.to_slot()
     }
 
-    pub fn to_directed(&self, dir: ConnectionDirection) -> DirectedTrackConnection {
+    pub fn to_directed(&self, dir: ConnectionDirection) -> DirectedTrackConnectionID {
         match dir {
-            ConnectionDirection::Forward => DirectedTrackConnection {
+            ConnectionDirection::Forward => DirectedTrackConnectionID {
                 from_track: self.track_a,
                 to_track: self.track_b.opposite(),
             },
-            ConnectionDirection::Backward => DirectedTrackConnection {
+            ConnectionDirection::Backward => DirectedTrackConnectionID {
                 from_track: self.track_b,
                 to_track: self.track_a.opposite(),
             },
         }
     }
 
-    pub fn directed_connections(&self) -> [DirectedTrackConnection; 2] {
+    pub fn directed_connections(&self) -> [DirectedTrackConnectionID; 2] {
         [
             self.to_directed(ConnectionDirection::Forward),
             self.to_directed(ConnectionDirection::Backward),
         ]
     }
+
+    pub fn logical_connections(&self) -> [LogicalTrackConnectionID; 4] {
+        [
+            self.to_directed(ConnectionDirection::Forward)
+                .to_logical(Facing::Forward),
+            self.to_directed(ConnectionDirection::Forward)
+                .to_logical(Facing::Backward),
+            self.to_directed(ConnectionDirection::Backward)
+                .to_logical(Facing::Forward),
+            self.to_directed(ConnectionDirection::Backward)
+                .to_logical(Facing::Backward),
+        ]
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub struct DirectedTrackConnection {
+pub struct DirectedTrackConnectionID {
     pub from_track: DirectedTrackID,
     pub to_track: DirectedTrackID,
 }
 
-impl DirectedTrackConnection {
+impl DirectedTrackConnectionID {
     pub fn is_continuous(&self) -> bool {
         self.from_track.to_slot() == self.to_track.from_slot()
     }
@@ -423,6 +438,28 @@ impl DirectedTrackConnection {
         return self
             .to_track
             .interpolate_pos(dist - self.connection_length());
+    }
+
+    pub fn to_logical(&self, facing: Facing) -> LogicalTrackConnectionID {
+        LogicalTrackConnectionID {
+            from_track: self.from_track.get_logical(facing),
+            to_track: self.to_track.get_logical(facing),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub struct LogicalTrackConnectionID {
+    pub from_track: LogicalTrackID,
+    pub to_track: LogicalTrackID,
+}
+
+impl LogicalTrackConnectionID {
+    pub fn to_directed(&self) -> DirectedTrackConnectionID {
+        DirectedTrackConnectionID {
+            from_track: self.from_track.dirtrack,
+            to_track: self.to_track.dirtrack,
+        }
     }
 }
 
@@ -617,11 +654,11 @@ impl TrackID {
         })
     }
 
-    pub fn get_connection_to(&self, other: TrackID) -> Option<TrackConnection> {
+    pub fn get_connection_to(&self, other: TrackID) -> Option<TrackConnectionID> {
         let cardinal = self.cell.cardinal_to(&other.cell)?;
         let track1 = self.get_directed_to_cardinal(cardinal)?;
         let track2 = other.get_directed_to_cardinal(cardinal.opposite())?;
-        Some(TrackConnection {
+        Some(TrackConnectionID {
             track_a: track1,
             track_b: track2,
         })
@@ -642,6 +679,15 @@ impl TrackID {
             self.get_directed(Misaligned).get_logical(Forward),
             self.get_directed(Misaligned).get_logical(Backward),
         ]
+    }
+
+    pub fn distance_to(&self, normalized_pos: Vec2) -> f32 {
+        let directed = self.get_directed(TrackDirection::Aligned);
+        distance_to_segment(
+            normalized_pos,
+            directed.from_slot().get_vec2(),
+            directed.to_slot().get_vec2(),
+        )
     }
 }
 

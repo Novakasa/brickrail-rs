@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
+use bevy_prototype_lyon::prelude::*;
 
 #[derive(Component)]
 enum GenericID {
@@ -54,8 +55,11 @@ impl TrackBuildState {
                     layout.add_track(track_id);
                 }
                 if let Some(track_b) = self.hover_track {
-                    if let Some(connection) = track_b.get_connection_to(track_id) {
-                        layout.connect_tracks(connection);
+                    if let Some(connection_id) = track_b.get_connection_to(track_id) {
+                        if !layout.has_connection_simple(&connection_id) {
+                            // commands.spawn(TrackConnectionBundle::new(connection_id));
+                            layout.connect_tracks_simple(&connection_id);
+                        }
                     }
                 }
                 self.hover_track = Some(track_id);
@@ -66,29 +70,51 @@ impl TrackBuildState {
 }
 
 #[derive(Component)]
+struct TrackConnection {
+    id: TrackConnectionID,
+}
+
+#[derive(Component)]
 struct Track {
     id: TrackID,
 }
 
-#[derive(Component, Default)]
+#[derive(Component)]
 struct Selectable {
     selected: bool,
+    hover: bool,
+    id: GenericID,
+}
+
+impl Selectable {
+    pub fn new(id: GenericID) -> Self {
+        Self {
+            selected: false,
+            hover: false,
+            id: id,
+        }
+    }
+
+    fn signed_distance(&self, normalized_pos: Vec2) -> f32 {
+        match self.id {
+            GenericID::Track(track_id) => track_id.distance_to(normalized_pos) - 0.4,
+            _ => 10.0,
+        }
+    }
 }
 
 #[derive(Bundle)]
 struct TrackBundle {
     selectable: Selectable,
     track: Track,
-    id: GenericID,
     name: Name,
 }
 
 impl TrackBundle {
     pub fn new(track_id: TrackID) -> Self {
         Self {
-            id: GenericID::Track(track_id),
             track: Track { id: track_id },
-            selectable: Selectable::default(),
+            selectable: Selectable::new(GenericID::Track(track_id)),
             name: Name::new(format!("{:}", track_id)),
         }
     }
@@ -178,11 +204,13 @@ fn draw_build_cells(
 
 fn init_select(
     buttons: Res<Input<MouseButton>>,
-    mut mouse_world_pos: ResMut<MousePosWorld>,
-    q_selectable: Query<Entity, &GenericID>,
+    mouse_world_pos: Res<MousePosWorld>,
+    mut q_selectable: Query<&mut Selectable>,
     selection_state: Res<SelectionState>,
 ) {
-    if buttons.just_pressed(MouseButton::Left) {}
+    if buttons.just_pressed(MouseButton::Left) {
+        for selectable in q_selectable.iter_mut() {}
+    }
 }
 
 pub struct EditorPlugin;
@@ -192,6 +220,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.add_plugins(WorldInspectorPlugin::default());
+        app.add_plugins(ShapePlugin);
         app.insert_resource(TrackBuildState::default());
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());

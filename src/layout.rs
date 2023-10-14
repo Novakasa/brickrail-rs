@@ -6,7 +6,6 @@ use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource, Default)]
 pub struct Layout {
-    directed_graph: DiGraphMap<DirectedTrackID, DirectedTrackConnection>,
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
     markers: HashMap<TrackID, Marker>,
     blocks: HashSet<BlockID>,
@@ -25,24 +24,28 @@ impl Layout {
 
     pub fn add_track(&mut self, track: TrackID) {
         for dirtrack in track.dirtracks() {
-            self.directed_graph.add_node(dirtrack);
             for logical_track in dirtrack.logical_tracks() {
                 self.logical_graph.add_node(logical_track);
             }
         }
     }
 
-    pub fn connect_tracks(&mut self, connection: TrackConnection) {
-        for directed in connection.directed_connections() {
-            self.directed_graph
-                .add_edge(directed.from_track, directed.to_track, directed);
-            for facing in [Facing::Forward, Facing::Backward] {
-                self.logical_graph.add_edge(
-                    directed.from_track.get_logical(facing),
-                    directed.to_track.get_logical(facing),
-                    (),
-                );
+    pub fn has_connection_simple(&self, connection: &TrackConnectionID) -> bool {
+        for logical in connection.logical_connections() {
+            if self
+                .logical_graph
+                .contains_edge(logical.from_track, logical.to_track)
+            {
+                return true;
             }
+        }
+        return false;
+    }
+
+    pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
+        for logical in connection.logical_connections() {
+            self.logical_graph
+                .add_edge(logical.from_track, logical.to_track, ());
         }
     }
 
@@ -58,18 +61,22 @@ impl Layout {
     }
 }
 
-fn draw_tracks(mut gizmos: Gizmos, layout: Res<Layout>, time: Res<Time>) {
+fn draw_layout_graph(mut gizmos: Gizmos, layout: Res<Layout>, time: Res<Time>) {
     let scale = layout.scale;
 
     let dist = time.elapsed_seconds() % 1.0;
-    for track in layout.directed_graph.nodes() {
-        track.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
+    for track in layout.logical_graph.nodes() {
+        track
+            .dirtrack
+            .draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
     }
 
-    for (_, _, connection) in layout.directed_graph.all_edges() {
-        if connection.from_track < connection.to_track {
-            continue;
+    for (from_track, to_track, _) in layout.logical_graph.all_edges() {
+        let connection = LogicalTrackConnectionID {
+            from_track,
+            to_track,
         }
+        .to_directed();
         connection.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
         let pos = connection.interpolate_pos(dist * connection.connection_length());
         gizmos.circle_2d(pos * scale, 0.05 * scale, Color::GREEN);
@@ -80,7 +87,7 @@ fn print_sizes() {
     println!("{:?}", std::mem::size_of::<CellID>());
     println!("{:?}", std::mem::size_of::<TrackID>());
     println!("{:?}", std::mem::size_of::<DirectedTrackID>());
-    println!("{:?}", std::mem::size_of::<DirectedTrackConnection>());
+    println!("{:?}", std::mem::size_of::<DirectedTrackConnectionID>());
 }
 
 pub struct LayoutPlugin {}
@@ -92,6 +99,6 @@ impl Plugin for LayoutPlugin {
             ..Default::default()
         });
         app.add_systems(Startup, print_sizes);
-        app.add_systems(Update, draw_tracks);
+        app.add_systems(Update, draw_layout_graph);
     }
 }
