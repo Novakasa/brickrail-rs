@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_prototype_lyon::prelude::*;
+use bevy_prototype_lyon::{path, prelude::*};
 
 #[derive(Component)]
 enum GenericID {
@@ -57,7 +57,7 @@ impl TrackBuildState {
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !layout.has_connection_simple(&connection_id) {
-                            // commands.spawn(TrackConnectionBundle::new(connection_id));
+                            commands.spawn(TrackConnectionBundle::new(connection_id));
                             layout.connect_tracks_simple(&connection_id);
                         }
                     }
@@ -72,6 +72,42 @@ impl TrackBuildState {
 #[derive(Component)]
 struct TrackConnection {
     id: TrackConnectionID,
+}
+
+impl TrackConnection {
+    pub fn new(id: TrackConnectionID) -> Self {
+        Self { id: id }
+    }
+}
+
+#[derive(Bundle)]
+struct TrackConnectionBundle {
+    connection: TrackConnection,
+    shape: ShapeBundle,
+    stroke: Stroke,
+}
+
+impl TrackConnectionBundle {
+    pub fn new(id: TrackConnectionID) -> Self {
+        let position = id.track_a().cell().get_vec2() * 40.0;
+        let path_dirtrack = id.to_directed(ConnectionDirection::Forward);
+        let mut path_builder = PathBuilder::new();
+        let length = path_dirtrack.connection_length();
+        path_builder.move_to(path_dirtrack.interpolate_pos(0.0) * 40.0);
+        for i in 1..11 {
+            let dist = i as f32 * length / 10.0;
+            path_builder.line_to(path_dirtrack.interpolate_pos(dist) * 40.0);
+        }
+
+        Self {
+            connection: TrackConnection::new(id),
+            shape: ShapeBundle {
+                path: path_builder.build(),
+                ..default()
+            },
+            stroke: Stroke::new(Color::BLUE, 10.0),
+        }
+    }
 }
 
 #[derive(Component)]
