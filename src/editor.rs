@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_prototype_lyon::{path, prelude::*};
+use bevy_prototype_lyon::prelude::*;
 
 #[derive(Component)]
 enum GenericID {
@@ -83,7 +83,7 @@ impl TrackConnection {
 #[derive(Bundle)]
 struct TrackConnectionBundle {
     connection: TrackConnection,
-    shape: ShapeBundle,
+    base_shape: ShapeBundle,
     stroke: Stroke,
 }
 
@@ -94,18 +94,23 @@ impl TrackConnectionBundle {
         let mut path_builder = PathBuilder::new();
         let length = path_dirtrack.connection_length();
         path_builder.move_to(path_dirtrack.interpolate_pos(0.0) * 40.0);
-        for i in 1..11 {
-            let dist = i as f32 * length / 10.0;
+        let num_segments = 5;
+        for i in 1..(num_segments + 1) {
+            let dist = i as f32 * length / num_segments as f32;
             path_builder.line_to(path_dirtrack.interpolate_pos(dist) * 40.0);
         }
 
+        let path = path_builder.build();
+
         Self {
             connection: TrackConnection::new(id),
-            shape: ShapeBundle {
-                path: path_builder.build(),
-                ..default()
+            base_shape: ShapeBundle { path, ..default() },
+            stroke: Stroke {
+                color: Color::WHITE,
+                options: StrokeOptions::default()
+                    .with_line_width(10.0)
+                    .with_line_cap(LineCap::Round),
             },
-            stroke: Stroke::new(Color::BLUE, 10.0),
         }
     }
 }
