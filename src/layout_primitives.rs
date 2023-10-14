@@ -321,7 +321,11 @@ impl TrackConnectionID {
     }
 
     pub fn is_continuous(&self) -> bool {
-        self.track_a.to_slot() == self.track_b.to_slot()
+        self.track_a.to_slot() == self.track_b.to_slot() && !self.flips_facing()
+    }
+
+    pub fn flips_facing(&self) -> bool {
+        self.track_a == self.track_b
     }
 
     pub fn to_directed(&self, dir: ConnectionDirection) -> DirectedTrackConnectionID {
@@ -366,7 +370,11 @@ pub struct DirectedTrackConnectionID {
 
 impl DirectedTrackConnectionID {
     pub fn is_continuous(&self) -> bool {
-        self.from_track.to_slot() == self.to_track.from_slot()
+        self.from_track.to_slot() == self.to_track.from_slot() && !self.flips_facing()
+    }
+
+    pub fn flips_facing(&self) -> bool {
+        self.from_track == self.to_track.opposite()
     }
 
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos, scale: f32, color: Color) {
@@ -440,10 +448,15 @@ impl DirectedTrackConnectionID {
             .interpolate_pos(dist - self.connection_length());
     }
 
-    pub fn to_logical(&self, facing: Facing) -> LogicalTrackConnectionID {
+    pub fn to_logical(&self, from_facing: Facing) -> LogicalTrackConnectionID {
+        let to_facing = if self.flips_facing() {
+            from_facing.opposite()
+        } else {
+            from_facing
+        };
         LogicalTrackConnectionID {
-            from_track: self.from_track.get_logical(facing),
-            to_track: self.to_track.get_logical(facing),
+            from_track: self.from_track.get_logical(from_facing),
+            to_track: self.to_track.get_logical(to_facing),
         }
     }
 }
