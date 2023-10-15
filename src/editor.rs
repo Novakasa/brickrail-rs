@@ -42,6 +42,20 @@ struct TrackBuildState {
     hover_track: Option<TrackID>,
 }
 
+fn build_connection_path(connection: TrackConnectionID) -> Path {
+    let dirconnection = connection.to_directed(ConnectionDirection::Forward);
+    let mut path_builder = PathBuilder::new();
+    let length = dirconnection.connection_length();
+    path_builder.move_to(dirconnection.interpolate_pos(0.0) * 40.0);
+    let num_segments = 5;
+    for i in 1..(num_segments + 1) {
+        let dist = i as f32 * length / num_segments as f32;
+        path_builder.line_to(dirconnection.interpolate_pos(dist) * 40.0);
+    }
+
+    path_builder.build()
+}
+
 impl TrackBuildState {
     fn build(&mut self, layout: &mut Layout, commands: &mut Commands) {
         while self.hover_cells.len() > 2 {
@@ -57,7 +71,13 @@ impl TrackBuildState {
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !layout.has_connection_simple(&connection_id) {
-                            commands.spawn(TrackConnectionBundle::new(connection_id));
+                            let base_shape =
+                                TrackBaseShape::new(connection_id, Color::WHITE, 10.0, 5.0);
+                            let inner_shape =
+                                TrackBaseShape::new(connection_id, Color::BLACK, 6.0, 10.0);
+                            commands.spawn(base_shape).with_children(|base| {
+                                base.spawn(inner_shape);
+                            });
                             layout.connect_tracks_simple(&connection_id);
                         }
                     }
@@ -81,34 +101,25 @@ impl TrackConnection {
 }
 
 #[derive(Bundle)]
-struct TrackConnectionBundle {
-    connection: TrackConnection,
-    base_shape: ShapeBundle,
+struct TrackBaseShape {
+    shape: ShapeBundle,
     stroke: Stroke,
 }
 
-impl TrackConnectionBundle {
-    pub fn new(id: TrackConnectionID) -> Self {
+impl TrackBaseShape {
+    pub fn new(id: TrackConnectionID, color: Color, width: f32, z: f32) -> Self {
         let position = id.track_a().cell().get_vec2() * 40.0;
-        let path_dirtrack = id.to_directed(ConnectionDirection::Forward);
-        let mut path_builder = PathBuilder::new();
-        let length = path_dirtrack.connection_length();
-        path_builder.move_to(path_dirtrack.interpolate_pos(0.0) * 40.0);
-        let num_segments = 5;
-        for i in 1..(num_segments + 1) {
-            let dist = i as f32 * length / num_segments as f32;
-            path_builder.line_to(path_dirtrack.interpolate_pos(dist) * 40.0);
-        }
-
-        let path = path_builder.build();
 
         Self {
-            connection: TrackConnection::new(id),
-            base_shape: ShapeBundle { path, ..default() },
+            shape: ShapeBundle {
+                path: build_connection_path(id),
+                transform: Transform::from_xyz(0.0, 0.0, z),
+                ..default()
+            },
             stroke: Stroke {
-                color: Color::WHITE,
+                color,
                 options: StrokeOptions::default()
-                    .with_line_width(10.0)
+                    .with_line_width(width)
                     .with_line_cap(LineCap::Round),
             },
         }

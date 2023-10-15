@@ -99,6 +99,6 @@ impl Plugin for LayoutPlugin {
             ..Default::default()
         });
         app.add_systems(Startup, print_sizes);
-        app.add_systems(Update, draw_layout_graph);
+        // app.add_systems(Update, draw_layout_graph);
     }
 }
