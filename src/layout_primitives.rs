@@ -383,7 +383,7 @@ impl DirectedTrackConnectionID {
         gizmos.line_2d(start * scale, end * scale, color);
     }
 
-    fn curve_index(&self) -> i32 {
+    pub fn curve_index(&self) -> i32 {
         ((self.to_track.dir_index() - self.from_track.dir_index() + 12) % 8) - 4
     }
 

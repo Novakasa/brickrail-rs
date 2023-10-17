@@ -47,7 +47,10 @@ fn build_connection_path(connection: TrackConnectionID) -> Path {
     let mut path_builder = PathBuilder::new();
     let length = dirconnection.connection_length();
     path_builder.move_to(dirconnection.interpolate_pos(0.0) * 40.0);
-    let num_segments = 5;
+    let num_segments = match dirconnection.curve_index() {
+        0 => 1,
+        _ => 10,
+    };
     for i in 1..(num_segments + 1) {
         let dist = i as f32 * length / num_segments as f32;
         path_builder.line_to(dirconnection.interpolate_pos(dist) * 40.0);
@@ -269,6 +272,7 @@ pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(Msaa::Sample8);
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.add_plugins(WorldInspectorPlugin::default());
