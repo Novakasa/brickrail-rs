@@ -6,6 +6,7 @@ use strum_macros::{Display, EnumIter};
 
 use crate::utils::distance_to_segment;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TrainID {
     index: i32,
 }

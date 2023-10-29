@@ -8,7 +8,7 @@ use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum GenericID {
     Cell(CellID),
     Track(TrackID),
@@ -78,9 +78,8 @@ impl TrackBuildState {
                                 TrackBaseShape::new(connection_id, Color::WHITE, 10.0, 5.0);
                             let inner_shape =
                                 TrackBaseShape::new(connection_id, Color::BLACK, 6.0, 10.0);
-                            commands.spawn(base_shape).with_children(|base| {
-                                base.spawn(inner_shape);
-                            });
+                            commands.spawn((TrackConnection::new(connection_id), base_shape));
+                            commands.spawn((TrackConnection::new(connection_id), inner_shape));
                             layout.connect_tracks_simple(&connection_id);
                         }
                     }
@@ -257,6 +256,40 @@ fn draw_build_cells(
     }
 }
 
+fn update_hover(
+    mouse_world_pos: Res<MousePosWorld>,
+    mut q_selectable: Query<&mut Selectable>,
+    mut hover_state: ResMut<HoverState>,
+) {
+    let mut min_dist = f32::INFINITY;
+    for mut selectable in q_selectable.iter_mut() {
+        let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
+        // println!("{:}", dist);
+        if dist < min_dist {
+            hover_state.hover = Some(selectable.id);
+            selectable.hover = true;
+            min_dist = dist;
+        } else {
+            selectable.hover = false;
+        }
+    }
+}
+
+fn update_track_color(
+    mut q_strokes: Query<(&TrackConnection, &mut Stroke)>,
+    hover_state: Res<HoverState>,
+) {
+    for (connection, mut stroke) in q_strokes.iter_mut() {
+        for track in [connection.id.track_a().track, connection.id.track_b().track] {
+            if hover_state.hover == Some(GenericID::Track(track)) {
+                stroke.color = Color::RED;
+            } else {
+                stroke.color = Color::WHITE;
+            }
+        }
+    }
+}
+
 fn init_select(
     buttons: Res<Input<MouseButton>>,
     mouse_world_pos: Res<MousePosWorld>,
@@ -289,6 +322,8 @@ impl Plugin for EditorPlugin {
                 update_draw_track,
                 draw_build_cells,
                 init_select,
+                update_hover,
+                update_track_color,
             ),
         );
     }
