@@ -14,7 +14,7 @@ pub struct TrainID {
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum BlockDirection {
     Aligned,
-    Misaligned,
+    Opposite,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -264,7 +264,7 @@ impl Orientation {
     pub fn get_cardinal(&self, dir: TrackDirection) -> Cardinal {
         match dir {
             TrackDirection::Aligned => self.get_cardinals().0,
-            TrackDirection::Misaligned => self.get_cardinals().1,
+            TrackDirection::Opposite => self.get_cardinals().1,
         }
     }
 
@@ -274,7 +274,7 @@ impl Orientation {
             return Some(TrackDirection::Aligned);
         }
         if cardinal == card2 {
-            return Some(TrackDirection::Misaligned);
+            return Some(TrackDirection::Opposite);
         }
         return None;
     }
@@ -521,14 +521,14 @@ impl LogicalTrackID {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum TrackDirection {
     Aligned,
-    Misaligned,
+    Opposite,
 }
 
 impl TrackDirection {
     pub fn opposite(&self) -> Self {
         match self {
-            TrackDirection::Aligned => TrackDirection::Misaligned,
-            TrackDirection::Misaligned => TrackDirection::Aligned,
+            TrackDirection::Aligned => TrackDirection::Opposite,
+            TrackDirection::Opposite => TrackDirection::Aligned,
         }
     }
 }
@@ -609,7 +609,7 @@ impl DirectedTrackID {
     pub fn dir_index(&self) -> i32 {
         match self.direction {
             TrackDirection::Aligned => self.track.orientation.turn_index(),
-            TrackDirection::Misaligned => (self.track.orientation.turn_index() + 4) % 8,
+            TrackDirection::Opposite => (self.track.orientation.turn_index() + 4) % 8,
         }
     }
 
@@ -681,7 +681,7 @@ impl TrackID {
     pub fn dirtracks(&self) -> [DirectedTrackID; 2] {
         [
             self.get_directed(TrackDirection::Aligned),
-            self.get_directed(TrackDirection::Misaligned),
+            self.get_directed(TrackDirection::Opposite),
         ]
     }
 
@@ -690,8 +690,8 @@ impl TrackID {
         [
             self.get_directed(Aligned).get_logical(Forward),
             self.get_directed(Aligned).get_logical(Backward),
-            self.get_directed(Misaligned).get_logical(Forward),
-            self.get_directed(Misaligned).get_logical(Backward),
+            self.get_directed(Opposite).get_logical(Forward),
+            self.get_directed(Opposite).get_logical(Backward),
         ]
     }
 
