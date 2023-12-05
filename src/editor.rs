@@ -265,7 +265,7 @@ fn update_hover(
     for mut selectable in q_selectable.iter_mut() {
         let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
         // println!("{:}", dist);
-        if dist < min_dist {
+        if dist < min_dist && dist < 0.0 {
             hover_state.hover = Some(selectable.id);
             selectable.hover = true;
             min_dist = dist;
