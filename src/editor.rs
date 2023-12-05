@@ -75,13 +75,9 @@ impl TrackBuildState {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !layout.has_connection_simple(&connection_id) {
                             commands
-                                .spawn(
-                                    (TrackBaseShape::new(connection_id, TrackShapeType::Outer),),
-                                );
+                                .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer));
                             commands
-                                .spawn(
-                                    (TrackBaseShape::new(connection_id, TrackShapeType::Inner),),
-                                );
+                                .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner));
                             layout.connect_tracks_simple(&connection_id);
                         }
                     }

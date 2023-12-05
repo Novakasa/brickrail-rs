@@ -9,27 +9,9 @@ struct Scheduler {
     locked_tracks: HashMap<TrackID, TrainID>,
 }
 
-pub enum TrainInstruction {
+pub enum TrainState {
     Stop,
-    Run {
-        flip_heading: bool,
-        speed: MarkerSpeed,
-    },
-}
-
-impl TrainInstruction {
-    fn with_flip(&self, flip: bool) -> Self {
-        match self {
-            Self::Stop => Self::Stop,
-            Self::Run {
-                flip_heading: _,
-                speed,
-            } => Self::Run {
-                flip_heading: flip,
-                speed: *speed,
-            },
-        }
-    }
+    Run { facing: Facing, speed: MarkerSpeed },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -135,30 +117,22 @@ impl RouteLeg {
         }
     }
 
-    fn get_current_instruction(&self) -> TrainInstruction {
+    fn get_train_state(&self) -> TrainState {
         let should_stop = self.intention == LegIntention::Stop;
 
         if self.status == LegStatus::Completed {
-            TrainInstruction::Stop
+            TrainState::Stop
         } else {
             let speed = if should_stop && self.has_entered() {
                 MarkerSpeed::Slow
             } else {
                 self.get_last_marker().speed
             };
-            TrainInstruction::Run {
-                flip_heading: false,
+            TrainState::Run {
+                facing: self.get_final_facing(),
                 speed: speed,
             }
         }
-    }
-
-    fn get_enter_instruction(&self) -> TrainInstruction {
-        if self.status != LegStatus::Running(0) {
-            panic!("enter instruction only valid when index is 0!");
-        }
-        self.get_current_instruction()
-            .with_flip(self.is_flip_type())
     }
 
     fn is_flip_type(&self) -> bool {
@@ -166,5 +140,9 @@ impl RouteLeg {
             return false;
         }
         self.tracks.get(0).unwrap().reversed() == *self.tracks.get(1).unwrap()
+    }
+
+    fn get_final_facing(&self) -> Facing {
+        self.tracks.last().unwrap().facing
     }
 }
