@@ -74,12 +74,14 @@ impl TrackBuildState {
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !layout.has_connection_simple(&connection_id) {
-                            let base_shape =
-                                TrackBaseShape::new(connection_id, Color::WHITE, 10.0, 5.0);
-                            let inner_shape =
-                                TrackBaseShape::new(connection_id, Color::BLACK, 6.0, 10.0);
-                            commands.spawn((TrackConnection::new(connection_id), base_shape));
-                            commands.spawn((TrackConnection::new(connection_id), inner_shape));
+                            commands
+                                .spawn(
+                                    (TrackBaseShape::new(connection_id, TrackShapeType::Outer),),
+                                );
+                            commands
+                                .spawn(
+                                    (TrackBaseShape::new(connection_id, TrackShapeType::Inner),),
+                                );
                             layout.connect_tracks_simple(&connection_id);
                         }
                     }
@@ -91,28 +93,40 @@ impl TrackBuildState {
     }
 }
 
-#[derive(Component)]
-struct TrackConnection {
-    id: TrackConnectionID,
+#[derive(PartialEq, Eq)]
+enum TrackShapeType {
+    Outer,
+    Inner,
 }
 
-impl TrackConnection {
-    pub fn new(id: TrackConnectionID) -> Self {
-        Self { id: id }
-    }
+#[derive(Component)]
+struct TrackConnectionShape {
+    id: TrackConnectionID,
+    shape_type: TrackShapeType,
 }
 
 #[derive(Bundle)]
 struct TrackBaseShape {
+    connection: TrackConnectionShape,
     shape: ShapeBundle,
     stroke: Stroke,
 }
 
 impl TrackBaseShape {
-    pub fn new(id: TrackConnectionID, color: Color, width: f32, z: f32) -> Self {
+    pub fn new(id: TrackConnectionID, shape_type: TrackShapeType) -> Self {
         let position = id.track_a().cell().get_vec2() * 40.0;
 
+        let (color, width, z) = match &shape_type {
+            TrackShapeType::Inner => (Color::BLACK, 6.0, 10.0),
+            TrackShapeType::Outer => (Color::WHITE, 10.0, 5.0),
+        };
+
+        let connection = TrackConnectionShape {
+            id: id,
+            shape_type: shape_type,
+        };
         Self {
+            connection: connection,
             shape: ShapeBundle {
                 path: build_connection_path(id),
                 spatial: SpatialBundle {
@@ -279,15 +293,20 @@ fn update_hover(
 }
 
 fn update_track_color(
-    mut q_strokes: Query<(&TrackConnection, &mut Stroke)>,
+    mut q_strokes: Query<(&TrackConnectionShape, &mut Stroke, &mut Transform)>,
     hover_state: Res<HoverState>,
 ) {
-    for (connection, mut stroke) in q_strokes.iter_mut() {
+    for (connection, mut stroke, mut transform) in q_strokes.iter_mut() {
+        if connection.shape_type == TrackShapeType::Outer {
+            continue;
+        }
         for track in [connection.id.track_a().track, connection.id.track_b().track] {
             if hover_state.hover == Some(GenericID::Track(track)) {
                 stroke.color = Color::RED;
+                transform.translation = Vec3::new(0.0, 0.0, 20.0);
             } else {
-                stroke.color = Color::WHITE;
+                stroke.color = Color::BLACK;
+                transform.translation = Vec3::new(0.0, 0.0, 10.0);
             }
         }
     }
