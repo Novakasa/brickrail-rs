@@ -115,7 +115,10 @@ impl TrackBaseShape {
         Self {
             shape: ShapeBundle {
                 path: build_connection_path(id),
-                transform: Transform::from_xyz(0.0, 0.0, z),
+                spatial: SpatialBundle {
+                    transform: Transform::from_xyz(0.0, 0.0, z),
+                    ..default()
+                },
                 ..default()
             },
             stroke: Stroke {
