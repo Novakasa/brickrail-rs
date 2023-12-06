@@ -148,18 +148,12 @@ struct Track {
 
 #[derive(Component)]
 struct Selectable {
-    selected: bool,
-    hover: bool,
     id: GenericID,
 }
 
 impl Selectable {
     pub fn new(id: GenericID) -> Self {
-        Self {
-            selected: false,
-            hover: false,
-            id: id,
-        }
+        Self { id: id }
     }
 
     fn signed_distance(&self, normalized_pos: Vec2) -> f32 {
@@ -203,10 +197,14 @@ fn init_draw_track(
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_buttons: Res<Input<MouseButton>>,
     mouse_world_pos: Res<MousePosWorld>,
+    hover_state: Res<HoverState>,
 ) {
     if mouse_buttons.just_pressed(MouseButton::Right) {
         let first_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
         track_build_state.hover_cells.push(first_cell);
+        if let Some(GenericID::Track(track_id)) = hover_state.hover {
+            track_build_state.hover_track = Some(track_id);
+        }
     }
 }
 
@@ -274,16 +272,15 @@ fn update_hover(
     mut q_selectable: Query<&mut Selectable>,
     mut hover_state: ResMut<HoverState>,
 ) {
+    hover_state.hover = None;
     let mut min_dist = f32::INFINITY;
     for mut selectable in q_selectable.iter_mut() {
         let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
         // println!("{:}", dist);
         if dist < min_dist && dist < 0.0 {
             hover_state.hover = Some(selectable.id);
-            selectable.hover = true;
             min_dist = dist;
         } else {
-            selectable.hover = false;
         }
     }
 }
@@ -296,14 +293,14 @@ fn update_track_color(
         if connection.shape_type == TrackShapeType::Outer {
             continue;
         }
-        for track in [connection.id.track_a().track, connection.id.track_b().track] {
-            if hover_state.hover == Some(GenericID::Track(track)) {
-                stroke.color = Color::RED;
-                transform.translation = Vec3::new(0.0, 0.0, 20.0);
-            } else {
-                stroke.color = Color::BLACK;
-                transform.translation = Vec3::new(0.0, 0.0, 10.0);
-            }
+        if hover_state.hover == Some(GenericID::Track(connection.id.track_a().track))
+            || hover_state.hover == Some(GenericID::Track(connection.id.track_b().track))
+        {
+            stroke.color = Color::RED;
+            transform.translation = Vec3::new(0.0, 0.0, 20.0);
+        } else {
+            stroke.color = Color::BLACK;
+            transform.translation = Vec3::new(0.0, 0.0, 10.0);
         }
     }
 }
