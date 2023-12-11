@@ -1,6 +1,12 @@
+use bevy::math::Vec2;
 use itertools::Itertools;
 
 use crate::{layout::Layout, layout_primitives::*};
+
+#[derive(Debug, Clone)]
+pub struct TrackSection {
+    pub tracks: Vec<TrackID>,
+}
 
 #[derive(Debug, Clone)]
 pub struct LogicalSection {
@@ -75,5 +81,42 @@ impl DirectedSection {
             }
         }
         return false;
+    }
+
+    pub fn len(&self) -> usize {
+        self.tracks.len()
+    }
+
+    pub fn length(&self) -> f32 {
+        self.connection_iter().map(|c| c.connection_length()).sum()
+    }
+
+    pub fn connection_iter(&self) -> impl Iterator<Item = DirectedTrackConnectionID> + '_ {
+        self.tracks
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| DirectedTrackConnectionID::new(*a, *b))
+    }
+
+    pub fn interpolate_pos(&self, mut pos: f32) -> Vec2 {
+        let mut last_pos = pos;
+        let mut last_connection = self.connection_iter().next().unwrap();
+        for connection in self.connection_iter() {
+            let length = connection.connection_length();
+            if pos <= length {
+                return connection.interpolate_pos(pos);
+            }
+            last_connection = connection;
+            last_pos = pos;
+            pos -= length;
+        }
+        return last_connection.interpolate_pos(last_pos);
+    }
+
+    pub fn to_block_id(&self) -> BlockID {
+        BlockID::new(
+            *self.tracks.first().unwrap(),
+            self.tracks.last().unwrap().opposite(),
+        )
     }
 }

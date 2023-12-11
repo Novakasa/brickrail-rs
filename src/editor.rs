@@ -1,8 +1,9 @@
+use crate::block::BlockBundle;
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
 use crate::utils::bresenham_line;
-use bevy::prelude::*;
+use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -12,6 +13,7 @@ use bevy_prototype_lyon::prelude::*;
 enum GenericID {
     Cell(CellID),
     Track(TrackID),
+    LogicalTrack(LogicalTrackID),
     Block(BlockID),
     Train(TrainID),
     Switch(DirectedTrackID),
@@ -391,6 +393,18 @@ fn extend_selection(
     }
 }
 
+fn create_block(
+    keyboard_input: Res<Input<keyboard::KeyCode>>,
+    mut commands: Commands,
+    selection_state: Res<SelectionState>,
+) {
+    if let Selection::Section(section) = &selection_state.selection {
+        if keyboard_input.just_pressed(keyboard::KeyCode::B) {
+            commands.spawn(BlockBundle::new(section.clone()));
+        }
+    }
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -416,6 +430,7 @@ impl Plugin for EditorPlugin {
                 update_track_color,
                 draw_selection,
                 extend_selection,
+                create_block,
             ),
         );
     }
