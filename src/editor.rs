@@ -292,7 +292,11 @@ fn update_hover(
 fn update_track_color(
     mut q_strokes: Query<(&TrackConnectionShape, &mut Stroke, &mut Transform)>,
     hover_state: Res<HoverState>,
+    selection_state: Res<SelectionState>,
 ) {
+    if !selection_state.is_changed() && !hover_state.is_changed() {
+        return;
+    }
     for (connection, mut stroke, mut transform) in q_strokes.iter_mut() {
         if connection.shape_type == TrackShapeType::Outer {
             continue;
@@ -302,10 +306,19 @@ fn update_track_color(
         {
             stroke.color = Color::RED;
             transform.translation = Vec3::new(0.0, 0.0, 20.0);
-        } else {
-            stroke.color = Color::BLACK;
-            transform.translation = Vec3::new(0.0, 0.0, 10.0);
+            continue;
         }
+
+        if let Selection::Section(section) = &selection_state.selection {
+            if section.has_connection(&connection.id) {
+                stroke.color = Color::BLUE;
+                transform.translation = Vec3::new(0.0, 0.0, 15.0);
+                continue;
+            }
+        }
+
+        stroke.color = Color::BLACK;
+        transform.translation = Vec3::new(0.0, 0.0, 10.0);
     }
 }
 
@@ -329,7 +342,9 @@ fn init_select(
                 }
                 _ => {}
             },
-            None => {}
+            None => {
+                selection_state.selection = Selection::None;
+            }
         }
     }
 }

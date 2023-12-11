@@ -291,6 +291,7 @@ impl Orientation {
     }
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum ConnectionDirection {
     Forward,
     Backward,

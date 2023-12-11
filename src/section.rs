@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{layout::Layout, layout_primitives::*};
 
 #[derive(Debug, Clone)]
@@ -40,5 +42,25 @@ impl TrackSection {
             opposite.tracks.push(track.opposite());
         }
         opposite
+    }
+
+    pub fn has_directed_connection(&self, connection: &DirectedTrackConnectionID) -> bool {
+        for (track_a, track_b) in self.tracks.iter().tuple_windows() {
+            if connection.from_track == *track_a && connection.to_track == *track_b {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
+        for (track_a, track_b) in self.tracks.iter().tuple_windows() {
+            for direction in [ConnectionDirection::Forward, ConnectionDirection::Backward].iter() {
+                if self.has_directed_connection(&connection.to_directed(*direction)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
