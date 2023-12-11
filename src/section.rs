@@ -54,7 +54,7 @@ impl TrackSection {
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
-        for direction in [ConnectionDirection::Forward, ConnectionDirection::Backward].iter() {
+        for direction in [ConnectionDirection::Aligned, ConnectionDirection::Opposite].iter() {
             if self.has_directed_connection(&connection.to_directed(*direction)) {
                 return true;
             }

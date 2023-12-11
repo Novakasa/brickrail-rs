@@ -44,7 +44,7 @@ struct TrackBuildState {
 }
 
 fn build_connection_path(connection: TrackConnectionID) -> Path {
-    let dirconnection = connection.to_directed(ConnectionDirection::Forward);
+    let dirconnection = connection.to_directed(ConnectionDirection::Aligned);
     let mut path_builder = PathBuilder::new();
     let length = dirconnection.connection_length();
     path_builder.move_to(dirconnection.interpolate_pos(0.0) * 40.0);

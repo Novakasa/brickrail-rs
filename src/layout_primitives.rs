@@ -293,8 +293,8 @@ impl Orientation {
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum ConnectionDirection {
-    Forward,
-    Backward,
+    Aligned,
+    Opposite,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -332,11 +332,11 @@ impl TrackConnectionID {
 
     pub fn to_directed(&self, dir: ConnectionDirection) -> DirectedTrackConnectionID {
         match dir {
-            ConnectionDirection::Forward => DirectedTrackConnectionID {
+            ConnectionDirection::Aligned => DirectedTrackConnectionID {
                 from_track: self.track_a,
                 to_track: self.track_b.opposite(),
             },
-            ConnectionDirection::Backward => DirectedTrackConnectionID {
+            ConnectionDirection::Opposite => DirectedTrackConnectionID {
                 from_track: self.track_b,
                 to_track: self.track_a.opposite(),
             },
@@ -345,20 +345,20 @@ impl TrackConnectionID {
 
     pub fn directed_connections(&self) -> [DirectedTrackConnectionID; 2] {
         [
-            self.to_directed(ConnectionDirection::Forward),
-            self.to_directed(ConnectionDirection::Backward),
+            self.to_directed(ConnectionDirection::Aligned),
+            self.to_directed(ConnectionDirection::Opposite),
         ]
     }
 
     pub fn logical_connections(&self) -> [LogicalTrackConnectionID; 4] {
         [
-            self.to_directed(ConnectionDirection::Forward)
+            self.to_directed(ConnectionDirection::Aligned)
                 .to_logical(Facing::Forward),
-            self.to_directed(ConnectionDirection::Forward)
+            self.to_directed(ConnectionDirection::Aligned)
                 .to_logical(Facing::Backward),
-            self.to_directed(ConnectionDirection::Backward)
+            self.to_directed(ConnectionDirection::Opposite)
                 .to_logical(Facing::Forward),
-            self.to_directed(ConnectionDirection::Backward)
+            self.to_directed(ConnectionDirection::Opposite)
                 .to_logical(Facing::Backward),
         ]
     }
