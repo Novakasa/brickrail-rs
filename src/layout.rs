@@ -30,7 +30,7 @@ impl Layout {
         }
     }
 
-    pub fn has_connection_simple(&self, connection: &TrackConnectionID) -> bool {
+    pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
         for logical in connection.logical_connections() {
             if self
                 .logical_graph
@@ -40,6 +40,20 @@ impl Layout {
             }
         }
         return false;
+    }
+
+    pub fn has_directed_connection(&self, connection: &DirectedTrackConnectionID) -> bool {
+        for facing in [Facing::Forward, Facing::Backward].iter() {
+            if self.has_logical_connection(&connection.to_logical(*facing)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn has_logical_connection(&self, connection: &LogicalTrackConnectionID) -> bool {
+        self.logical_graph
+            .contains_edge(connection.from_track, connection.to_track)
     }
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {

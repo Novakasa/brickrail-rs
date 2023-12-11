@@ -370,6 +370,12 @@ pub struct DirectedTrackConnectionID {
 }
 
 impl DirectedTrackConnectionID {
+    pub fn new(from_track: DirectedTrackID, to_track: DirectedTrackID) -> Self {
+        Self {
+            from_track,
+            to_track,
+        }
+    }
     pub fn is_continuous(&self) -> bool {
         self.from_track.to_slot() == self.to_track.from_slot() && !self.flips_facing()
     }

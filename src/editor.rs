@@ -17,12 +17,13 @@ enum GenericID {
     Switch(DirectedTrackID),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 enum Selection {
     #[default]
     None,
     Single(GenericID),
     Multi(Vec<GenericID>),
+    Section(TrackSection),
 }
 
 #[derive(Resource, Default)]
@@ -73,7 +74,7 @@ impl TrackBuildState {
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
-                        if !layout.has_connection_simple(&connection_id) {
+                        if !layout.has_connection(&connection_id) {
                             commands
                                 .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer));
                             commands
@@ -269,12 +270,12 @@ fn draw_build_cells(
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    mut q_selectable: Query<&mut Selectable>,
+    q_selectable: Query<&Selectable>,
     mut hover_state: ResMut<HoverState>,
 ) {
     hover_state.hover = None;
     let mut min_dist = f32::INFINITY;
-    for mut selectable in q_selectable.iter_mut() {
+    for selectable in q_selectable.iter() {
         let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
         // println!("{:}", dist);
         if dist < min_dist && dist < 0.0 {
@@ -307,12 +308,72 @@ fn update_track_color(
 
 fn init_select(
     buttons: Res<Input<MouseButton>>,
-    mouse_world_pos: Res<MousePosWorld>,
-    mut q_selectable: Query<&mut Selectable>,
-    selection_state: Res<SelectionState>,
+    hover_state: Res<HoverState>,
+    mut selection_state: ResMut<SelectionState>,
 ) {
     if buttons.just_pressed(MouseButton::Left) {
-        for selectable in q_selectable.iter_mut() {}
+        match hover_state.hover {
+            Some(id) => match id {
+                GenericID::Track(track_id) => {
+                    let mut section = TrackSection::new();
+                    section
+                        .push(
+                            track_id.get_directed(TrackDirection::Aligned),
+                            &Layout::default(),
+                        )
+                        .unwrap();
+                    selection_state.selection = Selection::Section(section);
+                }
+                _ => {}
+            },
+            None => {}
+        }
+    }
+}
+
+fn draw_selection(
+    mut gizmos: Gizmos,
+    selection_state: Res<SelectionState>,
+    mouse_world_pos: Res<MousePosWorld>,
+    layout: Res<Layout>,
+) {
+    match &selection_state.selection {
+        Selection::Section(section) => {
+            for track in section.tracks.iter() {
+                track.draw_with_gizmos(&mut gizmos, layout.scale, Color::BLUE);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extend_selection(
+    hover_state: Res<HoverState>,
+    buttons: Res<Input<MouseButton>>,
+    mut selection_state: ResMut<SelectionState>,
+    layout: Res<Layout>,
+) {
+    if hover_state.is_changed() {
+        if buttons.pressed(MouseButton::Left) {
+            match (&hover_state.hover, &mut selection_state.selection) {
+                (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
+                    match section.push_track(*track_id, &layout) {
+                        Ok(()) => {}
+                        Err(()) => {
+                            let mut opposite = section.get_opposite();
+                            match opposite.push_track(*track_id, &layout) {
+                                Ok(()) => {
+                                    println!("opposite");
+                                    selection_state.selection = Selection::Section(opposite);
+                                }
+                                Err(()) => {}
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 }
 
@@ -339,6 +400,8 @@ impl Plugin for EditorPlugin {
                 init_select,
                 update_hover,
                 update_track_color,
+                draw_selection,
+                extend_selection,
             ),
         );
     }
