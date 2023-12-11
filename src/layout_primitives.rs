@@ -2,7 +2,7 @@ use core::fmt;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use strum_macros::{Display, EnumIter};
+use strum_macros::EnumIter;
 
 use crate::utils::distance_to_segment;
 

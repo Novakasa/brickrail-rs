@@ -3,6 +3,7 @@ use bevy::utils::HashMap;
 
 use crate::layout_primitives::*;
 use crate::marker::*;
+use crate::section::LogicalSection;
 
 #[derive(Resource, Default)]
 struct Scheduler {
@@ -73,7 +74,7 @@ enum LegIntention {
 
 #[derive(Debug)]
 pub struct RouteLeg {
-    tracks: Vec<LogicalTrackID>,
+    section: LogicalSection,
     markers: Vec<LogicalMarker>,
     status: LegStatus,
     intention: LegIntention,
@@ -120,29 +121,25 @@ impl RouteLeg {
     fn get_train_state(&self) -> TrainState {
         let should_stop = self.intention == LegIntention::Stop;
 
-        if self.status == LegStatus::Completed {
-            TrainState::Stop
+        let speed = if should_stop && self.has_entered() {
+            MarkerSpeed::Slow
         } else {
-            let speed = if should_stop && self.has_entered() {
-                MarkerSpeed::Slow
-            } else {
-                self.get_last_marker().speed
-            };
-            TrainState::Run {
-                facing: self.get_final_facing(),
-                speed: speed,
-            }
+            self.get_last_marker().speed
+        };
+        TrainState::Run {
+            facing: self.get_final_facing(),
+            speed: speed,
         }
     }
 
     fn is_flip_type(&self) -> bool {
-        if self.tracks.len() < 2 {
+        if self.section.len() < 2 {
             return false;
         }
-        self.tracks.get(0).unwrap().reversed() == *self.tracks.get(1).unwrap()
+        self.section.tracks.get(0).unwrap().reversed() == *self.section.tracks.get(1).unwrap()
     }
 
     fn get_final_facing(&self) -> Facing {
-        self.tracks.last().unwrap().facing
+        self.section.tracks.last().unwrap().facing
     }
 }

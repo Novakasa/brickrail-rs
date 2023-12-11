@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod block;
 mod editor;
 mod layout;
 mod layout_primitives;

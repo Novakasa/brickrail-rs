@@ -3,11 +3,26 @@ use itertools::Itertools;
 use crate::{layout::Layout, layout_primitives::*};
 
 #[derive(Debug, Clone)]
-pub struct TrackSection {
+pub struct LogicalSection {
+    pub tracks: Vec<LogicalTrackID>,
+}
+
+impl LogicalSection {
+    pub fn new() -> Self {
+        Self { tracks: Vec::new() }
+    }
+
+    pub fn len(&self) -> usize {
+        self.tracks.len()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DirectedSection {
     pub tracks: Vec<DirectedTrackID>,
 }
 
-impl TrackSection {
+impl DirectedSection {
     pub fn new() -> Self {
         Self { tracks: Vec::new() }
     }
@@ -37,7 +52,7 @@ impl TrackSection {
     }
 
     pub fn get_opposite(&self) -> Self {
-        let mut opposite = TrackSection::new();
+        let mut opposite = DirectedSection::new();
         for track in self.tracks.iter().rev() {
             opposite.tracks.push(track.opposite());
         }

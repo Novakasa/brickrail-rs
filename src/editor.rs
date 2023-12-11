@@ -1,6 +1,6 @@
 use crate::layout::Layout;
 use crate::layout_primitives::*;
-use crate::section::TrackSection;
+use crate::section::DirectedSection;
 use crate::utils::bresenham_line;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -23,7 +23,7 @@ enum Selection {
     None,
     Single(GenericID),
     Multi(Vec<GenericID>),
-    Section(TrackSection),
+    Section(DirectedSection),
 }
 
 #[derive(Resource, Default)]
@@ -331,7 +331,7 @@ fn init_select(
         match hover_state.hover {
             Some(id) => match id {
                 GenericID::Track(track_id) => {
-                    let mut section = TrackSection::new();
+                    let mut section = DirectedSection::new();
                     section
                         .push(
                             track_id.get_directed(TrackDirection::Aligned),

@@ -1,14 +1,15 @@
 use crate::layout_primitives::*;
-use crate::marker::*;
-use bevy::utils::HashSet;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
+use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
 
 #[derive(Resource, Default)]
 pub struct Layout {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
-    markers: HashMap<TrackID, Marker>,
-    blocks: HashSet<BlockID>,
+    markers: HashMap<TrackID, Entity>,
+    blocks: HashMap<BlockID, Entity>,
+    logical_blocks: HashMap<LogicalBlockID, Entity>,
+    trains: HashMap<TrainID, Entity>,
     pub scale: f32,
 }
 
@@ -63,15 +64,8 @@ impl Layout {
         }
     }
 
-    pub fn add_marker(&mut self, marker: Marker) {
-        for logical_track in marker.track.logical_tracks() {
-            let logical_marker = marker.collapse_logical(logical_track).unwrap();
-            if let MarkerKey::In(_) = logical_marker.key {
-                self.logical_graph
-                    .add_edge(logical_track, logical_track.reversed(), ());
-            }
-        }
-        self.markers.insert(marker.track, marker);
+    pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
+        self.markers.insert(track, entity);
     }
 }
 
