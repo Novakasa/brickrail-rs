@@ -8,7 +8,7 @@ use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 enum GenericID {
     Cell(CellID),
     Track(TrackID),
@@ -273,16 +273,19 @@ fn update_hover(
     q_selectable: Query<&Selectable>,
     mut hover_state: ResMut<HoverState>,
 ) {
-    hover_state.hover = None;
+    let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
     for selectable in q_selectable.iter() {
         let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
         // println!("{:}", dist);
         if dist < min_dist && dist < 0.0 {
-            hover_state.hover = Some(selectable.id);
+            hover_candidate = Some(selectable.id);
             min_dist = dist;
         } else {
         }
+    }
+    if hover_candidate != hover_state.hover {
+        hover_state.hover = hover_candidate;
     }
 }
 
@@ -331,12 +334,7 @@ fn init_select(
     }
 }
 
-fn draw_selection(
-    mut gizmos: Gizmos,
-    selection_state: Res<SelectionState>,
-    mouse_world_pos: Res<MousePosWorld>,
-    layout: Res<Layout>,
-) {
+fn draw_selection(mut gizmos: Gizmos, selection_state: Res<SelectionState>, layout: Res<Layout>) {
     match &selection_state.selection {
         Selection::Section(section) => {
             for track in section.tracks.iter() {
@@ -354,6 +352,7 @@ fn extend_selection(
     layout: Res<Layout>,
 ) {
     if hover_state.is_changed() {
+        // println!("{:?}", hover_state.hover);
         if buttons.pressed(MouseButton::Left) {
             match (&hover_state.hover, &mut selection_state.selection) {
                 (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
