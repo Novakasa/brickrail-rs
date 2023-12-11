@@ -54,11 +54,9 @@ impl TrackSection {
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
-        for (track_a, track_b) in self.tracks.iter().tuple_windows() {
-            for direction in [ConnectionDirection::Forward, ConnectionDirection::Backward].iter() {
-                if self.has_directed_connection(&connection.to_directed(*direction)) {
-                    return true;
-                }
+        for direction in [ConnectionDirection::Forward, ConnectionDirection::Backward].iter() {
+            if self.has_directed_connection(&connection.to_directed(*direction)) {
+                return true;
             }
         }
         return false;
