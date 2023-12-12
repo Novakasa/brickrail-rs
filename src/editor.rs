@@ -1,4 +1,4 @@
-use crate::block::BlockBundle;
+use crate::block::{Block, BlockBundle};
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
@@ -10,7 +10,7 @@ use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-enum GenericID {
+pub enum GenericID {
     Cell(CellID),
     Track(TrackID),
     LogicalTrack(LogicalTrackID),
@@ -19,7 +19,7 @@ enum GenericID {
     Switch(DirectedTrackID),
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 enum Selection {
     #[default]
     None,
@@ -28,7 +28,7 @@ enum Selection {
     Section(DirectedSection),
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Debug, Default)]
 struct SelectionState {
     selection: Selection,
     drag_select: bool,
@@ -150,20 +150,13 @@ struct Track {
 }
 
 #[derive(Component)]
-struct Selectable {
+pub struct Selectable {
     id: GenericID,
 }
 
 impl Selectable {
     pub fn new(id: GenericID) -> Self {
         Self { id: id }
-    }
-
-    fn signed_distance(&self, normalized_pos: Vec2) -> f32 {
-        match self.id {
-            GenericID::Track(track_id) => track_id.distance_to(normalized_pos) - 0.4,
-            _ => 10.0,
-        }
     }
 }
 
@@ -272,13 +265,25 @@ fn draw_build_cells(
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<&Selectable>,
+    q_selectable: Query<(Entity, &Selectable)>,
+    q_blocks: Query<&Block>,
     mut hover_state: ResMut<HoverState>,
 ) {
     let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
-    for selectable in q_selectable.iter() {
-        let dist = selectable.signed_distance(mouse_world_pos.truncate() / 40.0);
+    for (entity, selectable) in q_selectable.iter() {
+        let dist = match selectable.id {
+            GenericID::Track(track_id) => {
+                track_id.distance_to(mouse_world_pos.truncate() / 40.0) - 5.0 / 40.0
+            }
+            GenericID::Block(_) => {
+                let block = q_blocks.get(entity).unwrap();
+                let block_dist = block.distance_to(mouse_world_pos.truncate() / 40.0) - 10.0 / 40.0;
+                // println!("block dist: {:}", block_dist);
+                block_dist
+            }
+            _ => 10.0,
+        };
         // println!("{:}", dist);
         if dist < min_dist && dist < 0.0 {
             hover_candidate = Some(selectable.id);
@@ -342,12 +347,15 @@ fn init_select(
                         .unwrap();
                     selection_state.selection = Selection::Section(section);
                 }
-                _ => {}
+                generic => {
+                    selection_state.selection = Selection::Single(generic);
+                }
             },
             None => {
                 selection_state.selection = Selection::None;
             }
         }
+        println!("{:?}", selection_state.selection);
     }
 }
 

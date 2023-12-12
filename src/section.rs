@@ -91,6 +91,17 @@ impl DirectedSection {
         self.connection_iter().map(|c| c.connection_length()).sum()
     }
 
+    pub fn distance_to(&self, pos: Vec2) -> f32 {
+        let mut distance = 0.0;
+        let min_dist = self
+            .tracks
+            .iter()
+            .map(|c| c.distance_to(pos))
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        min_dist
+    }
+
     pub fn connection_iter(&self) -> impl Iterator<Item = DirectedTrackConnectionID> + '_ {
         self.tracks
             .iter()

@@ -554,6 +554,10 @@ impl DirectedTrackID {
         }
     }
 
+    pub fn distance_to(&self, pos: Vec2) -> f32 {
+        self.track.distance_to(pos)
+    }
+
     pub fn to_slot(&self) -> Slot {
         self.track
             .cell

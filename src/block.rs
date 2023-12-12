@@ -1,3 +1,4 @@
+use crate::editor::Selectable;
 use crate::{layout_primitives::*, section::DirectedSection};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_prototype_lyon::{
@@ -8,9 +9,16 @@ use bevy_prototype_lyon::{
 };
 
 #[derive(Component, Debug)]
-struct Block {
+pub struct Block {
     id: BlockID,
     logical_blocks: HashMap<LogicalBlockID, Entity>,
+    section: DirectedSection,
+}
+
+impl Block {
+    pub fn distance_to(&self, pos: Vec2) -> f32 {
+        self.section.distance_to(pos)
+    }
 }
 
 #[derive(Bundle)]
@@ -18,6 +26,7 @@ pub struct BlockBundle {
     shape: ShapeBundle,
     stroke: Stroke,
     block: Block,
+    selectable: Selectable,
 }
 
 impl BlockBundle {
@@ -49,9 +58,11 @@ impl BlockBundle {
         Self {
             shape: shape,
             stroke: stroke,
+            selectable: Selectable::new(crate::editor::GenericID::Block(section.to_block_id())),
             block: Block {
                 id: section.to_block_id(),
                 logical_blocks: HashMap::new(),
+                section: section,
             },
         }
     }
