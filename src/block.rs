@@ -1,5 +1,6 @@
-use crate::editor::Selectable;
+use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
 use crate::{layout_primitives::*, section::DirectedSection};
+use bevy::input::keyboard;
 use bevy::{prelude::*, utils::HashMap};
 use bevy_prototype_lyon::{
     draw::Stroke,
@@ -74,4 +75,49 @@ struct LogicalBlock {
     enter_marks: Vec<LogicalTrackID>,
     in_mark: LogicalTrackID,
     train: Option<TrainID>,
+}
+
+fn create_block(
+    keyboard_input: Res<Input<keyboard::KeyCode>>,
+    mut commands: Commands,
+    selection_state: Res<SelectionState>,
+) {
+    if let Selection::Section(section) = &selection_state.selection {
+        if keyboard_input.just_pressed(keyboard::KeyCode::B) {
+            commands.spawn(BlockBundle::new(section.clone()));
+        }
+    }
+}
+
+fn update_block_color(
+    mut q_strokes: Query<(&Block, &mut Stroke)>,
+    selection_state: Res<SelectionState>,
+    hover_state: Res<HoverState>,
+) {
+    if !selection_state.is_changed() && !hover_state.is_changed() {
+        return;
+    }
+    for (block, mut stroke) in q_strokes.iter_mut() {
+        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
+            if block.id == *block_id {
+                stroke.color = Color::BLUE;
+                continue;
+            }
+        }
+        if let Some(GenericID::Block(block_id)) = &hover_state.hover {
+            if block.id == *block_id {
+                stroke.color = Color::RED;
+                continue;
+            }
+        }
+        stroke.color = Color::GREEN;
+    }
+}
+
+pub struct BlockPlugin {}
+
+impl Plugin for BlockPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, (create_block, update_block_color));
+    }
 }

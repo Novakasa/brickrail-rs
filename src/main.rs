@@ -9,6 +9,7 @@ mod route;
 mod section;
 mod utils;
 
+use block::BlockPlugin;
 use editor::EditorPlugin;
 use layout::LayoutPlugin;
 
@@ -18,5 +19,6 @@ fn main() {
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(EditorPlugin {})
         .add_plugins(LayoutPlugin {})
+        .add_plugins(BlockPlugin {})
         .run();
 }

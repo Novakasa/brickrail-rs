@@ -20,7 +20,7 @@ pub enum GenericID {
 }
 
 #[derive(Default, Debug, Clone)]
-enum Selection {
+pub enum Selection {
     #[default]
     None,
     Single(GenericID),
@@ -29,14 +29,14 @@ enum Selection {
 }
 
 #[derive(Resource, Debug, Default)]
-struct SelectionState {
-    selection: Selection,
+pub struct SelectionState {
+    pub selection: Selection,
     drag_select: bool,
 }
 
 #[derive(Resource, Default)]
-struct HoverState {
-    hover: Option<GenericID>,
+pub struct HoverState {
+    pub hover: Option<GenericID>,
 }
 
 #[derive(Resource, Default)]
@@ -403,43 +403,6 @@ fn extend_selection(
     }
 }
 
-fn create_block(
-    keyboard_input: Res<Input<keyboard::KeyCode>>,
-    mut commands: Commands,
-    selection_state: Res<SelectionState>,
-) {
-    if let Selection::Section(section) = &selection_state.selection {
-        if keyboard_input.just_pressed(keyboard::KeyCode::B) {
-            commands.spawn(BlockBundle::new(section.clone()));
-        }
-    }
-}
-
-fn update_block_color(
-    mut q_strokes: Query<(&Block, &mut Stroke)>,
-    selection_state: Res<SelectionState>,
-    hover_state: Res<HoverState>,
-) {
-    if !selection_state.is_changed() && !hover_state.is_changed() {
-        return;
-    }
-    for (block, mut stroke) in q_strokes.iter_mut() {
-        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
-            if block.id == *block_id {
-                stroke.color = Color::BLUE;
-                continue;
-            }
-        }
-        if let Some(GenericID::Block(block_id)) = &hover_state.hover {
-            if block.id == *block_id {
-                stroke.color = Color::RED;
-                continue;
-            }
-        }
-        stroke.color = Color::GREEN;
-    }
-}
-
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -465,8 +428,6 @@ impl Plugin for EditorPlugin {
                 update_track_color,
                 draw_selection,
                 extend_selection,
-                create_block,
-                update_block_color,
             ),
         );
     }
