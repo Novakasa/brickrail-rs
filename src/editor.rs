@@ -382,17 +382,19 @@ fn extend_selection(
             match (&hover_state.hover, &mut selection_state.selection) {
                 (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
                     match section.push_track(*track_id, &layout) {
-                        Ok(()) => {}
-                        Err(()) => {
-                            let mut opposite = section.get_opposite();
-                            match opposite.push_track(*track_id, &layout) {
-                                Ok(()) => {
-                                    println!("opposite");
-                                    selection_state.selection = Selection::Section(opposite);
-                                }
-                                Err(()) => {}
-                            }
+                        Ok(()) => {
+                            return;
                         }
+                        Err(()) => {}
+                    }
+                    let mut opposite = section.get_opposite();
+                    match opposite.push_track(*track_id, &layout) {
+                        Ok(()) => {
+                            println!("opposite");
+                            selection_state.selection = Selection::Section(opposite);
+                            return;
+                        }
+                        Err(()) => {}
                     }
                 }
                 _ => {}
