@@ -1,9 +1,8 @@
-use crate::block::{Block, BlockBundle};
+use crate::block::Block;
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
-use crate::utils::bresenham_line;
-use bevy::{input::keyboard, prelude::*};
+use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
