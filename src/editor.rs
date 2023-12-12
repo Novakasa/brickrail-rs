@@ -62,13 +62,22 @@ fn spawn_camera(mut commands: Commands) {
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<(Entity, &Selectable)>,
+    q_selectable: Query<(Entity, &Selectable, Option<&Transform>)>,
     q_blocks: Query<&Block>,
     mut hover_state: ResMut<HoverState>,
 ) {
     let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
-    for (entity, selectable) in q_selectable.iter() {
+    let mut hover_z = f32::NEG_INFINITY;
+    for (entity, selectable, transform) in q_selectable.iter() {
+        let z = if let Some(t) = transform {
+            t.translation.z
+        } else {
+            f32::INFINITY
+        };
+        if z < hover_z {
+            continue;
+        }
         let dist = match selectable.id {
             GenericID::Track(track_id) => {
                 track_id.distance_to(mouse_world_pos.truncate() / 40.0) - 5.0 / 40.0
@@ -85,7 +94,7 @@ fn update_hover(
         if dist < min_dist && dist < 0.0 {
             hover_candidate = Some(selectable.id);
             min_dist = dist;
-        } else {
+            hover_z = z;
         }
     }
     if hover_candidate != hover_state.hover {

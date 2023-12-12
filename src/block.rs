@@ -98,15 +98,15 @@ fn update_block_color(
         return;
     }
     for (block, mut stroke) in q_strokes.iter_mut() {
-        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
-            if block.id == *block_id {
-                stroke.color = Color::BLUE;
-                continue;
-            }
-        }
         if let Some(GenericID::Block(block_id)) = &hover_state.hover {
             if block.id == *block_id {
                 stroke.color = Color::RED;
+                continue;
+            }
+        }
+        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
+            if block.id == *block_id {
+                stroke.color = Color::BLUE;
                 continue;
             }
         }
