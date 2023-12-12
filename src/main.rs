@@ -7,11 +7,13 @@ mod layout_primitives;
 mod marker;
 mod route;
 mod section;
+mod track;
 mod utils;
 
 use block::BlockPlugin;
 use editor::EditorPlugin;
 use layout::LayoutPlugin;
+use track::TrackPlugin;
 
 fn main() {
     App::new()
@@ -20,5 +22,6 @@ fn main() {
         .add_plugins(EditorPlugin {})
         .add_plugins(LayoutPlugin {})
         .add_plugins(BlockPlugin {})
+        .add_plugins(TrackPlugin {})
         .run();
 }
