@@ -10,7 +10,7 @@ use bevy_prototype_lyon::{
 
 #[derive(Component, Debug)]
 pub struct Block {
-    id: BlockID,
+    pub id: BlockID,
     logical_blocks: HashMap<LogicalBlockID, Entity>,
     section: DirectedSection,
 }

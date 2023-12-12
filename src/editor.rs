@@ -415,6 +415,25 @@ fn create_block(
     }
 }
 
+fn update_block_color(
+    mut q_strokes: Query<(&Block, &mut Stroke)>,
+    selection_state: Res<SelectionState>,
+    q_blocks: Query<&Block>,
+) {
+    if !selection_state.is_changed() {
+        return;
+    }
+    for (block, mut stroke) in q_strokes.iter_mut() {
+        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
+            if block.id == *block_id {
+                stroke.color = Color::BLUE;
+                continue;
+            }
+        }
+        stroke.color = Color::GREEN;
+    }
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -441,6 +460,7 @@ impl Plugin for EditorPlugin {
                 draw_selection,
                 extend_selection,
                 create_block,
+                update_block_color,
             ),
         );
     }
