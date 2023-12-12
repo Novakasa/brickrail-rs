@@ -418,15 +418,21 @@ fn create_block(
 fn update_block_color(
     mut q_strokes: Query<(&Block, &mut Stroke)>,
     selection_state: Res<SelectionState>,
-    q_blocks: Query<&Block>,
+    hover_state: Res<HoverState>,
 ) {
-    if !selection_state.is_changed() {
+    if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
     for (block, mut stroke) in q_strokes.iter_mut() {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             if block.id == *block_id {
                 stroke.color = Color::BLUE;
+                continue;
+            }
+        }
+        if let Some(GenericID::Block(block_id)) = &hover_state.hover {
+            if block.id == *block_id {
+                stroke.color = Color::RED;
                 continue;
             }
         }
