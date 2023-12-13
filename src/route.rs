@@ -6,7 +6,7 @@ use crate::marker::*;
 use crate::section::LogicalSection;
 
 #[derive(Resource, Default)]
-struct Scheduler {
+struct TrackLocks {
     locked_tracks: HashMap<TrackID, TrainID>,
 }
 
@@ -23,6 +23,7 @@ pub enum RouteStatus {
     Completed,
 }
 
+#[derive(Debug)]
 pub struct Route {
     legs: Vec<RouteLeg>,
 }
