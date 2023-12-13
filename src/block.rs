@@ -61,7 +61,10 @@ impl BlockBundle {
         Self {
             shape: shape,
             stroke: stroke,
-            selectable: Selectable::new(crate::editor::GenericID::Block(section.to_block_id())),
+            selectable: Selectable::new(
+                crate::editor::GenericID::Block(section.to_block_id()),
+                0.0,
+            ),
             block: Block {
                 id: section.to_block_id(),
                 logical_blocks: HashMap::new(),
