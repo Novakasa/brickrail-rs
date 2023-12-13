@@ -8,6 +8,10 @@ use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 
+pub const TRACK_WIDTH: f32 = 10.0;
+pub const TRACK_INNER_WIDTH: f32 = 6.0;
+pub const LAYOUT_SCALE: f32 = 40.0;
+
 #[derive(Resource, Default)]
 struct TrackBuildState {
     hover_cells: Vec<CellID>,
@@ -18,14 +22,14 @@ fn build_connection_path(connection: TrackConnectionID) -> Path {
     let dirconnection = connection.to_directed(ConnectionDirection::Aligned);
     let mut path_builder = PathBuilder::new();
     let length = dirconnection.connection_length();
-    path_builder.move_to(dirconnection.interpolate_pos(0.0) * 40.0);
+    path_builder.move_to(dirconnection.interpolate_pos(0.0) * LAYOUT_SCALE);
     let num_segments = match dirconnection.curve_index() {
         0 => 1,
         _ => 10,
     };
     for i in 1..(num_segments + 1) {
         let dist = i as f32 * length / num_segments as f32;
-        path_builder.line_to(dirconnection.interpolate_pos(dist) * 40.0);
+        path_builder.line_to(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE);
     }
 
     path_builder.build()
@@ -82,11 +86,11 @@ struct TrackBaseShape {
 
 impl TrackBaseShape {
     pub fn new(id: TrackConnectionID, shape_type: TrackShapeType) -> Self {
-        let position = id.track_a().cell().get_vec2() * 40.0;
+        let position = id.track_a().cell().get_vec2() * LAYOUT_SCALE;
 
         let (color, width, z) = match &shape_type {
-            TrackShapeType::Inner => (Color::BLACK, 6.0, 10.0),
-            TrackShapeType::Outer => (Color::WHITE, 10.0, 5.0),
+            TrackShapeType::Inner => (Color::BLACK, TRACK_INNER_WIDTH, 10.0),
+            TrackShapeType::Outer => (Color::WHITE, TRACK_WIDTH, 5.0),
         };
 
         let connection = TrackConnectionShape {

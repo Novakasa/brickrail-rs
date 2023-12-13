@@ -1,4 +1,5 @@
 use crate::layout_primitives::*;
+use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
@@ -103,7 +104,7 @@ pub struct LayoutPlugin;
 impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Layout {
-            scale: 40.0,
+            scale: LAYOUT_SCALE,
             ..Default::default()
         });
         app.add_systems(Startup, print_sizes);

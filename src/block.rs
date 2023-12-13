@@ -1,5 +1,5 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
-use crate::{layout_primitives::*, section::DirectedSection};
+use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::{prelude::*, utils::HashMap};
 use bevy_prototype_lyon::{
@@ -8,6 +8,8 @@ use bevy_prototype_lyon::{
     path::PathBuilder,
     prelude::{LineCap, StrokeOptions},
 };
+
+pub const BLOCK_WIDTH: f32 = 20.0;
 
 #[derive(Component, Debug)]
 pub struct Block {
@@ -33,14 +35,14 @@ pub struct BlockBundle {
 impl BlockBundle {
     pub fn new(section: DirectedSection) -> Self {
         let mut path_builder = PathBuilder::new();
-        path_builder.move_to(section.interpolate_pos(0.0) * 40.0);
+        path_builder.move_to(section.interpolate_pos(0.0) * LAYOUT_SCALE);
 
         let num_segments = 10 * section.len();
         let length = section.length();
 
         for i in 1..(num_segments + 1) {
             let dist = i as f32 * length / num_segments as f32;
-            path_builder.line_to(section.interpolate_pos(dist) * 40.0);
+            path_builder.line_to(section.interpolate_pos(dist) * LAYOUT_SCALE);
         }
 
         let path = path_builder.build();
@@ -52,7 +54,7 @@ impl BlockBundle {
         let stroke = Stroke {
             color: Color::GREEN,
             options: StrokeOptions::default()
-                .with_line_width(20.0)
+                .with_line_width(BLOCK_WIDTH)
                 .with_line_cap(LineCap::Round),
         };
 

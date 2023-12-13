@@ -1,7 +1,9 @@
-use crate::block::Block;
+use crate::block::BLOCK_WIDTH;
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
+use crate::track::TRACK_WIDTH;
+use crate::{block::Block, track::LAYOUT_SCALE};
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
@@ -80,11 +82,13 @@ fn update_hover(
         }
         let dist = match selectable.id {
             GenericID::Track(track_id) => {
-                track_id.distance_to(mouse_world_pos.truncate() / 40.0) - 5.0 / 40.0
+                track_id.distance_to(mouse_world_pos.truncate() / LAYOUT_SCALE)
+                    - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
             }
             GenericID::Block(_) => {
                 let block = q_blocks.get(entity).unwrap();
-                let block_dist = block.distance_to(mouse_world_pos.truncate() / 40.0) - 10.0 / 40.0;
+                let block_dist = block.distance_to(mouse_world_pos.truncate() / LAYOUT_SCALE)
+                    - BLOCK_WIDTH / LAYOUT_SCALE;
                 // println!("block dist: {:}", block_dist);
                 block_dist
             }
