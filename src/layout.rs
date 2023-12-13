@@ -98,7 +98,7 @@ fn print_sizes() {
     println!("{:?}", std::mem::size_of::<DirectedTrackConnectionID>());
 }
 
-pub struct LayoutPlugin {}
+pub struct LayoutPlugin;
 
 impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {

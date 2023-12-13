@@ -8,20 +8,17 @@ mod marker;
 mod route;
 mod section;
 mod track;
+mod train;
 mod utils;
-
-use block::BlockPlugin;
-use editor::EditorPlugin;
-use layout::LayoutPlugin;
-use track::TrackPlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(bevy_framepace::FramepacePlugin)
-        .add_plugins(EditorPlugin {})
-        .add_plugins(LayoutPlugin {})
-        .add_plugins(BlockPlugin {})
-        .add_plugins(TrackPlugin {})
+        .add_plugins(editor::EditorPlugin)
+        .add_plugins(layout::LayoutPlugin)
+        .add_plugins(block::BlockPlugin)
+        .add_plugins(track::TrackPlugin)
+        .add_plugins(train::TrainPlugin)
         .run();
 }

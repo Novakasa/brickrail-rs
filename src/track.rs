@@ -243,7 +243,7 @@ fn update_track_color(
     }
 }
 
-pub struct TrackPlugin {}
+pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {

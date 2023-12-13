@@ -114,7 +114,7 @@ fn update_block_color(
     }
 }
 
-pub struct BlockPlugin {}
+pub struct BlockPlugin;
 
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
