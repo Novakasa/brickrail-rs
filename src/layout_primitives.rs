@@ -8,7 +8,13 @@ use crate::utils::distance_to_segment;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TrainID {
-    index: i32,
+    home: LogicalBlockID,
+}
+
+impl TrainID {
+    pub fn new(home: LogicalBlockID) -> Self {
+        Self { home }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -29,6 +35,14 @@ impl BlockID {
             Self::new(track2, track1)
         } else {
             Self { track1, track2 }
+        }
+    }
+
+    pub fn to_logical(&self, dir: BlockDirection, facing: Facing) -> LogicalBlockID {
+        LogicalBlockID {
+            block: self.clone(),
+            direction: dir,
+            facing,
         }
     }
 }

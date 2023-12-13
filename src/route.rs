@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
+use crate::block::LogicalBlock;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
@@ -31,6 +32,12 @@ pub struct Route {
 impl Route {
     pub fn new() -> Self {
         Route { legs: vec![] }
+    }
+
+    pub fn from_block(block: &LogicalBlock) -> Self {
+        let mut route = Route::new();
+        // TODO: add leg
+        route
     }
 
     pub fn push_leg(mut self, leg: RouteLeg) {

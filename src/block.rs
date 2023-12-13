@@ -1,4 +1,5 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
+use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::{prelude::*, utils::HashMap};
@@ -75,11 +76,12 @@ impl BlockBundle {
 }
 
 #[derive(Component, Debug)]
-struct LogicalBlock {
-    id: LogicalBlockID,
+pub struct LogicalBlock {
+    pub id: LogicalBlockID,
     enter_marks: Vec<LogicalTrackID>,
     in_mark: LogicalTrackID,
     train: Option<TrainID>,
+    section: LogicalSection,
 }
 
 fn create_block(
