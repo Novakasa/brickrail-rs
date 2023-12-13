@@ -35,7 +35,7 @@ impl Route {
     }
 
     pub fn from_block(block: &LogicalBlock) -> Self {
-        let mut route = Route::new();
+        let route = Route::new();
         // TODO: add leg
         route
     }

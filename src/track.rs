@@ -86,8 +86,6 @@ struct TrackBaseShape {
 
 impl TrackBaseShape {
     pub fn new(id: TrackConnectionID, shape_type: TrackShapeType) -> Self {
-        let position = id.track_a().cell().get_vec2() * LAYOUT_SCALE;
-
         let (color, width, z) = match &shape_type {
             TrackShapeType::Inner => (Color::BLACK, TRACK_INNER_WIDTH, 10.0),
             TrackShapeType::Outer => (Color::WHITE, TRACK_WIDTH, 5.0),
