@@ -1,4 +1,5 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
+use crate::layout;
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
@@ -12,11 +13,26 @@ use bevy_prototype_lyon::{
 
 pub const BLOCK_WIDTH: f32 = 20.0;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Block {
     pub id: BlockID,
     logical_blocks: HashMap<LogicalBlockID, Entity>,
     section: DirectedSection,
+}
+
+impl Default for Block {
+    fn default() -> Self {
+        let track = TrackID::new(CellID { x: 0, y: 0, l: 0 }, Orientation::EW);
+        Self {
+            id: BlockID::new(
+                track.get_directed(TrackDirection::Aligned),
+                track.get_directed(TrackDirection::Opposite),
+            ),
+            logical_blocks: HashMap::new(),
+            section: DirectedSection::new(),
+        }
+    }
 }
 
 impl Block {
@@ -88,10 +104,14 @@ fn create_block(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     mut commands: Commands,
     selection_state: Res<SelectionState>,
+    mut layout: ResMut<layout::Layout>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::B) {
-            commands.spawn(BlockBundle::new(section.clone()));
+            let block = BlockBundle::new(section.clone());
+            let block_id = block.block.id;
+            let entity = commands.spawn(block).id();
+            layout.add_block(block_id, entity)
         }
     }
 }

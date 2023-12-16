@@ -44,8 +44,8 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !layout.has_track(track_id) {
-                    commands.spawn(TrackBundle::new(track_id));
-                    layout.add_track(track_id);
+                    let entity = commands.spawn(TrackBundle::new(track_id)).id();
+                    layout.add_track(track_id, entity);
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {

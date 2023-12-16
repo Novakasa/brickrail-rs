@@ -1,3 +1,4 @@
+use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
@@ -7,6 +8,7 @@ use petgraph::graphmap::DiGraphMap;
 #[derive(Resource, Default)]
 pub struct Layout {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
+    tracks: HashMap<TrackID, Entity>,
     markers: HashMap<TrackID, Entity>,
     blocks: HashMap<BlockID, Entity>,
     logical_blocks: HashMap<LogicalBlockID, Entity>,
@@ -15,6 +17,14 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn get_entity(&self, id: GenericID) -> Option<Entity> {
+        match id {
+            GenericID::Track(track_id) => self.tracks.get(&track_id).copied(),
+            GenericID::Block(block_id) => self.blocks.get(&block_id).copied(),
+            _ => None,
+        }
+    }
+
     pub fn has_track(&self, track: TrackID) -> bool {
         for logical_track in track.logical_tracks() {
             if self.logical_graph.contains_node(logical_track) {
@@ -24,12 +34,17 @@ impl Layout {
         return false;
     }
 
-    pub fn add_track(&mut self, track: TrackID) {
+    pub fn add_track(&mut self, track: TrackID, entity: Entity) {
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
                 self.logical_graph.add_node(logical_track);
             }
         }
+        self.tracks.insert(track, entity);
+    }
+
+    pub fn add_block(&mut self, block: BlockID, entity: Entity) {
+        self.blocks.insert(block, entity);
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
