@@ -10,7 +10,7 @@ use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum GenericID {
     Cell(CellID),
     Track(TrackID),
@@ -20,7 +20,7 @@ pub enum GenericID {
     Switch(DirectedTrackID),
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub enum Selection {
     #[default]
     None,
@@ -186,7 +186,6 @@ impl Plugin for EditorPlugin {
         app.insert_resource(Msaa::Sample8);
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
-        app.add_plugins(WorldInspectorPlugin::default());
         app.add_plugins(ShapePlugin);
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());

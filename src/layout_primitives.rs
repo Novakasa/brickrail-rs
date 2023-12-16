@@ -6,7 +6,7 @@ use strum_macros::EnumIter;
 
 use crate::utils::distance_to_segment;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub struct TrainID {
     home: LogicalBlockID,
 }
@@ -17,13 +17,13 @@ impl TrainID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum BlockDirection {
     Aligned,
     Opposite,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
@@ -47,14 +47,14 @@ impl BlockID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct LogicalBlockID {
     block: BlockID,
     direction: BlockDirection,
     facing: Facing,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct CellID {
     pub x: i32,
     pub y: i32,
@@ -238,7 +238,7 @@ impl Cardinal {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum Orientation {
     NS,
     NE,
@@ -505,7 +505,7 @@ enum Turn {
     Right,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
 pub enum Facing {
     Forward,
     Backward,
@@ -520,7 +520,7 @@ impl Facing {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
 pub struct LogicalTrackID {
     pub dirtrack: DirectedTrackID,
     pub facing: Facing,
@@ -539,7 +539,7 @@ impl LogicalTrackID {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
 pub enum TrackDirection {
     Aligned,
     Opposite,
@@ -554,7 +554,7 @@ impl TrackDirection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -651,7 +651,7 @@ impl DirectedTrackID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct TrackID {
     cell: CellID,
     orientation: Orientation,

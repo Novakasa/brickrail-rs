@@ -1,4 +1,4 @@
-use bevy::math::Vec2;
+use bevy::{math::Vec2, reflect::Reflect};
 use itertools::Itertools;
 
 use crate::{layout::Layout, layout_primitives::*};
@@ -23,7 +23,7 @@ impl LogicalSection {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
 pub struct DirectedSection {
     pub tracks: Vec<DirectedTrackID>,
 }
