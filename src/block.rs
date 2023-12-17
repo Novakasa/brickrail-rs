@@ -13,26 +13,17 @@ use bevy_prototype_lyon::{
 
 pub const BLOCK_WIDTH: f32 = 20.0;
 
+#[derive(Debug, Reflect, Default)]
+pub struct BlockSettings {
+    pub length: f32,
+}
+
 #[derive(Component, Debug, Reflect)]
-#[reflect(Component)]
 pub struct Block {
     pub id: BlockID,
     logical_blocks: HashMap<LogicalBlockID, Entity>,
     section: DirectedSection,
-}
-
-impl Default for Block {
-    fn default() -> Self {
-        let track = TrackID::new(CellID { x: 0, y: 0, l: 0 }, Orientation::EW);
-        Self {
-            id: BlockID::new(
-                track.get_directed(TrackDirection::Aligned),
-                track.get_directed(TrackDirection::Opposite),
-            ),
-            logical_blocks: HashMap::new(),
-            section: DirectedSection::new(),
-        }
-    }
+    pub settings: BlockSettings,
 }
 
 impl Block {
@@ -86,6 +77,7 @@ impl BlockBundle {
                 id: section.to_block_id(),
                 logical_blocks: HashMap::new(),
                 section: section,
+                settings: BlockSettings::default(),
             },
         }
     }
@@ -145,6 +137,7 @@ pub struct BlockPlugin;
 
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Block>();
         app.add_systems(Update, (create_block, update_block_color));
     }
 }
