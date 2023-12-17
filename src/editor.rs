@@ -4,11 +4,15 @@ use crate::layout_primitives::*;
 use crate::section::DirectedSection;
 use crate::track::TRACK_WIDTH;
 use crate::{block::Block, track::LAYOUT_SCALE};
-use bevy::prelude::*;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy::{input, prelude::*};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
+
+#[derive(Resource, Debug, Default)]
+pub struct InputData {
+    pub mouse_over_ui: bool,
+}
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum GenericID {
@@ -109,7 +113,11 @@ fn init_select(
     buttons: Res<Input<MouseButton>>,
     hover_state: Res<HoverState>,
     mut selection_state: ResMut<SelectionState>,
+    input_data: Res<InputData>,
 ) {
+    if input_data.mouse_over_ui {
+        return;
+    }
     if buttons.just_pressed(MouseButton::Left) {
         match hover_state.hover {
             Some(id) => match id {
@@ -189,6 +197,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(ShapePlugin);
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
+        app.insert_resource(InputData::default());
         app.add_systems(Startup, spawn_camera);
         app.add_systems(
             Update,

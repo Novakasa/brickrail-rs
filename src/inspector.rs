@@ -1,10 +1,7 @@
-use bevy::{prelude::*, reflect::TypeRegistry};
-use bevy_egui::{egui, EguiContext, EguiContexts};
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContext, EguiMousePosition};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
-use bevy_inspector_egui::{
-    bevy_inspector::ui_for_entity, reflect_inspector::ui_for_value_readonly,
-};
 
 use crate::{block::Block, editor::*, layout};
 
@@ -14,13 +11,15 @@ fn inspector_system(
     mut q_blocks: Query<&mut Block>,
     selection_state: Res<SelectionState>,
     layout: Res<layout::Layout>,
+    egui_mouse_pos: Res<EguiMousePosition>,
+    mut input_data: ResMut<InputData>,
 ) {
-    let mut context = q_context.get_single_mut().unwrap().get_mut().clone();
-    egui::Window::new("Inspector").show(&context, |ui| {
+    let context = q_context.get_single_mut().unwrap().get_mut().clone();
+    let response = egui::Window::new("Inspector").show(&context, |ui| {
         ui.label("Hello World!");
         let selection = selection_state.selection.clone();
         if let Selection::Single(generic_id) = selection {
-            if let GenericID::Block(block_id) = generic_id {
+            if let GenericID::Block(_) = generic_id {
                 if let Some(entity) = layout.get_entity(generic_id.clone()) {
                     let mut block = q_blocks.get_mut(entity).unwrap();
 
@@ -29,6 +28,11 @@ fn inspector_system(
             }
         }
     });
+    if let Some(inner) = response {
+        if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
+            input_data.mouse_over_ui = inner.response.rect.contains(mouse_pos.to_pos2());
+        }
+    }
 }
 
 pub struct InspectorPlugin;
