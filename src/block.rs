@@ -39,7 +39,7 @@ impl Block {
 }
 
 impl Inspectable for Block {
-    fn ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
         ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, ui, type_registry);
     }

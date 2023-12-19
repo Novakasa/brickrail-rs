@@ -4,7 +4,7 @@ use crate::layout_primitives::*;
 use crate::section::DirectedSection;
 use crate::track::TRACK_WIDTH;
 use crate::{block::Block, track::LAYOUT_SCALE};
-use bevy::{input, prelude::*};
+use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
