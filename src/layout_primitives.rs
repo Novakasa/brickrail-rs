@@ -6,7 +6,7 @@ use strum_macros::EnumIter;
 
 use crate::utils::distance_to_segment;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub struct TrainID {
     home: LogicalBlockID,
 }

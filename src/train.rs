@@ -1,6 +1,7 @@
 use crate::{
     block::{Block, LogicalBlock},
     editor::*,
+    layout::Layout,
     layout_primitives::*,
     route::Route,
 };
@@ -56,13 +57,15 @@ fn create_train(
     selection_state: Res<SelectionState>,
     q_logical_blocks: Query<&LogicalBlock>,
     q_blocks: Query<&Block>,
+    mut layout: ResMut<Layout>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             // let logical_block =
             // let train = TrainBundle::from_logical_block(logical_block);
-            // commands.spawn(train);
+            // let entity = commands.spawn(train);
+            // layout.add_train(train_id, entity);
         }
     }
 }

@@ -40,11 +40,15 @@ impl Layout {
                 self.logical_graph.add_node(logical_track);
             }
         }
-        self.tracks.insert(track, entity);
+        self.tracks.try_insert(track, entity).unwrap();
     }
 
     pub fn add_block(&mut self, block: BlockID, entity: Entity) {
-        self.blocks.insert(block, entity);
+        self.blocks.try_insert(block, entity).unwrap();
+    }
+
+    pub fn add_train(&mut self, train: TrainID, entity: Entity) {
+        self.trains.try_insert(train, entity).unwrap();
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
@@ -81,7 +85,7 @@ impl Layout {
     }
 
     pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
-        self.markers.insert(track, entity);
+        self.markers.try_insert(track, entity).unwrap();
     }
 }
 
