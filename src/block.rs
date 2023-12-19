@@ -1,15 +1,20 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
+use crate::inspector::Inspectable;
 use crate::layout;
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
+use bevy::reflect::TypeRegistry;
 use bevy::{prelude::*, utils::HashMap};
+use bevy_egui::egui;
+use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
     path::PathBuilder,
     prelude::{LineCap, StrokeOptions},
 };
+use bevy_trait_query::RegisterExt;
 
 pub const BLOCK_WIDTH: f32 = 20.0;
 
@@ -30,6 +35,13 @@ pub struct Block {
 impl Block {
     pub fn distance_to(&self, pos: Vec2) -> f32 {
         self.section.distance_to(pos)
+    }
+}
+
+impl Inspectable for Block {
+    fn ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
+        ui.label("Inspectable block lol");
+        ui_for_value(&mut self.settings, ui, type_registry);
     }
 }
 
@@ -139,6 +151,7 @@ pub struct BlockPlugin;
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
+        app.register_component_as::<dyn Inspectable, Block>();
         app.add_systems(Update, (create_block, update_block_color));
     }
 }

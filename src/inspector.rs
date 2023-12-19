@@ -1,18 +1,20 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::{egui, EguiContext, EguiMousePosition};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use bevy_trait_query::One;
 
 use crate::{block::Block, editor::*, layout};
 
-trait Inspectable {
-    fn ui(&mut self, ui: &mut egui::Ui);
+#[bevy_trait_query::queryable]
+pub trait Inspectable {
+    fn ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry);
 }
 
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut q_context: Query<&mut EguiContext>,
-    mut q_blocks: Query<&mut Block>,
+    mut q_inspectable: Query<One<&mut dyn Inspectable>>,
     selection_state: Res<SelectionState>,
     layout: Res<layout::Layout>,
     egui_mouse_pos: Res<EguiMousePosition>,
@@ -24,15 +26,9 @@ fn inspector_system(
         ui.separator();
         let selection = selection_state.selection.clone();
         if let Selection::Single(generic_id) = selection {
-            if let Some(entity) = layout.get_entity(generic_id.clone()) {
-                match generic_id {
-                    GenericID::Block(_) => {
-                        let mut block = q_blocks.get_mut(entity).unwrap();
-
-                        ui_for_value(&mut block.settings, ui, &type_registry.read());
-                    }
-                    _ => {}
-                }
+            if let Some(entity) = layout.get_entity(&generic_id) {
+                let mut inspectable = q_inspectable.get_mut(entity).unwrap();
+                inspectable.ui(ui, &type_registry.read());
             }
         }
     });

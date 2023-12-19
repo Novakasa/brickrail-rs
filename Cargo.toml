@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.12.1", features = ["dynamic_linking", "serialize"] }
 bevy-inspector-egui = "0.21.0"
+bevy-trait-query = "0.4.0"
 bevy_egui = "0.23.0"
 bevy_framepace = "0.14.1"
 bevy_mouse_tracking_plugin = "0.7.0"

@@ -17,10 +17,10 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn get_entity(&self, id: GenericID) -> Option<Entity> {
+    pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
         match id {
-            GenericID::Track(track_id) => self.tracks.get(&track_id).copied(),
-            GenericID::Block(block_id) => self.blocks.get(&block_id).copied(),
+            GenericID::Track(track_id) => self.tracks.get(track_id).copied(),
+            GenericID::Block(block_id) => self.blocks.get(block_id).copied(),
             _ => None,
         }
     }

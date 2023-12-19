@@ -399,6 +399,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-trait-query"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03c0e3cf09569de8478a06f958a0df02cb12ecbda4d77059d8e4dc3e5a072126"
+dependencies = [
+ "bevy-trait-query-impl",
+ "bevy_app",
+ "bevy_core",
+ "bevy_ecs",
+ "tracing",
+]
+
+[[package]]
+name = "bevy-trait-query-impl"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9d5d3e9b4854feb8b622ceaa36e84cb4a14e30ef8b12231db681a04f545748"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "bevy_a11y"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1305,6 +1330,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy-trait-query",
  "bevy_egui",
  "bevy_framepace",
  "bevy_mouse_tracking_plugin",
