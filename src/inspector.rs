@@ -5,6 +5,10 @@ use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::{block::Block, editor::*, layout};
 
+trait Inspectable {
+    fn ui(&mut self, ui: &mut egui::Ui);
+}
+
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut q_context: Query<&mut EguiContext>,
@@ -17,13 +21,17 @@ fn inspector_system(
     let context = q_context.get_single_mut().unwrap().get_mut().clone();
     let response = egui::Window::new("Inspector").show(&context, |ui| {
         ui.label("Hello World!");
+        ui.separator();
         let selection = selection_state.selection.clone();
         if let Selection::Single(generic_id) = selection {
-            if let GenericID::Block(_) = generic_id {
-                if let Some(entity) = layout.get_entity(generic_id.clone()) {
-                    let mut block = q_blocks.get_mut(entity).unwrap();
+            if let Some(entity) = layout.get_entity(generic_id.clone()) {
+                match generic_id {
+                    GenericID::Block(_) => {
+                        let mut block = q_blocks.get_mut(entity).unwrap();
 
-                    ui_for_value(&mut block.settings, ui, &type_registry.read());
+                        ui_for_value(&mut block.settings, ui, &type_registry.read());
+                    }
+                    _ => {}
                 }
             }
         }

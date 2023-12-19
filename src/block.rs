@@ -15,6 +15,7 @@ pub const BLOCK_WIDTH: f32 = 20.0;
 
 #[derive(Debug, Reflect, Default)]
 pub struct BlockSettings {
+    pub name: String,
     pub length: f32,
 }
 
