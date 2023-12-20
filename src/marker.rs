@@ -37,12 +37,12 @@ pub struct Marker {
 }
 
 impl Marker {
-    pub fn collapse_logical(&self, logical_track: LogicalTrackID) -> Option<LogicalMarker> {
+    pub fn collapse_logical(&self, logical_track: LogicalTrackID) -> Option<RouteMarkerData> {
         if logical_track.dirtrack.track != self.track {
             return None;
         }
         let logical = self.logical_data.get(&logical_track).unwrap();
-        return Some(LogicalMarker {
+        return Some(RouteMarkerData {
             track: logical_track,
             color: self.color,
             speed: logical.speed,
@@ -52,7 +52,7 @@ impl Marker {
 }
 
 #[derive(Debug, Clone)]
-pub struct LogicalMarker {
+pub struct RouteMarkerData {
     pub track: LogicalTrackID,
     pub color: MarkerColor,
     pub speed: MarkerSpeed,

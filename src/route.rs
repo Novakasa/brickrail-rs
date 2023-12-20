@@ -39,7 +39,17 @@ impl Route {
         route
     }
 
-    pub fn push_leg(mut self, leg: RouteLeg) {
+    pub fn add_leg_from_section(&mut self, section: LogicalSection) {
+        let mut markers = vec![];
+        self.push_leg(RouteLeg {
+            section: section,
+            markers: markers,
+            status: LegStatus::Running(0),
+            intention: LegIntention::Pass,
+        });
+    }
+
+    pub fn push_leg(&mut self, leg: RouteLeg) {
         self.legs.push(leg);
     }
 
@@ -82,7 +92,7 @@ enum LegIntention {
 #[derive(Debug)]
 pub struct RouteLeg {
     section: LogicalSection,
-    markers: Vec<LogicalMarker>,
+    markers: Vec<RouteMarkerData>,
     status: LegStatus,
     intention: LegIntention,
 }
@@ -118,7 +128,7 @@ impl RouteLeg {
         }
     }
 
-    fn get_last_marker(&self) -> &LogicalMarker {
+    fn get_last_marker(&self) -> &RouteMarkerData {
         match self.status {
             LegStatus::Completed => self.markers.last().unwrap(),
             LegStatus::Running(index) => self.markers.get(index).unwrap(),

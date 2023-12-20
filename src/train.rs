@@ -19,7 +19,6 @@ struct TrainWagonBundle {
 struct Train {
     id: TrainID,
     route: Route,
-    home: LogicalBlockID,
     wagons: Vec<Entity>,
 }
 
@@ -30,12 +29,11 @@ struct TrainBundle {
 }
 
 impl TrainBundle {
-    fn from_logical_block(logical_block_id: &LogicalBlockID, id: TrainID) -> Self {
-        let route = Route::from_block(logical_block_id);
+    fn new(route: Route, id: TrainID) -> Self {
+        let route = route;
         let train = Train {
             id: id,
             route: route,
-            home: logical_block_id.clone(),
             wagons: vec![],
         };
         Self {
@@ -55,8 +53,14 @@ fn create_train(
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
+            let block = q_blocks
+                .get(layout.get_entity(&GenericID::Block(*block_id)).unwrap())
+                .unwrap();
+            let logical_section = block.get_logical_section(logical_block_id);
             let train_id = TrainID::new(layout.trains.len());
-            let train = TrainBundle::from_logical_block(&logical_block_id, train_id);
+            let mut route = Route::new();
+            route.add_leg_from_section(logical_section);
+            let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             println!("Creating train {:?}", train_id);
             let entity = commands.spawn(train).id();
