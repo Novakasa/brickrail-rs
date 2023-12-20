@@ -65,6 +65,14 @@ impl DirectedSection {
         opposite
     }
 
+    pub fn get_logical(&self, facing: Facing) -> LogicalSection {
+        let mut logical = LogicalSection::new();
+        for track in self.tracks.iter() {
+            logical.tracks.push(track.get_logical(facing));
+        }
+        logical
+    }
+
     pub fn has_directed_connection(&self, connection: &DirectedTrackConnectionID) -> bool {
         for (track_a, track_b) in self.tracks.iter().tuple_windows() {
             if connection.from_track == *track_a && connection.to_track == *track_b {

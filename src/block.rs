@@ -4,8 +4,8 @@ use crate::layout;
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
+use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
-use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
@@ -27,7 +27,6 @@ pub struct BlockSettings {
 #[derive(Component, Debug, Reflect)]
 pub struct Block {
     pub id: BlockID,
-    logical_blocks: HashMap<LogicalBlockID, Entity>,
     section: DirectedSection,
     pub settings: BlockSettings,
 }
@@ -35,6 +34,13 @@ pub struct Block {
 impl Block {
     pub fn distance_to(&self, pos: Vec2) -> f32 {
         self.section.distance_to(pos)
+    }
+
+    pub fn get_logical_section(&self, block_id: LogicalBlockID) -> LogicalSection {
+        match block_id.direction {
+            BlockDirection::Aligned => self.section.get_logical(block_id.facing),
+            BlockDirection::Opposite => self.section.get_opposite().get_logical(block_id.facing),
+        }
     }
 }
 
@@ -88,21 +94,11 @@ impl BlockBundle {
             ),
             block: Block {
                 id: section.to_block_id(),
-                logical_blocks: HashMap::new(),
                 section: section,
                 settings: BlockSettings::default(),
             },
         }
     }
-}
-
-#[derive(Component, Debug)]
-pub struct LogicalBlock {
-    pub id: LogicalBlockID,
-    enter_marks: Vec<LogicalTrackID>,
-    in_mark: LogicalTrackID,
-    train: Option<TrainID>,
-    section: LogicalSection,
 }
 
 fn create_block(

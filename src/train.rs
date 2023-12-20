@@ -1,10 +1,4 @@
-use crate::{
-    block::{Block, LogicalBlock},
-    editor::*,
-    layout::Layout,
-    layout_primitives::*,
-    route::Route,
-};
+use crate::{block::Block, editor::*, layout::Layout, layout_primitives::*, route::Route};
 use bevy::{input::keyboard, prelude::*};
 use bevy_prototype_lyon::entity::ShapeBundle;
 
@@ -36,12 +30,12 @@ struct TrainBundle {
 }
 
 impl TrainBundle {
-    fn from_logical_block(logical_block: &LogicalBlock) -> Self {
-        let mut route = Route::from_block(logical_block);
+    fn from_logical_block(logical_block_id: &LogicalBlockID, id: TrainID) -> Self {
+        let route = Route::from_block(logical_block_id);
         let train = Train {
-            id: TrainID::new(logical_block.id),
+            id: id,
             route: route,
-            home: logical_block.id,
+            home: logical_block_id.clone(),
             wagons: vec![],
         };
         Self {
@@ -55,17 +49,18 @@ fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     mut commands: Commands,
     selection_state: Res<SelectionState>,
-    q_logical_blocks: Query<&LogicalBlock>,
     q_blocks: Query<&Block>,
     mut layout: ResMut<Layout>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
-            // let logical_block =
-            // let train = TrainBundle::from_logical_block(logical_block);
-            // let entity = commands.spawn(train);
-            // layout.add_train(train_id, entity);
+            let train_id = TrainID::new(layout.trains.len());
+            let train = TrainBundle::from_logical_block(&logical_block_id, train_id);
+            let train_id = train.train.id;
+            println!("Creating train {:?}", train_id);
+            let entity = commands.spawn(train).id();
+            layout.add_train(train_id, entity);
         }
     }
 }
@@ -73,5 +68,7 @@ fn create_train(
 pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, create_train);
+    }
 }

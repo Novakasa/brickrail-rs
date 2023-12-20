@@ -11,8 +11,7 @@ pub struct Layout {
     tracks: HashMap<TrackID, Entity>,
     markers: HashMap<TrackID, Entity>,
     blocks: HashMap<BlockID, Entity>,
-    logical_blocks: HashMap<LogicalBlockID, Entity>,
-    trains: HashMap<TrainID, Entity>,
+    pub trains: HashMap<TrainID, Entity>,
     pub scale: f32,
 }
 
