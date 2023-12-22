@@ -69,7 +69,10 @@ fn create_train(
             let route = build_route(&block_section, &q_markers, &layout);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
-            println!("Creating train {:?}", train_id);
+            println!(
+                "Creating train {:?} at logical block {:?}",
+                train_id, logical_block_id
+            );
             let entity = commands.spawn(train).id();
             layout.add_train(train_id, entity);
         }

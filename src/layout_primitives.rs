@@ -23,7 +23,16 @@ pub enum BlockDirection {
     Opposite,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+impl BlockDirection {
+    fn get_name(&self) -> &'static str {
+        match self {
+            BlockDirection::Aligned => "->",
+            BlockDirection::Opposite => "<-",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
@@ -55,9 +64,18 @@ impl BlockID {
             self.to_logical(Opposite, Backward),
         ]
     }
+    pub fn get_name(&self) -> String {
+        format!("({})-({})", self.track1.get_name(), self.track2.get_name(),)
+    }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+impl fmt::Debug for BlockID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "B({})", self.get_name())
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
 pub struct LogicalBlockID {
     pub block: BlockID,
     pub direction: BlockDirection,
@@ -70,6 +88,25 @@ impl LogicalBlockID {
             BlockDirection::Aligned => self.block.track1.get_logical(self.facing),
             BlockDirection::Opposite => self.block.track2.get_logical(self.facing),
         }
+    }
+
+    pub fn get_name(&self) -> String {
+        let (first, second) = match self.direction {
+            BlockDirection::Aligned => (self.block.track1, self.block.track2.opposite()),
+            BlockDirection::Opposite => (self.block.track2.opposite(), self.block.track1),
+        };
+        format!(
+            "({}){}({})",
+            first.get_name(),
+            self.facing.get_name(),
+            second.get_name(),
+        )
+    }
+}
+
+impl fmt::Debug for LogicalBlockID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LB({})", self.get_name())
     }
 }
 
@@ -296,18 +333,18 @@ impl Orientation {
 
     pub fn get_cardinal(&self, dir: TrackDirection) -> Cardinal {
         match dir {
-            TrackDirection::Aligned => self.get_cardinals().0,
-            TrackDirection::Opposite => self.get_cardinals().1,
+            TrackDirection::First => self.get_cardinals().0,
+            TrackDirection::Last => self.get_cardinals().1,
         }
     }
 
     pub fn get_direction_to(&self, cardinal: Cardinal) -> Option<TrackDirection> {
         let (card1, card2) = self.get_cardinals();
         if cardinal == card1 {
-            return Some(TrackDirection::Aligned);
+            return Some(TrackDirection::First);
         }
         if cardinal == card2 {
-            return Some(TrackDirection::Opposite);
+            return Some(TrackDirection::Last);
         }
         return None;
     }
@@ -320,6 +357,28 @@ impl Orientation {
             Self::NW => 3,
             Self::SE => 7,
             Self::SW => 5,
+        }
+    }
+
+    pub fn get_name(&self) -> &'static str {
+        match self {
+            Self::EW => "EW",
+            Self::NE => "NE",
+            Self::NS => "NS",
+            Self::NW => "NW",
+            Self::SE => "SE",
+            Self::SW => "SW",
+        }
+    }
+
+    pub fn get_reversed_name(&self) -> &'static str {
+        match self {
+            Self::EW => "WE",
+            Self::NE => "EN",
+            Self::NS => "SN",
+            Self::NW => "WN",
+            Self::SE => "ES",
+            Self::SW => "WS",
         }
     }
 }
@@ -537,9 +596,16 @@ impl Facing {
             Facing::Backward => Facing::Forward,
         }
     }
+
+    fn get_name(&self) -> &'static str {
+        match self {
+            Facing::Forward => ">",
+            Facing::Backward => "<",
+        }
+    }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
 pub struct LogicalTrackID {
     pub dirtrack: DirectedTrackID,
     pub facing: Facing,
@@ -556,24 +622,34 @@ impl LogicalTrackID {
     pub fn track(&self) -> TrackID {
         self.dirtrack.track
     }
+
+    pub fn get_name(&self) -> String {
+        format!("{}{}", self.dirtrack.get_name(), self.facing.get_name())
+    }
+}
+
+impl fmt::Debug for LogicalTrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "L({})", self.get_name())
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
 pub enum TrackDirection {
-    Aligned,
-    Opposite,
+    First,
+    Last,
 }
 
 impl TrackDirection {
     pub fn opposite(&self) -> Self {
         match self {
-            TrackDirection::Aligned => TrackDirection::Opposite,
-            TrackDirection::Opposite => TrackDirection::Aligned,
+            TrackDirection::First => TrackDirection::Last,
+            TrackDirection::Last => TrackDirection::First,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -652,8 +728,8 @@ impl DirectedTrackID {
 
     pub fn dir_index(&self) -> i32 {
         match self.direction {
-            TrackDirection::Aligned => self.track.orientation.turn_index(),
-            TrackDirection::Opposite => (self.track.orientation.turn_index() + 4) % 8,
+            TrackDirection::First => self.track.orientation.turn_index(),
+            TrackDirection::Last => (self.track.orientation.turn_index() + 4) % 8,
         }
     }
 
@@ -667,6 +743,24 @@ impl DirectedTrackID {
 
     fn straight_end(&self) -> Vec2 {
         self.interpolate_pos(self.straight_length())
+    }
+
+    fn get_name(&self) -> String {
+        let dirstr = match self.direction {
+            TrackDirection::First => self.track.orientation.get_reversed_name(),
+            TrackDirection::Last => self.track.orientation.get_name(),
+        };
+
+        format!(
+            "{},{},{}|{}",
+            self.track.cell.x, self.track.cell.y, self.track.cell.l, dirstr
+        )
+    }
+}
+
+impl fmt::Debug for DirectedTrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "D({})", self.get_name())
     }
 }
 
@@ -724,23 +818,23 @@ impl TrackID {
 
     pub fn dirtracks(&self) -> [DirectedTrackID; 2] {
         [
-            self.get_directed(TrackDirection::Aligned),
-            self.get_directed(TrackDirection::Opposite),
+            self.get_directed(TrackDirection::First),
+            self.get_directed(TrackDirection::Last),
         ]
     }
 
     pub fn logical_tracks(&self) -> [LogicalTrackID; 4] {
         use {Facing::*, TrackDirection::*};
         [
-            self.get_directed(Aligned).get_logical(Forward),
-            self.get_directed(Aligned).get_logical(Backward),
-            self.get_directed(Opposite).get_logical(Forward),
-            self.get_directed(Opposite).get_logical(Backward),
+            self.get_directed(First).get_logical(Forward),
+            self.get_directed(First).get_logical(Backward),
+            self.get_directed(Last).get_logical(Forward),
+            self.get_directed(Last).get_logical(Backward),
         ]
     }
 
     pub fn distance_to(&self, normalized_pos: Vec2) -> f32 {
-        let directed = self.get_directed(TrackDirection::Aligned);
+        let directed = self.get_directed(TrackDirection::First);
         distance_to_segment(
             normalized_pos,
             directed.from_slot().get_vec2(),

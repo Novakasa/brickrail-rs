@@ -125,7 +125,7 @@ fn init_select(
                     let mut section = DirectedSection::new();
                     section
                         .push(
-                            track_id.get_directed(TrackDirection::Aligned),
+                            track_id.get_directed(TrackDirection::First),
                             &Layout::default(),
                         )
                         .unwrap();

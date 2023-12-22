@@ -1,6 +1,3 @@
-use core::panic;
-use std::marker;
-
 use bevy::prelude::*;
 use itertools::Itertools;
 
@@ -24,7 +21,7 @@ pub fn build_route(
 ) -> Route {
     let mut route = Route::new();
     let in_tracks = layout.in_markers.keys().collect_vec();
-    let split = logical_section.split_by_tracks(in_tracks);
+    let split = logical_section.split_by_tracks_with_overlap(in_tracks);
 
     for (section, in_track) in split {
         let target_id = layout.in_markers.get(&in_track).unwrap();
@@ -51,7 +48,12 @@ pub fn build_route(
         };
         route.push_leg(leg);
     }
-    println!("legs: {:?}", route.legs.len());
+    route.get_current_leg_mut().set_completed();
+    println!(
+        "legs: {:?}, {:?}",
+        route.legs.len(),
+        route.get_current_leg().markers
+    );
     route
 }
 
@@ -120,8 +122,16 @@ pub struct RouteLeg {
 }
 
 impl RouteLeg {
+    fn get_enter_index(&self) -> usize {
+        for (i, marker) in self.markers.iter().enumerate() {
+            if marker.key == MarkerKey::Enter {
+                return i;
+            }
+        }
+        return self.markers.len() - 2;
+    }
+
     fn is_completed(&self) -> bool {
-        // panic if we try to advance a completed leg
         if self.index >= self.markers.len() {
             panic!("this route leg is fucked honestly {:?}", self.index);
         }
@@ -137,15 +147,7 @@ impl RouteLeg {
     }
 
     fn has_entered(&self) -> bool {
-        for (i, marker) in self.markers.iter().enumerate().rev() {
-            if marker.key == MarkerKey::Enter {
-                return false;
-            }
-            if i == self.index {
-                return true;
-            }
-        }
-        return true;
+        return self.index >= self.get_enter_index();
     }
 
     fn get_last_marker(&self) -> &RouteMarkerData {
@@ -154,6 +156,10 @@ impl RouteLeg {
 
     fn get_train_state(&self) -> TrainState {
         let should_stop = self.intention == LegIntention::Stop;
+
+        if should_stop && self.is_completed() {
+            return TrainState::Stop;
+        }
 
         let speed = if should_stop && self.has_entered() {
             MarkerSpeed::Slow
@@ -166,14 +172,11 @@ impl RouteLeg {
         }
     }
 
-    fn is_flip_type(&self) -> bool {
-        if self.section.len() < 2 {
-            return false;
-        }
-        self.section.tracks.get(0).unwrap().reversed() == *self.section.tracks.get(1).unwrap()
-    }
-
     fn get_final_facing(&self) -> Facing {
         self.section.tracks.last().unwrap().facing
+    }
+
+    fn set_completed(&mut self) {
+        self.index = self.markers.len() - 1;
     }
 }

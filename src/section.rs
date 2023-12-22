@@ -22,17 +22,18 @@ impl LogicalSection {
         self.tracks.len()
     }
 
-    pub fn split_by_tracks(
+    pub fn split_by_tracks_with_overlap(
         &self,
         tracks: Vec<&LogicalTrackID>,
     ) -> Vec<(LogicalSection, LogicalTrackID)> {
         let mut results = vec![];
         let mut current_section = LogicalSection::new();
         for track in self.tracks.iter() {
-            current_section.tracks.push(*track);
+            current_section.tracks.push(track.clone());
             if tracks.contains(&track) {
                 results.push((current_section.clone(), *track));
                 current_section = LogicalSection::new();
+                current_section.tracks.push(track.clone());
             }
         }
         results
