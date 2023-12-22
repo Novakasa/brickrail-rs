@@ -45,6 +45,16 @@ impl BlockID {
             facing,
         }
     }
+
+    pub fn logical_block_ids(&self) -> [LogicalBlockID; 4] {
+        use {BlockDirection::*, Facing::*};
+        [
+            self.to_logical(Aligned, Forward),
+            self.to_logical(Aligned, Backward),
+            self.to_logical(Opposite, Forward),
+            self.to_logical(Opposite, Backward),
+        ]
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
@@ -52,6 +62,15 @@ pub struct LogicalBlockID {
     pub block: BlockID,
     pub direction: BlockDirection,
     pub facing: Facing,
+}
+
+impl LogicalBlockID {
+    pub fn default_in_marker_track(&self) -> LogicalTrackID {
+        match self.direction {
+            BlockDirection::Aligned => self.block.track1.get_logical(self.facing),
+            BlockDirection::Opposite => self.block.track2.get_logical(self.facing),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]

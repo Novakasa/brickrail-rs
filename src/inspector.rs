@@ -3,7 +3,10 @@ use bevy_egui::{
     egui::{self, Id},
     EguiContexts, EguiMousePosition,
 };
-use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use bevy_inspector_egui::{
+    reflect_inspector::{ui_for_value, ui_for_value_readonly},
+    DefaultInspectorConfigPlugin,
+};
 use bevy_trait_query::One;
 
 use crate::{editor::*, layout};
@@ -26,6 +29,7 @@ fn inspector_system(
         contexts.ctx_mut(),
         |ui| {
             ui.label("Hello World!");
+            // ui_for_value_readonly(&layout.in_markers, ui, &type_registry.read());
             ui.separator();
             let selection = selection_state.selection.clone();
             if let Selection::Single(generic_id) = selection {

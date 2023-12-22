@@ -1,18 +1,27 @@
 use crate::editor::GenericID;
 use crate::layout_primitives::*;
+use crate::marker::MarkerKey;
 use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Reflect)]
 pub struct Layout {
+    #[reflect(ignore)]
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
     tracks: HashMap<TrackID, Entity>,
-    markers: HashMap<TrackID, Entity>,
+    pub markers: HashMap<TrackID, Entity>,
+    pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
+    pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
     blocks: HashMap<BlockID, Entity>,
     pub trains: HashMap<TrainID, Entity>,
     pub scale: f32,
+}
+
+#[derive(Resource, Default)]
+struct TrackLocks {
+    locked_tracks: HashMap<TrackID, TrainID>,
 }
 
 impl Layout {
@@ -86,6 +95,20 @@ impl Layout {
     pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
         self.markers.try_insert(track, entity).unwrap();
     }
+
+    pub fn get_marker_key(
+        &self,
+        logical_track: &LogicalTrackID,
+        target_block: &LogicalBlockID,
+    ) -> MarkerKey {
+        if self.in_markers.get(logical_track) == Some(target_block) {
+            MarkerKey::In
+        } else if self.enter_markers.get(logical_track) == Some(target_block) {
+            MarkerKey::Enter
+        } else {
+            MarkerKey::None
+        }
+    }
 }
 
 fn draw_layout_graph(mut gizmos: Gizmos, layout: Res<Layout>, time: Res<Time>) {
@@ -125,6 +148,7 @@ impl Plugin for LayoutPlugin {
             scale: LAYOUT_SCALE,
             ..Default::default()
         });
+        app.insert_resource(TrackLocks::default());
         app.add_systems(Startup, print_sizes);
         // app.add_systems(Update, draw_layout_graph);
     }

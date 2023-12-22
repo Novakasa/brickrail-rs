@@ -1,17 +1,18 @@
-use bevy::utils::HashMap;
+use bevy::{ecs::component::Component, reflect::Reflect, utils::HashMap};
 
 use crate::layout_primitives::*;
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum MarkerKey {
-    Enter(LogicalBlockID),
-    In(LogicalBlockID),
+    Enter,
+    In,
     None,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Default)]
 pub enum MarkerSpeed {
     Slow,
+    #[default]
     Cruise,
     Fast,
 }
@@ -25,36 +26,36 @@ pub enum MarkerColor {
     Green,
 }
 
-struct LogicalMarkerData {
-    speed: MarkerSpeed,
-    key: MarkerKey,
+#[derive(Debug, Clone, Default)]
+pub struct LogicalMarkerData {
+    pub speed: MarkerSpeed,
 }
 
+#[derive(Debug, Component)]
 pub struct Marker {
     pub track: TrackID,
     pub color: MarkerColor,
-    logical_data: HashMap<LogicalTrackID, LogicalMarkerData>,
+    pub logical_data: HashMap<LogicalTrackID, LogicalMarkerData>,
 }
 
 impl Marker {
-    pub fn collapse_logical(&self, logical_track: LogicalTrackID) -> Option<RouteMarkerData> {
-        if logical_track.dirtrack.track != self.track {
-            return None;
+    pub fn new(track: TrackID, color: MarkerColor) -> Self {
+        let mut logical_data = HashMap::new();
+        for logical in track.logical_tracks() {
+            logical_data.insert(logical, LogicalMarkerData::default());
         }
-        let logical = self.logical_data.get(&logical_track).unwrap();
-        return Some(RouteMarkerData {
-            track: logical_track,
-            color: self.color,
-            speed: logical.speed,
-            key: logical.key,
-        });
+        Self {
+            track: track,
+            color: color,
+            logical_data: logical_data,
+        }
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct RouteMarkerData {
-    pub track: LogicalTrackID,
-    pub color: MarkerColor,
-    pub speed: MarkerSpeed,
-    pub key: MarkerKey,
+    pub fn get_logical_data(&self, logical: LogicalTrackID) -> Option<&LogicalMarkerData> {
+        self.logical_data.get(&logical)
+    }
+
+    pub fn set_logical_data(&mut self, logical: LogicalTrackID, data: LogicalMarkerData) {
+        self.logical_data.insert(logical, data);
+    }
 }

@@ -1,11 +1,13 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
 use crate::inspector::Inspectable;
 use crate::layout;
+use crate::marker::{Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
+use bevy::utils::HashMap;
 use bevy_egui::egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
@@ -18,6 +20,12 @@ use bevy_trait_query::RegisterExt;
 
 pub const BLOCK_WIDTH: f32 = 20.0;
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
+struct LogicalID {
+    direction: BlockDirection,
+    facing: Facing,
+}
+
 #[derive(Debug, Reflect, Default)]
 pub struct BlockSettings {
     pub name: String,
@@ -28,6 +36,7 @@ pub struct BlockSettings {
 pub struct Block {
     pub id: BlockID,
     section: DirectedSection,
+    markers: HashMap<LogicalID, HashMap<LogicalTrackID, MarkerKey>>,
     pub settings: BlockSettings,
 }
 
@@ -95,6 +104,7 @@ impl BlockBundle {
             block: Block {
                 id: section.to_block_id(),
                 section: section,
+                markers: HashMap::default(),
                 settings: BlockSettings::default(),
             },
         }
@@ -112,7 +122,18 @@ fn create_block(
             let block = BlockBundle::new(section.clone());
             let block_id = block.block.id;
             let entity = commands.spawn(block).id();
-            layout.add_block(block_id, entity)
+            layout.add_block(block_id, entity);
+            for logical_id in block_id.logical_block_ids() {
+                let in_track = logical_id.default_in_marker_track();
+                layout.in_markers.try_insert(in_track, logical_id).unwrap();
+                let marker_entity = layout
+                    .get_entity(&GenericID::Track(in_track.track()))
+                    .unwrap();
+                commands
+                    .entity(marker_entity)
+                    .insert(Marker::new(in_track.track(), MarkerColor::Blue));
+                layout.markers.insert(in_track.track(), marker_entity);
+            }
         }
     }
 }

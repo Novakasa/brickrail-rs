@@ -1,4 +1,11 @@
-use crate::{block::Block, editor::*, layout::Layout, layout_primitives::*, route::Route};
+use crate::{
+    block::Block,
+    editor::*,
+    layout::Layout,
+    layout_primitives::*,
+    marker::Marker,
+    route::{build_route, Route},
+};
 use bevy::{input::keyboard, prelude::*};
 use bevy_prototype_lyon::entity::ShapeBundle;
 
@@ -49,6 +56,7 @@ fn create_train(
     selection_state: Res<SelectionState>,
     q_blocks: Query<&Block>,
     mut layout: ResMut<Layout>,
+    q_markers: Query<&Marker>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
@@ -58,8 +66,7 @@ fn create_train(
                 .unwrap();
             let logical_section = block.get_logical_section(logical_block_id);
             let train_id = TrainID::new(layout.trains.len());
-            let mut route = Route::new();
-            route.add_leg_from_section(logical_section);
+            let route = build_route(&logical_section, &q_blocks, &q_markers, &layout);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             println!("Creating train {:?}", train_id);

@@ -21,6 +21,22 @@ impl LogicalSection {
     pub fn len(&self) -> usize {
         self.tracks.len()
     }
+
+    pub fn split_by_tracks(
+        &self,
+        tracks: Vec<&LogicalTrackID>,
+    ) -> Vec<(LogicalSection, LogicalTrackID)> {
+        let mut results = vec![];
+        let mut current_section = LogicalSection::new();
+        for track in self.tracks.iter() {
+            current_section.tracks.push(*track);
+            if tracks.contains(&track) {
+                results.push((current_section.clone(), *track));
+                current_section = LogicalSection::new();
+            }
+        }
+        results
+    }
 }
 
 #[derive(Debug, Clone, Reflect)]
