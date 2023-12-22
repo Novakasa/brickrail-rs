@@ -64,9 +64,9 @@ fn create_train(
             let block = q_blocks
                 .get(layout.get_entity(&GenericID::Block(*block_id)).unwrap())
                 .unwrap();
-            let logical_section = block.get_logical_section(logical_block_id);
+            let block_section = block.get_logical_section(logical_block_id);
             let train_id = TrainID::new(layout.trains.len());
-            let route = build_route(&logical_section, &q_blocks, &q_markers, &layout);
+            let route = build_route(&block_section, &q_markers, &layout);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             println!("Creating train {:?}", train_id);

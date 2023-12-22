@@ -1,7 +1,9 @@
+use core::panic;
+use std::marker;
+
 use bevy::prelude::*;
 use itertools::Itertools;
 
-use crate::block::Block;
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::marker::*;
@@ -17,7 +19,6 @@ pub struct RouteMarkerData {
 
 pub fn build_route(
     logical_section: &LogicalSection,
-    q_blocks: &Query<&Block>,
     q_markers: &Query<&Marker>,
     layout: &Layout,
 ) -> Route {
@@ -45,25 +46,18 @@ pub fn build_route(
         let leg = RouteLeg {
             section: section,
             markers: leg_markers,
-            status: LegStatus::Running(0),
+            index: 0,
             intention: LegIntention::Pass,
         };
         route.push_leg(leg);
     }
+    println!("legs: {:?}", route.legs.len());
     route
 }
 
 pub enum TrainState {
     Stop,
     Run { facing: Facing, speed: MarkerSpeed },
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum RouteStatus {
-    Start,
-    Running,
-    Paused,
-    Completed,
 }
 
 #[derive(Debug)]
@@ -81,7 +75,7 @@ impl Route {
         self.push_leg(RouteLeg {
             section: section,
             markers: markers,
-            status: LegStatus::Running(0),
+            index: 0,
             intention: LegIntention::Pass,
         });
     }
@@ -90,12 +84,8 @@ impl Route {
         self.legs.push(leg);
     }
 
-    pub fn next_leg(&mut self) -> RouteStatus {
+    pub fn next_leg(&mut self) {
         self.legs.remove(0);
-        if self.legs.len() == 0 {
-            return RouteStatus::Completed;
-        }
-        return RouteStatus::Running;
     }
 
     pub fn get_current_leg(&self) -> &RouteLeg {
@@ -106,18 +96,13 @@ impl Route {
         &mut self.legs[0]
     }
 
-    pub fn advance_sensor(&mut self) -> RouteStatus {
-        match self.get_current_leg_mut().advance_marker() {
-            LegStatus::Completed => self.next_leg(),
-            _ => RouteStatus::Running,
+    pub fn advance_sensor(&mut self) {
+        let current_leg = self.get_current_leg_mut();
+        current_leg.advance_marker();
+        if current_leg.is_completed() {
+            self.next_leg();
         }
     }
-}
-
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
-enum LegStatus {
-    Running(usize),
-    Completed,
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -130,46 +115,41 @@ enum LegIntention {
 pub struct RouteLeg {
     section: LogicalSection,
     markers: Vec<RouteMarkerData>,
-    status: LegStatus,
+    index: usize,
     intention: LegIntention,
 }
 
 impl RouteLeg {
-    fn advance_marker(&mut self) -> LegStatus {
-        if let LegStatus::Running(index) = self.status {
-            if index + 1 == self.markers.len() {
-                self.status = LegStatus::Completed;
-            } else {
-                self.status = LegStatus::Running(index + 1);
-            }
-            return self.status;
+    fn is_completed(&self) -> bool {
+        // panic if we try to advance a completed leg
+        if self.index >= self.markers.len() {
+            panic!("this route leg is fucked honestly {:?}", self.index);
+        }
+        self.index == self.markers.len() - 1
+    }
+
+    fn advance_marker(&mut self) {
+        if self.index < self.markers.len() - 1 {
+            self.index += 1;
         } else {
-            panic!("Can't advance completed leg {:?}!", self);
+            panic!("Can't advance completed leg {:?}!", self.index);
         }
     }
 
     fn has_entered(&self) -> bool {
-        match self.status {
-            LegStatus::Completed => true,
-            LegStatus::Running(index) => {
-                for (i, marker) in self.markers.iter().enumerate().rev() {
-                    if marker.key == MarkerKey::Enter {
-                        return false;
-                    }
-                    if i == index {
-                        return true;
-                    }
-                }
+        for (i, marker) in self.markers.iter().enumerate().rev() {
+            if marker.key == MarkerKey::Enter {
+                return false;
+            }
+            if i == self.index {
                 return true;
             }
         }
+        return true;
     }
 
     fn get_last_marker(&self) -> &RouteMarkerData {
-        match self.status {
-            LegStatus::Completed => self.markers.last().unwrap(),
-            LegStatus::Running(index) => self.markers.get(index).unwrap(),
-        }
+        self.markers.get(self.index).unwrap()
     }
 
     fn get_train_state(&self) -> TrainState {
