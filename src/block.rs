@@ -1,5 +1,4 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
-use crate::inspector::Inspectable;
 use crate::layout;
 use crate::marker::{Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
@@ -53,10 +52,23 @@ impl Block {
     }
 }
 
-impl Inspectable for Block {
+impl Selectable for Block {
     fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
         ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, ui, type_registry);
+    }
+
+    fn get_depth(&self) -> f32 {
+        0.0
+    }
+
+    fn get_id(&self) -> GenericID {
+        GenericID::Block(self.id)
+    }
+
+    fn get_distance(&self, pos: Vec2) -> f32 {
+        let block_dist = self.distance_to(pos) - BLOCK_WIDTH / LAYOUT_SCALE;
+        block_dist
     }
 }
 
@@ -65,7 +77,6 @@ pub struct BlockBundle {
     shape: ShapeBundle,
     stroke: Stroke,
     block: Block,
-    selectable: Selectable,
 }
 
 impl BlockBundle {
@@ -97,10 +108,6 @@ impl BlockBundle {
         Self {
             shape: shape,
             stroke: stroke,
-            selectable: Selectable::new(
-                crate::editor::GenericID::Block(section.to_block_id()),
-                0.0,
-            ),
             block: Block {
                 id: section.to_block_id(),
                 section: section,
@@ -169,7 +176,7 @@ pub struct BlockPlugin;
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
-        app.register_component_as::<dyn Inspectable, Block>();
+        app.register_component_as::<dyn Selectable, Block>();
         app.add_systems(Update, (create_block, update_block_color));
     }
 }

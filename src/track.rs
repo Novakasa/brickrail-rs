@@ -4,9 +4,11 @@ use crate::{
     layout_primitives::*,
     utils::bresenham_line,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::TypeRegistry};
+use bevy_egui::egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
+use bevy_trait_query::RegisterExt;
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -120,9 +122,26 @@ struct Track {
     id: TrackID,
 }
 
+impl Selectable for Track {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
+        ui.label("Inspectable track lol");
+    }
+
+    fn get_depth(&self) -> f32 {
+        1.0
+    }
+
+    fn get_id(&self) -> GenericID {
+        GenericID::Track(self.id)
+    }
+
+    fn get_distance(&self, pos: Vec2) -> f32 {
+        self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
+    }
+}
+
 #[derive(Bundle)]
 struct TrackBundle {
-    selectable: Selectable,
     track: Track,
     name: Name,
 }
@@ -131,7 +150,6 @@ impl TrackBundle {
     pub fn new(track_id: TrackID) -> Self {
         Self {
             track: Track { id: track_id },
-            selectable: Selectable::new(GenericID::Track(track_id), 1.0),
             name: Name::new(format!("{:?}", track_id)),
         }
     }
@@ -250,6 +268,7 @@ pub struct TrackPlugin;
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
+        app.register_component_as::<dyn Selectable, Track>();
         app.add_systems(
             Update,
             (

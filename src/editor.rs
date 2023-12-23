@@ -1,13 +1,14 @@
-use crate::block::BLOCK_WIDTH;
 use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
-use crate::track::TRACK_WIDTH;
-use crate::{block::Block, track::LAYOUT_SCALE};
+use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
+use bevy::reflect::TypeRegistry;
+use bevy_egui::egui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
+use bevy_trait_query::One;
 
 #[derive(Resource, Debug, Default)]
 pub struct InputData {
@@ -33,6 +34,17 @@ pub enum Selection {
     Section(DirectedSection),
 }
 
+#[bevy_trait_query::queryable]
+pub trait Selectable {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry);
+
+    fn get_id(&self) -> GenericID;
+
+    fn get_depth(&self) -> f32;
+
+    fn get_distance(&self, pos: Vec2) -> f32;
+}
+
 #[derive(Resource, Debug, Default)]
 pub struct SelectionState {
     pub selection: Selection,
@@ -42,21 +54,6 @@ pub struct SelectionState {
 #[derive(Resource, Default)]
 pub struct HoverState {
     pub hover: Option<GenericID>,
-}
-
-#[derive(Component)]
-pub struct Selectable {
-    id: GenericID,
-    depth: f32,
-}
-
-impl Selectable {
-    pub fn new(id: GenericID, depth: f32) -> Self {
-        Self {
-            id: id,
-            depth: depth,
-        }
-    }
 }
 
 fn spawn_camera(mut commands: Commands) {
@@ -72,36 +69,21 @@ fn spawn_camera(mut commands: Commands) {
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<(Entity, &Selectable)>,
-    q_blocks: Query<&Block>,
+    q_selectable: Query<One<&mut dyn Selectable>>,
     mut hover_state: ResMut<HoverState>,
 ) {
     let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
     let mut hover_depth = f32::NEG_INFINITY;
-    for (entity, selectable) in q_selectable.iter() {
-        if selectable.depth < hover_depth {
+    for selectable in q_selectable.iter() {
+        if selectable.get_depth() < hover_depth {
             continue;
         }
-        let dist = match selectable.id {
-            GenericID::Track(track_id) => {
-                track_id.distance_to(mouse_world_pos.truncate() / LAYOUT_SCALE)
-                    - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
-            }
-            GenericID::Block(_) => {
-                let block = q_blocks.get(entity).unwrap();
-                let block_dist = block.distance_to(mouse_world_pos.truncate() / LAYOUT_SCALE)
-                    - BLOCK_WIDTH / LAYOUT_SCALE;
-                // println!("block dist: {:}", block_dist);
-                block_dist
-            }
-            _ => 10.0,
-        };
-        // println!("{:}", dist);
+        let dist = selectable.get_distance(mouse_world_pos.truncate() / LAYOUT_SCALE);
         if dist < min_dist && dist < 0.0 {
-            hover_candidate = Some(selectable.id);
+            hover_candidate = Some(selectable.get_id());
             min_dist = dist;
-            hover_depth = selectable.depth;
+            hover_depth = selectable.get_depth();
         }
     }
     if hover_candidate != hover_state.hover {

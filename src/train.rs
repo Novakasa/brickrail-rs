@@ -33,7 +33,6 @@ struct Train {
 #[derive(Bundle)]
 struct TrainBundle {
     train: Train,
-    selectable: Selectable,
 }
 
 impl TrainBundle {
@@ -44,10 +43,7 @@ impl TrainBundle {
             route: route,
             wagons: vec![],
         };
-        Self {
-            selectable: Selectable::new(GenericID::Train(train.id), 0.0),
-            train: train,
-        }
+        Self { train: train }
     }
 }
 

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, reflect::TypeRegistry};
+use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, Id},
     EguiContexts, EguiMousePosition,
@@ -8,15 +8,10 @@ use bevy_trait_query::One;
 
 use crate::{editor::*, layout};
 
-#[bevy_trait_query::queryable]
-pub trait Inspectable {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry);
-}
-
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
-    mut q_inspectable: Query<One<&mut dyn Inspectable>>,
+    mut q_inspectable: Query<One<&mut dyn Selectable>>,
     selection_state: Res<SelectionState>,
     layout: Res<layout::Layout>,
     egui_mouse_pos: Res<EguiMousePosition>,
