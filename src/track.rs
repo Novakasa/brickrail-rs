@@ -132,7 +132,7 @@ impl TrackBundle {
         Self {
             track: Track { id: track_id },
             selectable: Selectable::new(GenericID::Track(track_id), 1.0),
-            name: Name::new(format!("{:}", track_id)),
+            name: Name::new(format!("{:?}", track_id)),
         }
     }
 }

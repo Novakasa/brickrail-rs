@@ -69,6 +69,9 @@ fn create_train(
             let route = build_route(&block_section, &q_markers, &layout);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
+            println!("Section: {:?}", block_section);
+            println!("Layout markers: {:?}", layout.markers);
+            println!("Layout in markers: {:?}", layout.in_markers);
             println!(
                 "Creating train {:?} at logical block {:?}",
                 train_id, logical_block_id

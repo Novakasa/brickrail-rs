@@ -71,7 +71,7 @@ impl BlockID {
 
 impl fmt::Debug for BlockID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "B({})", self.get_name())
+        write!(f, "B[{}]", self.get_name())
     }
 }
 
@@ -84,9 +84,12 @@ pub struct LogicalBlockID {
 
 impl LogicalBlockID {
     pub fn default_in_marker_track(&self) -> LogicalTrackID {
-        match self.direction {
-            BlockDirection::Aligned => self.block.track1.get_logical(self.facing),
-            BlockDirection::Opposite => self.block.track2.get_logical(self.facing),
+        use {BlockDirection::*, Facing::*};
+        match (self.direction, self.facing) {
+            (Aligned, Forward) => self.block.track2.opposite().get_logical(Forward),
+            (Aligned, Backward) => self.block.track1.get_logical(Backward),
+            (Opposite, Forward) => self.block.track1.opposite().get_logical(Forward),
+            (Opposite, Backward) => self.block.track2.get_logical(Backward),
         }
     }
 
@@ -106,7 +109,7 @@ impl LogicalBlockID {
 
 impl fmt::Debug for LogicalBlockID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "LB({})", self.get_name())
+        write!(f, "LB[{}]", self.get_name())
     }
 }
 
@@ -764,7 +767,7 @@ impl fmt::Debug for DirectedTrackID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
 pub struct TrackID {
     cell: CellID,
     orientation: Orientation,
@@ -841,15 +844,21 @@ impl TrackID {
             directed.to_slot().get_vec2(),
         )
     }
+
+    pub fn get_name(&self) -> String {
+        format!(
+            "{},{},{}|{}",
+            self.cell.x,
+            self.cell.y,
+            self.cell.l,
+            self.orientation.get_name()
+        )
+    }
 }
 
-impl fmt::Display for TrackID {
+impl fmt::Debug for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "T({},{},{},{:?})",
-            self.cell.x, self.cell.y, self.cell.l, self.orientation
-        )
+        write!(f, "T({})", self.get_name())
     }
 }
 

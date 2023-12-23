@@ -133,6 +133,7 @@ fn create_block(
                     .entity(marker_entity)
                     .insert(Marker::new(in_track.track(), MarkerColor::Blue));
                 layout.markers.insert(in_track.track(), marker_entity);
+                println!("Adding marker {:?} ", in_track.track());
             }
         }
     }

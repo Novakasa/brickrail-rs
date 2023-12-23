@@ -28,17 +28,17 @@ pub fn build_route(
         let mut leg_markers = Vec::new();
 
         for logical in section.tracks.iter() {
-            let marker = q_markers
-                .get(*layout.markers.get(&logical.track()).unwrap())
-                .unwrap();
-
-            let route_marker = RouteMarkerData {
-                track: logical.clone(),
-                color: marker.color,
-                speed: marker.logical_data.get(logical).unwrap().speed,
-                key: layout.get_marker_key(logical, target_id),
-            };
-            leg_markers.push(route_marker);
+            println!("looking for marker at {:?}", logical);
+            if let Some(entity) = layout.markers.get(&logical.track()) {
+                let marker = q_markers.get(*entity).unwrap();
+                let route_marker = RouteMarkerData {
+                    track: logical.clone(),
+                    color: marker.color,
+                    speed: marker.logical_data.get(logical).unwrap().speed,
+                    key: layout.get_marker_key(logical, target_id),
+                };
+                leg_markers.push(route_marker);
+            }
         }
         let leg = RouteLeg {
             section: section,
