@@ -29,6 +29,7 @@ impl Layout {
         match id {
             GenericID::Track(track_id) => self.tracks.get(track_id).copied(),
             GenericID::Block(block_id) => self.blocks.get(block_id).copied(),
+            GenericID::Train(train_id) => self.trains.get(train_id).copied(),
             _ => None,
         }
     }

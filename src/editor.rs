@@ -25,7 +25,7 @@ pub enum GenericID {
     Switch(DirectedTrackID),
 }
 
-#[derive(Default, Debug, Clone, Reflect)]
+#[derive(Default, Debug, Clone, Reflect, PartialEq, Eq)]
 pub enum Selection {
     #[default]
     None,
@@ -80,7 +80,7 @@ fn update_hover(
             continue;
         }
         let dist = selectable.get_distance(mouse_world_pos.truncate() / LAYOUT_SCALE);
-        if dist < min_dist && dist < 0.0 {
+        if (dist < min_dist || selectable.get_depth() > hover_depth) && dist < 0.0 {
             hover_candidate = Some(selectable.get_id());
             min_dist = dist;
             hover_depth = selectable.get_depth();

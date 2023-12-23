@@ -86,7 +86,7 @@ impl LogicalSection {
     }
 }
 
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect, PartialEq, Eq)]
 pub struct DirectedSection {
     pub tracks: Vec<DirectedTrackID>,
 }

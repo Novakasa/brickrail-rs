@@ -7,8 +7,10 @@ use crate::{
     route::{build_route, Route},
     track::LAYOUT_SCALE,
 };
-use bevy::{input::keyboard, prelude::*};
+use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
+use bevy_egui::egui;
 use bevy_prototype_lyon::entity::ShapeBundle;
+use bevy_trait_query::RegisterExt;
 
 #[derive(Component, Debug)]
 struct TrainWagon {
@@ -30,6 +32,24 @@ struct Train {
     wagons: Vec<Entity>,
 }
 
+impl Selectable for Train {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
+        ui.label("Inspectable train lol");
+    }
+
+    fn get_id(&self) -> GenericID {
+        GenericID::Train(self.id)
+    }
+
+    fn get_depth(&self) -> f32 {
+        3.0
+    }
+
+    fn get_distance(&self, pos: Vec2) -> f32 {
+        self.route.get_current_leg().get_current_pos().distance(pos) - 0.2
+    }
+}
+
 #[derive(Bundle)]
 struct TrainBundle {
     train: Train,
@@ -47,10 +67,23 @@ impl TrainBundle {
     }
 }
 
-fn draw_train(mut gizmos: Gizmos, q_trains: Query<&Train>) {
+fn draw_train(
+    mut gizmos: Gizmos,
+    q_trains: Query<&Train>,
+    selection_state: Res<SelectionState>,
+    hover_state: Res<HoverState>,
+) {
     for train in q_trains.iter() {
+        let mut color = Color::YELLOW;
+        if hover_state.hover == Some(GenericID::Train(train.id)) {
+            color = Color::RED;
+        }
+        if Selection::Single(GenericID::Train(train.id)) == selection_state.selection {
+            color = Color::BLUE;
+        }
+
         let pos = train.route.get_current_leg().get_current_pos();
-        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, Color::YELLOW);
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
     }
 }
 
@@ -90,6 +123,7 @@ pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
+        app.register_component_as::<dyn Selectable, Train>();
         app.add_systems(Update, (create_train, draw_train));
     }
 }
