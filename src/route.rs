@@ -50,6 +50,7 @@ pub fn build_route(
         route.push_leg(leg);
     }
     route.get_current_leg_mut().set_completed();
+    route.legs.last_mut().unwrap().intention = LegIntention::Stop;
     println!(
         "legs: {:?}, {:?}",
         route.legs.len(),

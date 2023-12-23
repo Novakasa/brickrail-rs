@@ -3,10 +3,7 @@ use bevy_egui::{
     egui::{self, Id},
     EguiContexts, EguiMousePosition,
 };
-use bevy_inspector_egui::{
-    reflect_inspector::{ui_for_value, ui_for_value_readonly},
-    DefaultInspectorConfigPlugin,
-};
+use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 use bevy_trait_query::One;
 
 use crate::{editor::*, layout};
