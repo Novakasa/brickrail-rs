@@ -571,6 +571,13 @@ pub struct LogicalTrackConnectionID {
 }
 
 impl LogicalTrackConnectionID {
+    pub fn new(from_track: LogicalTrackID, to_track: LogicalTrackID) -> Self {
+        Self {
+            from_track,
+            to_track,
+        }
+    }
+
     pub fn to_directed(&self) -> DirectedTrackConnectionID {
         DirectedTrackConnectionID {
             from_track: self.from_track.dirtrack,

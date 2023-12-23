@@ -45,6 +45,7 @@ pub fn build_route(
             markers: leg_markers,
             index: 0,
             intention: LegIntention::Pass,
+            section_position: 0.0,
         };
         route.push_leg(leg);
     }
@@ -70,16 +71,6 @@ pub struct Route {
 impl Route {
     pub fn new() -> Self {
         Route { legs: vec![] }
-    }
-
-    pub fn add_leg_from_section(&mut self, section: LogicalSection) {
-        let mut markers = vec![];
-        self.push_leg(RouteLeg {
-            section: section,
-            markers: markers,
-            index: 0,
-            intention: LegIntention::Pass,
-        });
     }
 
     pub fn push_leg(&mut self, leg: RouteLeg) {
@@ -119,6 +110,7 @@ pub struct RouteLeg {
     markers: Vec<RouteMarkerData>,
     index: usize,
     intention: LegIntention,
+    section_position: f32,
 }
 
 impl RouteLeg {
@@ -178,5 +170,10 @@ impl RouteLeg {
 
     fn set_completed(&mut self) {
         self.index = self.markers.len() - 1;
+        self.section_position = self.section.length_to(&self.markers.last().unwrap().track);
+    }
+
+    pub fn get_current_pos(&self) -> Vec2 {
+        self.section.interpolate_pos(self.section_position)
     }
 }

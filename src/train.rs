@@ -5,6 +5,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route},
+    track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_prototype_lyon::entity::ShapeBundle;
@@ -50,6 +51,13 @@ impl TrainBundle {
     }
 }
 
+fn draw_train(mut gizmos: Gizmos, q_trains: Query<&Train>) {
+    for train in q_trains.iter() {
+        let pos = train.route.get_current_leg().get_current_pos();
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, Color::YELLOW);
+    }
+}
+
 fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     mut commands: Commands,
@@ -86,6 +94,6 @@ pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, create_train);
+        app.add_systems(Update, (create_train, draw_train));
     }
 }

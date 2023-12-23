@@ -38,6 +38,52 @@ impl LogicalSection {
         }
         results
     }
+
+    pub fn connection_iter(&self) -> impl Iterator<Item = LogicalTrackConnectionID> + '_ {
+        self.tracks
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| LogicalTrackConnectionID::new(*a, *b))
+    }
+
+    pub fn directed_connection_iter(&self) -> impl Iterator<Item = DirectedTrackConnectionID> + '_ {
+        self.tracks
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| DirectedTrackConnectionID::new(a.dirtrack, b.dirtrack))
+    }
+
+    pub fn length(&self) -> f32 {
+        self.directed_connection_iter()
+            .map(|c| c.connection_length())
+            .sum()
+    }
+
+    pub fn length_to(&self, track: &LogicalTrackID) -> f32 {
+        let mut length = 0.0;
+        for connection in self.directed_connection_iter() {
+            length += connection.connection_length();
+            if connection.to_track == track.dirtrack {
+                return length;
+            }
+        }
+        return length;
+    }
+
+    pub fn interpolate_pos(&self, mut pos: f32) -> Vec2 {
+        let mut last_pos = pos;
+        let mut last_connection = self.directed_connection_iter().next().unwrap();
+        for connection in self.directed_connection_iter() {
+            let length = connection.connection_length();
+            if pos <= length {
+                return connection.interpolate_pos(pos);
+            }
+            last_connection = connection;
+            last_pos = pos;
+            pos -= length;
+        }
+        return last_connection.interpolate_pos(last_pos);
+    }
 }
 
 #[derive(Debug, Clone, Reflect)]
