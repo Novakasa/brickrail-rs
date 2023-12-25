@@ -1,6 +1,7 @@
 use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
+use crate::section::LogicalSection;
 use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
@@ -108,6 +109,28 @@ impl Layout {
             MarkerKey::Enter
         } else {
             MarkerKey::None
+        }
+    }
+
+    pub fn find_route_section(
+        &self,
+        start: LogicalBlockID,
+        target: LogicalBlockID,
+    ) -> Option<LogicalSection> {
+        let start_track = start.default_in_marker_track();
+        let target_track = target.default_in_marker_track();
+        match petgraph::algo::astar(
+            &self.logical_graph,
+            start_track,
+            |track| track == target_track,
+            |_| 1.0,
+            |track| {
+                let delta = track.cell().get_delta_vec(&target_track.cell());
+                delta.x.abs() + delta.y.abs()
+            },
+        ) {
+            Some((_, path)) => Some(LogicalSection { tracks: path }),
+            None => None,
         }
     }
 }

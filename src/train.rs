@@ -1,7 +1,7 @@
 use crate::{
     block::Block,
     editor::*,
-    layout::Layout,
+    layout::{self, Layout},
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route},
@@ -35,6 +35,12 @@ struct Train {
     id: TrainID,
     route: Route,
     wagons: Vec<Entity>,
+}
+
+impl Train {
+    pub fn get_logical_block_id(&self) -> LogicalBlockID {
+        self.route.get_current_leg().get_target_block_id()
+    }
 }
 
 impl Selectable for Train {
@@ -109,11 +115,21 @@ fn exit_drag_train(
     mouse_buttons: Res<Input<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     hover_state: Res<HoverState>,
+    layout: Res<Layout>,
+    q_trains: Query<&Train>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
+            let train = q_trains
+                .get(layout.get_entity(&GenericID::Train(train_id)).unwrap())
+                .unwrap();
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
                 println!("Dropping train {:?} on block {:?}", train_id, block_id);
+                let start = train.get_logical_block_id();
+                let target = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
+                println!("Start: {:?}, Target: {:?}", start, target);
+                let section = layout.find_route_section(start, target);
+                println!("Section: {:?}", section);
             }
             train_drag_state.train_id = None;
         }

@@ -125,6 +125,10 @@ impl CellID {
         Self { x, y, l }
     }
 
+    pub fn get_delta_vec(&self, other: &Self) -> Vec2 {
+        Vec2::new((other.x - self.x) as f32, (other.y - self.y) as f32)
+    }
+
     pub fn from_vec2(pos: Vec2) -> Self {
         Self {
             x: (pos.x + 0.5).floor() as i32,
@@ -622,6 +626,10 @@ pub struct LogicalTrackID {
 }
 
 impl LogicalTrackID {
+    pub fn cell(&self) -> CellID {
+        self.dirtrack.cell()
+    }
+
     pub fn reversed(&self) -> LogicalTrackID {
         LogicalTrackID {
             dirtrack: self.dirtrack.opposite(),

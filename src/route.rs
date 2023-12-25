@@ -46,6 +46,7 @@ pub fn build_route(
             index: 0,
             intention: LegIntention::Pass,
             section_position: 0.0,
+            target_block: target_id.clone(),
         };
         route.push_leg(leg);
     }
@@ -112,6 +113,7 @@ pub struct RouteLeg {
     index: usize,
     intention: LegIntention,
     section_position: f32,
+    target_block: LogicalBlockID,
 }
 
 impl RouteLeg {
@@ -176,5 +178,9 @@ impl RouteLeg {
 
     pub fn get_current_pos(&self) -> Vec2 {
         self.section.interpolate_pos(self.section_position)
+    }
+
+    pub fn get_target_block_id(&self) -> LogicalBlockID {
+        self.target_block.clone()
     }
 }
