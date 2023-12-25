@@ -17,13 +17,21 @@ impl TrainID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Default)]
 pub enum BlockDirection {
+    #[default]
     Aligned,
     Opposite,
 }
 
 impl BlockDirection {
+    pub fn opposite(&self) -> BlockDirection {
+        match self {
+            BlockDirection::Aligned => BlockDirection::Opposite,
+            BlockDirection::Opposite => BlockDirection::Aligned,
+        }
+    }
+
     fn get_name(&self) -> &'static str {
         match self {
             BlockDirection::Aligned => "->",

@@ -1,7 +1,7 @@
 use crate::{
     block::Block,
     editor::*,
-    layout::{self, Layout},
+    layout::Layout,
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route},
@@ -15,6 +15,7 @@ use bevy_trait_query::RegisterExt;
 #[derive(Resource, Default, Debug)]
 struct TrainDragState {
     train_id: Option<TrainID>,
+    target_dir: BlockDirection,
 }
 
 #[derive(Component, Debug)]
@@ -46,6 +47,9 @@ impl Train {
 impl Selectable for Train {
     fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
         ui.label("Inspectable train lol");
+        if ui.button("Turn around").clicked() {
+            println!("can't lol");
+        }
     }
 
     fn get_id(&self) -> GenericID {
@@ -106,6 +110,7 @@ fn init_drag_train(
     if mouse_buttons.just_pressed(MouseButton::Right) {
         if let Some(GenericID::Train(train_id)) = hover_state.hover {
             train_drag_state.train_id = Some(train_id);
+            train_drag_state.target_dir = BlockDirection::Aligned;
             println!("Dragging train {:?}", train_id)
         }
     }
@@ -126,13 +131,26 @@ fn exit_drag_train(
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
                 println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 let start = train.get_logical_block_id();
-                let target = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
+                let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 println!("Start: {:?}, Target: {:?}", start, target);
                 let section = layout.find_route_section(start, target);
                 println!("Section: {:?}", section);
             }
             train_drag_state.train_id = None;
         }
+    }
+}
+
+fn update_drag_train(
+    mouse_buttons: Res<Input<MouseButton>>,
+    mut train_drag_state: ResMut<TrainDragState>,
+) {
+    if train_drag_state.train_id.is_none() {
+        return;
+    }
+    if mouse_buttons.just_pressed(MouseButton::Left) {
+        train_drag_state.target_dir = train_drag_state.target_dir.opposite();
+        println!("Target dir: {:?}", train_drag_state.target_dir)
     }
 }
 
@@ -176,7 +194,13 @@ impl Plugin for TrainPlugin {
         app.insert_resource(TrainDragState::default());
         app.add_systems(
             Update,
-            (create_train, draw_train, init_drag_train, exit_drag_train),
+            (
+                create_train,
+                draw_train,
+                init_drag_train,
+                exit_drag_train,
+                update_drag_train,
+            ),
         );
     }
 }
