@@ -163,11 +163,19 @@ fn init_draw_track(
     hover_state: Res<HoverState>,
 ) {
     if mouse_buttons.just_pressed(MouseButton::Right) {
+        match hover_state.hover {
+            Some(GenericID::Track(track_id)) => {
+                track_build_state.hover_track = Some(track_id);
+            }
+            None => {
+                track_build_state.hover_track = None;
+            }
+            _ => {
+                return;
+            }
+        }
         let first_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
         track_build_state.hover_cells.push(first_cell);
-        if let Some(GenericID::Track(track_id)) = hover_state.hover {
-            track_build_state.hover_track = Some(track_id);
-        }
     }
 }
 

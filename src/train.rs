@@ -12,6 +12,11 @@ use bevy_egui::egui;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_trait_query::RegisterExt;
 
+#[derive(Resource, Default, Debug)]
+struct TrainDragState {
+    train_id: Option<TrainID>,
+}
+
 #[derive(Component, Debug)]
 struct TrainWagon {
     id: TrainID,
@@ -87,6 +92,34 @@ fn draw_train(
     }
 }
 
+fn init_drag_train(
+    mouse_buttons: Res<Input<MouseButton>>,
+    mut train_drag_state: ResMut<TrainDragState>,
+    hover_state: Res<HoverState>,
+) {
+    if mouse_buttons.just_pressed(MouseButton::Right) {
+        if let Some(GenericID::Train(train_id)) = hover_state.hover {
+            train_drag_state.train_id = Some(train_id);
+            println!("Dragging train {:?}", train_id)
+        }
+    }
+}
+
+fn exit_drag_train(
+    mouse_buttons: Res<Input<MouseButton>>,
+    mut train_drag_state: ResMut<TrainDragState>,
+    hover_state: Res<HoverState>,
+) {
+    if mouse_buttons.just_released(MouseButton::Right) {
+        if let Some(train_id) = train_drag_state.train_id {
+            if let Some(GenericID::Block(block_id)) = hover_state.hover {
+                println!("Dropping train {:?} on block {:?}", train_id, block_id);
+            }
+            train_drag_state.train_id = None;
+        }
+    }
+}
+
 fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     mut commands: Commands,
@@ -124,6 +157,10 @@ pub struct TrainPlugin;
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, Train>();
-        app.add_systems(Update, (create_train, draw_train));
+        app.insert_resource(TrainDragState::default());
+        app.add_systems(
+            Update,
+            (create_train, draw_train, init_drag_train, exit_drag_train),
+        );
     }
 }
