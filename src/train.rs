@@ -102,6 +102,12 @@ fn draw_train(
     }
 }
 
+fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>, layout: Res<Layout>) {
+    for train in q_trains.iter() {
+        train.route.draw_with_gizmos(&mut gizmos);
+    }
+}
+
 fn init_drag_train(
     mouse_buttons: Res<Input<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
@@ -121,12 +127,13 @@ fn exit_drag_train(
     mut train_drag_state: ResMut<TrainDragState>,
     hover_state: Res<HoverState>,
     layout: Res<Layout>,
-    q_trains: Query<&Train>,
+    mut q_trains: Query<&mut Train>,
+    q_markers: Query<&Marker>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            let train = q_trains
-                .get(layout.get_entity(&GenericID::Train(train_id)).unwrap())
+            let mut train = q_trains
+                .get_mut(layout.get_entity(&GenericID::Train(train_id)).unwrap())
                 .unwrap();
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
                 println!("Dropping train {:?} on block {:?}", train_id, block_id);
@@ -135,6 +142,10 @@ fn exit_drag_train(
                 println!("Start: {:?}, Target: {:?}", start, target);
                 let section = layout.find_route_section(start, target);
                 println!("Section: {:?}", section);
+                if section.is_some() {
+                    let route = build_route(&section.unwrap(), &q_markers, &layout);
+                    train.route = route;
+                }
             }
             train_drag_state.train_id = None;
         }
@@ -197,6 +208,7 @@ impl Plugin for TrainPlugin {
             (
                 create_train,
                 draw_train,
+                draw_train_route,
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,

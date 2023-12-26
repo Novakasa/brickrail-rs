@@ -71,6 +71,9 @@ impl LogicalSection {
     }
 
     pub fn interpolate_pos(&self, mut pos: f32) -> Vec2 {
+        if self.tracks.len() == 1 {
+            return self.tracks.first().unwrap().dirtrack.interpolate_pos(pos);
+        }
         let mut last_pos = pos;
         let mut last_connection = self.directed_connection_iter().next().unwrap();
         for connection in self.directed_connection_iter() {
@@ -178,6 +181,9 @@ impl DirectedSection {
     }
 
     pub fn interpolate_pos(&self, mut pos: f32) -> Vec2 {
+        if self.tracks.len() == 1 {
+            return self.tracks.first().unwrap().interpolate_pos(pos);
+        }
         let mut last_pos = pos;
         let mut last_connection = self.connection_iter().next().unwrap();
         for connection in self.connection_iter() {

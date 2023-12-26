@@ -5,6 +5,7 @@ use crate::layout::Layout;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
+use crate::track::LAYOUT_SCALE;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {
@@ -96,6 +97,16 @@ impl Route {
         current_leg.advance_marker();
         if current_leg.is_completed() {
             self.next_leg();
+        }
+    }
+
+    pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
+        for leg in self.legs.iter() {
+            for track in leg.section.tracks.iter() {
+                track
+                    .dirtrack
+                    .draw_with_gizmos(gizmos, LAYOUT_SCALE, Color::GREEN);
+            }
         }
     }
 }
