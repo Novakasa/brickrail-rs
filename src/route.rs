@@ -13,6 +13,7 @@ pub struct RouteMarkerData {
     pub color: MarkerColor,
     pub speed: MarkerSpeed,
     pub key: MarkerKey,
+    pub position: f32,
 }
 
 pub fn build_route(
@@ -37,6 +38,7 @@ pub fn build_route(
                     color: marker.color,
                     speed: marker.logical_data.get(logical).unwrap().speed,
                     key: layout.get_marker_key(logical, target_id),
+                    position: section.length_to(&logical),
                 };
                 leg_markers.push(route_marker);
             }
@@ -61,6 +63,7 @@ pub fn build_route(
     route
 }
 
+#[derive(Debug)]
 pub enum TrainState {
     Stop,
     Run { facing: Facing, speed: MarkerSpeed },
@@ -100,6 +103,15 @@ impl Route {
         }
     }
 
+    pub fn get_train_state(&self) -> TrainState {
+        self.get_current_leg().get_train_state()
+    }
+
+    pub fn advance_distance(&mut self, distance: f32) {
+        let current_leg = self.get_current_leg_mut();
+        let remainder = current_leg.advance_distance(distance);
+    }
+
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
         for leg in self.legs.iter() {
             for track in leg.section.tracks.iter() {
@@ -112,7 +124,7 @@ impl Route {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-enum LegIntention {
+pub enum LegIntention {
     Pass,
     Stop,
 }
@@ -122,7 +134,7 @@ pub struct RouteLeg {
     section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     index: usize,
-    intention: LegIntention,
+    pub intention: LegIntention,
     section_position: f32,
     target_block: LogicalBlockID,
 }
@@ -156,7 +168,7 @@ impl RouteLeg {
         return self.index >= self.get_enter_index();
     }
 
-    fn get_last_marker(&self) -> &RouteMarkerData {
+    fn get_previous_marker(&self) -> &RouteMarkerData {
         self.markers.get(self.index).unwrap()
     }
 
@@ -170,7 +182,7 @@ impl RouteLeg {
         let speed = if should_stop && self.has_entered() {
             MarkerSpeed::Slow
         } else {
-            self.get_last_marker().speed
+            self.get_previous_marker().speed
         };
         TrainState::Run {
             facing: self.get_final_facing(),
@@ -184,7 +196,7 @@ impl RouteLeg {
 
     fn set_completed(&mut self) {
         self.index = self.markers.len() - 1;
-        self.section_position = self.section.length_to(&self.markers.last().unwrap().track);
+        self.section_position = self.get_previous_marker_pos();
     }
 
     pub fn get_current_pos(&self) -> Vec2 {
@@ -193,5 +205,30 @@ impl RouteLeg {
 
     pub fn get_target_block_id(&self) -> LogicalBlockID {
         self.target_block.clone()
+    }
+
+    pub fn get_next_marker_pos(&self) -> f32 {
+        self.markers[self.index + 1].position
+    }
+
+    pub fn get_previous_marker_pos(&self) -> f32 {
+        self.markers[self.index].position
+    }
+
+    pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
+        if self.is_completed() {
+            return Some(distance);
+        }
+        let mut remainder = distance;
+        while self.section_position + remainder > self.get_next_marker_pos() {
+            remainder -= self.get_next_marker_pos() - self.section_position;
+            self.section_position = self.get_next_marker_pos();
+            self.advance_marker();
+            if self.is_completed() {
+                return Some(remainder);
+            }
+        }
+        self.section_position += remainder;
+        None
     }
 }

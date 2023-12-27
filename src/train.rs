@@ -4,7 +4,7 @@ use crate::{
     layout::Layout,
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, Route},
+    route::{build_route, LegIntention, Route},
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
@@ -102,7 +102,7 @@ fn draw_train(
     }
 }
 
-fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>, layout: Res<Layout>) {
+fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>) {
     for train in q_trains.iter() {
         train.route.draw_with_gizmos(&mut gizmos);
     }
@@ -140,11 +140,12 @@ fn exit_drag_train(
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 println!("Start: {:?}, Target: {:?}", start, target);
-                let section = layout.find_route_section(start, target);
-                println!("Section: {:?}", section);
-                if section.is_some() {
-                    let route = build_route(&section.unwrap(), &q_markers, &layout);
+                if let Some(section) = layout.find_route_section(start, target) {
+                    println!("Section: {:?}", section);
+                    let mut route = build_route(&section, &q_markers, &layout);
+                    route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
+                    println!("state: {:?}", train.route.get_train_state());
                 }
             }
             train_drag_state.train_id = None;
