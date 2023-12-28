@@ -1,4 +1,4 @@
-use crate::layout::Layout;
+use crate::layout::{Connections, EntityMap};
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
 use crate::track::LAYOUT_SCALE;
@@ -40,7 +40,7 @@ pub trait Selectable {
         &mut self,
         ui: &mut egui::Ui,
         type_registry: &TypeRegistry,
-        layout: &mut Layout,
+        entity_map: &mut EntityMap,
     );
 
     fn get_id(&self) -> GenericID;
@@ -113,7 +113,7 @@ fn init_select(
                     section
                         .push(
                             track_id.get_directed(TrackDirection::First),
-                            &Layout::default(),
+                            &Connections::default(),
                         )
                         .unwrap();
                     selection_state.selection = Selection::Section(section);
@@ -130,11 +130,11 @@ fn init_select(
     }
 }
 
-fn draw_selection(mut gizmos: Gizmos, selection_state: Res<SelectionState>, layout: Res<Layout>) {
+fn draw_selection(mut gizmos: Gizmos, selection_state: Res<SelectionState>) {
     match &selection_state.selection {
         Selection::Section(section) => {
             for track in section.tracks.iter() {
-                track.draw_with_gizmos(&mut gizmos, layout.scale, Color::BLUE);
+                track.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::BLUE);
             }
         }
         _ => {}
@@ -145,21 +145,21 @@ fn extend_selection(
     hover_state: Res<HoverState>,
     buttons: Res<Input<MouseButton>>,
     mut selection_state: ResMut<SelectionState>,
-    layout: Res<Layout>,
+    connections: Res<Connections>,
 ) {
     if hover_state.is_changed() {
         // println!("{:?}", hover_state.hover);
         if buttons.pressed(MouseButton::Left) {
             match (&hover_state.hover, &mut selection_state.selection) {
                 (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
-                    match section.push_track(*track_id, &layout) {
+                    match section.push_track(*track_id, &connections) {
                         Ok(()) => {
                             return;
                         }
                         Err(()) => {}
                     }
                     let mut opposite = section.get_opposite();
-                    match opposite.push_track(*track_id, &layout) {
+                    match opposite.push_track(*track_id, &connections) {
                         Ok(()) => {
                             println!("opposite");
                             selection_state.selection = Selection::Section(opposite);

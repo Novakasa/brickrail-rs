@@ -6,14 +6,14 @@ use bevy_egui::{
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 use bevy_trait_query::One;
 
-use crate::{editor::*, layout};
+use crate::{editor::*, layout::EntityMap};
 
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
     mut q_inspectable: Query<One<&mut dyn Selectable>>,
     selection_state: Res<SelectionState>,
-    mut layout: ResMut<layout::Layout>,
+    mut entity_map: ResMut<EntityMap>,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
 ) {
@@ -25,9 +25,9 @@ fn inspector_system(
             ui.separator();
             let selection = selection_state.selection.clone();
             if let Selection::Single(generic_id) = selection {
-                if let Some(entity) = layout.get_entity(&generic_id) {
+                if let Some(entity) = entity_map.get_entity(&generic_id) {
                     let mut inspectable = q_inspectable.get_mut(entity).unwrap();
-                    inspectable.inspector_ui(ui, &type_registry.read(), &mut layout);
+                    inspectable.inspector_ui(ui, &type_registry.read(), &mut entity_map);
                 }
             }
         },

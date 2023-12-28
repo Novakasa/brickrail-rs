@@ -1,7 +1,7 @@
 use bevy::{math::Vec2, reflect::Reflect};
 use itertools::Itertools;
 
-use crate::{layout::Layout, layout_primitives::*};
+use crate::{layout::Connections, layout_primitives::*};
 
 #[derive(Debug, Clone)]
 pub struct TrackSection {
@@ -99,13 +99,15 @@ impl DirectedSection {
         Self { tracks: Vec::new() }
     }
 
-    pub fn push(&mut self, track: DirectedTrackID, layout: &Layout) -> Result<(), ()> {
+    pub fn push(&mut self, track: DirectedTrackID, connections: &Connections) -> Result<(), ()> {
         if self.tracks.is_empty() {
             self.tracks.push(track);
             Ok(())
         } else {
             let last_track = self.tracks.last().unwrap();
-            if layout.has_directed_connection(&DirectedTrackConnectionID::new(*last_track, track)) {
+            if connections
+                .has_directed_connection(&DirectedTrackConnectionID::new(*last_track, track))
+            {
                 self.tracks.push(track);
                 Ok(())
             } else {
@@ -114,9 +116,9 @@ impl DirectedSection {
         }
     }
 
-    pub fn push_track(&mut self, track: TrackID, layout: &Layout) -> Result<(), ()> {
+    pub fn push_track(&mut self, track: TrackID, connections: &Connections) -> Result<(), ()> {
         for dirtrack in track.dirtracks() {
-            if self.push(dirtrack, layout).is_ok() {
+            if self.push(dirtrack, connections).is_ok() {
                 return Ok(());
             }
         }

@@ -1,6 +1,6 @@
 use crate::{
     editor::{GenericID, HoverState, Selectable, Selection, SelectionState},
-    layout::Layout,
+    layout::{Connections, EntityMap},
     layout_primitives::*,
     utils::bresenham_line,
 };
@@ -38,25 +38,31 @@ fn build_connection_path(connection: TrackConnectionID) -> Path {
 }
 
 impl TrackBuildState {
-    fn build(&mut self, layout: &mut Layout, commands: &mut Commands) {
+    fn build(
+        &mut self,
+        connections: &mut Connections,
+        entity_map: &mut EntityMap,
+        commands: &mut Commands,
+    ) {
         while self.hover_cells.len() > 2 {
             if let Some(track_id) = TrackID::from_cells(
                 self.hover_cells[0],
                 self.hover_cells[1],
                 self.hover_cells[2],
             ) {
-                if !layout.has_track(track_id) {
+                if !connections.has_track(track_id) {
                     let entity = commands.spawn(TrackBundle::new(track_id)).id();
-                    layout.add_track(track_id, entity);
+                    connections.add_track(track_id);
+                    entity_map.add_track(track_id, entity);
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
-                        if !layout.has_connection(&connection_id) {
+                        if !connections.has_connection(&connection_id) {
                             commands
                                 .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer));
                             commands
                                 .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner));
-                            layout.connect_tracks_simple(&connection_id);
+                            connections.connect_tracks_simple(&connection_id);
                         }
                     }
                 }
@@ -127,7 +133,7 @@ impl Selectable for Track {
         &mut self,
         ui: &mut egui::Ui,
         _type_registry: &TypeRegistry,
-        layout: &mut Layout,
+        _layout: &mut EntityMap,
     ) {
         ui.label("Inspectable track lol");
     }
@@ -161,7 +167,6 @@ impl TrackBundle {
 }
 
 fn init_draw_track(
-    layout: Res<Layout>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_buttons: Res<Input<MouseButton>>,
     mouse_world_pos: Res<MousePosWorld>,
@@ -179,7 +184,7 @@ fn init_draw_track(
                 return;
             }
         }
-        let first_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
+        let first_cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
         track_build_state.hover_cells.push(first_cell);
     }
 }
@@ -195,7 +200,8 @@ fn exit_draw_track(
 }
 
 fn update_draw_track(
-    mut layout: ResMut<Layout>,
+    mut connections: ResMut<Connections>,
+    mut entity_map: ResMut<EntityMap>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
     mut commands: Commands,
@@ -205,36 +211,35 @@ fn update_draw_track(
         return;
     }
     let start = (last_cell.unwrap().x, last_cell.unwrap().y);
-    let mouse_cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
+    let mouse_cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
     for point in bresenham_line(start, (mouse_cell.x, mouse_cell.y)).iter() {
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);
         // println!("{:?}", track_build_state.hover_cells);
-        track_build_state.build(&mut layout, &mut commands);
+        track_build_state.build(&mut connections, &mut entity_map, &mut commands);
     }
 }
 
 fn draw_build_cells(
     track_build_state: Res<TrackBuildState>,
-    layout: Res<Layout>,
     mut gizmos: Gizmos,
     mouse_world_pos: Res<MousePosWorld>,
 ) {
     for cell in track_build_state.hover_cells.iter() {
         gizmos.circle_2d(
-            cell.get_vec2() * layout.scale,
-            layout.scale * 0.25,
+            cell.get_vec2() * LAYOUT_SCALE,
+            LAYOUT_SCALE * 0.25,
             Color::GRAY,
         );
     }
-    let cell = CellID::from_vec2(mouse_world_pos.truncate() / layout.scale);
+    let cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
     gizmos.circle_2d(
-        cell.get_vec2() * layout.scale,
-        layout.scale * 0.25,
+        cell.get_vec2() * LAYOUT_SCALE,
+        LAYOUT_SCALE * 0.25,
         Color::RED,
     );
 
-    let scale = layout.scale;
+    let scale = LAYOUT_SCALE;
 
     if let Some(track) = track_build_state.hover_track {
         for dirtrack in track.dirtracks() {

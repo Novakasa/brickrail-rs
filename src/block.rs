@@ -1,5 +1,5 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
-use crate::layout::{self, Layout};
+use crate::layout::{self, EntityMap, MarkerMap};
 use crate::marker::{Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
@@ -53,7 +53,7 @@ impl Block {
 }
 
 impl Selectable for Block {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry, _: &mut Layout) {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry, _: &mut EntityMap) {
         ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, ui, type_registry);
     }
@@ -122,24 +122,28 @@ fn create_block(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     mut commands: Commands,
     selection_state: Res<SelectionState>,
-    mut layout: ResMut<layout::Layout>,
+    mut entity_map: ResMut<layout::EntityMap>,
+    mut marker_map: ResMut<MarkerMap>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::B) {
             let block = BlockBundle::new(section.clone());
             let block_id = block.block.id;
             let entity = commands.spawn(block).id();
-            layout.add_block(block_id, entity);
+            entity_map.add_block(block_id, entity);
             for logical_id in block_id.logical_block_ids() {
                 let in_track = logical_id.default_in_marker_track();
-                layout.in_markers.try_insert(in_track, logical_id).unwrap();
-                let marker_entity = layout
+                marker_map
+                    .in_markers
+                    .try_insert(in_track, logical_id)
+                    .unwrap();
+                let marker_entity = entity_map
                     .get_entity(&GenericID::Track(in_track.track()))
                     .unwrap();
                 commands
                     .entity(marker_entity)
                     .insert(Marker::new(in_track.track(), MarkerColor::Blue));
-                layout.markers.insert(in_track.track(), marker_entity);
+                entity_map.markers.insert(in_track.track(), marker_entity);
                 println!("Adding marker {:?} ", in_track.track());
             }
         }

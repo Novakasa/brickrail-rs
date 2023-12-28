@@ -1,7 +1,7 @@
 use crate::{
     block::Block,
     editor::*,
-    layout::Layout,
+    layout::{Connections, EntityMap, MarkerMap},
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route, TrainState},
@@ -97,7 +97,7 @@ impl Selectable for Train {
         &mut self,
         ui: &mut egui::Ui,
         type_registry: &TypeRegistry,
-        layout: &mut Layout,
+        _entity_map: &mut EntityMap,
     ) {
         ui.label("Inspectable train lol");
         if ui.button("Turn around").clicked() {
@@ -185,23 +185,25 @@ fn exit_drag_train(
     mouse_buttons: Res<Input<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     hover_state: Res<HoverState>,
-    layout: Res<Layout>,
+    entity_map: Res<EntityMap>,
+    marker_map: Res<MarkerMap>,
+    connections: Res<Connections>,
     mut q_trains: Query<&mut Train>,
     q_markers: Query<&Marker>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
             let mut train = q_trains
-                .get_mut(layout.get_entity(&GenericID::Train(train_id)).unwrap())
+                .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                 .unwrap();
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 // println!("Start: {:?}, Target: {:?}", start, target);
-                if let Some(section) = layout.find_route_section(start, target) {
+                if let Some(section) = connections.find_route_section(start, target) {
                     // println!("Section: {:?}", section);
-                    let mut route = build_route(&section, &q_markers, &layout);
+                    let route = build_route(&section, &q_markers, &entity_map, &marker_map);
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
                     // println!("state: {:?}", train.route.get_train_state());
@@ -230,29 +232,29 @@ fn create_train(
     mut commands: Commands,
     selection_state: Res<SelectionState>,
     q_blocks: Query<&Block>,
-    mut layout: ResMut<Layout>,
+    mut entity_map: ResMut<EntityMap>,
+    marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let block = q_blocks
-                .get(layout.get_entity(&GenericID::Block(*block_id)).unwrap())
+                .get(entity_map.get_entity(&GenericID::Block(*block_id)).unwrap())
                 .unwrap();
             let block_section = block.get_logical_section(logical_block_id);
-            let train_id = TrainID::new(layout.trains.len());
-            let route = build_route(&block_section, &q_markers, &layout);
+            let train_id = TrainID::new(entity_map.trains.len());
+            let route = build_route(&block_section, &q_markers, &entity_map, &marker_map);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             println!("Section: {:?}", block_section);
-            println!("Layout markers: {:?}", layout.markers);
-            println!("Layout in markers: {:?}", layout.in_markers);
+            println!("Layout markers: {:?}", entity_map.markers);
             println!(
                 "Creating train {:?} at logical block {:?}",
                 train_id, logical_block_id
             );
             let entity = commands.spawn(train).id();
-            layout.add_train(train_id, entity);
+            entity_map.add_train(train_id, entity);
         }
     }
 }

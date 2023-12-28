@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use itertools::Itertools;
 
-use crate::layout::Layout;
+use crate::layout::EntityMap;
+use crate::layout::MarkerMap;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
@@ -19,25 +20,26 @@ pub struct RouteMarkerData {
 pub fn build_route(
     logical_section: &LogicalSection,
     q_markers: &Query<&Marker>,
-    layout: &Layout,
+    entity_map: &EntityMap,
+    marker_map: &MarkerMap,
 ) -> Route {
     let mut route = Route::new();
-    let in_tracks = layout.in_markers.keys().collect_vec();
+    let in_tracks = marker_map.in_markers.keys().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
 
     for (section, in_track) in split {
-        let target_id = layout.in_markers.get(&in_track).unwrap();
+        let target_id = marker_map.in_markers.get(&in_track).unwrap();
         let mut leg_markers = Vec::new();
 
         for logical in section.tracks.iter() {
             println!("looking for marker at {:?}", logical);
-            if let Some(entity) = layout.markers.get(&logical.track()) {
+            if let Some(entity) = entity_map.markers.get(&logical.track()) {
                 let marker = q_markers.get(*entity).unwrap();
                 let route_marker = RouteMarkerData {
                     track: logical.clone(),
                     color: marker.color,
                     speed: marker.logical_data.get(logical).unwrap().speed,
-                    key: layout.get_marker_key(logical, target_id),
+                    key: marker_map.get_marker_key(logical, target_id),
                     position: section.length_to(&logical),
                 };
                 leg_markers.push(route_marker);

@@ -7,18 +7,24 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
 
-#[derive(Resource, Default, Reflect)]
-pub struct Layout {
-    #[reflect(ignore)]
-    logical_graph: DiGraphMap<LogicalTrackID, ()>,
-    tracks: HashMap<TrackID, Entity>,
+#[derive(Resource, Default)]
+pub struct EntityMap {
+    pub tracks: HashMap<TrackID, Entity>,
     pub markers: HashMap<TrackID, Entity>,
+    pub blocks: HashMap<BlockID, Entity>,
+    pub trains: HashMap<TrainID, Entity>,
+    pub wagons: HashMap<WagonID, Entity>,
+}
+
+#[derive(Resource, Default)]
+pub struct MarkerMap {
     pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
     pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
-    blocks: HashMap<BlockID, Entity>,
-    pub trains: HashMap<TrainID, Entity>,
-    pub scale: f32,
-    pub wagons: HashMap<WagonID, Entity>,
+}
+
+#[derive(Resource, Default)]
+pub struct Connections {
+    logical_graph: DiGraphMap<LogicalTrackID, ()>,
 }
 
 #[derive(Resource, Default)]
@@ -26,7 +32,7 @@ struct TrackLocks {
     locked_tracks: HashMap<TrackID, TrainID>,
 }
 
-impl Layout {
+impl EntityMap {
     pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
         match id {
             GenericID::Track(track_id) => self.tracks.get(track_id).copied(),
@@ -36,21 +42,7 @@ impl Layout {
         }
     }
 
-    pub fn has_track(&self, track: TrackID) -> bool {
-        for logical_track in track.logical_tracks() {
-            if self.logical_graph.contains_node(logical_track) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     pub fn add_track(&mut self, track: TrackID, entity: Entity) {
-        for dirtrack in track.dirtracks() {
-            for logical_track in dirtrack.logical_tracks() {
-                self.logical_graph.add_node(logical_track);
-            }
-        }
         self.tracks.try_insert(track, entity).unwrap();
     }
 
@@ -60,6 +52,45 @@ impl Layout {
 
     pub fn add_train(&mut self, train: TrainID, entity: Entity) {
         self.trains.try_insert(train, entity).unwrap();
+    }
+
+    pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
+        self.markers.try_insert(track, entity).unwrap();
+    }
+}
+
+impl MarkerMap {
+    pub fn get_marker_key(
+        &self,
+        logical_track: &LogicalTrackID,
+        target_block: &LogicalBlockID,
+    ) -> MarkerKey {
+        if self.in_markers.get(logical_track) == Some(target_block) {
+            MarkerKey::In
+        } else if self.enter_markers.get(logical_track) == Some(target_block) {
+            MarkerKey::Enter
+        } else {
+            MarkerKey::None
+        }
+    }
+}
+
+impl Connections {
+    pub fn has_track(&self, track: TrackID) -> bool {
+        for logical_track in track.logical_tracks() {
+            if self.logical_graph.contains_node(logical_track) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn add_track(&mut self, track: TrackID) {
+        for dirtrack in track.dirtracks() {
+            for logical_track in dirtrack.logical_tracks() {
+                self.logical_graph.add_node(logical_track);
+            }
+        }
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
@@ -95,24 +126,6 @@ impl Layout {
         }
     }
 
-    pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
-        self.markers.try_insert(track, entity).unwrap();
-    }
-
-    pub fn get_marker_key(
-        &self,
-        logical_track: &LogicalTrackID,
-        target_block: &LogicalBlockID,
-    ) -> MarkerKey {
-        if self.in_markers.get(logical_track) == Some(target_block) {
-            MarkerKey::In
-        } else if self.enter_markers.get(logical_track) == Some(target_block) {
-            MarkerKey::Enter
-        } else {
-            MarkerKey::None
-        }
-    }
-
     pub fn find_route_section(
         &self,
         start: LogicalBlockID,
@@ -136,25 +149,23 @@ impl Layout {
     }
 }
 
-fn draw_layout_graph(mut gizmos: Gizmos, layout: Res<Layout>, time: Res<Time>) {
-    let scale = layout.scale;
-
+fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Res<Time>) {
     let dist = time.elapsed_seconds() % 1.0;
-    for track in layout.logical_graph.nodes() {
+    for track in connections.logical_graph.nodes() {
         track
             .dirtrack
-            .draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
+            .draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::GOLD);
     }
 
-    for (from_track, to_track, _) in layout.logical_graph.all_edges() {
+    for (from_track, to_track, _) in connections.logical_graph.all_edges() {
         let connection = LogicalTrackConnectionID {
             from_track,
             to_track,
         }
         .to_directed();
-        connection.draw_with_gizmos(&mut gizmos, scale, Color::GOLD);
+        connection.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::GOLD);
         let pos = connection.interpolate_pos(dist * connection.connection_length());
-        gizmos.circle_2d(pos * scale, 0.05 * scale, Color::GREEN);
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.05 * LAYOUT_SCALE, Color::GREEN);
     }
 }
 
@@ -169,11 +180,10 @@ pub struct LayoutPlugin;
 
 impl Plugin for LayoutPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Layout {
-            scale: LAYOUT_SCALE,
-            ..Default::default()
-        });
+        app.insert_resource(EntityMap::default());
         app.insert_resource(TrackLocks::default());
+        app.insert_resource(Connections::default());
+        app.insert_resource(MarkerMap::default());
         app.add_systems(Startup, print_sizes);
         // app.add_systems(Update, draw_layout_graph);
     }
