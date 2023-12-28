@@ -1,9 +1,12 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::CommandQueue, prelude::*, reflect::TypeRegistry, window::PrimaryWindow};
 use bevy_egui::{
     egui::{self, Id},
-    EguiContexts, EguiMousePosition,
+    EguiContext, EguiContexts, EguiMousePosition,
 };
-use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use bevy_inspector_egui::{
+    reflect_inspector::{Context, InspectorUi},
+    DefaultInspectorConfigPlugin,
+};
 use bevy_trait_query::One;
 
 use crate::{editor::*, layout};
@@ -37,11 +40,61 @@ fn inspector_system(
     }
 }
 
+fn inspector_system_world(world: &mut World) {
+    let selection_state = world.resource::<SelectionState>();
+    let selection = selection_state.selection.clone();
+    let layout = world.resource::<layout::Layout>();
+    let mut q_selectable = world.query::<One<&mut dyn Selectable>>();
+    let selected_inspectable = if let Selection::Single(generic_id) = selection {
+        Some(
+            q_selectable
+                .get(world, layout.get_entity(&generic_id).unwrap())
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
+    let mut egui_context = world
+        .query_filtered::<&mut EguiContext, With<PrimaryWindow>>()
+        .get_single(world)
+        .unwrap()
+        .clone();
+    let type_registry = world.resource::<AppTypeRegistry>().clone();
+    let type_registry = type_registry.read();
+    let mut queue = CommandQueue::default();
+    let mut cx = Context {
+        world: Some(world.into()),
+        queue: Some(&mut queue),
+    };
+    let mut env = InspectorUi::for_bevy(&type_registry, &mut cx);
+
+    let inner_response = egui::SidePanel::new(egui::panel::Side::Right, Id::new("Inspector")).show(
+        egui_context.get_mut(),
+        |ui| {
+            ui.label("Hello World!");
+            // ui_for_value_readonly(&layout.in_markers, ui, &type_registry.read());
+            ui.separator();
+            if let Some(inspectable) = selected_inspectable {
+                inspectable.inspector_ui_env(ui, &mut env);
+            }
+        },
+    );
+
+    let egui_mouse_pos = world.resource::<EguiMousePosition>().0.clone();
+    let mut input_data = world.resource_mut::<InputData>();
+    if let Some((_, mouse_pos)) = egui_mouse_pos {
+        input_data.mouse_over_ui = inner_response.response.rect.contains(mouse_pos.to_pos2());
+    }
+
+    queue.apply(world);
+}
+
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, inspector_system);
+        app.add_systems(Update, (inspector_system, inspector_system_world));
         app.add_plugins(DefaultInspectorConfigPlugin);
     }
 }

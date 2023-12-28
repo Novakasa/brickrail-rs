@@ -6,6 +6,7 @@ use crate::{
 };
 use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui;
+use bevy_inspector_egui::reflect_inspector::InspectorUi;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;
@@ -125,6 +126,10 @@ struct Track {
 impl Selectable for Track {
     fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
         ui.label("Inspectable track lol");
+    }
+
+    fn inspector_ui_env(&mut self, ui: &mut egui::Ui, env: &mut InspectorUi) {
+        ui.label("Inspectable track with env lol");
     }
 
     fn get_depth(&self) -> f32 {

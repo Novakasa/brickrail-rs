@@ -5,6 +5,7 @@ use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
 use bevy_egui::egui;
+use bevy_inspector_egui::reflect_inspector::InspectorUi;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -37,6 +38,8 @@ pub enum Selection {
 #[bevy_trait_query::queryable]
 pub trait Selectable {
     fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry);
+
+    fn inspector_ui_env(&mut self, ui: &mut egui::Ui, env: &mut InspectorUi);
 
     fn get_id(&self) -> GenericID;
 

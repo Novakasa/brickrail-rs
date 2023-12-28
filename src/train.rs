@@ -9,7 +9,7 @@ use crate::{
 };
 use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui;
-use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_inspector_egui::reflect_inspector::{ui_for_value, InspectorUi};
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
@@ -100,6 +100,11 @@ impl Selectable for Train {
             println!("can't lol");
         }
         ui_for_value(&mut self.settings, ui, type_registry);
+    }
+
+    fn inspector_ui_env(&mut self, ui: &mut egui::Ui, env: &mut InspectorUi) {
+        ui.label("Inspectable train with env lol");
+        env.ui_for_reflect(&mut self.settings, ui);
     }
 
     fn get_id(&self) -> GenericID {

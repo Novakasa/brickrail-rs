@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
 use bevy::utils::HashMap;
 use bevy_egui::egui;
-use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_inspector_egui::reflect_inspector::{ui_for_value, InspectorUi};
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
@@ -56,6 +56,11 @@ impl Selectable for Block {
     fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
         ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, ui, type_registry);
+    }
+
+    fn inspector_ui_env(&mut self, ui: &mut egui::Ui, env: &mut InspectorUi) {
+        ui.label("Inspectable block with env lol");
+        env.ui_for_reflect(&mut self.settings, ui);
     }
 
     fn get_depth(&self) -> f32 {
