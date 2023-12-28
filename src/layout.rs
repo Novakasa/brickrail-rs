@@ -18,6 +18,7 @@ pub struct Layout {
     blocks: HashMap<BlockID, Entity>,
     pub trains: HashMap<TrainID, Entity>,
     pub scale: f32,
+    pub wagons: HashMap<WagonID, Entity>,
 }
 
 #[derive(Resource, Default)]

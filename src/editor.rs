@@ -36,7 +36,12 @@ pub enum Selection {
 
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry);
+    fn inspector_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        type_registry: &TypeRegistry,
+        layout: &mut Layout,
+    );
 
     fn get_id(&self) -> GenericID;
 

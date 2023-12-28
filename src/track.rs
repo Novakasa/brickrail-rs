@@ -123,7 +123,12 @@ struct Track {
 }
 
 impl Selectable for Track {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
+    fn inspector_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _type_registry: &TypeRegistry,
+        layout: &mut Layout,
+    ) {
         ui.label("Inspectable track lol");
     }
 

@@ -6,7 +6,13 @@ use strum_macros::EnumIter;
 
 use crate::utils::distance_to_segment;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+pub struct WagonID {
+    train: TrainID,
+    index: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
 pub struct TrainID {
     id: usize,
 }

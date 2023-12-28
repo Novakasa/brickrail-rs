@@ -13,7 +13,7 @@ fn inspector_system(
     mut contexts: EguiContexts,
     mut q_inspectable: Query<One<&mut dyn Selectable>>,
     selection_state: Res<SelectionState>,
-    layout: Res<layout::Layout>,
+    mut layout: ResMut<layout::Layout>,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
 ) {
@@ -27,7 +27,7 @@ fn inspector_system(
             if let Selection::Single(generic_id) = selection {
                 if let Some(entity) = layout.get_entity(&generic_id) {
                     let mut inspectable = q_inspectable.get_mut(entity).unwrap();
-                    inspectable.inspector_ui(ui, &type_registry.read());
+                    inspectable.inspector_ui(ui, &type_registry.read(), &mut layout);
                 }
             }
         },

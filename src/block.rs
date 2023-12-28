@@ -1,5 +1,5 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
-use crate::layout;
+use crate::layout::{self, Layout};
 use crate::marker::{Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
@@ -53,7 +53,7 @@ impl Block {
 }
 
 impl Selectable for Block {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry, _: &mut Layout) {
         ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, ui, type_registry);
     }

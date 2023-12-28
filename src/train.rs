@@ -29,8 +29,7 @@ struct TrainDragState {
 
 #[derive(Component, Debug)]
 struct TrainWagon {
-    id: TrainID,
-    index: usize,
+    id: WagonID,
 }
 
 #[derive(Bundle)]
@@ -41,7 +40,7 @@ struct TrainWagonBundle {
 }
 
 impl TrainWagonBundle {
-    fn new(id: TrainID, index: usize) -> Self {
+    fn new(id: WagonID) -> Self {
         let path = ShapePath::new()
             .add(&Line(Vec2::ZERO, Vec2::X * 0.5 * LAYOUT_SCALE))
             .build();
@@ -57,7 +56,7 @@ impl TrainWagonBundle {
             ..default()
         };
         Self {
-            wagon: TrainWagon { id, index },
+            wagon: TrainWagon { id },
             shape: shape,
             stroke: stroke,
         }
@@ -94,7 +93,12 @@ impl Train {
 }
 
 impl Selectable for Train {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
+    fn inspector_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        type_registry: &TypeRegistry,
+        layout: &mut Layout,
+    ) {
         ui.label("Inspectable train lol");
         if ui.button("Turn around").clicked() {
             println!("can't lol");
