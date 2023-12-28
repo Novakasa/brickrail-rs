@@ -9,8 +9,17 @@ use crate::{
 };
 use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui;
-use bevy_prototype_lyon::entity::ShapeBundle;
+use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_prototype_lyon::{
+    draw::Stroke,
+    entity::ShapeBundle,
+    path::ShapePath,
+    prelude::{LineCap, StrokeOptions},
+    shapes::Line,
+};
 use bevy_trait_query::RegisterExt;
+
+const TRAIN_WIDTH: f32 = 0.1;
 
 #[derive(Resource, Default, Debug)]
 struct TrainDragState {
@@ -27,17 +36,47 @@ struct TrainWagon {
 #[derive(Bundle)]
 struct TrainWagonBundle {
     wagon: TrainWagon,
-    transform: Transform,
     shape: ShapeBundle,
+    stroke: Stroke,
+}
+
+impl TrainWagonBundle {
+    fn new(id: TrainID, index: usize) -> Self {
+        let path = ShapePath::new()
+            .add(&Line(Vec2::ZERO, Vec2::X * 0.5 * LAYOUT_SCALE))
+            .build();
+        let stroke = Stroke {
+            color: Color::YELLOW,
+            options: StrokeOptions::default()
+                .with_line_width(TRAIN_WIDTH)
+                .with_line_cap(LineCap::Round),
+        };
+        let shape = ShapeBundle {
+            spatial: SpatialBundle::default(),
+            path: path,
+            ..default()
+        };
+        Self {
+            wagon: TrainWagon { id, index },
+            shape: shape,
+            stroke: stroke,
+        }
+    }
+}
+
+#[derive(Debug, Reflect)]
+struct TrainSettings {
+    num_wagons: usize,
+    home: LogicalBlockID,
 }
 
 #[derive(Component, Debug)]
 struct Train {
     id: TrainID,
     route: Route,
-    wagons: Vec<Entity>,
     state: TrainState,
     speed: f32,
+    settings: TrainSettings,
 }
 
 impl Train {
@@ -55,11 +94,12 @@ impl Train {
 }
 
 impl Selectable for Train {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, _type_registry: &TypeRegistry) {
+    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry) {
         ui.label("Inspectable train lol");
         if ui.button("Turn around").clicked() {
             println!("can't lol");
         }
+        ui_for_value(&mut self.settings, ui, type_registry);
     }
 
     fn get_id(&self) -> GenericID {
@@ -85,10 +125,13 @@ impl TrainBundle {
         let route = route;
         let train = Train {
             id: id,
-            route: route,
-            wagons: vec![],
             state: TrainState::Stop,
             speed: 0.0,
+            settings: TrainSettings {
+                num_wagons: 1,
+                home: route.get_current_leg().get_target_block_id(),
+            },
+            route: route,
         };
         Self { train: train }
     }
@@ -148,16 +191,16 @@ fn exit_drag_train(
                 .get_mut(layout.get_entity(&GenericID::Train(train_id)).unwrap())
                 .unwrap();
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
-                println!("Dropping train {:?} on block {:?}", train_id, block_id);
+                // println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
-                println!("Start: {:?}, Target: {:?}", start, target);
+                // println!("Start: {:?}, Target: {:?}", start, target);
                 if let Some(section) = layout.find_route_section(start, target) {
-                    println!("Section: {:?}", section);
+                    // println!("Section: {:?}", section);
                     let mut route = build_route(&section, &q_markers, &layout);
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
-                    println!("state: {:?}", train.route.get_train_state());
+                    // println!("state: {:?}", train.route.get_train_state());
                 }
             }
             train_drag_state.train_id = None;
