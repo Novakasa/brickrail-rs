@@ -65,10 +65,14 @@ pub fn build_route(
     route
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum TrainState {
+    #[default]
     Stop,
-    Run { facing: Facing, speed: MarkerSpeed },
+    Run {
+        facing: Facing,
+        speed: MarkerSpeed,
+    },
 }
 
 impl TrainState {

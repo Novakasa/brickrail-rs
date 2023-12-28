@@ -6,6 +6,7 @@ use crate::track::LAYOUT_SCALE;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
+use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Default)]
 pub struct EntityMap {
@@ -16,13 +17,13 @@ pub struct EntityMap {
     pub wagons: HashMap<WagonID, Entity>,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize)]
 pub struct MarkerMap {
     pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
     pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize)]
 pub struct Connections {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
 }

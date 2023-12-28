@@ -12,7 +12,9 @@ pub struct WagonID {
     index: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect, Serialize, Deserialize,
+)]
 pub struct TrainID {
     id: usize,
 }
@@ -23,7 +25,20 @@ impl TrainID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Default)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Debug,
+    Reflect,
+    Default,
+    Serialize,
+    Deserialize,
+)]
 pub enum BlockDirection {
     #[default]
     Aligned,
@@ -46,7 +61,7 @@ impl BlockDirection {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
@@ -89,7 +104,7 @@ impl fmt::Debug for BlockID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
 pub struct LogicalBlockID {
     pub block: BlockID,
     pub direction: BlockDirection,
@@ -127,7 +142,9 @@ impl fmt::Debug for LogicalBlockID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct CellID {
     pub x: i32,
     pub y: i32,
@@ -315,7 +332,9 @@ impl Cardinal {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+)]
 pub enum Orientation {
     NS,
     NE,
@@ -611,7 +630,9 @@ enum Turn {
     Right,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect, Serialize, Deserialize,
+)]
 pub enum Facing {
     Forward,
     Backward,
@@ -633,7 +654,9 @@ impl Facing {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, Serialize, Deserialize)]
 pub struct LogicalTrackID {
     pub dirtrack: DirectedTrackID,
     pub facing: Facing,
@@ -666,7 +689,9 @@ impl fmt::Debug for LogicalTrackID {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect, Serialize, Deserialize,
+)]
 pub enum TrackDirection {
     First,
     Last,
@@ -681,7 +706,7 @@ impl TrackDirection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, Serialize, Deserialize)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -796,7 +821,7 @@ impl fmt::Debug for DirectedTrackID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
 pub struct TrackID {
     cell: CellID,
     orientation: Orientation,
