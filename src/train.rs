@@ -4,7 +4,7 @@ use crate::{
     layout::Layout,
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, LegIntention, Route},
+    route::{build_route, Route, TrainState},
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
@@ -36,11 +36,21 @@ struct Train {
     id: TrainID,
     route: Route,
     wagons: Vec<Entity>,
+    state: TrainState,
+    speed: f32,
 }
 
 impl Train {
     pub fn get_logical_block_id(&self) -> LogicalBlockID {
         self.route.get_current_leg().get_target_block_id()
+    }
+
+    fn update(&mut self, delta: f32) {
+        self.route.advance_distance(delta * self.speed);
+        self.state = self.route.get_train_state();
+        self.speed = self.state.get_speed();
+        // println!("Train state: {:?}, {:?}", self.state, self.speed);
+        // println!("Route: {:?}", self.route.get_current_leg().section_position);
     }
 }
 
@@ -77,6 +87,8 @@ impl TrainBundle {
             id: id,
             route: route,
             wagons: vec![],
+            state: TrainState::Stop,
+            speed: 0.0,
         };
         Self { train: train }
     }
@@ -143,7 +155,7 @@ fn exit_drag_train(
                 if let Some(section) = layout.find_route_section(start, target) {
                     println!("Section: {:?}", section);
                     let mut route = build_route(&section, &q_markers, &layout);
-                    route.get_current_leg_mut().intention = LegIntention::Stop;
+                    // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
                     println!("state: {:?}", train.route.get_train_state());
                 }
@@ -198,6 +210,12 @@ fn create_train(
     }
 }
 
+fn update_train(mut q_trains: Query<&mut Train>, time: Res<Time>) {
+    for mut train in q_trains.iter_mut() {
+        train.update(time.delta_seconds());
+    }
+}
+
 pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
@@ -213,6 +231,7 @@ impl Plugin for TrainPlugin {
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,
+                update_train,
             ),
         );
     }

@@ -17,6 +17,16 @@ pub enum MarkerSpeed {
     Fast,
 }
 
+impl MarkerSpeed {
+    pub fn get_speed(&self) -> f32 {
+        match self {
+            MarkerSpeed::Slow => 2.0,
+            MarkerSpeed::Cruise => 4.0,
+            MarkerSpeed::Fast => 8.0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum MarkerColor {
     Any,

@@ -69,6 +69,15 @@ pub enum TrainState {
     Run { facing: Facing, speed: MarkerSpeed },
 }
 
+impl TrainState {
+    pub fn get_speed(&self) -> f32 {
+        match self {
+            TrainState::Stop => 0.0,
+            TrainState::Run { speed, .. } => speed.get_speed(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Route {
     legs: Vec<RouteLeg>,
@@ -84,6 +93,9 @@ impl Route {
     }
 
     pub fn next_leg(&mut self) {
+        if self.legs.len() == 1 {
+            panic!("Can't advance with single leg!");
+        }
         self.legs.remove(0);
     }
 
@@ -108,8 +120,18 @@ impl Route {
     }
 
     pub fn advance_distance(&mut self, distance: f32) {
-        let current_leg = self.get_current_leg_mut();
-        let remainder = current_leg.advance_distance(distance);
+        let mut remainder = Some(distance);
+        while remainder.is_some() {
+            remainder = self
+                .get_current_leg_mut()
+                .advance_distance(remainder.unwrap());
+            if let Some(_) = remainder {
+                self.next_leg();
+                if self.legs.len() == 0 {
+                    break;
+                }
+            }
+        }
     }
 
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
@@ -135,7 +157,7 @@ pub struct RouteLeg {
     markers: Vec<RouteMarkerData>,
     index: usize,
     pub intention: LegIntention,
-    section_position: f32,
+    pub section_position: f32,
     target_block: LogicalBlockID,
 }
 
@@ -217,6 +239,9 @@ impl RouteLeg {
 
     pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
         if self.is_completed() {
+            if self.intention == LegIntention::Stop {
+                return None;
+            }
             return Some(distance);
         }
         let mut remainder = distance;
@@ -225,6 +250,9 @@ impl RouteLeg {
             self.section_position = self.get_next_marker_pos();
             self.advance_marker();
             if self.is_completed() {
+                if self.intention == LegIntention::Stop {
+                    return None;
+                }
                 return Some(remainder);
             }
         }
