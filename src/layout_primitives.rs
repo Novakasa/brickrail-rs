@@ -4,7 +4,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-use crate::utils::distance_to_segment;
+use crate::{block::Block, utils::distance_to_segment};
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct WagonID {
@@ -96,6 +96,25 @@ impl BlockID {
     pub fn get_name(&self) -> String {
         format!("({})-({})", self.track1.get_name(), self.track2.get_name(),)
     }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        // println!("parsing block name: {}", name);
+        let (track1, track2) = name.split_at(name.find(")-(")? + 1);
+        // println!("track1: {}, track2: {}", track1, track2);
+        let track1 = &track1[1..track1.len() - 1];
+        let track2 = &track2[2..track2.len() - 1];
+        // println!("track1: {}, track2: {}", track1, track2);
+        Some(Self {
+            track1: DirectedTrackID::from_name(track1)?,
+            track2: DirectedTrackID::from_name(track2)?,
+        })
+    }
+}
+
+impl fmt::Display for BlockID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "B[{}]", self.get_name())
+    }
 }
 
 impl fmt::Debug for BlockID {
@@ -133,6 +152,33 @@ impl LogicalBlockID {
             self.facing.get_name(),
             second.get_name(),
         )
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        let parts = name.split(&['(', ')']).collect::<Vec<&str>>();
+        let first = parts.get(1)?.clone();
+        let facing = parts.get(2)?.clone();
+        let second = parts.get(3)?.clone();
+
+        let first_track = DirectedTrackID::from_name(first)?;
+        let second_track = DirectedTrackID::from_name(second)?;
+
+        let block_id = BlockID::new(first_track, second_track.opposite());
+        let direction = if block_id.track1 == first_track {
+            BlockDirection::Aligned
+        } else {
+            BlockDirection::Opposite
+        };
+        let block_id = match direction {
+            BlockDirection::Aligned => block_id,
+            BlockDirection::Opposite => BlockID::new(second_track, first_track.opposite()),
+        };
+        let facing = Facing::from_name(facing)?;
+        Some(Self {
+            block: block_id,
+            direction,
+            facing,
+        })
     }
 }
 
@@ -411,6 +457,18 @@ impl Orientation {
         }
     }
 
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "EW" => Some(Self::EW),
+            "NE" => Some(Self::NE),
+            "NS" => Some(Self::NS),
+            "NW" => Some(Self::NW),
+            "SE" => Some(Self::SE),
+            "SW" => Some(Self::SW),
+            _ => None,
+        }
+    }
+
     pub fn get_reversed_name(&self) -> &'static str {
         match self {
             Self::EW => "WE",
@@ -419,6 +477,18 @@ impl Orientation {
             Self::NW => "WN",
             Self::SE => "ES",
             Self::SW => "WS",
+        }
+    }
+
+    pub fn from_reversed_name(name: &str) -> Option<Self> {
+        match name {
+            "WE" => Some(Self::EW),
+            "EN" => Some(Self::NE),
+            "SN" => Some(Self::NS),
+            "WN" => Some(Self::NW),
+            "ES" => Some(Self::SE),
+            "WS" => Some(Self::SW),
+            _ => None,
         }
     }
 }
@@ -659,6 +729,14 @@ impl Facing {
             Facing::Backward => "<",
         }
     }
+
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            ">" => Some(Facing::Forward),
+            "<" => Some(Facing::Backward),
+            _ => None,
+        }
+    }
 }
 
 use serde::{Deserialize, Serialize};
@@ -689,12 +767,26 @@ impl LogicalTrackID {
         format!("{}{}", self.dirtrack.get_name(), self.facing.get_name())
     }
 
+    pub fn from_name(name: &str) -> Option<Self> {
+        // split into last char and rest str:
+        let (dirtrack, facing) = name.split_at(name.len() - 1);
+        let facing = Facing::from_name(facing)?;
+        let dirtrack = DirectedTrackID::from_name(dirtrack)?;
+        Some(Self { dirtrack, facing })
+    }
+
     pub fn is_default(&self) -> bool {
         self.facing == Facing::Forward && self.dirtrack.direction == TrackDirection::First
     }
 }
 
 impl fmt::Debug for LogicalTrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "L({})", self.get_name())
+    }
+}
+
+impl fmt::Display for LogicalTrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "L({})", self.get_name())
     }
@@ -813,7 +905,7 @@ impl DirectedTrackID {
         self.interpolate_pos(self.straight_length())
     }
 
-    fn get_name(&self) -> String {
+    pub fn get_name(&self) -> String {
         let dirstr = match self.direction {
             TrackDirection::First => self.track.orientation.get_reversed_name(),
             TrackDirection::Last => self.track.orientation.get_name(),
@@ -823,6 +915,31 @@ impl DirectedTrackID {
             "{},{},{}|{}",
             self.track.cell.x, self.track.cell.y, self.track.cell.l, dirstr
         )
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        let mut parts = name.split('|');
+        let cell = parts.next()?;
+        let orientation = parts.next()?;
+        let mut cell_parts = cell.split(',');
+        let x = cell_parts.next()?.parse::<i32>().ok()?;
+        let y = cell_parts.next()?.parse::<i32>().ok()?;
+        let l = cell_parts.next()?.parse::<i32>().ok()?;
+        let (dir, orientation) = if let Some(orientation) = Orientation::from_name(orientation) {
+            (TrackDirection::Last, orientation)
+        } else {
+            (
+                TrackDirection::First,
+                Orientation::from_reversed_name(orientation)?,
+            )
+        };
+        Some(Self {
+            track: TrackID {
+                cell: CellID { x, y, l },
+                orientation,
+            },
+            direction: dir,
+        })
     }
 }
 
@@ -919,6 +1036,21 @@ impl TrackID {
             self.orientation.get_name()
         )
     }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        let mut parts = name.split('|');
+        let cell = parts.next()?;
+        let orientation = parts.next()?;
+        let mut cell_parts = cell.split(',');
+        let x = cell_parts.next()?.parse::<i32>().ok()?;
+        let y = cell_parts.next()?.parse::<i32>().ok()?;
+        let l = cell_parts.next()?.parse::<i32>().ok()?;
+        let orientation = Orientation::from_name(orientation)?;
+        Some(Self {
+            cell: CellID { x, y, l },
+            orientation,
+        })
+    }
 }
 
 impl fmt::Debug for TrackID {
@@ -930,7 +1062,10 @@ impl fmt::Debug for TrackID {
 #[cfg(test)]
 mod test {
 
+    use crate::block;
+
     use super::*;
+    use bevy::log;
     use strum::IntoEnumIterator;
 
     #[test]
@@ -1033,5 +1168,45 @@ mod test {
         assert!(f32::INFINITY > 1000.0);
         assert!(f32::INFINITY + 1000.0 == f32::INFINITY);
         assert!(f32::INFINITY.is_infinite());
+    }
+
+    #[test]
+    fn test_to_and_from_name() {
+        let track = TrackID::new(CellID::new(33, 30, -53), Orientation::NE);
+        assert_eq!(track, TrackID::from_name(&track.get_name()).unwrap());
+
+        let dirtrack = DirectedTrackID {
+            track,
+            direction: TrackDirection::Last,
+        };
+        assert_eq!(
+            dirtrack,
+            DirectedTrackID::from_name(&dirtrack.get_name()).unwrap()
+        );
+
+        let logical_track = LogicalTrackID {
+            dirtrack,
+            facing: Facing::Backward,
+        };
+        assert_eq!(
+            logical_track,
+            LogicalTrackID::from_name(&logical_track.get_name()).unwrap()
+        );
+
+        let dirtrack2 = DirectedTrackID {
+            track: TrackID::new(CellID::new(0, 0, 0), Orientation::EW),
+            direction: TrackDirection::First,
+        };
+
+        let block = BlockID::new(dirtrack, dirtrack2);
+        assert_eq!(block, BlockID::from_name(&block.get_name()).unwrap());
+
+        let logical_block = block.to_logical(BlockDirection::Opposite, Facing::Backward);
+        let block2 = LogicalBlockID::from_name(&logical_block.get_name()).unwrap();
+        println!("{:?} {:?}", logical_block.block, block2.block);
+        assert_eq!(
+            logical_block,
+            LogicalBlockID::from_name(&logical_block.get_name()).unwrap()
+        );
     }
 }

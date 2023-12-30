@@ -1,12 +1,11 @@
 use std::io::{Read, Write};
-use std::marker;
 
 use crate::block::{Block, BlockBundle};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
 use crate::marker::Marker;
 use crate::section::DirectedSection;
-use crate::track::{Track, TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
+use crate::track::{TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
