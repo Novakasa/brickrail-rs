@@ -1,6 +1,11 @@
-use bevy::{ecs::component::Component, reflect::Reflect, utils::HashMap};
+use bevy::{
+    ecs::component::Component, gizmos::gizmos::Gizmos, reflect::Reflect, render::color::Color,
+    utils::HashMap,
+};
+use serde::{Deserialize, Serialize};
+use serde_json_any_key::any_key_map;
 
-use crate::layout_primitives::*;
+use crate::{layout_primitives::*, track::LAYOUT_SCALE};
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum MarkerKey {
@@ -9,7 +14,9 @@ pub enum MarkerKey {
     None,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Default)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Serialize, Deserialize,
+)]
 pub enum MarkerSpeed {
     Slow,
     #[default]
@@ -27,7 +34,7 @@ impl MarkerSpeed {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Serialize, Deserialize)]
 pub enum MarkerColor {
     Any,
     Red,
@@ -36,15 +43,16 @@ pub enum MarkerColor {
     Green,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LogicalMarkerData {
     pub speed: MarkerSpeed,
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Serialize, Deserialize, Clone)]
 pub struct Marker {
     pub track: TrackID,
     pub color: MarkerColor,
+    #[serde(with = "any_key_map")]
     pub logical_data: HashMap<LogicalTrackID, LogicalMarkerData>,
 }
 
@@ -67,5 +75,14 @@ impl Marker {
 
     pub fn set_logical_data(&mut self, logical: LogicalTrackID, data: LogicalMarkerData) {
         self.logical_data.insert(logical, data);
+    }
+
+    pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
+        let position = self
+            .track
+            .get_directed(TrackDirection::First)
+            .get_center_vec2()
+            * LAYOUT_SCALE;
+        gizmos.circle_2d(position, 0.05 * LAYOUT_SCALE, Color::WHITE);
     }
 }

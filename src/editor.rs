@@ -1,9 +1,12 @@
 use std::io::{Read, Write};
+use std::marker;
 
-use crate::layout::{Connections, EntityMap};
+use crate::block::{Block, BlockBundle};
+use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
+use crate::marker::Marker;
 use crate::section::DirectedSection;
-use crate::track::{TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
+use crate::track::{Track, TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
@@ -12,6 +15,7 @@ use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::One;
+use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Debug, Default)]
 pub struct InputData {
@@ -177,11 +181,33 @@ fn extend_selection(
     }
 }
 
-pub fn save_layout(connections: Res<Connections>, keyboard_buttons: Res<Input<KeyCode>>) {
+#[derive(Serialize, Deserialize, Clone)]
+struct SerializableLayout {
+    connections: Connections,
+    marker_map: MarkerMap,
+    blocks: Vec<Block>,
+    markers: Vec<Marker>,
+}
+
+pub fn save_layout(
+    connections: Res<Connections>,
+    marker_map: Res<MarkerMap>,
+    q_blocks: Query<&Block>,
+    q_markers: Query<&Marker>,
+    keyboard_buttons: Res<Input<KeyCode>>,
+) {
     if keyboard_buttons.just_pressed(KeyCode::S) {
         println!("Saving layout");
         let mut file = std::fs::File::create("layout.json").unwrap();
-        let json = serde_json::to_string_pretty(&connections.into_inner()).unwrap();
+        let blocks = q_blocks.iter().map(|b| b.clone()).collect();
+        let markers = q_markers.iter().map(|m| m.clone()).collect();
+        let layout_val = SerializableLayout {
+            connections: connections.clone(),
+            marker_map: marker_map.clone(),
+            blocks,
+            markers,
+        };
+        let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
     }
 }
@@ -190,14 +216,30 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
     if keyboard_buttons.just_pressed(KeyCode::L) {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
+        commands.remove_resource::<MarkerMap>();
         let mut entity_map = EntityMap::default();
         let mut file = std::fs::File::open("layout.json").unwrap();
         let mut json = String::new();
         file.read_to_string(&mut json).unwrap();
-        let connections: Connections = serde_json::from_str(&json).unwrap();
+        let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
+        let connections = layout_value.connections.clone();
+        let marker_map = layout_value.marker_map.clone();
         spawn_tracks_from_connections(&connections, &mut entity_map, &mut commands);
         commands.insert_resource(connections);
+        for block in layout_value.blocks {
+            let block_id = block.id.clone();
+            let entity = commands.spawn(BlockBundle::from_block(block)).id();
+            entity_map.add_block(block_id, entity);
+        }
+        for marker in layout_value.markers {
+            let track_id = marker.track;
+            let entity = entity_map.get_entity(&GenericID::Track(track_id)).unwrap();
+            commands.entity(entity).insert(marker);
+            entity_map.add_marker(track_id, entity);
+        }
+        println!("markers: {:?}", marker_map.in_markers);
         commands.insert_resource(entity_map);
+        commands.insert_resource(marker_map);
     }
 }
 
@@ -227,6 +269,12 @@ fn spawn_tracks_from_connections(
     }
 }
 
+fn draw_markers(q_markers: Query<&Marker>, mut gizmos: Gizmos) {
+    for marker in q_markers.iter() {
+        marker.draw_with_gizmos(&mut gizmos);
+    }
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -248,6 +296,7 @@ impl Plugin for EditorPlugin {
                 extend_selection,
                 save_layout,
                 load_layout,
+                draw_markers,
             ),
         );
     }

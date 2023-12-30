@@ -26,6 +26,7 @@ pub fn build_route(
     let mut route = Route::new();
     let in_tracks = marker_map.in_markers.keys().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
+    assert!(split.len() > 0);
 
     for (section, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
@@ -34,6 +35,7 @@ pub fn build_route(
         for logical in section.tracks.iter() {
             println!("looking for marker at {:?}", logical);
             if let Some(entity) = entity_map.markers.get(&logical.track()) {
+                println!("found marker at {:?}", logical);
                 let marker = q_markers.get(*entity).unwrap();
                 let route_marker = RouteMarkerData {
                     track: logical.clone(),

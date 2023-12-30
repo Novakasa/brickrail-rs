@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use petgraph::graphmap::DiGraphMap;
 use serde::{Deserialize, Serialize};
+use serde_json_any_key::any_key_map;
 
 #[derive(Resource, Default)]
 struct TrackLocks {
@@ -65,8 +66,9 @@ impl EntityMap {
     }
 }
 
-#[derive(Resource, Default, Serialize, Deserialize)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct MarkerMap {
+    #[serde(with = "any_key_map")]
     pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
     pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
 }
@@ -87,7 +89,7 @@ impl MarkerMap {
     }
 }
 
-#[derive(Resource, Default, Serialize, Deserialize)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Connections {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
 }

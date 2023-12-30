@@ -1,5 +1,6 @@
 use bevy::{math::Vec2, reflect::Reflect};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::{layout::Connections, layout_primitives::*};
 
@@ -89,7 +90,7 @@ impl LogicalSection {
     }
 }
 
-#[derive(Debug, Clone, Reflect, PartialEq, Eq)]
+#[derive(Debug, Clone, Reflect, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DirectedSection {
     pub tracks: Vec<DirectedTrackID>,
 }

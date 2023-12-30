@@ -124,8 +124,8 @@ impl TrackBaseShape {
 }
 
 #[derive(Component)]
-struct Track {
-    id: TrackID,
+pub struct Track {
+    pub id: TrackID,
 }
 
 impl Selectable for Track {
