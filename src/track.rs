@@ -74,19 +74,19 @@ impl TrackBuildState {
 }
 
 #[derive(PartialEq, Eq)]
-enum TrackShapeType {
+pub enum TrackShapeType {
     Outer,
     Inner,
 }
 
 #[derive(Component)]
-struct TrackConnectionShape {
+pub struct TrackConnectionShape {
     id: TrackConnectionID,
     shape_type: TrackShapeType,
 }
 
 #[derive(Bundle)]
-struct TrackBaseShape {
+pub struct TrackBaseShape {
     connection: TrackConnectionShape,
     shape: ShapeBundle,
     stroke: Stroke,
@@ -152,7 +152,7 @@ impl Selectable for Track {
 }
 
 #[derive(Bundle)]
-struct TrackBundle {
+pub struct TrackBundle {
     track: Track,
     name: Name,
 }

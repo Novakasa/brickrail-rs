@@ -1,7 +1,10 @@
+use std::io::{Read, Write};
+
 use crate::layout::{Connections, EntityMap};
 use crate::layout_primitives::*;
 use crate::section::DirectedSection;
-use crate::track::LAYOUT_SCALE;
+use crate::track::{TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
+
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
 use bevy_egui::egui;
@@ -174,6 +177,56 @@ fn extend_selection(
     }
 }
 
+pub fn save_layout(connections: Res<Connections>, keyboard_buttons: Res<Input<KeyCode>>) {
+    if keyboard_buttons.just_pressed(KeyCode::S) {
+        println!("Saving layout");
+        let mut file = std::fs::File::create("layout.json").unwrap();
+        let json = serde_json::to_string_pretty(&connections.into_inner()).unwrap();
+        file.write(json.as_bytes()).unwrap();
+    }
+}
+
+pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
+    if keyboard_buttons.just_pressed(KeyCode::L) {
+        commands.remove_resource::<Connections>();
+        commands.remove_resource::<EntityMap>();
+        let mut entity_map = EntityMap::default();
+        let mut file = std::fs::File::open("layout.json").unwrap();
+        let mut json = String::new();
+        file.read_to_string(&mut json).unwrap();
+        let connections: Connections = serde_json::from_str(&json).unwrap();
+        spawn_tracks_from_connections(&connections, &mut entity_map, &mut commands);
+        commands.insert_resource(connections);
+        commands.insert_resource(entity_map);
+    }
+}
+
+fn spawn_tracks_from_connections(
+    connections: &Connections,
+    entity_map: &mut EntityMap,
+    commands: &mut Commands<'_, '_>,
+) {
+    for track_id in connections.iter_tracks() {
+        if entity_map.tracks.get(&track_id).is_some() {
+            continue;
+        }
+        let entity = commands.spawn(TrackBundle::new(track_id)).id();
+        entity_map.add_track(track_id, entity);
+    }
+    for connection_id in connections.iter_connections() {
+        if entity_map.connections_outer.get(&connection_id).is_some() {
+            continue;
+        }
+        let outer_id = commands
+            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer))
+            .id();
+        let inner_id = commands
+            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner))
+            .id();
+        entity_map.add_connection(connection_id, outer_id, inner_id);
+    }
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -188,7 +241,14 @@ impl Plugin for EditorPlugin {
         app.add_systems(Startup, spawn_camera);
         app.add_systems(
             Update,
-            (init_select, update_hover, draw_selection, extend_selection),
+            (
+                init_select,
+                update_hover,
+                draw_selection,
+                extend_selection,
+                save_layout,
+                load_layout,
+            ),
         );
     }
 }

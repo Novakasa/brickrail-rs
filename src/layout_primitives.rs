@@ -599,6 +599,13 @@ impl DirectedTrackConnectionID {
             to_track: self.to_track.get_logical(to_facing),
         }
     }
+
+    pub fn to_connection(&self) -> TrackConnectionID {
+        TrackConnectionID {
+            track_a: self.from_track,
+            track_b: self.to_track.opposite(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -680,6 +687,10 @@ impl LogicalTrackID {
 
     pub fn get_name(&self) -> String {
         format!("{}{}", self.dirtrack.get_name(), self.facing.get_name())
+    }
+
+    pub fn is_default(&self) -> bool {
+        self.facing == Facing::Forward && self.dirtrack.direction == TrackDirection::First
     }
 }
 

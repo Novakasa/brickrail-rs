@@ -9,28 +9,19 @@ use petgraph::graphmap::DiGraphMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Default)]
+struct TrackLocks {
+    locked_tracks: HashMap<TrackID, TrainID>,
+}
+
+#[derive(Resource, Default)]
 pub struct EntityMap {
     pub tracks: HashMap<TrackID, Entity>,
+    pub connections_outer: HashMap<TrackConnectionID, Entity>,
+    pub connections_inner: HashMap<TrackConnectionID, Entity>,
     pub markers: HashMap<TrackID, Entity>,
     pub blocks: HashMap<BlockID, Entity>,
     pub trains: HashMap<TrainID, Entity>,
     pub wagons: HashMap<WagonID, Entity>,
-}
-
-#[derive(Resource, Default, Serialize, Deserialize)]
-pub struct MarkerMap {
-    pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
-    pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
-}
-
-#[derive(Resource, Default, Serialize, Deserialize)]
-pub struct Connections {
-    logical_graph: DiGraphMap<LogicalTrackID, ()>,
-}
-
-#[derive(Resource, Default)]
-struct TrackLocks {
-    locked_tracks: HashMap<TrackID, TrainID>,
 }
 
 impl EntityMap {
@@ -58,6 +49,26 @@ impl EntityMap {
     pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
         self.markers.try_insert(track, entity).unwrap();
     }
+
+    pub fn add_connection(
+        &mut self,
+        connection: TrackConnectionID,
+        outer_entity: Entity,
+        inner_entity: Entity,
+    ) {
+        self.connections_outer
+            .try_insert(connection, outer_entity)
+            .unwrap();
+        self.connections_inner
+            .try_insert(connection, inner_entity)
+            .unwrap();
+    }
+}
+
+#[derive(Resource, Default, Serialize, Deserialize)]
+pub struct MarkerMap {
+    pub in_markers: HashMap<LogicalTrackID, LogicalBlockID>,
+    pub enter_markers: HashMap<LogicalTrackID, LogicalBlockID>,
 }
 
 impl MarkerMap {
@@ -76,6 +87,11 @@ impl MarkerMap {
     }
 }
 
+#[derive(Resource, Default, Serialize, Deserialize)]
+pub struct Connections {
+    logical_graph: DiGraphMap<LogicalTrackID, ()>,
+}
+
 impl Connections {
     pub fn has_track(&self, track: TrackID) -> bool {
         for logical_track in track.logical_tracks() {
@@ -92,6 +108,30 @@ impl Connections {
                 self.logical_graph.add_node(logical_track);
             }
         }
+    }
+
+    pub fn iter_logical_tracks(&self) -> impl Iterator<Item = LogicalTrackID> + '_ {
+        self.logical_graph.nodes()
+    }
+
+    pub fn iter_tracks(&self) -> impl Iterator<Item = TrackID> + '_ {
+        self.logical_graph
+            .nodes()
+            .map(|logical_track| logical_track.track())
+    }
+
+    pub fn iter_logical_connections(&self) -> impl Iterator<Item = LogicalTrackConnectionID> + '_ {
+        self.logical_graph
+            .all_edges()
+            .map(|(from_track, to_track, _)| LogicalTrackConnectionID {
+                from_track,
+                to_track,
+            })
+    }
+
+    pub fn iter_connections(&self) -> impl Iterator<Item = TrackConnectionID> + '_ {
+        self.iter_logical_connections()
+            .map(|logical_connection| logical_connection.to_directed().to_connection())
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
