@@ -1,10 +1,13 @@
 use core::fmt;
-use std::f32::consts::PI;
+use std::{f32::consts::PI, str::FromStr};
 
 use bevy::prelude::*;
 use strum_macros::EnumIter;
 
-use crate::{block::Block, utils::distance_to_segment};
+use serde::{Deserialize, Serialize};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
+
+use crate::utils::distance_to_segment;
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct WagonID {
@@ -61,7 +64,9 @@ impl BlockDirection {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct BlockID {
     track1: DirectedTrackID,
     track2: DirectedTrackID,
@@ -123,7 +128,20 @@ impl fmt::Debug for BlockID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
+impl FromStr for BlockID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip B[ and ]:
+        let s = &s[2..s.len() - 1];
+        // println!("parsing block id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid block id: {}", s))
+    }
+}
+
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct LogicalBlockID {
     pub block: BlockID,
     pub direction: BlockDirection,
@@ -156,9 +174,9 @@ impl LogicalBlockID {
 
     pub fn from_name(name: &str) -> Option<Self> {
         let parts = name.split(&['(', ')']).collect::<Vec<&str>>();
-        let first = parts.get(1)?.clone();
-        let facing = parts.get(2)?.clone();
-        let second = parts.get(3)?.clone();
+        let first = parts.get(1)?;
+        let facing = parts.get(2)?;
+        let second = parts.get(3)?;
 
         let first_track = DirectedTrackID::from_name(first)?;
         let second_track = DirectedTrackID::from_name(second)?;
@@ -185,6 +203,23 @@ impl LogicalBlockID {
 impl fmt::Debug for LogicalBlockID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "LB[{}]", self.get_name())
+    }
+}
+
+impl fmt::Display for LogicalBlockID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LB[{}]", self.get_name())
+    }
+}
+
+impl FromStr for LogicalBlockID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip LB[ and ]:
+        let s = &s[3..s.len() - 1];
+        // println!("parsing logical block id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid logical block id: {}", s))
     }
 }
 
@@ -700,13 +735,6 @@ impl LogicalTrackConnectionID {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Turn {
-    Left,
-    Center,
-    Right,
-}
-
 #[derive(
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect, Serialize, Deserialize,
 )]
@@ -739,9 +767,9 @@ impl Facing {
     }
 }
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct LogicalTrackID {
     pub dirtrack: DirectedTrackID,
     pub facing: Facing,
@@ -792,6 +820,17 @@ impl fmt::Display for LogicalTrackID {
     }
 }
 
+impl FromStr for LogicalTrackID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip L( and ):
+        let s = &s[2..s.len() - 1];
+        // println!("parsing logical track id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid logical track id: {}", s))
+    }
+}
+
 #[derive(
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect, Serialize, Deserialize,
 )]
@@ -809,7 +848,9 @@ impl TrackDirection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -949,7 +990,26 @@ impl fmt::Debug for DirectedTrackID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, Serialize, Deserialize)]
+impl fmt::Display for DirectedTrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "D({})", self.get_name())
+    }
+}
+
+impl FromStr for DirectedTrackID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip D( and ):
+        let s = &s[2..s.len() - 1];
+        // println!("parsing directed track id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid directed track id: {}", s))
+    }
+}
+
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct TrackID {
     cell: CellID,
     orientation: Orientation,
@@ -1059,13 +1119,26 @@ impl fmt::Debug for TrackID {
     }
 }
 
+impl fmt::Display for TrackID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "T({})", self.get_name())
+    }
+}
+
+impl FromStr for TrackID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip T( and ):
+        let s = &s[2..s.len() - 1];
+        // println!("parsing track id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid track id: {}", s))
+    }
+}
+
 #[cfg(test)]
 mod test {
-
-    use crate::block;
-
     use super::*;
-    use bevy::log;
     use strum::IntoEnumIterator;
 
     #[test]
@@ -1208,5 +1281,18 @@ mod test {
             logical_block,
             LogicalBlockID::from_name(&logical_block.get_name()).unwrap()
         );
+    }
+
+    #[test]
+    fn parse_primitives() {
+        let track1 = LogicalTrackID::from_str("L(-2,2,0|WE>)").unwrap();
+        assert_eq!(track1.cell().x, -2);
+        assert_eq!(track1.cell().y, 2);
+        assert_eq!(track1.cell().l, 0);
+        assert_eq!(track1.facing, Facing::Forward);
+
+        let track2 = LogicalTrackID::from_str("L(-2,2,0|WE<)").unwrap();
+        assert_eq!(track2.facing, Facing::Backward);
+        assert_ne!(track1.facing, track2.facing);
     }
 }
