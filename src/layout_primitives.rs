@@ -534,7 +534,9 @@ pub enum ConnectionDirection {
     Opposite,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct TrackConnectionID {
     // DirectedTrackIDs point at each other to avoid bias
     // They are sorted according to track_a < track_b
@@ -598,6 +600,40 @@ impl TrackConnectionID {
             self.to_directed(ConnectionDirection::Opposite)
                 .to_logical(Facing::Backward),
         ]
+    }
+
+    pub fn get_name(&self) -> String {
+        format!("{}><{}", self.track_a.get_name(), self.track_b.get_name())
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        let split = name.split("><").collect::<Vec<&str>>();
+        let track1 = DirectedTrackID::from_name(split.get(0)?)?;
+        let track2 = DirectedTrackID::from_name(split.get(1)?)?;
+        Some(Self::new(track1, track2))
+    }
+}
+
+impl fmt::Display for TrackConnectionID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "C({})", self.get_name())
+    }
+}
+
+impl fmt::Debug for TrackConnectionID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "C({})", self.get_name())
+    }
+}
+
+impl FromStr for TrackConnectionID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // strip C( and ):
+        let s = &s[2..s.len() - 1];
+        // println!("parsing track connection id: {}", s);
+        Self::from_name(s).ok_or_else(|| format!("invalid track connection id: {}", s))
     }
 }
 
@@ -1280,6 +1316,21 @@ mod test {
         assert_eq!(
             logical_block,
             LogicalBlockID::from_name(&logical_block.get_name()).unwrap()
+        );
+
+        let connection = TrackConnectionID::new(
+            DirectedTrackID {
+                track: TrackID::new(CellID::new(0, 0, 0), Orientation::EW),
+                direction: TrackDirection::First,
+            },
+            DirectedTrackID {
+                track: TrackID::new(CellID::new(0, 0, 0), Orientation::EW),
+                direction: TrackDirection::Last,
+            },
+        );
+        assert_eq!(
+            connection,
+            TrackConnectionID::from_name(&connection.get_name()).unwrap()
         );
     }
 
