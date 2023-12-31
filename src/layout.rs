@@ -169,6 +169,11 @@ impl Connections {
         }
     }
 
+    pub fn connect_tracks(&mut self, track_a: &LogicalTrackID, track_b: &LogicalTrackID) {
+        self.logical_graph
+            .add_edge(track_a.clone(), track_b.clone(), ());
+    }
+
     pub fn find_route_section(
         &self,
         start: LogicalBlockID,

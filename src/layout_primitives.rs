@@ -637,7 +637,7 @@ impl DirectedTrackConnectionID {
             0 => 0.0,
             1 => 0.5 + 0.25 * 2.0_f32.sqrt(),
             2 => 0.25 * 2.0_f32.sqrt(),
-            i => panic!("invalid curve_index! {:?}", i),
+            _ => 0.0,
         }
     }
 

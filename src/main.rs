@@ -1,3 +1,5 @@
+use std::env;
+
 use bevy::prelude::*;
 
 mod block;
@@ -13,6 +15,7 @@ mod train;
 mod utils;
 
 fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(bevy_framepace::FramepacePlugin)

@@ -136,6 +136,7 @@ fn create_block(
     selection_state: Res<SelectionState>,
     mut entity_map: ResMut<layout::EntityMap>,
     mut marker_map: ResMut<MarkerMap>,
+    mut connections: ResMut<layout::Connections>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::B) {
@@ -156,6 +157,7 @@ fn create_block(
                     .entity(marker_entity)
                     .insert(Marker::new(in_track.track(), MarkerColor::Blue));
                 entity_map.markers.insert(in_track.track(), marker_entity);
+                connections.connect_tracks(&in_track, &in_track.reversed());
                 println!("Adding marker {:?} ", in_track.track());
             }
         }
