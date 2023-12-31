@@ -17,6 +17,7 @@ struct TrackLocks {
 #[derive(Resource, Default)]
 pub struct EntityMap {
     pub tracks: HashMap<TrackID, Entity>,
+    pub connections: HashMap<TrackConnectionID, Entity>,
     pub connections_outer: HashMap<TrackConnectionID, Entity>,
     pub connections_inner: HashMap<TrackConnectionID, Entity>,
     pub markers: HashMap<TrackID, Entity>,
@@ -54,9 +55,11 @@ impl EntityMap {
     pub fn add_connection(
         &mut self,
         connection: TrackConnectionID,
+        entity: Entity,
         outer_entity: Entity,
         inner_entity: Entity,
     ) {
+        self.connections.try_insert(connection, entity).unwrap();
         self.connections_outer
             .try_insert(connection, outer_entity)
             .unwrap();

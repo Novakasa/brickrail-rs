@@ -5,7 +5,10 @@ use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
 use crate::marker::Marker;
 use crate::section::DirectedSection;
-use crate::track::{TrackBaseShape, TrackBundle, TrackShapeType, LAYOUT_SCALE};
+use crate::track::{
+    SpawnConnection, SpawnTrack, Track, TrackBaseShape, TrackBundle, TrackConnection,
+    TrackShapeType, LAYOUT_SCALE,
+};
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
@@ -182,17 +185,19 @@ fn extend_selection(
 
 #[derive(Serialize, Deserialize, Clone)]
 struct SerializableLayout {
-    connections: Connections,
     marker_map: MarkerMap,
+    tracks: Vec<Track>,
+    connections: Vec<TrackConnection>,
     blocks: Vec<Block>,
     markers: Vec<Marker>,
 }
 
 pub fn save_layout(
-    connections: Res<Connections>,
     marker_map: Res<MarkerMap>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
+    q_tracks: Query<&Track>,
+    q_connections: Query<&TrackConnection>,
     keyboard_buttons: Res<Input<KeyCode>>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::S) {
@@ -200,18 +205,26 @@ pub fn save_layout(
         let mut file = std::fs::File::create("layout.json").unwrap();
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
+        let tracks = q_tracks.iter().map(|t| t.clone()).collect();
+        let connections = q_connections.iter().map(|c| c.clone()).collect();
         let layout_val = SerializableLayout {
-            connections: connections.clone(),
             marker_map: marker_map.clone(),
             blocks,
             markers,
+            tracks,
+            connections,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
     }
 }
 
-pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
+pub fn load_layout(
+    mut commands: Commands,
+    keyboard_buttons: Res<Input<KeyCode>>,
+    mut track_event: EventWriter<SpawnTrack>,
+    mut connection_event: EventWriter<SpawnConnection>,
+) {
     if keyboard_buttons.just_pressed(KeyCode::L) {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
@@ -221,16 +234,22 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         let mut json = String::new();
         file.read_to_string(&mut json).unwrap();
         let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
-        let connections = layout_value.connections.clone();
         let marker_map = layout_value.marker_map.clone();
-        spawn_tracks_from_connections(&connections, &mut entity_map, &mut commands);
-        commands.insert_resource(connections);
+        // commands.insert_resource(connections);
+        for track in layout_value.tracks {
+            track_event.send(SpawnTrack { track });
+        }
+        for connection in layout_value.connections {
+            connection_event.send(SpawnConnection { connection });
+        }
         for block in layout_value.blocks {
+            continue;
             let block_id = block.id.clone();
             let entity = commands.spawn(BlockBundle::from_block(block)).id();
             entity_map.add_block(block_id, entity);
         }
         for marker in layout_value.markers {
+            continue;
             let track_id = marker.track;
             let entity = entity_map.get_entity(&GenericID::Track(track_id)).unwrap();
             commands.entity(entity).insert(marker);
@@ -239,32 +258,7 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         println!("markers: {:?}", marker_map.in_markers);
         commands.insert_resource(entity_map);
         commands.insert_resource(marker_map);
-    }
-}
-
-fn spawn_tracks_from_connections(
-    connections: &Connections,
-    entity_map: &mut EntityMap,
-    commands: &mut Commands<'_, '_>,
-) {
-    for track_id in connections.iter_tracks() {
-        if entity_map.tracks.get(&track_id).is_some() {
-            continue;
-        }
-        let entity = commands.spawn(TrackBundle::new(track_id)).id();
-        entity_map.add_track(track_id, entity);
-    }
-    for connection_id in connections.iter_connections() {
-        if entity_map.connections_outer.get(&connection_id).is_some() {
-            continue;
-        }
-        let outer_id = commands
-            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer))
-            .id();
-        let inner_id = commands
-            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner))
-            .id();
-        entity_map.add_connection(connection_id, outer_id, inner_id);
+        commands.insert_resource(Connections::default());
     }
 }
 

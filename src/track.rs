@@ -9,6 +9,7 @@ use bevy_egui::egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;
+use serde::{Deserialize, Serialize};
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -43,6 +44,8 @@ impl TrackBuildState {
         connections: &mut Connections,
         entity_map: &mut EntityMap,
         commands: &mut Commands,
+        track_event_writer: &mut EventWriter<SpawnTrack>,
+        connection_event_writer: &mut EventWriter<SpawnConnection>,
     ) {
         while self.hover_cells.len() > 2 {
             if let Some(track_id) = TrackID::from_cells(
@@ -51,18 +54,16 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    let entity = commands.spawn(TrackBundle::new(track_id)).id();
-                    connections.add_track(track_id);
-                    entity_map.add_track(track_id, entity);
+                    track_event_writer.send(SpawnTrack {
+                        track: Track { id: track_id },
+                    });
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !connections.has_connection(&connection_id) {
-                            commands
-                                .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer));
-                            commands
-                                .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner));
-                            connections.connect_tracks_simple(&connection_id);
+                            connection_event_writer.send(SpawnConnection {
+                                connection: TrackConnection::new(connection_id),
+                            });
                         }
                     }
                 }
@@ -73,10 +74,67 @@ impl TrackBuildState {
     }
 }
 
+#[derive(Event)]
+pub struct SpawnTrack {
+    pub track: Track,
+}
+
+fn spawn_track(
+    mut commands: Commands,
+    mut connections: ResMut<Connections>,
+    mut entity_map: ResMut<EntityMap>,
+    mut event_reader: EventReader<SpawnTrack>,
+) {
+    for request in event_reader.read() {
+        let track = request.track.clone();
+        let track_id = track.id;
+        connections.add_track(track_id);
+        let entity = commands.spawn(TrackBundle::from_track(track)).id();
+        entity_map.add_track(track_id, entity);
+    }
+}
+
+#[derive(Event)]
+pub struct SpawnConnection {
+    pub connection: TrackConnection,
+}
+
+fn spawn_connection(
+    mut commands: Commands,
+    mut connections: ResMut<Connections>,
+    mut entity_map: ResMut<EntityMap>,
+    mut event_reader: EventReader<SpawnConnection>,
+) {
+    for request in event_reader.read() {
+        let connection = request.connection.clone();
+        let connection_id = connection.id;
+        let entity = commands.spawn(TrackConnection::new(connection_id)).id();
+        let outer_entity = commands
+            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer))
+            .id();
+        let inner_entity = commands
+            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner))
+            .id();
+        connections.connect_tracks_simple(&connection_id);
+        entity_map.add_connection(connection_id, entity, outer_entity, inner_entity);
+    }
+}
+
 #[derive(PartialEq, Eq)]
 pub enum TrackShapeType {
     Outer,
     Inner,
+}
+
+#[derive(Component, Serialize, Deserialize, Clone)]
+pub struct TrackConnection {
+    pub id: TrackConnectionID,
+}
+
+impl TrackConnection {
+    pub fn new(id: TrackConnectionID) -> Self {
+        Self { id: id }
+    }
 }
 
 #[derive(Component)]
@@ -123,7 +181,7 @@ impl TrackBaseShape {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Track {
     pub id: TrackID,
 }
@@ -162,6 +220,12 @@ impl TrackBundle {
         Self {
             track: Track { id: track_id },
             name: Name::new(format!("{:?}", track_id)),
+        }
+    }
+    pub fn from_track(track: Track) -> Self {
+        Self {
+            name: Name::new(format!("{:?}", track.id)),
+            track: track,
         }
     }
 }
@@ -205,6 +269,8 @@ fn update_draw_track(
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
     mut commands: Commands,
+    mut track_event_writer: EventWriter<SpawnTrack>,
+    mut connection_event_writer: EventWriter<SpawnConnection>,
 ) {
     let last_cell = track_build_state.hover_cells.last();
     if last_cell.is_none() {
@@ -216,7 +282,13 @@ fn update_draw_track(
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);
         // println!("{:?}", track_build_state.hover_cells);
-        track_build_state.build(&mut connections, &mut entity_map, &mut commands);
+        track_build_state.build(
+            &mut connections,
+            &mut entity_map,
+            &mut commands,
+            &mut track_event_writer,
+            &mut connection_event_writer,
+        );
     }
 }
 
@@ -287,6 +359,8 @@ impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
         app.register_component_as::<dyn Selectable, Track>();
+        app.add_event::<SpawnTrack>();
+        app.add_event::<SpawnConnection>();
         app.add_systems(
             Update,
             (
@@ -295,6 +369,8 @@ impl Plugin for TrackPlugin {
                 update_draw_track,
                 update_track_color,
                 draw_build_cells,
+                spawn_track.run_if(on_event::<SpawnTrack>()),
+                spawn_connection.run_if(on_event::<SpawnConnection>()),
             ),
         );
     }
