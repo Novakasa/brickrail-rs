@@ -216,14 +216,7 @@ pub fn save_layout(
     }
 }
 
-pub fn load_layout(
-    mut commands: Commands,
-    keyboard_buttons: Res<Input<KeyCode>>,
-    mut track_event: EventWriter<SpawnTrack>,
-    mut connection_event: EventWriter<SpawnConnection>,
-    mut marker_event: EventWriter<SpawnMarker>,
-    mut block_event: EventWriter<SpawnBlockEvent>,
-) {
+pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
     if keyboard_buttons.just_pressed(KeyCode::L) {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
@@ -237,16 +230,16 @@ pub fn load_layout(
         let marker_map = layout_value.marker_map.clone();
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
-            track_event.send(SpawnTrack { track });
+            commands.add(|world: &mut World| world.send_event(SpawnTrack { track }));
         }
         for connection in layout_value.connections {
-            connection_event.send(SpawnConnection { connection });
+            commands.add(|world: &mut World| world.send_event(SpawnConnection { connection }));
         }
         for block in layout_value.blocks {
-            block_event.send(SpawnBlockEvent { block });
+            commands.add(|world: &mut World| world.send_event(SpawnBlockEvent { block }));
         }
         for marker in layout_value.markers {
-            marker_event.send(SpawnMarker { marker });
+            commands.add(|world: &mut World| world.send_event(SpawnMarker { marker }));
         }
         println!("markers: {:?}", marker_map.in_markers);
         commands.insert_resource(marker_map);
