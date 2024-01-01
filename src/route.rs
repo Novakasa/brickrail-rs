@@ -111,6 +111,10 @@ impl Route {
         &self.legs[0]
     }
 
+    pub fn get_next_leg(&self) -> Option<&RouteLeg> {
+        self.legs.get(1)
+    }
+
     pub fn get_current_leg_mut(&mut self) -> &mut RouteLeg {
         &mut self.legs[0]
     }
@@ -124,7 +128,14 @@ impl Route {
     }
 
     pub fn get_train_state(&self) -> TrainState {
-        self.get_current_leg().get_train_state()
+        let current_leg = self.get_current_leg();
+        let mut will_turn = false;
+        if let Some(next_leg) = self.get_next_leg() {
+            if current_leg.has_entered() && next_leg.is_flip() {
+                will_turn = true;
+            }
+        }
+        self.get_current_leg().get_train_state(will_turn)
     }
 
     pub fn advance_distance(&mut self, distance: f32) {
@@ -202,14 +213,14 @@ impl RouteLeg {
         self.markers.get(self.index).unwrap()
     }
 
-    fn get_train_state(&self) -> TrainState {
+    fn get_train_state(&self, will_turn: bool) -> TrainState {
         let should_stop = self.intention == LegIntention::Stop;
 
         if should_stop && self.is_completed() {
             return TrainState::Stop;
         }
 
-        let speed = if should_stop && self.has_entered() {
+        let speed = if (should_stop || will_turn) && self.has_entered() {
             MarkerSpeed::Slow
         } else {
             self.get_previous_marker().speed
@@ -222,6 +233,10 @@ impl RouteLeg {
 
     fn get_final_facing(&self) -> Facing {
         self.section.tracks.last().unwrap().facing
+    }
+
+    fn is_flip(&self) -> bool {
+        self.section.tracks.len() >= 2 && self.section.tracks[0].facing != self.get_final_facing()
     }
 
     fn set_completed(&mut self) {
