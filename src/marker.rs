@@ -1,11 +1,14 @@
 use bevy::{
-    ecs::component::Component, gizmos::gizmos::Gizmos, reflect::Reflect, render::color::Color,
-    utils::HashMap,
+    gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
-use crate::{layout_primitives::*, track::LAYOUT_SCALE};
+use crate::{
+    layout::EntityMap,
+    layout_primitives::*,
+    track::{spawn_track, LAYOUT_SCALE},
+};
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum MarkerKey {
@@ -84,5 +87,38 @@ impl Marker {
             .get_center_vec2()
             * LAYOUT_SCALE;
         gizmos.circle_2d(position, 0.05 * LAYOUT_SCALE, Color::WHITE);
+    }
+}
+
+#[derive(Event)]
+pub struct SpawnMarker {
+    pub marker: Marker,
+}
+
+fn spawn_marker(
+    mut commands: Commands,
+    mut marker_events: EventReader<SpawnMarker>,
+    mut entity_map: ResMut<EntityMap>,
+) {
+    for event in marker_events.read() {
+        let marker = event.marker.clone();
+        let track_id = marker.track;
+        let track_entity = entity_map.tracks.get(&marker.track).unwrap().clone();
+        commands.entity(track_entity.clone()).insert(marker);
+        entity_map.add_marker(track_id, track_entity);
+    }
+}
+
+pub struct MarkerPlugin;
+
+impl Plugin for MarkerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<SpawnMarker>();
+        app.add_systems(
+            PostUpdate,
+            spawn_marker
+                .run_if(on_event::<SpawnMarker>())
+                .after(spawn_track),
+        );
     }
 }

@@ -25,6 +25,7 @@ fn main() {
         .add_plugins(block::BlockPlugin)
         .add_plugins(track::TrackPlugin)
         .add_plugins(train::TrainPlugin)
+        .add_plugins(marker::MarkerPlugin)
         .add_plugins(inspector::InspectorPlugin)
         .run();
 }

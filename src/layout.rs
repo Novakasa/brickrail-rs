@@ -49,6 +49,7 @@ impl EntityMap {
     }
 
     pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
+        // println!("Adding marker {:?} to {:?}", track, entity);
         self.markers.try_insert(track, entity).unwrap();
     }
 
@@ -88,6 +89,23 @@ impl MarkerMap {
             MarkerKey::Enter
         } else {
             MarkerKey::None
+        }
+    }
+
+    pub fn register_marker(
+        &mut self,
+        logical_track: LogicalTrackID,
+        marker_key: MarkerKey,
+        logical_block: LogicalBlockID,
+    ) {
+        match marker_key {
+            MarkerKey::In => {
+                self.in_markers.insert(logical_track, logical_block);
+            }
+            MarkerKey::Enter => {
+                self.enter_markers.insert(logical_track, logical_block);
+            }
+            MarkerKey::None => {}
         }
     }
 }

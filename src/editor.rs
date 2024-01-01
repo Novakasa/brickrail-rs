@@ -1,14 +1,11 @@
 use std::io::{Read, Write};
 
-use crate::block::{Block, BlockBundle};
+use crate::block::{Block, SpawnBlockEvent};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
-use crate::marker::Marker;
+use crate::marker::{Marker, SpawnMarker};
 use crate::section::DirectedSection;
-use crate::track::{
-    SpawnConnection, SpawnTrack, Track, TrackBaseShape, TrackBundle, TrackConnection,
-    TrackShapeType, LAYOUT_SCALE,
-};
+use crate::track::{SpawnConnection, SpawnTrack, Track, TrackConnection, LAYOUT_SCALE};
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
@@ -224,12 +221,15 @@ pub fn load_layout(
     keyboard_buttons: Res<Input<KeyCode>>,
     mut track_event: EventWriter<SpawnTrack>,
     mut connection_event: EventWriter<SpawnConnection>,
+    mut marker_event: EventWriter<SpawnMarker>,
+    mut block_event: EventWriter<SpawnBlockEvent>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::L) {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
         commands.remove_resource::<MarkerMap>();
-        let mut entity_map = EntityMap::default();
+        commands.insert_resource(EntityMap::default());
+        commands.insert_resource(Connections::default());
         let mut file = std::fs::File::open("layout.json").unwrap();
         let mut json = String::new();
         file.read_to_string(&mut json).unwrap();
@@ -243,22 +243,13 @@ pub fn load_layout(
             connection_event.send(SpawnConnection { connection });
         }
         for block in layout_value.blocks {
-            continue;
-            let block_id = block.id.clone();
-            let entity = commands.spawn(BlockBundle::from_block(block)).id();
-            entity_map.add_block(block_id, entity);
+            block_event.send(SpawnBlockEvent { block });
         }
         for marker in layout_value.markers {
-            continue;
-            let track_id = marker.track;
-            let entity = entity_map.get_entity(&GenericID::Track(track_id)).unwrap();
-            commands.entity(entity).insert(marker);
-            entity_map.add_marker(track_id, entity);
+            marker_event.send(SpawnMarker { marker });
         }
         println!("markers: {:?}", marker_map.in_markers);
-        commands.insert_resource(entity_map);
         commands.insert_resource(marker_map);
-        commands.insert_resource(Connections::default());
     }
 }
 

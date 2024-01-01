@@ -1,6 +1,6 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
-use crate::layout::{self, EntityMap, MarkerMap};
-use crate::marker::{Marker, MarkerColor};
+use crate::layout::{Connections, EntityMap, MarkerMap};
+use crate::marker::{Marker, MarkerColor, MarkerKey, SpawnMarker};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
@@ -41,6 +41,15 @@ pub struct Block {
 }
 
 impl Block {
+    pub fn new(section: DirectedSection) -> Self {
+        let block = Block {
+            id: section.to_block_id(),
+            section: section,
+            settings: BlockSettings::default(),
+        };
+        block
+    }
+
     pub fn distance_to(&self, pos: Vec2) -> f32 {
         self.section.distance_to(pos)
     }
@@ -132,34 +141,49 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
 
 fn create_block(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
-    mut commands: Commands,
     selection_state: Res<SelectionState>,
-    mut entity_map: ResMut<layout::EntityMap>,
+    mut block_event_writer: EventWriter<SpawnBlockEvent>,
+    mut marker_event_writer: EventWriter<SpawnMarker>,
     mut marker_map: ResMut<MarkerMap>,
-    mut connections: ResMut<layout::Connections>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::B) {
-            let block = BlockBundle::new(section.clone());
-            let block_id = block.block.id;
-            let entity = commands.spawn(block).id();
-            entity_map.add_block(block_id, entity);
+            let block = Block::new(section.clone());
+            let block_id = block.id;
+            block_event_writer.send(SpawnBlockEvent { block });
             for logical_id in block_id.logical_block_ids() {
                 let in_track = logical_id.default_in_marker_track();
-                marker_map
-                    .in_markers
-                    .try_insert(in_track, logical_id)
-                    .unwrap();
-                let marker_entity = entity_map
-                    .get_entity(&GenericID::Track(in_track.track()))
-                    .unwrap();
-                commands
-                    .entity(marker_entity)
-                    .insert(Marker::new(in_track.track(), MarkerColor::Blue));
-                entity_map.markers.insert(in_track.track(), marker_entity);
-                connections.connect_tracks(&in_track, &in_track.reversed());
-                println!("Adding marker {:?} ", in_track.track());
+                if logical_id.facing == Facing::Forward {
+                    let marker = Marker::new(in_track.track(), MarkerColor::Green);
+                    marker_event_writer.send(SpawnMarker { marker: marker });
+                }
+                marker_map.register_marker(in_track, MarkerKey::In, logical_id);
             }
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct SpawnBlockEvent {
+    pub block: Block,
+}
+
+fn spawn_block(
+    mut commands: Commands,
+    mut entity_map: ResMut<EntityMap>,
+    mut block_event_reader: EventReader<SpawnBlockEvent>,
+    mut connections: ResMut<Connections>,
+) {
+    for request in block_event_reader.read() {
+        let block = request.block.clone();
+        let block = BlockBundle::from_block(block);
+        let block_id = block.block.id;
+        // println!("Spawning block {:?}", block_id);
+        let entity = commands.spawn(block).id();
+        entity_map.add_block(block_id, entity);
+        for logical_id in block_id.logical_block_ids() {
+            let in_track = logical_id.default_in_marker_track();
+            connections.connect_tracks(&in_track, &in_track.reversed());
         }
     }
 }
@@ -195,6 +219,11 @@ impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
         app.register_component_as::<dyn Selectable, Block>();
+        app.add_event::<SpawnBlockEvent>();
         app.add_systems(Update, (create_block, update_block_color));
+        app.add_systems(
+            PostUpdate,
+            (spawn_block.run_if(on_event::<SpawnBlockEvent>()),),
+        );
     }
 }

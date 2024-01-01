@@ -238,6 +238,7 @@ fn create_train(
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::T) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
+            // println!("Creating train at block {:?}", block_id);
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let block = q_blocks
                 .get(entity_map.get_entity(&GenericID::Block(*block_id)).unwrap())
@@ -247,12 +248,12 @@ fn create_train(
             let route = build_route(&block_section, &q_markers, &entity_map, &marker_map);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
-            println!("Section: {:?}", block_section);
-            println!("Layout markers: {:?}", entity_map.markers);
-            println!(
+            // println!("Section: {:?}", block_section);
+            // println!("Layout markers: {:?}", entity_map.markers);
+            /*println!(
                 "Creating train {:?} at logical block {:?}",
                 train_id, logical_block_id
-            );
+            );*/
             let entity = commands.spawn(train).id();
             entity_map.add_train(train_id, entity);
         }

@@ -42,8 +42,6 @@ impl TrackBuildState {
     fn build(
         &mut self,
         connections: &mut Connections,
-        entity_map: &mut EntityMap,
-        commands: &mut Commands,
         track_event_writer: &mut EventWriter<SpawnTrack>,
         connection_event_writer: &mut EventWriter<SpawnConnection>,
     ) {
@@ -79,7 +77,7 @@ pub struct SpawnTrack {
     pub track: Track,
 }
 
-fn spawn_track(
+pub fn spawn_track(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
@@ -265,10 +263,8 @@ fn exit_draw_track(
 
 fn update_draw_track(
     mut connections: ResMut<Connections>,
-    mut entity_map: ResMut<EntityMap>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
-    mut commands: Commands,
     mut track_event_writer: EventWriter<SpawnTrack>,
     mut connection_event_writer: EventWriter<SpawnConnection>,
 ) {
@@ -284,8 +280,6 @@ fn update_draw_track(
         // println!("{:?}", track_build_state.hover_cells);
         track_build_state.build(
             &mut connections,
-            &mut entity_map,
-            &mut commands,
             &mut track_event_writer,
             &mut connection_event_writer,
         );
@@ -369,6 +363,11 @@ impl Plugin for TrackPlugin {
                 update_draw_track,
                 update_track_color,
                 draw_build_cells,
+            ),
+        );
+        app.add_systems(
+            PostUpdate,
+            (
                 spawn_track.run_if(on_event::<SpawnTrack>()),
                 spawn_connection.run_if(on_event::<SpawnConnection>()),
             ),
