@@ -83,10 +83,11 @@ impl Train {
         self.route.get_current_leg().get_target_block_id()
     }
 
-    fn traverse_route(&mut self, delta: f32) {
-        self.route.advance_distance(delta * self.speed);
+    fn traverse_route(&mut self, delta: f32) -> bool {
+        let change_locks = self.route.advance_distance(delta * self.speed);
         self.state = self.route.get_train_state();
         self.speed = self.state.get_speed();
+        return change_locks;
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
         // println!("Route: {:?}", self.route.get_current_leg().section_position);
     }
@@ -196,6 +197,7 @@ fn exit_drag_train(
     entity_map: Res<EntityMap>,
     marker_map: Res<MarkerMap>,
     connections: Res<Connections>,
+    mut track_locks: ResMut<TrackLocks>,
     mut q_trains: Query<&mut Train>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
@@ -222,6 +224,7 @@ fn exit_drag_train(
                     );
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
+                    train.route.update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
                 }
             }
@@ -248,6 +251,7 @@ fn create_train(
     mut commands: Commands,
     selection_state: Res<SelectionState>,
     q_blocks: Query<&Block>,
+    mut track_locks: ResMut<TrackLocks>,
     mut entity_map: ResMut<EntityMap>,
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
@@ -269,6 +273,7 @@ fn create_train(
                 &entity_map,
                 &marker_map,
             );
+            route.update_locks(&mut track_locks);
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             // println!("Section: {:?}", block_section);
@@ -289,9 +294,15 @@ fn update_train(
     mut track_locks: ResMut<TrackLocks>,
 ) {
     for mut train in q_trains.iter_mut() {
-        train.route.update_intentions(track_locks.as_ref());
-        train.traverse_route(time.delta_seconds());
-        train.route.update_locks(&mut track_locks);
+        if !track_locks.is_clean(&train.id) {
+            // println!("Updating intentions for train {:?}", train.id);
+            train.route.update_intentions(track_locks.as_ref());
+            track_locks.mark_clean(&train.id);
+        }
+        let change_locks = train.traverse_route(time.delta_seconds());
+        if change_locks {
+            train.route.update_locks(&mut track_locks);
+        }
     }
 }
 

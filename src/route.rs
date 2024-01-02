@@ -59,7 +59,7 @@ pub fn build_route(
             section: section,
             markers: leg_markers,
             index: 0,
-            intention: LegIntention::Pass,
+            intention: LegIntention::Stop,
             section_position: 0.0,
             target_block: target_id.clone(),
             to_section: target_section,
@@ -67,7 +67,6 @@ pub fn build_route(
         route.push_leg(leg);
     }
     route.get_current_leg_mut().set_completed();
-    route.legs.last_mut().unwrap().intention = LegIntention::Stop;
     println!(
         "legs: {:?}, {:?}",
         route.legs.len(),
@@ -159,12 +158,14 @@ impl Route {
     pub fn update_locks(&self, track_locks: &mut TrackLocks) {
         let current_leg = self.get_current_leg();
         track_locks.unlock_all(&self.train_id);
-        if !current_leg.is_completed() {
+        if current_leg.get_leg_state() != LegState::Completed {
             track_locks.lock(&self.train_id, &current_leg.section);
         }
         track_locks.lock(&self.train_id, &current_leg.to_section);
         if let Some(next_leg) = self.get_next_leg() {
-            if current_leg.has_entered() && current_leg.intention == LegIntention::Pass {
+            if current_leg.get_leg_state() != LegState::None
+                && current_leg.intention == LegIntention::Pass
+            {
                 track_locks.lock(&self.train_id, &next_leg.section);
                 track_locks.lock(&self.train_id, &next_leg.to_section);
             }
@@ -174,35 +175,41 @@ impl Route {
     pub fn advance_sensor(&mut self) {
         let current_leg = self.get_current_leg_mut();
         current_leg.advance_marker();
-        if current_leg.is_completed() {
+        if current_leg.get_leg_state() == LegState::Completed {
             self.next_leg();
         }
     }
 
     pub fn get_train_state(&self) -> TrainState {
-        let current_leg = self.get_current_leg();
         let mut will_turn = false;
         if let Some(next_leg) = self.get_next_leg() {
-            if current_leg.has_entered() && next_leg.is_flip() {
+            if next_leg.is_flip() {
                 will_turn = true;
             }
         }
         self.get_current_leg().get_train_state(will_turn)
     }
 
-    pub fn advance_distance(&mut self, distance: f32) {
+    pub fn advance_distance(&mut self, distance: f32) -> bool {
+        let mut change_locks = false;
         let mut remainder = Some(distance);
         while remainder.is_some() {
+            let leg_state = self.get_current_leg().get_leg_state();
             remainder = self
                 .get_current_leg_mut()
                 .advance_distance(remainder.unwrap());
+            if self.get_current_leg().get_leg_state() != leg_state {
+                change_locks = true;
+            }
             if let Some(_) = remainder {
                 self.next_leg();
+                change_locks = true;
                 if self.legs.len() == 0 {
                     break;
                 }
             }
         }
+        return change_locks;
     }
 
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
@@ -220,6 +227,13 @@ impl Route {
 pub enum LegIntention {
     Pass,
     Stop,
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub enum LegState {
+    None,
+    Entered,
+    Completed,
 }
 
 #[derive(Debug)]
@@ -246,13 +260,6 @@ impl RouteLeg {
         return self.markers.len() - 2;
     }
 
-    fn is_completed(&self) -> bool {
-        if self.index >= self.markers.len() {
-            panic!("this route leg is fucked honestly {:?}", self.index);
-        }
-        self.index == self.markers.len() - 1
-    }
-
     fn advance_marker(&mut self) {
         if self.index < self.markers.len() - 1 {
             self.index += 1;
@@ -261,8 +268,21 @@ impl RouteLeg {
         }
     }
 
-    pub fn has_entered(&self) -> bool {
-        return self.index >= self.get_enter_index();
+    pub fn get_leg_state(&self) -> LegState {
+        if self.index >= self.markers.len() {
+            panic!(
+                "Invalid index {} for leg with {} markers",
+                self.index,
+                self.markers.len()
+            );
+        }
+        if self.index == self.markers.len() - 1 {
+            return LegState::Completed;
+        }
+        if self.index >= self.get_enter_index() {
+            return LegState::Entered;
+        }
+        return LegState::None;
     }
 
     fn get_previous_marker(&self) -> &RouteMarkerData {
@@ -271,12 +291,13 @@ impl RouteLeg {
 
     fn get_train_state(&self, will_turn: bool) -> TrainState {
         let should_stop = self.intention == LegIntention::Stop;
+        let leg_state = self.get_leg_state();
 
-        if should_stop && self.is_completed() {
+        if should_stop && leg_state == LegState::Completed {
             return TrainState::Stop;
         }
 
-        let speed = if (should_stop || will_turn) && self.has_entered() {
+        let speed = if (should_stop || will_turn) && leg_state == LegState::Entered {
             MarkerSpeed::Slow
         } else {
             self.get_previous_marker().speed
@@ -317,7 +338,7 @@ impl RouteLeg {
     }
 
     pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
-        if self.is_completed() {
+        if self.get_leg_state() == LegState::Completed {
             if self.intention == LegIntention::Stop {
                 return None;
             }
@@ -328,7 +349,7 @@ impl RouteLeg {
             remainder -= self.get_next_marker_pos() - self.section_position;
             self.section_position = self.get_next_marker_pos();
             self.advance_marker();
-            if self.is_completed() {
+            if self.get_leg_state() == LegState::Completed {
                 if self.intention == LegIntention::Stop {
                     return None;
                 }

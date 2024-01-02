@@ -3,8 +3,8 @@ use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
 use crate::track::LAYOUT_SCALE;
-use bevy::prelude::*;
 use bevy::utils::HashMap;
+use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::DiGraphMap;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
@@ -12,6 +12,7 @@ use serde_json_any_key::any_key_map;
 #[derive(Resource, Default)]
 pub struct TrackLocks {
     pub locked_tracks: HashMap<TrackID, TrainID>,
+    pub clean_trains: HashSet<TrainID>,
 }
 
 impl TrackLocks {
@@ -26,15 +27,25 @@ impl TrackLocks {
         return true;
     }
 
+    pub fn mark_clean(&mut self, train: &TrainID) {
+        self.clean_trains.insert(train.clone());
+    }
+
+    pub fn is_clean(&self, train: &TrainID) -> bool {
+        self.clean_trains.contains(train)
+    }
+
     pub fn lock(&mut self, train: &TrainID, section: &LogicalSection) {
         for track in section.tracks.iter() {
             self.locked_tracks.insert(track.track(), *train);
         }
+        self.clean_trains = HashSet::new();
     }
 
     pub fn unlock_all(&mut self, train: &TrainID) {
         self.locked_tracks
             .retain(|_, locked_train| locked_train != train);
+        self.clean_trains = HashSet::new();
     }
 }
 
