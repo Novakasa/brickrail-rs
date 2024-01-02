@@ -10,8 +10,32 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 #[derive(Resource, Default)]
-struct TrackLocks {
-    locked_tracks: HashMap<TrackID, TrainID>,
+pub struct TrackLocks {
+    pub locked_tracks: HashMap<TrackID, TrainID>,
+}
+
+impl TrackLocks {
+    pub fn can_lock(&self, train: &TrainID, section: &LogicalSection) -> bool {
+        for track in section.tracks.iter() {
+            if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
+                if locked_train != train {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    pub fn lock(&mut self, train: &TrainID, section: &LogicalSection) {
+        for track in section.tracks.iter() {
+            self.locked_tracks.insert(track.track(), *train);
+        }
+    }
+
+    pub fn unlock_all(&mut self, train: &TrainID) {
+        self.locked_tracks
+            .retain(|_, locked_train| locked_train != train);
+    }
 }
 
 #[derive(Resource, Default)]

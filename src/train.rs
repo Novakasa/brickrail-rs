@@ -1,7 +1,7 @@
 use crate::{
     block::Block,
     editor::*,
-    layout::{Connections, EntityMap, MarkerMap},
+    layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route, TrainState},
@@ -83,7 +83,7 @@ impl Train {
         self.route.get_current_leg().get_target_block_id()
     }
 
-    fn update(&mut self, delta: f32) {
+    fn traverse_route(&mut self, delta: f32) {
         self.route.advance_distance(delta * self.speed);
         self.state = self.route.get_train_state();
         self.speed = self.state.get_speed();
@@ -167,6 +167,14 @@ fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>) {
     }
 }
 
+fn draw_locked_tracks(mut gizmos: Gizmos, track_locks: Res<TrackLocks>) {
+    for (track, _) in track_locks.locked_tracks.iter() {
+        for dirtrack in track.dirtracks() {
+            dirtrack.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::RED);
+        }
+    }
+}
+
 fn init_drag_train(
     mouse_buttons: Res<Input<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
@@ -189,6 +197,7 @@ fn exit_drag_train(
     marker_map: Res<MarkerMap>,
     connections: Res<Connections>,
     mut q_trains: Query<&mut Train>,
+    q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
@@ -203,7 +212,14 @@ fn exit_drag_train(
                 // println!("Start: {:?}, Target: {:?}", start, target);
                 if let Some(section) = connections.find_route_section(start, target) {
                     // println!("Section: {:?}", section);
-                    let route = build_route(&section, &q_markers, &entity_map, &marker_map);
+                    let route = build_route(
+                        train_id,
+                        &section,
+                        &q_markers,
+                        &q_blocks,
+                        &entity_map,
+                        &marker_map,
+                    );
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.route = route;
                     // println!("state: {:?}", train.route.get_train_state());
@@ -245,7 +261,14 @@ fn create_train(
                 .unwrap();
             let block_section = block.get_logical_section(logical_block_id);
             let train_id = TrainID::new(entity_map.trains.len());
-            let route = build_route(&block_section, &q_markers, &entity_map, &marker_map);
+            let route = build_route(
+                train_id,
+                &block_section,
+                &q_markers,
+                &q_blocks,
+                &entity_map,
+                &marker_map,
+            );
             let train = TrainBundle::new(route, train_id);
             let train_id = train.train.id;
             // println!("Section: {:?}", block_section);
@@ -260,9 +283,15 @@ fn create_train(
     }
 }
 
-fn update_train(mut q_trains: Query<&mut Train>, time: Res<Time>) {
+fn update_train(
+    mut q_trains: Query<&mut Train>,
+    time: Res<Time>,
+    mut track_locks: ResMut<TrackLocks>,
+) {
     for mut train in q_trains.iter_mut() {
-        train.update(time.delta_seconds());
+        train.route.update_intentions(track_locks.as_ref());
+        train.traverse_route(time.delta_seconds());
+        train.route.update_locks(&mut track_locks);
     }
 }
 
@@ -278,6 +307,7 @@ impl Plugin for TrainPlugin {
                 create_train,
                 draw_train,
                 draw_train_route,
+                draw_locked_tracks.after(draw_train_route),
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,

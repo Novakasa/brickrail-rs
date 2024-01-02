@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use itertools::Itertools;
 
+use crate::block::Block;
 use crate::layout::EntityMap;
 use crate::layout::MarkerMap;
+use crate::layout::TrackLocks;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
@@ -18,12 +20,14 @@ pub struct RouteMarkerData {
 }
 
 pub fn build_route(
+    train_id: TrainID,
     logical_section: &LogicalSection,
     q_markers: &Query<&Marker>,
+    q_blocks: &Query<&Block>,
     entity_map: &EntityMap,
     marker_map: &MarkerMap,
 ) -> Route {
-    let mut route = Route::new();
+    let mut route = Route::new(train_id);
     let in_tracks = marker_map.in_markers.keys().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
     assert!(split.len() > 0);
@@ -31,6 +35,10 @@ pub fn build_route(
     for (section, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
         let mut leg_markers = Vec::new();
+        let target_block = q_blocks
+            .get(entity_map.blocks.get(&target_id.block).unwrap().clone())
+            .unwrap();
+        let target_section = target_block.get_logical_section(target_id.clone());
 
         for logical in section.tracks.iter() {
             println!("looking for marker at {:?}", logical);
@@ -54,6 +62,7 @@ pub fn build_route(
             intention: LegIntention::Pass,
             section_position: 0.0,
             target_block: target_id.clone(),
+            to_section: target_section,
         };
         route.push_leg(leg);
     }
@@ -89,11 +98,19 @@ impl TrainState {
 #[derive(Debug)]
 pub struct Route {
     legs: Vec<RouteLeg>,
+    train_id: TrainID,
 }
 
 impl Route {
-    pub fn new() -> Self {
-        Route { legs: vec![] }
+    pub fn new(id: TrainID) -> Self {
+        Route {
+            legs: vec![],
+            train_id: id,
+        }
+    }
+
+    pub fn num_legs(&self) -> usize {
+        self.legs.len()
     }
 
     pub fn push_leg(&mut self, leg: RouteLeg) {
@@ -117,6 +134,41 @@ impl Route {
 
     pub fn get_current_leg_mut(&mut self) -> &mut RouteLeg {
         &mut self.legs[0]
+    }
+
+    pub fn update_intentions(&mut self, track_locks: &TrackLocks) {
+        let mut free_until = 0;
+        for (i, leg) in self.legs.iter().enumerate() {
+            if track_locks.can_lock(&self.train_id, &leg.section)
+                && track_locks.can_lock(&self.train_id, &leg.to_section)
+            {
+                free_until = i;
+            } else {
+                break;
+            }
+        }
+        for (i, leg) in self.legs.iter_mut().enumerate() {
+            if i < free_until {
+                leg.intention = LegIntention::Pass;
+            } else {
+                leg.intention = LegIntention::Stop;
+            }
+        }
+    }
+
+    pub fn update_locks(&self, track_locks: &mut TrackLocks) {
+        let current_leg = self.get_current_leg();
+        track_locks.unlock_all(&self.train_id);
+        if !current_leg.is_completed() {
+            track_locks.lock(&self.train_id, &current_leg.section);
+        }
+        track_locks.lock(&self.train_id, &current_leg.to_section);
+        if let Some(next_leg) = self.get_next_leg() {
+            if current_leg.has_entered() && current_leg.intention == LegIntention::Pass {
+                track_locks.lock(&self.train_id, &next_leg.section);
+                track_locks.lock(&self.train_id, &next_leg.to_section);
+            }
+        }
     }
 
     pub fn advance_sensor(&mut self) {
@@ -172,6 +224,7 @@ pub enum LegIntention {
 
 #[derive(Debug)]
 pub struct RouteLeg {
+    to_section: LogicalSection,
     section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     index: usize,
@@ -186,6 +239,9 @@ impl RouteLeg {
             if marker.key == MarkerKey::Enter {
                 return i;
             }
+        }
+        if self.markers.len() == 1 {
+            return 0;
         }
         return self.markers.len() - 2;
     }
@@ -205,7 +261,7 @@ impl RouteLeg {
         }
     }
 
-    fn has_entered(&self) -> bool {
+    pub fn has_entered(&self) -> bool {
         return self.index >= self.get_enter_index();
     }
 
