@@ -1,6 +1,6 @@
 use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{Marker, MarkerColor, MarkerKey, SpawnMarker};
+use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, SpawnMarker};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
@@ -168,7 +168,7 @@ pub struct SpawnBlockEvent {
     pub block: Block,
 }
 
-fn spawn_block(
+pub fn spawn_block(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
     mut block_event_reader: EventReader<SpawnBlockEvent>,
@@ -223,7 +223,9 @@ impl Plugin for BlockPlugin {
         app.add_systems(Update, (create_block, update_block_color));
         app.add_systems(
             PostUpdate,
-            (spawn_block.run_if(on_event::<SpawnBlockEvent>()),),
+            (spawn_block
+                .run_if(on_event::<SpawnBlockEvent>())
+                .after(spawn_marker),),
         );
     }
 }

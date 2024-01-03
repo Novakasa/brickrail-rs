@@ -109,7 +109,7 @@ pub struct SpawnMarker {
     pub marker: Marker,
 }
 
-fn spawn_marker(
+pub fn spawn_marker(
     mut commands: Commands,
     mut marker_events: EventReader<SpawnMarker>,
     mut entity_map: ResMut<EntityMap>,
@@ -128,14 +128,12 @@ pub struct MarkerPlugin;
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnMarker>();
+        app.add_systems(Update, create_marker);
         app.add_systems(
             PostUpdate,
-            (
-                spawn_marker
-                    .run_if(on_event::<SpawnMarker>())
-                    .after(spawn_track),
-                create_marker,
-            ),
+            (spawn_marker
+                .run_if(on_event::<SpawnMarker>())
+                .after(spawn_track),),
         );
     }
 }

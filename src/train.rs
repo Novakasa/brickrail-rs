@@ -3,12 +3,12 @@ use crate::{
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
-    marker::Marker,
+    marker::{spawn_marker, Marker},
     route::{build_route, Route, TrainState},
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
-use bevy_egui::egui;
+use bevy_egui::egui::{self};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
@@ -63,16 +63,16 @@ impl TrainWagonBundle {
     }
 }
 
-#[derive(Debug, Reflect)]
+#[derive(Debug, Reflect, Clone)]
 struct TrainSettings {
     num_wagons: usize,
     home: LogicalBlockID,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 struct Train {
     id: TrainID,
-    route: Route,
+    route: Option<Route>,
     state: TrainState,
     speed: f32,
     settings: TrainSettings,
@@ -80,12 +80,25 @@ struct Train {
 
 impl Train {
     pub fn get_logical_block_id(&self) -> LogicalBlockID {
-        self.route.get_current_leg().get_target_block_id()
+        self.route
+            .as_ref()
+            .unwrap()
+            .get_current_leg()
+            .get_target_block_id()
+    }
+
+    pub fn get_route(&self) -> &Route {
+        self.route.as_ref().unwrap()
+    }
+
+    pub fn get_route_mut(&mut self) -> &mut Route {
+        self.route.as_mut().unwrap()
     }
 
     fn traverse_route(&mut self, delta: f32) -> bool {
-        let change_locks = self.route.advance_distance(delta * self.speed);
-        self.state = self.route.get_train_state();
+        let dist = delta * self.speed;
+        let change_locks = self.get_route_mut().advance_distance(dist);
+        self.state = self.get_route().get_train_state();
         self.speed = self.state.get_speed();
         return change_locks;
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
@@ -116,7 +129,11 @@ impl Selectable for Train {
     }
 
     fn get_distance(&self, pos: Vec2) -> f32 {
-        self.route.get_current_leg().get_current_pos().distance(pos) - 0.2
+        self.get_route()
+            .get_current_leg()
+            .get_current_pos()
+            .distance(pos)
+            - 0.2
     }
 }
 
@@ -126,18 +143,7 @@ struct TrainBundle {
 }
 
 impl TrainBundle {
-    fn new(route: Route, id: TrainID) -> Self {
-        let route = route;
-        let train = Train {
-            id: id,
-            state: TrainState::Stop,
-            speed: 0.0,
-            settings: TrainSettings {
-                num_wagons: 1,
-                home: route.get_current_leg().get_target_block_id(),
-            },
-            route: route,
-        };
+    fn from_train(train: Train) -> Self {
         Self { train: train }
     }
 }
@@ -157,14 +163,14 @@ fn draw_train(
             color = Color::BLUE;
         }
 
-        let pos = train.route.get_current_leg().get_current_pos();
+        let pos = train.get_route().get_current_leg().get_current_pos();
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
     }
 }
 
 fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>) {
     for train in q_trains.iter() {
-        train.route.draw_with_gizmos(&mut gizmos);
+        train.get_route().draw_with_gizmos(&mut gizmos);
     }
 }
 
@@ -212,19 +218,19 @@ fn exit_drag_train(
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 // println!("Start: {:?}, Target: {:?}", start, target);
-                if let Some(section) = connections.find_route_section(start, target) {
+                if let Some(logical_section) = connections.find_route_section(start, target) {
                     // println!("Section: {:?}", section);
                     let route = build_route(
                         train_id,
-                        &section,
+                        &logical_section,
                         &q_markers,
                         &q_blocks,
                         &entity_map,
                         &marker_map,
                     );
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
-                    train.route = route;
-                    train.route.update_locks(&mut track_locks);
+                    train.route = Some(route);
+                    train.get_route().update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
                 }
             }
@@ -246,45 +252,80 @@ fn update_drag_train(
     }
 }
 
+#[derive(Event)]
+struct SpawnTrain {
+    train: Train,
+    block_id: LogicalBlockID,
+}
+
 fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
-    mut commands: Commands,
+    mut train_events: EventWriter<SpawnTrain>,
+    entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
+) {
+    if keyboard_input.just_pressed(keyboard::KeyCode::T) {
+        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
+            // println!("Creating train at block {:?}", block_id);
+            let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
+            let train = Train {
+                id: TrainID::new(entity_map.trains.len()),
+                route: None,
+                state: TrainState::Stop,
+                speed: 0.0,
+                settings: TrainSettings {
+                    num_wagons: 3,
+                    home: logical_block_id,
+                },
+            };
+            train_events.send(SpawnTrain {
+                train: train,
+                block_id: logical_block_id,
+            });
+        }
+    }
+}
+fn spawn_train(
+    mut train_events: EventReader<SpawnTrain>,
+    mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
     mut entity_map: ResMut<EntityMap>,
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
 ) {
-    if keyboard_input.just_pressed(keyboard::KeyCode::T) {
-        if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
-            // println!("Creating train at block {:?}", block_id);
-            let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
-            let block = q_blocks
-                .get(entity_map.get_entity(&GenericID::Block(*block_id)).unwrap())
-                .unwrap();
-            let block_section = block.get_logical_section(logical_block_id);
-            let train_id = TrainID::new(entity_map.trains.len());
-            let route = build_route(
-                train_id,
-                &block_section,
-                &q_markers,
-                &q_blocks,
-                &entity_map,
-                &marker_map,
-            );
-            route.update_locks(&mut track_locks);
-            let train = TrainBundle::new(route, train_id);
-            let train_id = train.train.id;
-            // println!("Section: {:?}", block_section);
-            // println!("Layout markers: {:?}", entity_map.markers);
-            /*println!(
-                "Creating train {:?} at logical block {:?}",
-                train_id, logical_block_id
-            );*/
-            let entity = commands.spawn(train).id();
-            entity_map.add_train(train_id, entity);
-        }
+    for request in train_events.read() {
+        let mut train = request.train.clone();
+        let block_id = request.block_id.clone();
+        let block = q_blocks
+            .get(
+                entity_map
+                    .get_entity(&GenericID::Block(block_id.block))
+                    .unwrap(),
+            )
+            .unwrap();
+        let block_section = block.get_logical_section(block_id);
+        let train_id = TrainID::new(entity_map.trains.len());
+        let route = build_route(
+            train_id,
+            &block_section,
+            &q_markers,
+            &q_blocks,
+            &entity_map,
+            &marker_map,
+        );
+        route.update_locks(&mut track_locks);
+        train.route = Some(route);
+        let train = TrainBundle::from_train(train);
+        let train_id = train.train.id;
+        // println!("Section: {:?}", block_section);
+        // println!("Layout markers: {:?}", entity_map.markers);
+        /*println!(
+            "Creating train {:?} at logical block {:?}",
+            train_id, logical_block_id
+        );*/
+        let entity = commands.spawn(train).id();
+        entity_map.add_train(train_id, entity);
     }
 }
 
@@ -296,12 +337,14 @@ fn update_train(
     for mut train in q_trains.iter_mut() {
         if !track_locks.is_clean(&train.id) {
             // println!("Updating intentions for train {:?}", train.id);
-            train.route.update_intentions(track_locks.as_ref());
+            train
+                .get_route_mut()
+                .update_intentions(track_locks.as_ref());
             track_locks.mark_clean(&train.id);
         }
         let change_locks = train.traverse_route(time.delta_seconds());
         if change_locks {
-            train.route.update_locks(&mut track_locks);
+            train.get_route().update_locks(&mut track_locks);
         }
     }
 }
@@ -312,6 +355,7 @@ impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, Train>();
         app.insert_resource(TrainDragState::default());
+        app.add_event::<SpawnTrain>();
         app.add_systems(
             Update,
             (
@@ -324,6 +368,12 @@ impl Plugin for TrainPlugin {
                 update_drag_train,
                 update_train,
             ),
+        );
+        app.add_systems(
+            PostUpdate,
+            spawn_train
+                .run_if(on_event::<SpawnTrain>())
+                .after(spawn_marker),
         );
     }
 }

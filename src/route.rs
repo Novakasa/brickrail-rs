@@ -75,7 +75,7 @@ pub fn build_route(
     route
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub enum TrainState {
     #[default]
     Stop,
@@ -94,7 +94,7 @@ impl TrainState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Route {
     legs: Vec<RouteLeg>,
     train_id: TrainID,
@@ -236,7 +236,7 @@ pub enum LegState {
     Completed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RouteLeg {
     to_section: LogicalSection,
     section: LogicalSection,
