@@ -313,7 +313,7 @@ impl RouteLeg {
     }
 
     fn is_flip(&self) -> bool {
-        self.section.tracks.len() >= 2 && self.section.tracks[0].facing != self.get_final_facing()
+        self.section.tracks[0].facing != self.get_final_facing()
     }
 
     fn set_completed(&mut self) {

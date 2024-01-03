@@ -113,21 +113,9 @@ fn init_select(
     }
     if buttons.just_pressed(MouseButton::Left) {
         match hover_state.hover {
-            Some(id) => match id {
-                GenericID::Track(track_id) => {
-                    let mut section = DirectedSection::new();
-                    section
-                        .push(
-                            track_id.get_directed(TrackDirection::First),
-                            &Connections::default(),
-                        )
-                        .unwrap();
-                    selection_state.selection = Selection::Section(section);
-                }
-                generic => {
-                    selection_state.selection = Selection::Single(generic);
-                }
-            },
+            Some(id) => {
+                selection_state.selection = Selection::Single(id);
+            }
             None => {
                 selection_state.selection = Selection::None;
             }
@@ -156,6 +144,16 @@ fn extend_selection(
     if hover_state.is_changed() {
         // println!("{:?}", hover_state.hover);
         if buttons.pressed(MouseButton::Left) {
+            if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
+                let mut section = DirectedSection::new();
+                section
+                    .push(
+                        track_id.get_directed(TrackDirection::First),
+                        &Connections::default(),
+                    )
+                    .unwrap();
+                selection_state.selection = Selection::Section(section);
+            }
             match (&hover_state.hover, &mut selection_state.selection) {
                 (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
                     match section.push_track(*track_id, &connections) {

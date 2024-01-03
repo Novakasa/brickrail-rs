@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::{
+    editor::*,
     layout::EntityMap,
     layout_primitives::*,
     track::{spawn_track, LAYOUT_SCALE},
@@ -90,6 +91,19 @@ impl Marker {
     }
 }
 
+fn create_marker(
+    selection_state: Res<SelectionState>,
+    mut marker_events: EventWriter<SpawnMarker>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::M) {
+        if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
+            let marker = Marker::new(track_id, MarkerColor::Any);
+            marker_events.send(SpawnMarker { marker: marker });
+        }
+    }
+}
+
 #[derive(Event)]
 pub struct SpawnMarker {
     pub marker: Marker,
@@ -116,9 +130,12 @@ impl Plugin for MarkerPlugin {
         app.add_event::<SpawnMarker>();
         app.add_systems(
             PostUpdate,
-            spawn_marker
-                .run_if(on_event::<SpawnMarker>())
-                .after(spawn_track),
+            (
+                spawn_marker
+                    .run_if(on_event::<SpawnMarker>())
+                    .after(spawn_track),
+                create_marker,
+            ),
         );
     }
 }
