@@ -27,6 +27,15 @@ impl TrackLocks {
         return true;
     }
 
+    pub fn can_lock_track(&self, train: &TrainID, track: &TrackID) -> bool {
+        if let Some(locked_train) = self.locked_tracks.get(track) {
+            if locked_train != train {
+                return false;
+            }
+        }
+        return true;
+    }
+
     pub fn mark_clean(&mut self, train: &TrainID) {
         self.clean_trains.insert(train.clone());
     }
@@ -234,6 +243,7 @@ impl Connections {
         &self,
         start: LogicalBlockID,
         target: LogicalBlockID,
+        avoid_locked: Option<(&TrainID, &TrackLocks)>,
     ) -> Option<LogicalSection> {
         let start_track = start.default_in_marker_track();
         let target_track = target.default_in_marker_track();
@@ -241,7 +251,17 @@ impl Connections {
             &self.logical_graph,
             start_track,
             |track| track == target_track,
-            |_| 1.0,
+            |(a, b, _)| {
+                if let Some((train, locks)) = avoid_locked {
+                    if locks.can_lock_track(train, &b.track()) {
+                        1.0
+                    } else {
+                        f32::INFINITY
+                    }
+                } else {
+                    1.0
+                }
+            },
             |track| {
                 let delta = track.cell().get_delta_vec(&target_track.cell());
                 delta.x.abs() + delta.y.abs()

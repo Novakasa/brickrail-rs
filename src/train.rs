@@ -210,15 +210,17 @@ fn exit_drag_train(
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            let mut train = q_trains
-                .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
-                .unwrap();
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
+                let mut train = q_trains
+                    .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
+                    .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 // println!("Start: {:?}, Target: {:?}", start, target);
-                if let Some(logical_section) = connections.find_route_section(start, target) {
+                if let Some(logical_section) =
+                    connections.find_route_section(start, target, Some((&train_id, &track_locks)))
+                {
                     // println!("Section: {:?}", section);
                     let route = build_route(
                         train_id,
