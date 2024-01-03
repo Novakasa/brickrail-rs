@@ -772,9 +772,22 @@ impl LogicalTrackConnectionID {
 }
 
 #[derive(
-    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Reflect, Serialize, Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Reflect,
+    Serialize,
+    Deserialize,
+    Default,
 )]
+#[reflect(Default)]
 pub enum Facing {
+    #[default]
     Forward,
     Backward,
 }

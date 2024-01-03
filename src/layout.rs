@@ -244,6 +244,7 @@ impl Connections {
         start: LogicalBlockID,
         target: LogicalBlockID,
         avoid_locked: Option<(&TrainID, &TrackLocks)>,
+        prefer_facing: Option<Facing>,
     ) -> Option<LogicalSection> {
         let start_track = start.default_in_marker_track();
         let target_track = target.default_in_marker_track();
@@ -251,16 +252,19 @@ impl Connections {
             &self.logical_graph,
             start_track,
             |track| track == target_track,
-            |(a, b, _)| {
+            |(_a, b, _)| {
+                let mut cost = 1.0;
                 if let Some((train, locks)) = avoid_locked {
-                    if locks.can_lock_track(train, &b.track()) {
-                        1.0
-                    } else {
-                        f32::INFINITY
+                    if !locks.can_lock_track(train, &b.track()) {
+                        cost += f32::INFINITY;
                     }
-                } else {
-                    1.0
                 }
+                if let Some(facing) = prefer_facing {
+                    if b.facing != facing {
+                        cost += 10000.0;
+                    }
+                }
+                return cost;
             },
             |track| {
                 let delta = track.cell().get_delta_vec(&target_track.cell());

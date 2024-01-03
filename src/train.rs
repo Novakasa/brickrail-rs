@@ -66,7 +66,8 @@ impl TrainWagonBundle {
 #[derive(Debug, Reflect, Clone)]
 struct TrainSettings {
     num_wagons: usize,
-    home: LogicalBlockID,
+    home: Option<LogicalBlockID>,
+    prefer_facing: Option<Facing>,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -218,9 +219,12 @@ fn exit_drag_train(
                 let start = train.get_logical_block_id();
                 let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 // println!("Start: {:?}, Target: {:?}", start, target);
-                if let Some(logical_section) =
-                    connections.find_route_section(start, target, Some((&train_id, &track_locks)))
-                {
+                if let Some(logical_section) = connections.find_route_section(
+                    start,
+                    target,
+                    Some((&train_id, &track_locks)),
+                    train.settings.prefer_facing,
+                ) {
                     // println!("Section: {:?}", section);
                     let route = build_route(
                         train_id,
@@ -277,7 +281,8 @@ fn create_train(
                 speed: 0.0,
                 settings: TrainSettings {
                     num_wagons: 3,
-                    home: logical_block_id,
+                    home: None,
+                    prefer_facing: None,
                 },
             };
             train_events.send(SpawnTrain {
@@ -356,6 +361,7 @@ pub struct TrainPlugin;
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, Train>();
+        app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SpawnTrain>();
         app.add_systems(
