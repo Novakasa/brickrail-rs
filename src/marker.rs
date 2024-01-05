@@ -93,29 +93,24 @@ impl Marker {
 
 fn create_marker(
     selection_state: Res<SelectionState>,
-    mut marker_events: EventWriter<SpawnMarker>,
+    mut marker_events: EventWriter<SpawnEvent<Marker>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::M) {
         if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
             let marker = Marker::new(track_id, MarkerColor::Any);
-            marker_events.send(SpawnMarker { marker: marker });
+            marker_events.send(SpawnEvent(marker));
         }
     }
 }
 
-#[derive(Event)]
-pub struct SpawnMarker {
-    pub marker: Marker,
-}
-
 pub fn spawn_marker(
     mut commands: Commands,
-    mut marker_events: EventReader<SpawnMarker>,
+    mut marker_events: EventReader<SpawnEvent<Marker>>,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for event in marker_events.read() {
-        let marker = event.marker.clone();
+        let marker = event.0.clone();
         let track_id = marker.track;
         let track_entity = entity_map.tracks.get(&marker.track).unwrap().clone();
         commands.entity(track_entity.clone()).insert(marker);
@@ -127,12 +122,12 @@ pub struct MarkerPlugin;
 
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnMarker>();
+        app.add_event::<SpawnEvent<Marker>>();
         app.add_systems(Update, create_marker);
         app.add_systems(
             PostUpdate,
             (spawn_marker
-                .run_if(on_event::<SpawnMarker>())
+                .run_if(on_event::<SpawnEvent<Marker>>())
                 .after(spawn_track),),
         );
     }

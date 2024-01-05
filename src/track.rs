@@ -1,5 +1,5 @@
 use crate::{
-    editor::{GenericID, HoverState, Selectable, Selection, SelectionState},
+    editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent},
     layout::{Connections, EntityMap},
     layout_primitives::*,
     utils::bresenham_line,
@@ -42,8 +42,8 @@ impl TrackBuildState {
     fn build(
         &mut self,
         connections: &mut Connections,
-        track_event_writer: &mut EventWriter<SpawnTrack>,
-        connection_event_writer: &mut EventWriter<SpawnConnection>,
+        track_event_writer: &mut EventWriter<SpawnEvent<Track>>,
+        connection_event_writer: &mut EventWriter<SpawnEvent<TrackConnection>>,
     ) {
         while self.hover_cells.len() > 2 {
             if let Some(track_id) = TrackID::from_cells(
@@ -52,16 +52,13 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.send(SpawnTrack {
-                        track: Track { id: track_id },
-                    });
+                    track_event_writer.send(SpawnEvent(Track { id: track_id }));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !connections.has_connection(&connection_id) {
-                            connection_event_writer.send(SpawnConnection {
-                                connection: TrackConnection::new(connection_id),
-                            });
+                            connection_event_writer
+                                .send(SpawnEvent(TrackConnection::new(connection_id)));
                         }
                     }
                 }
@@ -72,19 +69,14 @@ impl TrackBuildState {
     }
 }
 
-#[derive(Event)]
-pub struct SpawnTrack {
-    pub track: Track,
-}
-
 pub fn spawn_track(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnTrack>,
+    mut event_reader: EventReader<SpawnEvent<Track>>,
 ) {
     for request in event_reader.read() {
-        let track = request.track.clone();
+        let track = request.0.clone();
         let track_id = track.id;
         connections.add_track(track_id);
         let entity = commands.spawn(TrackBundle::from_track(track)).id();
@@ -92,19 +84,14 @@ pub fn spawn_track(
     }
 }
 
-#[derive(Event)]
-pub struct SpawnConnection {
-    pub connection: TrackConnection,
-}
-
 fn spawn_connection(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnConnection>,
+    mut event_reader: EventReader<SpawnEvent<TrackConnection>>,
 ) {
     for request in event_reader.read() {
-        let connection = request.connection.clone();
+        let connection = request.0.clone();
         let connection_id = connection.id;
         let entity = commands.spawn(TrackConnection::new(connection_id)).id();
         let outer_entity = commands
@@ -265,8 +252,8 @@ fn update_draw_track(
     mut connections: ResMut<Connections>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
-    mut track_event_writer: EventWriter<SpawnTrack>,
-    mut connection_event_writer: EventWriter<SpawnConnection>,
+    mut track_event_writer: EventWriter<SpawnEvent<Track>>,
+    mut connection_event_writer: EventWriter<SpawnEvent<TrackConnection>>,
 ) {
     let last_cell = track_build_state.hover_cells.last();
     if last_cell.is_none() {
@@ -353,8 +340,8 @@ impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
         app.register_component_as::<dyn Selectable, Track>();
-        app.add_event::<SpawnTrack>();
-        app.add_event::<SpawnConnection>();
+        app.add_event::<SpawnEvent<Track>>();
+        app.add_event::<SpawnEvent<TrackConnection>>();
         app.add_systems(
             Update,
             (
@@ -368,8 +355,8 @@ impl Plugin for TrackPlugin {
         app.add_systems(
             PostUpdate,
             (
-                spawn_track.run_if(on_event::<SpawnTrack>()),
-                spawn_connection.run_if(on_event::<SpawnConnection>()),
+                spawn_track.run_if(on_event::<SpawnEvent<Track>>()),
+                spawn_connection.run_if(on_event::<SpawnEvent<TrackConnection>>()),
             ),
         );
     }

@@ -1,6 +1,6 @@
-use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState};
+use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent};
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, SpawnMarker};
+use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
@@ -148,20 +148,20 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
 fn create_block(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
-    mut block_event_writer: EventWriter<SpawnBlockEvent>,
-    mut marker_event_writer: EventWriter<SpawnMarker>,
+    mut block_event_writer: EventWriter<SpawnEvent<Block>>,
+    mut marker_event_writer: EventWriter<SpawnEvent<Marker>>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::B) {
             let block = Block::new(section.clone());
             let block_id = block.id;
-            block_event_writer.send(SpawnBlockEvent { block });
+            block_event_writer.send(SpawnEvent(block));
             for logical_id in block_id.logical_block_ids() {
                 let in_track = logical_id.default_in_marker_track();
                 if logical_id.facing == Facing::Forward {
                     let marker = Marker::new(in_track.track(), MarkerColor::Green);
-                    marker_event_writer.send(SpawnMarker { marker: marker });
+                    marker_event_writer.send(SpawnEvent(marker));
                 }
                 marker_map.register_marker(in_track, MarkerKey::In, logical_id);
             }
@@ -169,20 +169,15 @@ fn create_block(
     }
 }
 
-#[derive(Event)]
-pub struct SpawnBlockEvent {
-    pub block: Block,
-}
-
 pub fn spawn_block(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut block_event_reader: EventReader<SpawnBlockEvent>,
+    mut block_event_reader: EventReader<SpawnEvent<Block>>,
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
-        println!("Spawning block {:?}", request.block.id);
-        let block = request.block.clone();
+        println!("Spawning block {:?}", request.0.id);
+        let block = request.0.clone();
         let block = BlockBundle::from_block(block);
         let block_id = block.block.id;
         // println!("Spawning block {:?}", block_id);
@@ -226,12 +221,12 @@ impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
         app.register_component_as::<dyn Selectable, Block>();
-        app.add_event::<SpawnBlockEvent>();
+        app.add_event::<SpawnEvent<Block>>();
         app.add_systems(Update, (create_block, update_block_color));
         app.add_systems(
             PostUpdate,
             (spawn_block
-                .run_if(on_event::<SpawnBlockEvent>())
+                .run_if(on_event::<SpawnEvent<Block>>())
                 .after(spawn_marker),),
         );
     }

@@ -288,14 +288,9 @@ fn update_drag_train(
     }
 }
 
-#[derive(Event)]
-pub struct SpawnTrain {
-    pub train: Train,
-}
-
 fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
-    mut train_events: EventWriter<SpawnTrain>,
+    mut train_events: EventWriter<SpawnEvent<Train>>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -314,12 +309,12 @@ fn create_train(
                     prefer_facing: None,
                 },
             };
-            train_events.send(SpawnTrain { train: train });
+            train_events.send(SpawnEvent(train));
         }
     }
 }
 fn spawn_train(
-    mut train_events: EventReader<SpawnTrain>,
+    mut train_events: EventReader<SpawnEvent<Train>>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
@@ -328,9 +323,9 @@ fn spawn_train(
     q_markers: Query<&Marker>,
 ) {
     for request in train_events.read() {
-        println!("Spawning train {:?}", request.train.id);
-        let mut train = request.train.clone();
-        let block_id = match request.train.route {
+        println!("Spawning train {:?}", request.0.id);
+        let mut train = request.0.clone();
+        let block_id = match request.0.route {
             RouteOrBlock::Block(block_id) => block_id,
             RouteOrBlock::Route(_) => panic!("Can't spawn train with route"),
         };
@@ -395,7 +390,7 @@ impl Plugin for TrainPlugin {
         app.register_component_as::<dyn Selectable, Train>();
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
-        app.add_event::<SpawnTrain>();
+        app.add_event::<SpawnEvent<Train>>();
         app.add_systems(
             Update,
             (
@@ -412,7 +407,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SpawnTrain>())
+                .run_if(on_event::<SpawnEvent<Train>>())
                 .after(spawn_block),
         );
     }

@@ -1,12 +1,12 @@
 use std::io::{Read, Write};
 
-use crate::block::{Block, SpawnBlockEvent};
+use crate::block::Block;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
-use crate::marker::{Marker, SpawnMarker};
+use crate::marker::Marker;
 use crate::section::DirectedSection;
-use crate::track::{SpawnConnection, SpawnTrack, Track, TrackConnection, LAYOUT_SCALE};
-use crate::train::{SpawnTrain, Train};
+use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
+use crate::train::Train;
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
@@ -220,6 +220,9 @@ pub fn save_layout(
     }
 }
 
+#[derive(Event)]
+pub struct SpawnEvent<T>(pub T);
+
 pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
     if keyboard_buttons.just_pressed(KeyCode::L) {
         commands.remove_resource::<Connections>();
@@ -235,19 +238,19 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         println!("Sending spawn events");
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
-            commands.add(|world: &mut World| world.send_event(SpawnTrack { track }));
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(track)));
         }
         for connection in layout_value.connections {
-            commands.add(|world: &mut World| world.send_event(SpawnConnection { connection }));
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(connection)));
         }
         for block in layout_value.blocks {
-            commands.add(|world: &mut World| world.send_event(SpawnBlockEvent { block }));
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(block)));
         }
         for marker in layout_value.markers {
-            commands.add(|world: &mut World| world.send_event(SpawnMarker { marker }));
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(marker)));
         }
         for train in layout_value.trains {
-            commands.add(|world: &mut World| world.send_event(SpawnTrain { train }));
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(train)));
         }
         commands.insert_resource(marker_map);
     }
