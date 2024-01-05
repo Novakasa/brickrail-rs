@@ -1,6 +1,12 @@
 use bevy::{
-    gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
+    gizmos::gizmos::Gizmos,
+    prelude::*,
+    reflect::{Reflect, TypeRegistry},
+    render::color::Color,
+    utils::HashMap,
 };
+use bevy_egui::egui;
+use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
@@ -91,6 +97,33 @@ impl Marker {
     }
 }
 
+impl Selectable for Marker {
+    fn get_id(&self) -> GenericID {
+        GenericID::Marker(self.track)
+    }
+
+    fn get_depth(&self) -> f32 {
+        2.0
+    }
+
+    fn get_distance(&self, pos: Vec2) -> f32 {
+        self.track
+            .get_directed(TrackDirection::First)
+            .get_center_vec2()
+            .distance(pos)
+            - 0.05
+    }
+
+    fn inspector_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _type_registry: &TypeRegistry,
+        _: &mut EntityMap,
+    ) {
+        ui.label("Inspectable marker lol");
+    }
+}
+
 fn create_marker(
     selection_state: Res<SelectionState>,
     mut marker_events: EventWriter<SpawnEvent<Marker>>,
@@ -123,6 +156,7 @@ pub struct MarkerPlugin;
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnEvent<Marker>>();
+        app.register_component_as::<dyn Selectable, Marker>();
         app.add_systems(Update, create_marker);
         app.add_systems(
             PostUpdate,

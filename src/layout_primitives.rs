@@ -535,7 +535,7 @@ pub enum ConnectionDirection {
 }
 
 #[derive(
-    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, SerializeDisplay, DeserializeFromStr,
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
 )]
 pub struct TrackConnectionID {
     // DirectedTrackIDs point at each other to avoid bias

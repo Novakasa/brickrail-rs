@@ -14,7 +14,6 @@ use bevy_egui::egui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
-use bevy_trait_query::One;
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Debug, Default)]
@@ -30,6 +29,8 @@ pub enum GenericID {
     Block(BlockID),
     Train(TrainID),
     Switch(DirectedTrackID),
+    TrackConnection(TrackConnectionID),
+    Marker(TrackID),
 }
 
 #[derive(Default, Debug, Clone, Reflect, PartialEq, Eq)]
@@ -45,16 +46,21 @@ pub enum Selection {
 pub trait Selectable {
     fn inspector_ui(
         &mut self,
-        ui: &mut egui::Ui,
-        type_registry: &TypeRegistry,
-        entity_map: &mut EntityMap,
-    );
+        _ui: &mut egui::Ui,
+        _type_registry: &TypeRegistry,
+        _entity_map: &mut EntityMap,
+    ) {
+    }
 
     fn get_id(&self) -> GenericID;
 
-    fn get_depth(&self) -> f32;
+    fn get_depth(&self) -> f32 {
+        -100.0
+    }
 
-    fn get_distance(&self, pos: Vec2) -> f32;
+    fn get_distance(&self, _pos: Vec2) -> f32 {
+        100.0
+    }
 }
 
 #[derive(Resource, Debug, Default)]
@@ -81,25 +87,31 @@ fn spawn_camera(mut commands: Commands) {
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<One<&mut dyn Selectable>>,
+    q_selectable: Query<&mut dyn Selectable>,
     mut hover_state: ResMut<HoverState>,
 ) {
     let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
     let mut hover_depth = f32::NEG_INFINITY;
-    for selectable in q_selectable.iter() {
-        if selectable.get_depth() < hover_depth {
-            continue;
-        }
-        let dist = selectable.get_distance(mouse_world_pos.truncate() / LAYOUT_SCALE);
-        if (dist < min_dist || selectable.get_depth() > hover_depth) && dist < 0.0 {
-            hover_candidate = Some(selectable.get_id());
-            min_dist = dist;
-            hover_depth = selectable.get_depth();
+    for entity in q_selectable.iter() {
+        for selectable in entity.iter() {
+            if selectable.get_depth() < hover_depth {
+                continue;
+            }
+            let dist = selectable.get_distance(mouse_world_pos.truncate() / LAYOUT_SCALE);
+            if dist > 0.0 {
+                continue;
+            }
+            if dist < min_dist || selectable.get_depth() > hover_depth {
+                hover_candidate = Some(selectable.get_id());
+                min_dist = dist;
+                hover_depth = selectable.get_depth();
+            }
         }
     }
     if hover_candidate != hover_state.hover {
         hover_state.hover = hover_candidate;
+        // println!("Hovering {:?}", hover_state.hover);
     }
 }
 
@@ -122,6 +134,25 @@ fn init_select(
             }
         }
         println!("{:?}", selection_state.selection);
+    }
+}
+
+fn delete_selection<T: Selectable + Component + Clone>(
+    keyboard_buttons: Res<Input<KeyCode>>,
+    selection_state: Res<SelectionState>,
+    mut q_selectable: Query<&mut T>,
+    mut despawn_events: EventWriter<DespawnEvent<T>>,
+    entity_map: Res<EntityMap>,
+) {
+    if keyboard_buttons.just_pressed(KeyCode::Delete) {
+        match &selection_state.selection {
+            Selection::Single(id) => {
+                let entity = entity_map.get_entity(id).unwrap();
+                let component = q_selectable.get_mut(entity).unwrap();
+                despawn_events.send(DespawnEvent(component.clone()));
+            }
+            _ => {}
+        }
     }
 }
 
@@ -221,7 +252,10 @@ pub fn save_layout(
 }
 
 #[derive(Event)]
-pub struct SpawnEvent<T>(pub T);
+pub struct SpawnEvent<T: Selectable>(pub T);
+
+#[derive(Event)]
+pub struct DespawnEvent<T>(pub T);
 
 pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
     if keyboard_buttons.just_pressed(KeyCode::L) {

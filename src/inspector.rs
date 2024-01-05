@@ -4,14 +4,13 @@ use bevy_egui::{
     EguiContexts, EguiMousePosition,
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
-use bevy_trait_query::One;
 
 use crate::{editor::*, layout::EntityMap};
 
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
-    mut q_inspectable: Query<One<&mut dyn Selectable>>,
+    mut q_inspectable: Query<&mut dyn Selectable>,
     selection_state: Res<SelectionState>,
     mut entity_map: ResMut<EntityMap>,
     egui_mouse_pos: Res<EguiMousePosition>,
@@ -26,8 +25,13 @@ fn inspector_system(
             let selection = selection_state.selection.clone();
             if let Selection::Single(generic_id) = selection {
                 if let Some(entity) = entity_map.get_entity(&generic_id) {
-                    let mut inspectable = q_inspectable.get_mut(entity).unwrap();
-                    inspectable.inspector_ui(ui, &type_registry.read(), &mut entity_map);
+                    let mut inspectable_iter = q_inspectable.get_mut(entity).unwrap();
+                    for mut inspectable in inspectable_iter.iter_mut() {
+                        if inspectable.get_id() != generic_id {
+                            continue;
+                        }
+                        inspectable.inspector_ui(ui, &type_registry.read(), &mut entity_map);
+                    }
                 }
             }
         },

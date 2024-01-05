@@ -122,6 +122,12 @@ impl TrackConnection {
     }
 }
 
+impl Selectable for TrackConnection {
+    fn get_id(&self) -> GenericID {
+        GenericID::TrackConnection(self.id)
+    }
+}
+
 #[derive(Component)]
 pub struct TrackConnectionShape {
     id: TrackConnectionID,
@@ -340,6 +346,7 @@ impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
         app.register_component_as::<dyn Selectable, Track>();
+        app.register_component_as::<dyn Selectable, TrackConnection>();
         app.add_event::<SpawnEvent<Track>>();
         app.add_event::<SpawnEvent<TrackConnection>>();
         app.add_systems(
