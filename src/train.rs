@@ -1,9 +1,9 @@
 use crate::{
-    block::Block,
+    block::{spawn_block, Block},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
-    marker::{spawn_marker, Marker},
+    marker::Marker,
     route::{build_route, Route, TrainState},
     track::LAYOUT_SCALE,
 };
@@ -18,6 +18,7 @@ use bevy_prototype_lyon::{
     shapes::Line,
 };
 use bevy_trait_query::RegisterExt;
+use serde::{Deserialize, Serialize};
 
 const TRAIN_WIDTH: f32 = 0.1;
 
@@ -63,17 +64,44 @@ impl TrainWagonBundle {
     }
 }
 
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, Reflect, Clone, Serialize, Deserialize)]
 struct TrainSettings {
     num_wagons: usize,
     home: Option<LogicalBlockID>,
     prefer_facing: Option<Facing>,
 }
 
-#[derive(Component, Debug, Clone)]
-struct Train {
+#[derive(Debug, Clone)]
+enum RouteOrBlock {
+    Route(Route),
+    Block(LogicalBlockID),
+}
+
+impl Serialize for RouteOrBlock {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // convert route to block before serializing
+        match self {
+            RouteOrBlock::Route(route) => {
+                let block = route.get_current_leg().get_target_block_id();
+                block.serialize(serializer)
+            }
+            RouteOrBlock::Block(block) => block.serialize(serializer),
+        }
+    }
+}
+
+impl<'a> Deserialize<'a> for RouteOrBlock {
+    fn deserialize<D: serde::Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        let block = LogicalBlockID::deserialize(deserializer)?;
+        Ok(RouteOrBlock::Block(block))
+    }
+}
+
+#[derive(Component, Debug, Clone, Serialize, Deserialize)]
+pub struct Train {
     id: TrainID,
-    route: Option<Route>,
+    route: RouteOrBlock,
+    #[serde(skip)]
     state: TrainState,
     speed: f32,
     settings: TrainSettings,
@@ -81,19 +109,21 @@ struct Train {
 
 impl Train {
     pub fn get_logical_block_id(&self) -> LogicalBlockID {
-        self.route
-            .as_ref()
-            .unwrap()
-            .get_current_leg()
-            .get_target_block_id()
+        self.get_route().get_current_leg().get_target_block_id()
     }
 
     pub fn get_route(&self) -> &Route {
-        self.route.as_ref().unwrap()
+        match &self.route {
+            RouteOrBlock::Route(route) => route,
+            RouteOrBlock::Block(block_id) => panic!("Train {:?} has no route", block_id),
+        }
     }
 
     pub fn get_route_mut(&mut self) -> &mut Route {
-        self.route.as_mut().unwrap()
+        match &mut self.route {
+            RouteOrBlock::Route(route) => route,
+            RouteOrBlock::Block(block_id) => panic!("Train {:?} has no route", block_id),
+        }
     }
 
     fn traverse_route(&mut self, delta: f32) -> bool {
@@ -235,7 +265,7 @@ fn exit_drag_train(
                         &marker_map,
                     );
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
-                    train.route = Some(route);
+                    train.route = RouteOrBlock::Route(route);
                     train.get_route().update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
                 }
@@ -259,9 +289,8 @@ fn update_drag_train(
 }
 
 #[derive(Event)]
-struct SpawnTrain {
-    train: Train,
-    block_id: LogicalBlockID,
+pub struct SpawnTrain {
+    pub train: Train,
 }
 
 fn create_train(
@@ -276,7 +305,7 @@ fn create_train(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train = Train {
                 id: TrainID::new(entity_map.trains.len()),
-                route: None,
+                route: RouteOrBlock::Block(logical_block_id),
                 state: TrainState::Stop,
                 speed: 0.0,
                 settings: TrainSettings {
@@ -285,10 +314,7 @@ fn create_train(
                     prefer_facing: None,
                 },
             };
-            train_events.send(SpawnTrain {
-                train: train,
-                block_id: logical_block_id,
-            });
+            train_events.send(SpawnTrain { train: train });
         }
     }
 }
@@ -302,8 +328,13 @@ fn spawn_train(
     q_markers: Query<&Marker>,
 ) {
     for request in train_events.read() {
+        println!("Spawning train {:?}", request.train.id);
         let mut train = request.train.clone();
-        let block_id = request.block_id.clone();
+        let block_id = match request.train.route {
+            RouteOrBlock::Block(block_id) => block_id,
+            RouteOrBlock::Route(_) => panic!("Can't spawn train with route"),
+        };
+        println!("spawning at block {:?}", block_id);
         let block = q_blocks
             .get(
                 entity_map
@@ -322,7 +353,8 @@ fn spawn_train(
             &marker_map,
         );
         route.update_locks(&mut track_locks);
-        train.route = Some(route);
+        train.route = RouteOrBlock::Route(route);
+        println!("train block: {:?}", train.get_logical_block_id());
         let train = TrainBundle::from_train(train);
         let train_id = train.train.id;
         // println!("Section: {:?}", block_section);
@@ -378,10 +410,10 @@ impl Plugin for TrainPlugin {
             ),
         );
         app.add_systems(
-            PostUpdate,
+            PreUpdate,
             spawn_train
                 .run_if(on_event::<SpawnTrain>())
-                .after(spawn_marker),
+                .after(spawn_block),
         );
     }
 }

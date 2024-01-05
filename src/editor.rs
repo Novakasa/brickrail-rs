@@ -6,6 +6,7 @@ use crate::layout_primitives::*;
 use crate::marker::{Marker, SpawnMarker};
 use crate::section::DirectedSection;
 use crate::track::{SpawnConnection, SpawnTrack, Track, TrackConnection, LAYOUT_SCALE};
+use crate::train::{SpawnTrain, Train};
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
@@ -185,10 +186,13 @@ struct SerializableLayout {
     connections: Vec<TrackConnection>,
     blocks: Vec<Block>,
     markers: Vec<Marker>,
+    #[serde(default)]
+    trains: Vec<Train>,
 }
 
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
+    q_trains: Query<&Train>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
@@ -201,6 +205,7 @@ pub fn save_layout(
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
         let tracks = q_tracks.iter().map(|t| t.clone()).collect();
+        let trains = q_trains.iter().map(|t| t.clone()).collect();
         let connections = q_connections.iter().map(|c| c.clone()).collect();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
@@ -208,6 +213,7 @@ pub fn save_layout(
             markers,
             tracks,
             connections,
+            trains,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -226,6 +232,7 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         file.read_to_string(&mut json).unwrap();
         let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
         let marker_map = layout_value.marker_map.clone();
+        println!("Sending spawn events");
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
             commands.add(|world: &mut World| world.send_event(SpawnTrack { track }));
@@ -239,7 +246,9 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         for marker in layout_value.markers {
             commands.add(|world: &mut World| world.send_event(SpawnMarker { marker }));
         }
-        println!("markers: {:?}", marker_map.in_markers);
+        for train in layout_value.trains {
+            commands.add(|world: &mut World| world.send_event(SpawnTrain { train }));
+        }
         commands.insert_resource(marker_map);
     }
 }

@@ -154,6 +154,40 @@ impl MarkerMap {
     }
 }
 
+struct ConnectionIterator<'a> {
+    current_track: LogicalTrackID,
+    continue_at_fork: bool,
+    connections: &'a Connections,
+}
+
+impl<'a> Iterator for ConnectionIterator<'a> {
+    type Item = LogicalTrackID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_tracks = self
+            .connections
+            .iter_next_tracks(self.current_track)
+            .collect::<Vec<LogicalTrackID>>();
+        match next_tracks.len() {
+            0 => {
+                return None;
+            }
+            1 => {
+                self.current_track = next_tracks[0];
+                return Some(self.current_track);
+            }
+            _ => {
+                if self.continue_at_fork {
+                    self.current_track = next_tracks[0];
+                    return Some(self.current_track);
+                } else {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
 #[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Connections {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
@@ -199,6 +233,24 @@ impl Connections {
     pub fn iter_connections(&self) -> impl Iterator<Item = TrackConnectionID> + '_ {
         self.iter_logical_connections()
             .map(|logical_connection| logical_connection.to_directed().to_connection())
+    }
+
+    pub fn iter_next_tracks(
+        &self,
+        track: LogicalTrackID,
+    ) -> impl Iterator<Item = LogicalTrackID> + '_ {
+        self.logical_graph.neighbors(track)
+    }
+
+    pub fn iter_from_track<'a>(
+        &'a self,
+        track: LogicalTrackID,
+    ) -> impl Iterator<Item = LogicalTrackID> + '_ {
+        ConnectionIterator {
+            current_track: track,
+            continue_at_fork: false,
+            connections: self,
+        }
     }
 
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {

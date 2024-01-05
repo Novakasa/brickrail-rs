@@ -68,8 +68,8 @@ impl BlockDirection {
     Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
 )]
 pub struct BlockID {
-    track1: DirectedTrackID,
-    track2: DirectedTrackID,
+    pub track1: DirectedTrackID,
+    pub track2: DirectedTrackID,
 }
 
 impl BlockID {
@@ -162,7 +162,7 @@ impl LogicalBlockID {
     pub fn get_name(&self) -> String {
         let (first, second) = match self.direction {
             BlockDirection::Aligned => (self.block.track1, self.block.track2.opposite()),
-            BlockDirection::Opposite => (self.block.track2.opposite(), self.block.track1),
+            BlockDirection::Opposite => (self.block.track2, self.block.track1.opposite()),
         };
         format!(
             "({}){}({})",
@@ -189,7 +189,7 @@ impl LogicalBlockID {
         };
         let block_id = match direction {
             BlockDirection::Aligned => block_id,
-            BlockDirection::Opposite => BlockID::new(second_track, first_track.opposite()),
+            BlockDirection::Opposite => BlockID::new(second_track.opposite(), first_track),
         };
         let facing = Facing::from_name(facing)?;
         Some(Self {
@@ -1358,5 +1358,25 @@ mod test {
         let track2 = LogicalTrackID::from_str("L(-2,2,0|WE<)").unwrap();
         assert_eq!(track2.facing, Facing::Backward);
         assert_ne!(track1.facing, track2.facing);
+
+        let dirtrack = DirectedTrackID::from_str("D(-2,2,0|NS)").unwrap();
+        let dirtrack2 = DirectedTrackID::from_str("D(-2,2,0|SN)").unwrap();
+        assert_eq!(dirtrack, dirtrack2.opposite());
+
+        let block = LogicalBlockID::from_str("LB[(-1,0,0|SN)>(-1,3,0|SN)]").unwrap();
+        assert_eq!(
+            block.default_in_marker_track(),
+            LogicalTrackID::from_str("L(-1,3,0|SN>)").unwrap(),
+        );
+        assert_eq!(block, LogicalBlockID::from_str(&block.to_string()).unwrap());
+
+        let block = LogicalBlockID::from_str("LB[(-1,3,0|SN)>(-1,0,0|SN)]").unwrap();
+        println!("{:?}", block);
+        println!(
+            "block {:?}, direction {:?}, facing {:?}",
+            block.block, block.direction, block.facing
+        );
+        assert_eq!(block, LogicalBlockID::from_str(&block.to_string()).unwrap());
+        // assert!(false);
     }
 }

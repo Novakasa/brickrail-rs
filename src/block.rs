@@ -42,6 +42,12 @@ pub struct Block {
 
 impl Block {
     pub fn new(section: DirectedSection) -> Self {
+        let id = section.to_block_id();
+        let section = if &id.track1 == section.tracks.first().unwrap() {
+            section
+        } else {
+            section.get_opposite()
+        };
         let block = Block {
             id: section.to_block_id(),
             section: section,
@@ -175,6 +181,7 @@ pub fn spawn_block(
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
+        println!("Spawning block {:?}", request.block.id);
         let block = request.block.clone();
         let block = BlockBundle::from_block(block);
         let block_id = block.block.id;
