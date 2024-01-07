@@ -1,4 +1,7 @@
-use crate::editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent};
+use crate::editor::{
+    delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
+    SpawnEvent,
+};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
@@ -190,6 +193,28 @@ pub fn spawn_block(
     }
 }
 
+pub fn despawn_block(
+    mut commands: Commands,
+    mut entity_map: ResMut<EntityMap>,
+    mut block_event_reader: EventReader<DespawnEvent<Block>>,
+    mut marker_map: ResMut<MarkerMap>,
+    mut connections: ResMut<Connections>,
+) {
+    for request in block_event_reader.read() {
+        let block = request.0.clone();
+        let block_id = block.id;
+        println!("Despawning block {:?}", block_id);
+        for logical_id in block_id.logical_block_ids() {
+            let in_track = logical_id.default_in_marker_track();
+            connections.disconnect_tracks(&in_track, &in_track.reversed());
+        }
+        let entity = entity_map.blocks.get(&block_id).unwrap().clone();
+        commands.entity(entity).despawn_recursive();
+        entity_map.remove_block(block_id);
+        marker_map.remove_block(block_id);
+    }
+}
+
 fn update_block_color(
     mut q_strokes: Query<(&Block, &mut Stroke)>,
     selection_state: Res<SelectionState>,
@@ -222,12 +247,19 @@ impl Plugin for BlockPlugin {
         app.register_type::<Block>();
         app.register_component_as::<dyn Selectable, Block>();
         app.add_event::<SpawnEvent<Block>>();
-        app.add_systems(Update, (create_block, update_block_color));
+        app.add_event::<DespawnEvent<Block>>();
+        app.add_systems(
+            Update,
+            (create_block, update_block_color, delete_selection::<Block>),
+        );
         app.add_systems(
             PostUpdate,
-            (spawn_block
-                .run_if(on_event::<SpawnEvent<Block>>())
-                .after(spawn_marker),),
+            (
+                spawn_block
+                    .run_if(on_event::<SpawnEvent<Block>>())
+                    .after(spawn_marker),
+                despawn_block,
+            ),
         );
     }
 }

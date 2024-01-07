@@ -137,7 +137,7 @@ fn init_select(
     }
 }
 
-fn delete_selection<T: Selectable + Component + Clone>(
+pub fn delete_selection<T: Selectable + Component + Clone>(
     keyboard_buttons: Res<Input<KeyCode>>,
     selection_state: Res<SelectionState>,
     mut q_selectable: Query<&mut T>,
@@ -148,8 +148,9 @@ fn delete_selection<T: Selectable + Component + Clone>(
         match &selection_state.selection {
             Selection::Single(id) => {
                 let entity = entity_map.get_entity(id).unwrap();
-                let component = q_selectable.get_mut(entity).unwrap();
-                despawn_events.send(DespawnEvent(component.clone()));
+                if let Ok(component) = q_selectable.get_mut(entity) {
+                    despawn_events.send(DespawnEvent(component.clone()));
+                }
             }
             _ => {}
         }

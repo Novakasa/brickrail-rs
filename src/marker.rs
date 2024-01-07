@@ -12,7 +12,7 @@ use serde_json_any_key::any_key_map;
 
 use crate::{
     editor::*,
-    layout::EntityMap,
+    layout::{EntityMap, MarkerMap},
     layout_primitives::*,
     track::{spawn_track, LAYOUT_SCALE},
 };
@@ -151,18 +151,38 @@ pub fn spawn_marker(
     }
 }
 
+pub fn despawn_marker(
+    mut commands: Commands,
+    mut marker_events: EventReader<DespawnEvent<Marker>>,
+    mut entity_map: ResMut<EntityMap>,
+    mut marker_map: ResMut<MarkerMap>,
+) {
+    for event in marker_events.read() {
+        let marker = event.0.clone();
+        let track_id = marker.track;
+        let track_entity = entity_map.tracks.get(&marker.track).unwrap().clone();
+        commands.entity(track_entity.clone()).remove::<Marker>();
+        entity_map.remove_marker(track_id);
+        marker_map.remove_marker(track_id);
+    }
+}
+
 pub struct MarkerPlugin;
 
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnEvent<Marker>>();
+        app.add_event::<DespawnEvent<Marker>>();
         app.register_component_as::<dyn Selectable, Marker>();
-        app.add_systems(Update, create_marker);
+        app.add_systems(Update, (create_marker, delete_selection::<Marker>));
         app.add_systems(
             PostUpdate,
-            (spawn_marker
-                .run_if(on_event::<SpawnEvent<Marker>>())
-                .after(spawn_track),),
+            (
+                spawn_marker
+                    .run_if(on_event::<SpawnEvent<Marker>>())
+                    .after(spawn_track),
+                despawn_marker,
+            ),
         );
     }
 }

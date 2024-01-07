@@ -98,6 +98,14 @@ impl EntityMap {
         self.markers.try_insert(track, entity).unwrap();
     }
 
+    pub fn remove_marker(&mut self, track: TrackID) {
+        self.markers.remove(&track);
+    }
+
+    pub fn remove_block(&mut self, block: BlockID) {
+        self.blocks.remove(&block);
+    }
+
     pub fn add_connection(
         &mut self,
         connection: TrackConnectionID,
@@ -151,6 +159,20 @@ impl MarkerMap {
                 self.enter_markers.insert(logical_track, logical_block);
             }
             MarkerKey::None => {}
+        }
+    }
+
+    pub fn remove_marker(&mut self, track: TrackID) {
+        for logical_track in track.logical_tracks() {
+            self.in_markers.remove(&logical_track);
+            self.enter_markers.remove(&logical_track);
+        }
+    }
+
+    pub fn remove_block(&mut self, block: BlockID) {
+        for logical_block in block.logical_block_ids() {
+            self.in_markers.retain(|_, v| v != &logical_block);
+            self.enter_markers.retain(|_, v| v != &logical_block);
         }
     }
 }
@@ -290,6 +312,11 @@ impl Connections {
     pub fn connect_tracks(&mut self, track_a: &LogicalTrackID, track_b: &LogicalTrackID) {
         self.logical_graph
             .add_edge(track_a.clone(), track_b.clone(), ());
+    }
+
+    pub fn disconnect_tracks(&mut self, track_a: &LogicalTrackID, track_b: &LogicalTrackID) {
+        self.logical_graph
+            .remove_edge(track_a.clone(), track_b.clone());
     }
 
     pub fn find_route_section(
