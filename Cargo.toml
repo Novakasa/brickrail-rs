@@ -1,8 +1,8 @@
 [workspace]
 
 resolver = "2"
-
-members = ["brickrail", "pybricks-ble"]
+default-members = ["brickrail"]
+members = ["brickrail", "pybricks-ble", "test-pybricks"]
 
 
 # Enable a small amount of optimization in debug mode
