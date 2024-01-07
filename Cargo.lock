@@ -4100,6 +4100,7 @@ dependencies = [
  "pybricks-ble",
  "tokio",
  "tokio-stream",
+ "uuid",
 ]
 
 [[package]]

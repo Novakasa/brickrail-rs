@@ -1,67 +1,51 @@
-// See the "macOS permissions note" in README.md before running this on macOS
-// Big Sur or later.
-
-use btleplug::api::{bleuuid::BleUuid, Central, CentralEvent, Manager as _, ScanFilter};
-use btleplug::platform::{Adapter, Manager};
-use futures::stream::StreamExt;
-use std::error::Error;
-
-async fn get_central(manager: &Manager) -> Adapter {
-    let adapters = manager.adapters().await.unwrap();
-    adapters.into_iter().nth(0).unwrap()
-}
+use btleplug::api::bleuuid::BleUuid;
+use btleplug::api::{Central, CentralEvent, Manager as _, Peripheral, ScanFilter};
+use btleplug::platform::Manager;
+use futures::StreamExt;
+use uuid::Uuid;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    pretty_env_logger::init();
-
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = Manager::new().await?;
+    let adapter_list = manager.adapters().await?;
+    if adapter_list.is_empty() {
+        eprintln!("No Bluetooth adapters");
+    }
+    println!("Found {} adapters", adapter_list.len());
+    let adapter = adapter_list.first().unwrap();
+    // pybricks uuid: 'c5f50001-8280-46da-89f4-6d8051e4aeef'
+    let pybricks_service_uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
+    let filter = ScanFilter {
+        services: vec![pybricks_service_uuid],
+    };
 
-    // get the first bluetooth adapter
-    // connect to the adapter
-    let central = get_central(&manager).await;
-
-    // Each adapter has an event stream, we fetch via events(),
-    // simplifying the type, this will return what is essentially a
-    // Future<Result<Stream<Item=CentralEvent>>>.
-    let mut events = central.events().await?;
-
-    // start scanning for devices
-    central.start_scan(ScanFilter::default()).await?;
-
-    // Print based on whatever the event receiver outputs. Note that the event
-    // receiver blocks, so in a real program, this should be run in its own
-    // thread (not task, as this library does not yet use async channels).
+    let mut events = adapter.events().await?;
+    adapter.start_scan(filter).await?;
+    let mut device = None;
     while let Some(event) = events.next().await {
         match event {
             CentralEvent::DeviceDiscovered(id) => {
                 println!("DeviceDiscovered: {:?}", id);
-            }
-            CentralEvent::DeviceConnected(id) => {
-                println!("DeviceConnected: {:?}", id);
-            }
-            CentralEvent::DeviceDisconnected(id) => {
-                println!("DeviceDisconnected: {:?}", id);
-            }
-            CentralEvent::ManufacturerDataAdvertisement {
-                id,
-                manufacturer_data,
-            } => {
-                println!(
-                    "ManufacturerDataAdvertisement: {:?}, {:?}",
-                    id, manufacturer_data
-                );
-            }
-            CentralEvent::ServiceDataAdvertisement { id, service_data } => {
-                println!("ServiceDataAdvertisement: {:?}, {:?}", id, service_data);
-            }
-            CentralEvent::ServicesAdvertisement { id, services } => {
-                let services: Vec<String> =
-                    services.into_iter().map(|s| s.to_short_string()).collect();
-                println!("ServicesAdvertisement: {:?}, {:?}", id, services);
+                loop {
+                    // wait 1 second for name??
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    let device_candidate = adapter.peripheral(&id).await?;
+                    let name = device_candidate.properties().await?.unwrap().local_name;
+                    println!("Device name: {:?}", name);
+                    if name != None {
+                        device = Some(device_candidate);
+                        break;
+                    }
+                }
+                adapter.stop_scan().await?;
+                break;
             }
             _ => {}
         }
     }
+    println!(
+        "Connecting to {:?}",
+        device.unwrap().properties().await?.unwrap().local_name
+    );
     Ok(())
 }
