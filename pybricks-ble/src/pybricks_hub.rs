@@ -1,7 +1,8 @@
 use btleplug::{
-    api::{Central, Manager as _, Peripheral, ScanFilter},
+    api::{Central, CentralEvent, Manager as _, Peripheral, ScanFilter},
     platform::Manager,
 };
+use futures::StreamExt;
 use uuid::Uuid;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 
@@ -17,16 +18,20 @@ pub async fn discover_hub_name() -> Result<String, Box<dyn std::error::Error>> {
 
     adapter.start_scan(filter).await?;
     let mut device = None;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    for device_candidate in adapter.peripherals().await? {
-        let properties = device_candidate.properties().await?.unwrap();
-        let name = properties.local_name;
-        let services = properties.services;
-        println!("Name: {:?} Services: {:?}", name, services);
-        if services.contains(&PYBRICKS_SERVICE_UUID) {
-            println!("Found Pybricks service for device {:?}", name);
-            device = Some(device_candidate);
-            break;
+    let mut events = adapter.events().await?;
+    while let Some(event) = events.next().await {
+        if let CentralEvent::DeviceUpdated(id) = event {
+            println!("Device updated {:?}", id);
+            let device_candidate = adapter.peripheral(&id).await?;
+            let properties = device_candidate.properties().await?.unwrap();
+            let name = properties.local_name;
+            let services = properties.services;
+            println!("Name: {:?} Services: {:?}", name, services);
+            if services.contains(&PYBRICKS_SERVICE_UUID) && name.is_some() {
+                println!("Found Pybricks service for device {:?}", name);
+                device = Some(device_candidate);
+                break;
+            }
         }
     }
 
