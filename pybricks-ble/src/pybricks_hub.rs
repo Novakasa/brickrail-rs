@@ -68,38 +68,54 @@ impl BLEAdapter {
 
     pub async fn discover_device(
         &self,
-        name_filter: Option<String>,
+        name_filter: Option<&String>,
     ) -> Result<Peripheral, Box<dyn Error>> {
         let filter = ScanFilter::default();
         self.adapter.start_scan(filter).await?;
+        println!("Scanning...");
         let mut device = None;
+        for device in self.adapter.peripherals().await? {
+            if is_pybricks_device(&device, name_filter).await? {
+                return Ok(device);
+            }
+        }
         let mut events = self.adapter.events().await?;
         while let Some(event) = events.next().await {
             if let CentralEvent::DeviceUpdated(id) = event {
+                println!("Device updated {:?}", id);
                 let device_candidate = self.adapter.peripheral(&id).await?;
-                let properties = device_candidate.properties().await?;
-                let properties = if properties.is_none() {
-                    continue;
-                } else {
-                    properties.unwrap()
-                };
-                let this_name = properties.local_name.clone();
-                if name_filter.is_some() && this_name == name_filter {
-                    continue;
+                if is_pybricks_device(&device_candidate, name_filter).await? {
+                    device = Some(device_candidate);
+                    break;
                 }
-                if !properties.services.contains(&PYBRICKS_SERVICE_UUID) {
-                    continue;
-                }
-                if this_name.is_none() {
-                    continue;
-                }
-                device = Some(device_candidate);
-                break;
             }
         }
         self.adapter.stop_scan().await.unwrap();
         Ok(device.unwrap())
     }
+}
+
+async fn is_pybricks_device(
+    device: &Peripheral,
+    name_filter: Option<&String>,
+) -> Result<bool, Box<dyn Error>> {
+    let properties = device.properties().await?;
+    let properties = if properties.is_none() {
+        return Ok(false);
+    } else {
+        properties.unwrap()
+    };
+    let this_name = properties.local_name.clone();
+    if name_filter.is_some() && this_name.as_ref() != name_filter {
+        return Ok(false);
+    }
+    if !properties.services.contains(&PYBRICKS_SERVICE_UUID) {
+        return Ok(false);
+    }
+    if this_name.is_none() {
+        return Ok(false);
+    }
+    return Ok(true);
 }
 
 pub struct BLEClient {
@@ -108,12 +124,24 @@ pub struct BLEClient {
 }
 
 pub struct PybricksHub {
-    name: String,
-    client: Option<Peripheral>,
+    pub name: String,
+    pub client: Option<Peripheral>,
 }
 
 impl PybricksHub {
-    pub fn connect(&mut self) {
+    pub async fn connect(&self) -> Result<(), Box<dyn Error>> {
         println!("Connecting to {:?}", self.name);
+        self.client.as_ref().ok_or("No client")?.connect().await?;
+        Ok(())
+    }
+
+    pub async fn disconnect(&self) -> Result<(), Box<dyn Error>> {
+        println!("Disconnecting from {:?}", self.name);
+        self.client
+            .as_ref()
+            .ok_or("No client")?
+            .disconnect()
+            .await?;
+        Ok(())
     }
 }
