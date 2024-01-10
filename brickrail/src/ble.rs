@@ -9,11 +9,13 @@ struct BLEState {
 
 impl BLEState {}
 
-fn ble_startup_system(runtime: ResMut<TokioTasksRuntime>) {
+fn ble_startup_system(runtime: Res<TokioTasksRuntime>) {
     println!("Starting BLE");
     runtime.spawn_background_task(|mut ctx| async move {
         println!("BLE task");
         let adapter = BLEAdapter::new().await.unwrap();
+        let name = adapter.discover_hub_name().await.unwrap();
+        println!("Found hub {}", name);
         ctx.run_on_main_thread(move |ctx| {
             if let Some(mut ble_state) = ctx.world.get_resource_mut::<BLEState>() {
                 ble_state.adapter = Some(adapter);
