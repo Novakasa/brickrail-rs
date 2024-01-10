@@ -1,6 +1,6 @@
 use btleplug::{
     api::{Central, CentralEvent, Manager as _, Peripheral, ScanFilter},
-    platform::{Adapter, Manager},
+    platform::{Adapter, Manager, PeripheralId},
 };
 use futures::StreamExt;
 use uuid::Uuid;
@@ -18,6 +18,7 @@ impl BLEAdapter {
             return Err("No Bluetooth adapters".into());
         }
         let adapter = adapter_list.pop();
+        println!("Using adapter {:?}", adapter);
         Ok(BLEAdapter {
             adapter: adapter.unwrap(),
         })
@@ -56,6 +57,7 @@ impl BLEAdapter {
 
 pub struct PybricksHub {
     name: String,
+    ble_id: PeripheralId,
 }
 
 impl PybricksHub {

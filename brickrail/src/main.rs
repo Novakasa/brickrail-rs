@@ -2,6 +2,8 @@ use std::env;
 
 use bevy::prelude::*;
 
+mod bevy_tokio_tasks;
+mod ble;
 mod block;
 mod editor;
 mod inspector;
@@ -27,5 +29,7 @@ fn main() {
         .add_plugins(train::TrainPlugin)
         .add_plugins(marker::MarkerPlugin)
         .add_plugins(inspector::InspectorPlugin)
+        .add_plugins(bevy_tokio_tasks::TokioTasksPlugin::default())
+        .add_plugins(ble::BLEPlugin)
         .run();
 }

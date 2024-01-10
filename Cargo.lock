@@ -1378,6 +1378,8 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy-trait-query",
+ "bevy_app",
+ "bevy_ecs",
  "bevy_egui",
  "bevy_framepace",
  "bevy_mouse_tracking_plugin",
@@ -1385,12 +1387,14 @@ dependencies = [
  "bevy_prototype_lyon",
  "itertools 0.11.0",
  "petgraph",
+ "pybricks-ble",
  "serde",
  "serde_json",
  "serde_json_any_key",
  "serde_with",
  "strum",
  "strum_macros",
+ "tokio",
 ]
 
 [[package]]
