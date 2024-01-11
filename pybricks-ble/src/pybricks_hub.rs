@@ -12,7 +12,6 @@ use btleplug::{
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
 use futures::StreamExt;
-use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da89f46d8051e4aeef);
@@ -254,5 +253,19 @@ impl PybricksHub {
             )
             .await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_unpack_capabilities() {
+        let data = vec![164, 1, 244, 26, 0, 0, 15, 1, 0, 0];
+        let caps = HubCapabilities::from_bytes(data);
+        assert_eq!(caps.max_char_size, 420);
+        assert_eq!(caps.flags, 6900);
+        assert_eq!(caps.max_write_size, 271);
     }
 }
