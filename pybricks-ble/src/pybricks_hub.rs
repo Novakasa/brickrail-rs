@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    error::Error,
-    path::{self, Path},
-};
+use std::{collections::BTreeSet, error::Error, path::Path};
 
 use btleplug::{
     api::{
@@ -18,19 +14,32 @@ pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da
 pub const PYBRICKS_HUB_CAPABILITIES_UUID: Uuid =
     Uuid::from_u128(0xc5f50003828046da89f46d8051e4aeef);
 
+fn pack_u32(n: u32) -> Vec<u8> {
+    vec![
+        (n & 0xFF) as u8,
+        ((n >> 8) & 0xFF) as u8,
+        ((n >> 16) & 0xFF) as u8,
+        ((n >> 24) & 0xFF) as u8,
+    ]
+}
+
+fn unpack_u32(data: Vec<u8>) -> u32 {
+    (data[0] as u32) | ((data[1] as u32) << 8) | ((data[2] as u32) << 16) | ((data[3] as u32) << 24)
+}
+
 struct HubCapabilities {
-    max_char_size: u16,
+    max_write_size: u16,
     flags: u32,
-    max_write_size: u32,
+    max_program_size: u32,
 }
 
 impl HubCapabilities {
     pub fn from_bytes(data: Vec<u8>) -> Self {
         // unpack according to "<HII":
         HubCapabilities {
-            max_char_size: u16::from_le_bytes([data[0], data[1]]),
+            max_write_size: u16::from_le_bytes([data[0], data[1]]),
             flags: u32::from_le_bytes([data[2], data[3], data[4], data[5]]),
-            max_write_size: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
+            max_program_size: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
         }
     }
 }
@@ -225,6 +234,49 @@ impl PybricksHub {
     pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
         println!("Downloading program to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
+
+        let data = std::fs::read(path)?;
+
+        if data.len() > self.capabilities.as_ref().unwrap().max_program_size as usize {
+            return Err("Program too large".into());
+        }
+
+        let clear_program_meta = vec![Command::WriteUserProgramMeta as u8, 0];
+        client
+            .write(
+                &self.chars.as_ref().unwrap().command,
+                &clear_program_meta,
+                WriteType::WithResponse,
+            )
+            .await?;
+
+        // payload is max size minus header size
+        let payload_size = self.capabilities.as_ref().unwrap().max_write_size as usize - 5;
+
+        for (i, chunk) in data.chunks(payload_size).enumerate() {
+            let mut data = vec![Command::WriteUserProgramMeta as u8];
+            data.extend(pack_u32((i * payload_size) as u32));
+            data.extend_from_slice(chunk);
+            client
+                .write(
+                    &self.chars.as_ref().unwrap().command,
+                    &data,
+                    WriteType::WithResponse,
+                )
+                .await?;
+        }
+
+        // set the metadata to notify that writing was successful
+        let mut program_meta = vec![Command::WriteUserProgramMeta as u8];
+        program_meta.extend(pack_u32(data.len() as u32));
+        client
+            .write(
+                &self.chars.as_ref().unwrap().command,
+                &program_meta,
+                WriteType::WithResponse,
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -264,8 +316,17 @@ mod test {
     fn test_unpack_capabilities() {
         let data = vec![164, 1, 244, 26, 0, 0, 15, 1, 0, 0];
         let caps = HubCapabilities::from_bytes(data);
-        assert_eq!(caps.max_char_size, 420);
+        assert_eq!(caps.max_write_size, 420);
         assert_eq!(caps.flags, 6900);
-        assert_eq!(caps.max_write_size, 271);
+        assert_eq!(caps.max_program_size, 271);
+    }
+
+    #[test]
+    fn test_pack_unpack() {
+        let n = 420;
+        let packed = pack_u32(n);
+        assert_eq!(packed, vec![164, 1, 0, 0]);
+        let unpacked = unpack_u32(packed);
+        assert_eq!(n, unpacked);
     }
 }
