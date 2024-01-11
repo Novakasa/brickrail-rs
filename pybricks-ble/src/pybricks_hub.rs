@@ -1,4 +1,8 @@
-use std::error::Error;
+use std::{
+    collections::BTreeSet,
+    error::Error,
+    path::{self, Path},
+};
 
 use btleplug::{
     api::{
@@ -8,11 +12,53 @@ use btleplug::{
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
 use futures::StreamExt;
+use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da89f46d8051e4aeef);
 pub const PYBRICKS_HUB_CAPABILITIES_UUID: Uuid =
     Uuid::from_u128(0xc5f50003828046da89f46d8051e4aeef);
+
+struct HubCapabilities {
+    max_char_size: u16,
+    flags: u32,
+    max_write_size: u32,
+}
+
+impl HubCapabilities {
+    pub fn from_bytes(data: Vec<u8>) -> Self {
+        // unpack according to "<HII":
+        HubCapabilities {
+            max_char_size: u16::from_le_bytes([data[0], data[1]]),
+            flags: u32::from_le_bytes([data[2], data[3], data[4], data[5]]),
+            max_write_size: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
+        }
+    }
+}
+
+struct HubCharacteristics {
+    command: Characteristic,
+    capabilities: Characteristic,
+}
+
+impl HubCharacteristics {
+    pub fn from_characteristics(
+        characteristics: BTreeSet<Characteristic>,
+    ) -> Result<Self, Box<dyn Error>> {
+        let command = characteristics
+            .iter()
+            .find(|c| c.uuid == PYBRICKS_COMMAND_EVENT_UUID)
+            .ok_or("No command characteristic")?;
+        let capabilities = characteristics
+            .iter()
+            .find(|c| c.uuid == PYBRICKS_HUB_CAPABILITIES_UUID)
+            .ok_or("No capabilities characteristic")?;
+        Ok(HubCharacteristics {
+            command: command.clone(),
+            capabilities: capabilities.clone(),
+        })
+    }
+}
 
 enum Command {
     StopUserProgram,
@@ -124,26 +170,35 @@ pub struct BLEClient {
 }
 
 pub struct PybricksHub {
-    pub name: String,
-    pub client: Option<Peripheral>,
-    pub pb_command_char: Option<Characteristic>,
+    name: String,
+    client: Option<Peripheral>,
+    chars: Option<HubCharacteristics>,
+    capabilities: Option<HubCapabilities>,
 }
 
 impl PybricksHub {
+    pub fn new(name: String, client: Peripheral) -> Self {
+        PybricksHub {
+            name: name,
+            client: Some(client),
+            chars: None,
+            capabilities: None,
+        }
+    }
+
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         println!("Connecting to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
         client.connect().await?;
         println!("connected!");
         client.discover_services().await?;
-        for characteristic in client.characteristics() {
-            println!("Found characteristic {:?}", characteristic.uuid);
-            if characteristic.uuid == PYBRICKS_COMMAND_EVENT_UUID {
-                client.subscribe(&characteristic).await?;
-                self.pb_command_char = Some(characteristic);
-                let notification = client.notifications().await?;
-            }
-        }
+        self.chars = Some(HubCharacteristics::from_characteristics(
+            client.characteristics(),
+        )?);
+        let capabilities = client
+            .read(&self.chars.as_ref().unwrap().capabilities)
+            .await?;
+        self.capabilities = Some(HubCapabilities::from_bytes(capabilities));
         Ok(())
     }
 
@@ -160,11 +215,17 @@ impl PybricksHub {
         let client = self.client.as_ref().ok_or("No client")?;
         client
             .write(
-                self.pb_command_char.as_ref().unwrap(),
+                &self.chars.as_ref().unwrap().command,
                 &data,
                 WriteType::WithResponse,
             )
             .await?;
+        Ok(())
+    }
+
+    pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
+        println!("Downloading program to {:?}", self.name);
+        let client = self.client.as_ref().ok_or("No client")?;
         Ok(())
     }
 
@@ -174,7 +235,7 @@ impl PybricksHub {
             .as_ref()
             .ok_or("No client")?
             .write(
-                self.pb_command_char.as_ref().unwrap(),
+                &self.chars.as_ref().unwrap().command,
                 &[Command::StartUserProgram as u8],
                 WriteType::WithResponse,
             )
@@ -187,7 +248,7 @@ impl PybricksHub {
             .as_ref()
             .ok_or("No client")?
             .write(
-                self.pb_command_char.as_ref().unwrap(),
+                &self.chars.as_ref().unwrap().command,
                 &[Command::StopUserProgram as u8],
                 WriteType::WithResponse,
             )

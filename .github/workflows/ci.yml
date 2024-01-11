@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    name: cago test
+    name: cargo test
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
