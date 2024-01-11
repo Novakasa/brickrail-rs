@@ -12,8 +12,11 @@ env:
 jobs:
   # Run cargo test
   test:
-    name: Test Suite
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: cago test
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - name: Checkout sources
@@ -31,6 +34,7 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
+        if: ${{ runner.os == 'Linux' }}
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libdbus-1-dev
       - name: Run cargo test
         run: cargo test
