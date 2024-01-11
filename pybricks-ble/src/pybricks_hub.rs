@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use btleplug::{
-    api::{Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter},
+    api::{Central, CentralEvent, Manager as _, Peripheral as _, PeripheralProperties, ScanFilter},
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
 use futures::StreamExt;
@@ -75,7 +75,7 @@ impl BLEAdapter {
         println!("Scanning...");
         let mut device = None;
         for device in self.adapter.peripherals().await? {
-            if is_pybricks_device(&device, name_filter).await? {
+            if is_pybricks_device(device.properties().await?, name_filter) {
                 return Ok(device);
             }
         }
@@ -84,7 +84,7 @@ impl BLEAdapter {
             if let CentralEvent::DeviceUpdated(id) = event {
                 println!("Device updated {:?}", id);
                 let device_candidate = self.adapter.peripheral(&id).await?;
-                if is_pybricks_device(&device_candidate, name_filter).await? {
+                if is_pybricks_device(device_candidate.properties().await?, name_filter) {
                     device = Some(device_candidate);
                     break;
                 }
@@ -95,27 +95,25 @@ impl BLEAdapter {
     }
 }
 
-async fn is_pybricks_device(
-    device: &Peripheral,
+fn is_pybricks_device(
+    properties: Option<PeripheralProperties>,
     name_filter: Option<&String>,
-) -> Result<bool, Box<dyn Error>> {
-    let properties = device.properties().await?;
-    let properties = if properties.is_none() {
-        return Ok(false);
-    } else {
-        properties.unwrap()
-    };
+) -> bool {
+    if properties.is_none() {
+        return false;
+    }
+    let properties = properties.unwrap();
     let this_name = properties.local_name.clone();
     if name_filter.is_some() && this_name.as_ref() != name_filter {
-        return Ok(false);
+        return false;
     }
     if !properties.services.contains(&PYBRICKS_SERVICE_UUID) {
-        return Ok(false);
+        return false;
     }
     if this_name.is_none() {
-        return Ok(false);
+        return false;
     }
-    return Ok(true);
+    return true;
 }
 
 pub struct BLEClient {

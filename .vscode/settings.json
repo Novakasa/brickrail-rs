@@ -1,6 +1,4 @@
 {
     "editor.formatOnSave": true,
-    "rust-analyzer.linkedProjects": [
-        ".\\pybricks-ble\\Cargo.toml"
-    ]
+    "rust-analyzer.linkedProjects": []
 }
