@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "brickrail-rs"
+version = "0.1.0"
+description = ""
+authors = ["Johannes Ringler <johannesringler@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "brickrail_rs" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+pybricksdev = "^1.0.0a46"
+pybricks = "^3.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
