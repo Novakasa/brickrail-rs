@@ -1,7 +1,10 @@
 use std::error::Error;
 
 use btleplug::{
-    api::{Central, CentralEvent, Manager as _, Peripheral as _, PeripheralProperties, ScanFilter},
+    api::{
+        Central, CentralEvent, Characteristic, Manager as _, Peripheral as _, PeripheralProperties,
+        ScanFilter, WriteType,
+    },
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
 use futures::StreamExt;
@@ -70,12 +73,11 @@ impl BLEAdapter {
         &self,
         name_filter: Option<&String>,
     ) -> Result<Peripheral, Box<dyn Error>> {
-        let filter = ScanFilter::default();
-        self.adapter.start_scan(filter).await?;
+        self.adapter.start_scan(ScanFilter::default()).await?;
         println!("Scanning...");
         let mut device = None;
         for device in self.adapter.peripherals().await? {
-            if is_pybricks_device(device.properties().await?, name_filter) {
+            if is_named_pybricks_hub(device.properties().await?, name_filter) {
                 return Ok(device);
             }
         }
@@ -84,7 +86,7 @@ impl BLEAdapter {
             if let CentralEvent::DeviceUpdated(id) = event {
                 println!("Device updated {:?}", id);
                 let device_candidate = self.adapter.peripheral(&id).await?;
-                if is_pybricks_device(device_candidate.properties().await?, name_filter) {
+                if is_named_pybricks_hub(device_candidate.properties().await?, name_filter) {
                     device = Some(device_candidate);
                     break;
                 }
@@ -95,7 +97,7 @@ impl BLEAdapter {
     }
 }
 
-fn is_pybricks_device(
+fn is_named_pybricks_hub(
     properties: Option<PeripheralProperties>,
     name_filter: Option<&String>,
 ) -> bool {
@@ -124,21 +126,57 @@ pub struct BLEClient {
 pub struct PybricksHub {
     pub name: String,
     pub client: Option<Peripheral>,
+    pub pb_command_char: Option<Characteristic>,
 }
 
 impl PybricksHub {
-    pub async fn connect(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         println!("Connecting to {:?}", self.name);
-        self.client.as_ref().ok_or("No client")?.connect().await?;
+        let client = self.client.as_ref().ok_or("No client")?;
+        client.connect().await?;
+        client.discover_services().await?;
+        for characteristic in client.characteristics() {
+            println!("Found characteristic {:?}", characteristic.uuid);
+            if characteristic.uuid == PYBRICKS_COMMAND_EVENT_UUID {
+                client.subscribe(&characteristic).await?;
+                self.pb_command_char = Some(characteristic);
+                let notification = client.notifications().await?;
+            }
+        }
         Ok(())
     }
 
     pub async fn disconnect(&self) -> Result<(), Box<dyn Error>> {
         println!("Disconnecting from {:?}", self.name);
+        let client = self.client.as_ref().ok_or("No client")?;
+        client.disconnect().await?;
+        Ok(())
+    }
+
+    pub async fn write_stdin(&self, mut data: Vec<u8>) -> Result<(), Box<dyn Error>> {
+        println!("Writing stdin to {:?}", self.name);
+        data.insert(0, Command::WriteSTDIN as u8);
+        let client = self.client.as_ref().ok_or("No client")?;
+        client
+            .write(
+                self.pb_command_char.as_ref().unwrap(),
+                &data,
+                WriteType::WithResponse,
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub async fn start_program(&self) -> Result<(), Box<dyn Error>> {
+        println!("Starting program on {:?}", self.name);
         self.client
             .as_ref()
             .ok_or("No client")?
-            .disconnect()
+            .write(
+                self.pb_command_char.as_ref().unwrap(),
+                &[Command::StartUserProgram as u8],
+                WriteType::WithResponse,
+            )
             .await?;
         Ok(())
     }

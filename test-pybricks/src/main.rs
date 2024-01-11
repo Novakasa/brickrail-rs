@@ -8,9 +8,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // tokio::time::sleep(std::time::Duration::from_secs(0)).await;
 
     let device = adapter.discover_device(Some(&name)).await?;
-    let hub = PybricksHub {
+    let mut hub = PybricksHub {
         name: name,
         client: Some(device),
+        pb_command_char: None,
     };
     hub.connect().await?;
     // wait 5 seconds
