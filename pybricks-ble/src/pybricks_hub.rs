@@ -134,6 +134,7 @@ impl PybricksHub {
         println!("Connecting to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
         client.connect().await?;
+        println!("connected!");
         client.discover_services().await?;
         for characteristic in client.characteristics() {
             println!("Found characteristic {:?}", characteristic.uuid);
@@ -175,6 +176,19 @@ impl PybricksHub {
             .write(
                 self.pb_command_char.as_ref().unwrap(),
                 &[Command::StartUserProgram as u8],
+                WriteType::WithResponse,
+            )
+            .await?;
+        Ok(())
+    }
+    pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
+        println!("Stopping program on {:?}", self.name);
+        self.client
+            .as_ref()
+            .ok_or("No client")?
+            .write(
+                self.pb_command_char.as_ref().unwrap(),
+                &[Command::StopUserProgram as u8],
                 WriteType::WithResponse,
             )
             .await?;

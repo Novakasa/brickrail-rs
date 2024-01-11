@@ -15,7 +15,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     hub.connect().await?;
     // wait 5 seconds
+    tokio::time::sleep(std::time::Duration::from_secs(0)).await;
+    hub.start_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    hub.stop_program().await?;
     hub.disconnect().await?;
     Ok(())
 }
