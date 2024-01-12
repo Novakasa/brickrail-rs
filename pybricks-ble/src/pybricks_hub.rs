@@ -217,23 +217,27 @@ impl PybricksHub {
         Ok(())
     }
 
-    pub async fn write_stdin(&self, mut data: Vec<u8>) -> Result<(), Box<dyn Error>> {
-        println!("Writing stdin to {:?}", self.name);
-        data.insert(0, Command::WriteSTDIN as u8);
+    async fn pb_command(&self, command: Command, data: &Vec<u8>) -> Result<(), Box<dyn Error>> {
+        let mut command_data = vec![command as u8];
+        command_data.extend(data);
         let client = self.client.as_ref().ok_or("No client")?;
         client
             .write(
                 &self.chars.as_ref().unwrap().command,
-                &data,
+                &command_data,
                 WriteType::WithResponse,
             )
             .await?;
         Ok(())
     }
 
+    pub async fn write_stdin(&self, data: &Vec<u8>) -> Result<(), Box<dyn Error>> {
+        println!("Writing stdin to {:?}", self.name);
+        self.pb_command(Command::WriteSTDIN, data).await
+    }
+
     pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
         println!("Downloading program to {:?}", self.name);
-        let client = self.client.as_ref().ok_or("No client")?;
 
         let data = std::fs::read(path)?;
 
@@ -241,40 +245,20 @@ impl PybricksHub {
             return Err("Program too large".into());
         }
 
-        let clear_program_meta = vec![Command::WriteUserProgramMeta as u8, 0];
-        client
-            .write(
-                &self.chars.as_ref().unwrap().command,
-                &clear_program_meta,
-                WriteType::WithResponse,
-            )
+        self.pb_command(Command::WriteUserProgramMeta, &pack_u32(0))
             .await?;
 
         // payload is max size minus header size
         let payload_size = self.capabilities.as_ref().unwrap().max_write_size as usize - 5;
 
         for (i, chunk) in data.chunks(payload_size).enumerate() {
-            let mut data = vec![Command::WriteUserProgramMeta as u8];
-            data.extend(pack_u32((i * payload_size) as u32));
+            let mut data = pack_u32((i * payload_size) as u32);
             data.extend_from_slice(chunk);
-            client
-                .write(
-                    &self.chars.as_ref().unwrap().command,
-                    &data,
-                    WriteType::WithResponse,
-                )
-                .await?;
+            self.pb_command(Command::WriteUserRam, &data).await?;
         }
 
         // set the metadata to notify that writing was successful
-        let mut program_meta = vec![Command::WriteUserProgramMeta as u8];
-        program_meta.extend(pack_u32(data.len() as u32));
-        client
-            .write(
-                &self.chars.as_ref().unwrap().command,
-                &program_meta,
-                WriteType::WithResponse,
-            )
+        self.pb_command(Command::WriteUserProgramMeta, &pack_u32(data.len() as u32))
             .await?;
 
         Ok(())
