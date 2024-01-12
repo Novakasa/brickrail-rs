@@ -12,8 +12,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Found hub with name {:?}", name);
     // tokio::time::sleep(std::time::Duration::from_secs(0)).await;
 
-    let device = adapter.discover_device(Some(&name)).await?;
-    let mut hub = PybricksHub::new(name, device);
+    let mut hub = PybricksHub::new(name);
+    hub.discover(&adapter).await?;
     hub.connect().await?;
     // wait 5 seconds
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;

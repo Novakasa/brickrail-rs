@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, error::Error, path::Path};
+use std::{collections::BTreeSet, error::Error, path::Path, u8};
 
 use btleplug::{
     api::{
@@ -185,14 +185,46 @@ pub struct PybricksHub {
 }
 
 impl PybricksHub {
-    pub fn new(name: String, client: Peripheral) -> Self {
+    pub fn new(name: String) -> Self {
         PybricksHub {
             name: name,
-            client: Some(client),
+            client: None,
             chars: None,
             capabilities: None,
         }
     }
+
+    pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
+        let device = adapter.discover_device(Some(&self.name)).await?;
+        self.client = Some(device);
+
+        let mut stream = self.client.as_ref().unwrap().notifications().await?;
+
+        tokio::task::spawn(async move {
+            println!("Listening for notifications");
+            while let Some(data) = stream.next().await {
+                match data.value[0] {
+                    1 => {
+                        println!(
+                            "STDOUT: {:?}",
+                            String::from_utf8((&data.value[1..]).to_vec())
+                        );
+                    }
+                    0 => {
+                        println!("status: {:?}", &data.value[1..]);
+                    }
+                    _ => {
+                        println!("Unknown event: {:?}", data.value);
+                    }
+                }
+            }
+            println!("Done listening for notifications");
+        });
+
+        Ok(())
+    }
+
+    async fn monitor_events(&self) {}
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         println!("Connecting to {:?}", self.name);
@@ -206,6 +238,9 @@ impl PybricksHub {
             .read(&self.chars.as_ref().unwrap().capabilities)
             .await?;
         self.capabilities = Some(HubCapabilities::from_bytes(capabilities));
+        client
+            .subscribe(&self.chars.as_ref().unwrap().command)
+            .await?;
         println!("connected!");
         Ok(())
     }
@@ -264,29 +299,12 @@ impl PybricksHub {
 
     pub async fn start_program(&self) -> Result<(), Box<dyn Error>> {
         println!("Starting program on {:?}", self.name);
-        self.client
-            .as_ref()
-            .ok_or("No client")?
-            .write(
-                &self.chars.as_ref().unwrap().command,
-                &[Command::StartUserProgram as u8],
-                WriteType::WithResponse,
-            )
-            .await?;
-        Ok(())
+        self.pb_command(Command::StartUserProgram, &vec![]).await
     }
+
     pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
         println!("Stopping program on {:?}", self.name);
-        self.client
-            .as_ref()
-            .ok_or("No client")?
-            .write(
-                &self.chars.as_ref().unwrap().command,
-                &[Command::StopUserProgram as u8],
-                WriteType::WithResponse,
-            )
-            .await?;
-        Ok(())
+        self.pb_command(Command::StopUserProgram, &vec![]).await
     }
 }
 
