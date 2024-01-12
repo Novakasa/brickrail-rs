@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("path: {:?}", path);
     hub.download_program(&path).await?;
     hub.start_program().await?;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
     hub.stop_program().await?;
     hub.disconnect().await?;
     Ok(())

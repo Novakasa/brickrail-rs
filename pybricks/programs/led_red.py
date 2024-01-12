@@ -1,8 +1,12 @@
-from pybricks.hubs import CityHub
+from pybricks.hubs import ThisHub
 from pybricks.parameters import Color
 from pybricks.tools import wait
 
-hub = CityHub()
-hub.light.on(Color.RED)
+hub = ThisHub()
+hub.light.on(Color.YELLOW)
+print("Hello, World!")
 while True:
-    wait(1000)
+    wait(100)
+    hub.light.on(Color.BLUE)
+    wait(100)
+    hub.light.on(Color.RED)

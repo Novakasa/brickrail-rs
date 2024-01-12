@@ -198,7 +198,6 @@ impl PybricksHub {
         println!("Connecting to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
         client.connect().await?;
-        println!("connected!");
         client.discover_services().await?;
         self.chars = Some(HubCharacteristics::from_characteristics(
             client.characteristics(),
@@ -207,6 +206,7 @@ impl PybricksHub {
             .read(&self.chars.as_ref().unwrap().capabilities)
             .await?;
         self.capabilities = Some(HubCapabilities::from_bytes(capabilities));
+        println!("connected!");
         Ok(())
     }
 
@@ -248,7 +248,6 @@ impl PybricksHub {
         self.pb_command(Command::WriteUserProgramMeta, &pack_u32(0))
             .await?;
 
-        // payload is max size minus header size
         let payload_size = self.capabilities.as_ref().unwrap().max_write_size as usize - 5;
 
         for (i, chunk) in data.chunks(payload_size).enumerate() {
@@ -257,7 +256,6 @@ impl PybricksHub {
             self.pb_command(Command::WriteUserRam, &data).await?;
         }
 
-        // set the metadata to notify that writing was successful
         self.pb_command(Command::WriteUserProgramMeta, &pack_u32(data.len() as u32))
             .await?;
 
