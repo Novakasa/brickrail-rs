@@ -1,4 +1,11 @@
-use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, u8};
+use std::{
+    collections::BTreeSet,
+    error::Error,
+    path::Path,
+    pin::Pin,
+    sync::{Arc, Mutex},
+    u8,
+};
 
 use btleplug::{
     api::{
@@ -198,6 +205,7 @@ pub struct PybricksHub {
     client: Option<Peripheral>,
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
+    output_buffer: Arc<Mutex<Vec<u8>>>,
 }
 
 impl PybricksHub {
@@ -207,6 +215,7 @@ impl PybricksHub {
             client: None,
             chars: None,
             capabilities: None,
+            output_buffer: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -216,18 +225,33 @@ impl PybricksHub {
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
 
-        tokio::task::spawn(Self::monitor_events(stream));
+        tokio::task::spawn(Self::monitor_events(stream, self.output_buffer.clone()));
 
         Ok(())
     }
 
-    async fn monitor_events(mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>) {
+    async fn monitor_events(
+        mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
+        output_buffer: Arc<Mutex<Vec<u8>>>,
+    ) {
         println!("Listening for notifications");
         while let Some(data) = stream.next().await {
             match data.uuid {
                 PYBRICKS_COMMAND_EVENT_UUID => {
                     if let Ok(event) = HubEvent::from_bytes(data.value) {
                         println!("Event: {:?}", event);
+                        match event {
+                            HubEvent::STDOUT(data) => {
+                                let mut buffer = output_buffer.lock().unwrap();
+                                buffer.extend(data);
+                                if buffer.ends_with(&vec![13, 10]) {
+                                    let output = std::str::from_utf8(&buffer).unwrap();
+                                    println!("STDOUT: {}", output);
+                                    buffer.clear();
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 _ => {
