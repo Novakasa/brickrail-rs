@@ -27,6 +27,22 @@ fn unpack_u32(data: Vec<u8>) -> u32 {
     (data[0] as u32) | ((data[1] as u32) << 8) | ((data[2] as u32) << 16) | ((data[3] as u32) << 24)
 }
 
+#[derive(Debug)]
+enum HubEvent {
+    Status(u32),
+    STDOUT(Vec<u8>),
+}
+
+impl HubEvent {
+    fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
+        match data[0] {
+            0 => Ok(HubEvent::Status(unpack_u32(data[1..].to_vec()))),
+            1 => Ok(HubEvent::STDOUT(data[1..].to_vec())),
+            _ => Err("Unknown event".into()),
+        }
+    }
+}
+
 struct HubCapabilities {
     max_write_size: u16,
     flags: u32,
@@ -203,18 +219,14 @@ impl PybricksHub {
         tokio::task::spawn(async move {
             println!("Listening for notifications");
             while let Some(data) = stream.next().await {
-                match data.value[0] {
-                    1 => {
-                        println!(
-                            "STDOUT: {:?}",
-                            String::from_utf8((&data.value[1..]).to_vec())
-                        );
-                    }
-                    0 => {
-                        println!("status: {:?}", &data.value[1..]);
+                match data.uuid {
+                    PYBRICKS_COMMAND_EVENT_UUID => {
+                        if let Ok(event) = HubEvent::from_bytes(data.value) {
+                            println!("Event: {:?}", event);
+                        }
                     }
                     _ => {
-                        println!("Unknown event: {:?}", data.value);
+                        println!("Unknown event");
                     }
                 }
             }
