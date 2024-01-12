@@ -1,13 +1,13 @@
-use std::{collections::BTreeSet, error::Error, path::Path, u8};
+use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, u8};
 
 use btleplug::{
     api::{
         Central, CentralEvent, Characteristic, Manager as _, Peripheral as _, PeripheralProperties,
-        ScanFilter, WriteType,
+        ScanFilter, ValueNotification, WriteType,
     },
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use uuid::Uuid;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da89f46d8051e4aeef);
@@ -214,29 +214,29 @@ impl PybricksHub {
         let device = adapter.discover_device(Some(&self.name)).await?;
         self.client = Some(device);
 
-        let mut stream = self.client.as_ref().unwrap().notifications().await?;
+        let stream = self.client.as_ref().unwrap().notifications().await?;
 
-        tokio::task::spawn(async move {
-            println!("Listening for notifications");
-            while let Some(data) = stream.next().await {
-                match data.uuid {
-                    PYBRICKS_COMMAND_EVENT_UUID => {
-                        if let Ok(event) = HubEvent::from_bytes(data.value) {
-                            println!("Event: {:?}", event);
-                        }
-                    }
-                    _ => {
-                        println!("Unknown event");
-                    }
-                }
-            }
-            println!("Done listening for notifications");
-        });
+        tokio::task::spawn(Self::monitor_events(stream));
 
         Ok(())
     }
 
-    async fn monitor_events(&self) {}
+    async fn monitor_events(mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>) {
+        println!("Listening for notifications");
+        while let Some(data) = stream.next().await {
+            match data.uuid {
+                PYBRICKS_COMMAND_EVENT_UUID => {
+                    if let Ok(event) = HubEvent::from_bytes(data.value) {
+                        println!("Event: {:?}", event);
+                    }
+                }
+                _ => {
+                    println!("Unknown event");
+                }
+            }
+        }
+        println!("Done listening for notifications");
+    }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         println!("Connecting to {:?}", self.name);
