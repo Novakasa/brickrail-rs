@@ -58,6 +58,14 @@ fn unpack_u16_big(data: [u8; 2]) -> u16 {
     (data[0] as u16) << 8 | (data[1] as u16)
 }
 
+fn xor_checksum(data: &[u8]) -> u8 {
+    let mut checksum = 0xFF;
+    for byte in data {
+        checksum ^= byte;
+    }
+    checksum
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum OutputType {
     None,
@@ -254,6 +262,7 @@ struct HubIOState {
     msg_len: Option<usize>,
     output_buffer: Vec<u8>,
     long_message: bool,
+    next_output_id: u8,
 }
 
 impl HubIOState {
@@ -265,6 +274,7 @@ impl HubIOState {
             msg_len: None,
             output_buffer: vec![],
             long_message: false,
+            next_output_id: 0,
         }
     }
 
@@ -278,34 +288,85 @@ impl HubIOState {
     }
 
     fn on_output_byte_received(&mut self, byte: u8) {
-        self.update_line_buffer(byte);
         self.update_output_buffer(byte);
+        self.update_line_buffer(byte);
     }
 
     fn update_output_buffer(&mut self, byte: u8) {
         if self.msg_len.is_none() {
             self.msg_len = Some(byte as usize);
+            println!("message length: {:?}", self.msg_len);
             return;
         }
 
         if self.output_buffer == vec![OUT_ID_DUMP] {
             self.msg_len = Some(unpack_u16_big([self.msg_len.unwrap() as u8, byte]) as usize);
+            println!("dump length: {:?}", self.msg_len);
             self.long_message = true;
             return;
         }
 
-        if self.output_buffer.len() + 1 == self.msg_len.unwrap() && byte == OUT_ID_END {
-            // call message handler somehow
+        if self.output_buffer.len() == self.msg_len.unwrap()
+            && byte == OUT_ID_END
+            && self.output_buffer[0] < 32
+        {
+            println!("handling message...");
+            self.handle_output();
             self.clear();
             return;
         }
 
         self.output_buffer.push(byte);
+        println!("output buffer: {:?}", self.output_buffer)
+    }
+
+    fn handle_output(&mut self) {
+        let output_type = OutputType::from_byte(self.output_buffer[0]).unwrap();
+        match output_type {
+            OutputType::MsgAck => {
+                println!("Message acknowledged");
+                return;
+            }
+            OutputType::MsgErr => {
+                println!("Message error");
+                return;
+            }
+            OutputType::Dump => {
+                println!("Dump");
+                return;
+            }
+            _ => {}
+        }
+
+        let checksum = self.output_buffer[self.output_buffer.len() - 1];
+        let output_id = self.output_buffer[self.output_buffer.len() - 2];
+        let data = &self.output_buffer[1..self.output_buffer.len() - 2];
+        let expected_checksum = xor_checksum(&self.output_buffer[0..self.output_buffer.len() - 2]);
+
+        if output_id == self.next_output_id.wrapping_sub(1) {
+            // This is a retransmission of the previous message.
+            // acknowledge it and ignore it.
+            println!("Retransmission of message {:?}", output_id);
+            return;
+        }
+        if checksum != expected_checksum || output_id != self.next_output_id {
+            println!(
+                "Checksum mismatch: expected {:?}, got {:?}",
+                expected_checksum, checksum
+            );
+            // send NAK
+            return;
+        }
+
+        // acknowledge the message
+        self.next_output_id = self.next_output_id.wrapping_add(1);
+        println!("Message success: {:?}", data);
+        println!("Next output ID: {:?}", self.next_output_id);
     }
 
     fn update_line_buffer(&mut self, byte: u8) {
         self.line_buffer.push(byte);
-        if self.line_buffer.ends_with(&vec![13, 10]) && self.line_buffer[1] > 32 {
+        if self.line_buffer.ends_with(&vec![13, 10]) && self.line_buffer[1] >= 32 {
             if let Ok(line) = std::str::from_utf8(&self.line_buffer) {
                 if let Some(sender) = self.line_sender.as_ref() {
                     sender.send(line.to_string()).unwrap();
@@ -449,7 +510,6 @@ async fn monitor_events(
         match data.uuid {
             PYBRICKS_COMMAND_EVENT_UUID => {
                 if let Ok(event) = HubEvent::from_bytes(data.value) {
-                    println!("Event: {:?}", event);
                     match event {
                         HubEvent::STDOUT(data) => {
                             for byte in data {
@@ -458,7 +518,9 @@ async fn monitor_events(
                                 }
                             }
                         }
-                        _ => {}
+                        _ => {
+                            // println!("Event: {:?}", event);
+                        }
                     }
                 }
             }

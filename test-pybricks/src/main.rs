@@ -4,7 +4,7 @@ use pybricks_ble::pybricks_hub::{BLEAdapter, PybricksHub};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("../pybricks/programs/mpy/led_red.mpy");
+    let path = Path::new("../pybricks/programs/mpy/test_io1.mpy");
 
     println!("path exists: {:?}", path.exists());
     let adapter = BLEAdapter::new().await?;
@@ -20,12 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     hub.download_program(&path).await?;
     hub.start_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-    hub.stop_program().await?;
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    hub.disconnect().await?;
-    hub.connect().await?;
-    hub.start_program().await?;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     hub.stop_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     hub.disconnect().await?;

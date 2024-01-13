@@ -20,4 +20,13 @@ class TestDevice:
 device = TestDevice()
 io_hub = IOHub(device)
 
-io_hub.run_loop()
+print("test")
+
+io_hub.emit_data(b"hello world!")
+
+print("post test")
+
+io_hub.last_output = None
+io_hub.emit_data(b"0123456789")
+
+print("post test 2")

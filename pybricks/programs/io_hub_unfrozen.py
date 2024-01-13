@@ -58,14 +58,17 @@ class IOHub:
     def __init__(self, device=None):
         self.running = False
         self.input_buffer = bytearray()
+        self.next_input_id = 0
         self.msg_len = None
         self.poll = uselect.poll()
         self.poll.register(stdin)
         self.device = device
         self.device_attrs = {}
         self.last_output = None
+        self.next_output_id = 0
         self.output_retries = 0
         self.output_queue = []
+        self.output_watch = StopWatch()
         self.hub = ThisHub()
         self.storage = {}
 
@@ -80,7 +83,8 @@ class IOHub:
             self.device_attrs[attr_hash] = attr
     
     def emit_msg(self, data):
-        data = bytes([len(data)+1]) + data + bytes([xor_checksum(data), _OUT_ID_END])
+        data = bytes([len(data)+2]) + data + bytes([self.next_output_id, xor_checksum(data), _OUT_ID_END])
+        self.next_output_id = (self.next_output_id + 1) % 256
 
         if self.last_output is not None:
             self.output_queue.append(data)
@@ -105,7 +109,7 @@ class IOHub:
         self.emit_msg(bytes([_OUT_ID_SYS, code]) + data)
     
     def dump_data(self, dump_type, data):
-        length = pack(">H", len(data)+2)
+        length = pack("<H", len(data)+2)
         stdout.buffer.write(bytes([length[0], _OUT_ID_DUMP, length[1], dump_type]))
         stdout.buffer.write(data)
         stdout.buffer.write(bytes([_OUT_ID_END]))
@@ -117,11 +121,11 @@ class IOHub:
         # print(f"current: {current} mA")
         self.emit_sys_code(_SYS_CODE_ALIVE, bytes([voltage >> 8, voltage & 0xFF, current >> 8, current & 0xFF]))
     
-    def emit_ack(self, success):
+    def emit_ack(self, success, msg_id):
         if success:
-            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ACK, _OUT_ID_END]))
+            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ACK, msg_id, _OUT_ID_END]))
         else:
-            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ERR, _OUT_ID_END]))
+            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ERR, msg_id, _OUT_ID_END]))
     
     def retry_last_output(self):
         data = self.last_output
@@ -135,6 +139,7 @@ class IOHub:
 
         if in_id == _IN_ID_MSG_ACK:
             # release memory of last send, allow next data to be sent
+            assert self.input_buffer[-1] == self.last_output[-2]
             self.last_output = None
             if self.output_queue:
                 data = self.output_queue.pop(0)
@@ -149,12 +154,20 @@ class IOHub:
             return
         
         checksum = self.input_buffer[-1]
-        input_checksum = xor_checksum(self.input_buffer[:-1])
-        if checksum != input_checksum:
-            print(checksum, "!=", input_checksum)
-            self.emit_ack(False)
+        input_id = self.input_buffer[-2]
+        if input_id == (self.next_input_id - 1) % 256:
+            print("repeated input", input_id)
+            self.emit_ack(True, input_id)
             return
-        self.emit_ack(True)
+
+        input_checksum = xor_checksum(self.input_buffer[:-1])
+        if checksum != input_checksum or input_id != self.next_input_id:
+            print(checksum, "!=", input_checksum)
+            self.emit_ack(False, input_id)
+            return
+
+        self.emit_ack(True, input_id)
+        self.next_input_id = (self.next_input_id + 1) % 256
 
         msg = self.input_buffer[1:-1]
 
