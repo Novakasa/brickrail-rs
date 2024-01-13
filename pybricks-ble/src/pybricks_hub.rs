@@ -15,6 +15,7 @@ use btleplug::{
     platform::{Adapter, Manager, Peripheral, PeripheralId},
 };
 use futures::{Stream, StreamExt};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da89f46d8051e4aeef);
@@ -219,12 +220,24 @@ pub struct BLEClient {
     id: PeripheralId,
 }
 
+struct HubIOState {
+    output_buffer: Vec<u8>,
+}
+
+impl HubIOState {
+    pub fn new() -> Self {
+        HubIOState {
+            output_buffer: vec![],
+        }
+    }
+}
+
 pub struct PybricksHub {
     name: String,
     client: Option<Peripheral>,
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
-    output_buffer: Arc<Mutex<Vec<u8>>>,
+    io_state: Arc<Mutex<HubIOState>>,
 }
 
 impl PybricksHub {
@@ -234,7 +247,7 @@ impl PybricksHub {
             client: None,
             chars: None,
             capabilities: None,
-            output_buffer: Arc::new(Mutex::new(vec![])),
+            io_state: Arc::new(Mutex::new(HubIOState::new())),
         }
     }
 
@@ -243,8 +256,10 @@ impl PybricksHub {
         self.client = Some(device);
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
+        let (sender, receiver) = broadcast::channel(256);
 
-        tokio::task::spawn(monitor_events(stream, self.output_buffer.clone()));
+        tokio::task::spawn(monitor_events(stream, sender));
+        tokio::task::spawn(append_output_bytes(receiver, self.io_state.clone()));
 
         Ok(())
     }
@@ -333,7 +348,7 @@ impl PybricksHub {
 
 async fn monitor_events(
     mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
-    output_buffer: Arc<Mutex<Vec<u8>>>,
+    output_sender: broadcast::Sender<u8>,
 ) {
     println!("Listening for notifications");
     while let Some(data) = stream.next().await {
@@ -343,7 +358,11 @@ async fn monitor_events(
                     println!("Event: {:?}", event);
                     match event {
                         HubEvent::STDOUT(data) => {
-                            append_output_bytes(&output_buffer, data);
+                            for byte in data {
+                                if output_sender.send(byte).is_err() {
+                                    println!("Failed to send output byte {}", byte);
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -357,16 +376,28 @@ async fn monitor_events(
     println!("Done listening for notifications");
 }
 
-fn append_output_bytes(output_buffer: &Arc<Mutex<Vec<u8>>>, data: Vec<u8>) {
-    let mut buffer = output_buffer.lock().unwrap();
-    for byte in data {
-        buffer.push(byte);
-        if buffer.ends_with(&vec![13, 10]) {
-            let output = std::str::from_utf8(&buffer).unwrap();
+async fn append_output_bytes(
+    mut output_receiver: broadcast::Receiver<u8>,
+    io_state: Arc<Mutex<HubIOState>>,
+) {
+    loop {
+        let next = output_receiver.recv().await;
+        let byte = match next {
+            Ok(byte) => byte,
+            Err(_) => {
+                println!("Error: {:?}", next);
+                break;
+            }
+        };
+        let mut io_state = io_state.lock().unwrap();
+        io_state.output_buffer.push(byte);
+        if io_state.output_buffer.ends_with(&vec![13, 10]) {
+            let output = std::str::from_utf8(&io_state.output_buffer).unwrap();
             println!("STDOUT: {}", output);
-            buffer.clear();
+            io_state.output_buffer.clear();
         }
     }
+    println!("Done appending output bytes");
 }
 
 #[cfg(test)]
