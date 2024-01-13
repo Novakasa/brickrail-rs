@@ -25,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     hub.start_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(6)).await;
     hub.stop_program().await?;
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     hub.disconnect().await?;
     Ok(())
 }

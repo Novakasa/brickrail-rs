@@ -21,6 +21,25 @@ pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da
 pub const PYBRICKS_HUB_CAPABILITIES_UUID: Uuid =
     Uuid::from_u128(0xc5f50003828046da89f46d8051e4aeef);
 
+const IN_ID_END: u8 = 10;
+const IN_ID_MSG_ACK: u8 = 6;
+const IN_ID_RPC: u8 = 17;
+const IN_ID_SYS: u8 = 18;
+const IN_ID_STORE: u8 = 19;
+const IN_ID_MSG_ERR: u8 = 21;
+
+const OUT_ID_END: u8 = 10;
+const OUT_ID_MSG_ACK: u8 = 6;
+const OUT_ID_DATA: u8 = 17;
+const OUT_ID_SYS: u8 = 18;
+const OUT_ID_MSG_ERR: u8 = 21;
+const OUT_ID_DUMP: u8 = 20;
+
+const SYS_CODE_STOP: u8 = 0;
+const SYS_CODE_READY: u8 = 1;
+const SYS_CODE_ALIVE: u8 = 2;
+const SYS_CODE_VERSION: u8 = 3;
+
 fn pack_u32(n: u32) -> Vec<u8> {
     vec![
         (n & 0xFF) as u8,
@@ -225,41 +244,9 @@ impl PybricksHub {
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
 
-        tokio::task::spawn(Self::monitor_events(stream, self.output_buffer.clone()));
+        tokio::task::spawn(monitor_events(stream, self.output_buffer.clone()));
 
         Ok(())
-    }
-
-    async fn monitor_events(
-        mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
-        output_buffer: Arc<Mutex<Vec<u8>>>,
-    ) {
-        println!("Listening for notifications");
-        while let Some(data) = stream.next().await {
-            match data.uuid {
-                PYBRICKS_COMMAND_EVENT_UUID => {
-                    if let Ok(event) = HubEvent::from_bytes(data.value) {
-                        println!("Event: {:?}", event);
-                        match event {
-                            HubEvent::STDOUT(data) => {
-                                let mut buffer = output_buffer.lock().unwrap();
-                                buffer.extend(data);
-                                if buffer.ends_with(&vec![13, 10]) {
-                                    let output = std::str::from_utf8(&buffer).unwrap();
-                                    println!("STDOUT: {}", output);
-                                    buffer.clear();
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {
-                    println!("Unknown event");
-                }
-            }
-        }
-        println!("Done listening for notifications");
     }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
@@ -341,6 +328,44 @@ impl PybricksHub {
     pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
         println!("Stopping program on {:?}", self.name);
         self.pb_command(Command::StopUserProgram, &vec![]).await
+    }
+}
+
+async fn monitor_events(
+    mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
+    output_buffer: Arc<Mutex<Vec<u8>>>,
+) {
+    println!("Listening for notifications");
+    while let Some(data) = stream.next().await {
+        match data.uuid {
+            PYBRICKS_COMMAND_EVENT_UUID => {
+                if let Ok(event) = HubEvent::from_bytes(data.value) {
+                    println!("Event: {:?}", event);
+                    match event {
+                        HubEvent::STDOUT(data) => {
+                            append_output_bytes(&output_buffer, data);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {
+                println!("Unknown event");
+            }
+        }
+    }
+    println!("Done listening for notifications");
+}
+
+fn append_output_bytes(output_buffer: &Arc<Mutex<Vec<u8>>>, data: Vec<u8>) {
+    let mut buffer = output_buffer.lock().unwrap();
+    for byte in data {
+        buffer.push(byte);
+        if buffer.ends_with(&vec![13, 10]) {
+            let output = std::str::from_utf8(&buffer).unwrap();
+            println!("STDOUT: {}", output);
+            buffer.clear();
+        }
     }
 }
 
