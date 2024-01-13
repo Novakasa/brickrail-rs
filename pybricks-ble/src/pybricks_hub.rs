@@ -222,12 +222,39 @@ pub struct BLEClient {
 
 struct HubIOState {
     output_buffer: Vec<u8>,
+    line_sender: Option<broadcast::Sender<String>>,
+    print_output: bool,
 }
 
 impl HubIOState {
     pub fn new() -> Self {
         HubIOState {
             output_buffer: vec![],
+            line_sender: None,
+            print_output: true,
+        }
+    }
+
+    pub fn subscribe(&mut self) -> broadcast::Receiver<String> {
+        if let Some(sender) = self.line_sender.as_ref() {
+            return sender.subscribe();
+        }
+        let (sender, receiver) = broadcast::channel(256);
+        self.line_sender = Some(sender);
+        receiver
+    }
+
+    fn on_output_byte(&mut self, byte: u8) {
+        self.output_buffer.push(byte);
+        if self.output_buffer.ends_with(&vec![13, 10]) {
+            let output = std::str::from_utf8(&self.output_buffer).unwrap();
+            if let Some(sender) = self.line_sender.as_ref() {
+                sender.send(output.to_string()).unwrap();
+            }
+            if self.print_output {
+                print!("[Hub STDOUT] {}", output);
+            }
+            self.output_buffer.clear();
         }
     }
 }
@@ -390,12 +417,7 @@ async fn append_output_bytes(
             }
         };
         let mut io_state = io_state.lock().unwrap();
-        io_state.output_buffer.push(byte);
-        if io_state.output_buffer.ends_with(&vec![13, 10]) {
-            let output = std::str::from_utf8(&io_state.output_buffer).unwrap();
-            println!("STDOUT: {}", output);
-            io_state.output_buffer.clear();
-        }
+        io_state.on_output_byte(byte);
     }
     println!("Done appending output bytes");
 }
