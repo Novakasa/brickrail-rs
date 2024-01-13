@@ -10,14 +10,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let adapter = BLEAdapter::new().await?;
     let name = adapter.discover_hub_name().await?;
     println!("Found hub with name {:?}", name);
-    // tokio::time::sleep(std::time::Duration::from_secs(0)).await;
-
     let mut hub = PybricksHub::new(name);
     hub.discover(&adapter).await?;
     hub.connect().await?;
-    // wait 5 seconds
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;
-    // print actual cwd from os:
     println!("cwd: {:?}", std::env::current_dir()?);
 
     println!("path: {:?}", path);

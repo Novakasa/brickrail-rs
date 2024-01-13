@@ -4,7 +4,7 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{Arc, Mutex},
-    u8,
+    u8, vec,
 };
 
 use btleplug::{
@@ -12,7 +12,7 @@ use btleplug::{
         Central, CentralEvent, Characteristic, Manager as _, Peripheral as _, PeripheralProperties,
         ScanFilter, ValueNotification, WriteType,
     },
-    platform::{Adapter, Manager, Peripheral, PeripheralId},
+    platform::{Adapter, Manager, Peripheral},
 };
 use futures::{Stream, StreamExt};
 use tokio::sync::broadcast;
@@ -50,8 +50,40 @@ fn pack_u32(n: u32) -> Vec<u8> {
     ]
 }
 
-fn unpack_u32(data: Vec<u8>) -> u32 {
+fn unpack_u32_little(data: Vec<u8>) -> u32 {
     (data[0] as u32) | ((data[1] as u32) << 8) | ((data[2] as u32) << 16) | ((data[3] as u32) << 24)
+}
+
+fn unpack_u16_big(data: [u8; 2]) -> u16 {
+    (data[0] as u16) << 8 | (data[1] as u16)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum OutputType {
+    None,
+    MsgAck,
+    Data,
+    Sys,
+    MsgErr,
+    Dump,
+}
+
+impl OutputType {
+    fn from_byte(byte: u8) -> Result<Self, Box<dyn Error>> {
+        match byte {
+            OUT_ID_MSG_ACK => Ok(OutputType::MsgAck),
+            OUT_ID_DATA => Ok(OutputType::Data),
+            OUT_ID_SYS => Ok(OutputType::Sys),
+            OUT_ID_MSG_ERR => Ok(OutputType::MsgErr),
+            OUT_ID_DUMP => Ok(OutputType::Dump),
+            _ => Err("Unknown output type".into()),
+        }
+    }
+}
+
+struct Output {
+    output_type: OutputType,
+    data: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -63,7 +95,7 @@ enum HubEvent {
 impl HubEvent {
     fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         match data[0] {
-            0 => Ok(HubEvent::Status(unpack_u32(data[1..].to_vec()))),
+            0 => Ok(HubEvent::Status(unpack_u32_little(data[1..].to_vec()))),
             1 => Ok(HubEvent::STDOUT(data[1..].to_vec())),
             _ => Err("Unknown event".into()),
         }
@@ -215,27 +247,28 @@ fn is_named_pybricks_hub(
     return true;
 }
 
-pub struct BLEClient {
-    adapter: Adapter,
-    id: PeripheralId,
-}
-
 struct HubIOState {
-    output_buffer: Vec<u8>,
+    line_buffer: Vec<u8>,
     line_sender: Option<broadcast::Sender<String>>,
     print_output: bool,
+    msg_len: Option<usize>,
+    output_buffer: Vec<u8>,
+    long_message: bool,
 }
 
 impl HubIOState {
     pub fn new() -> Self {
         HubIOState {
-            output_buffer: vec![],
+            line_buffer: vec![],
             line_sender: None,
             print_output: true,
+            msg_len: None,
+            output_buffer: vec![],
+            long_message: false,
         }
     }
 
-    pub fn subscribe(&mut self) -> broadcast::Receiver<String> {
+    pub fn subscribe_lines(&mut self) -> broadcast::Receiver<String> {
         if let Some(sender) = self.line_sender.as_ref() {
             return sender.subscribe();
         }
@@ -244,18 +277,52 @@ impl HubIOState {
         receiver
     }
 
-    fn on_output_byte(&mut self, byte: u8) {
-        self.output_buffer.push(byte);
-        if self.output_buffer.ends_with(&vec![13, 10]) {
-            let output = std::str::from_utf8(&self.output_buffer).unwrap();
-            if let Some(sender) = self.line_sender.as_ref() {
-                sender.send(output.to_string()).unwrap();
-            }
-            if self.print_output {
-                print!("[Hub STDOUT] {}", output);
-            }
-            self.output_buffer.clear();
+    fn on_output_byte_received(&mut self, byte: u8) {
+        self.update_line_buffer(byte);
+        self.update_output_buffer(byte);
+    }
+
+    fn update_output_buffer(&mut self, byte: u8) {
+        if self.msg_len.is_none() {
+            self.msg_len = Some(byte as usize);
+            return;
         }
+
+        if self.output_buffer == vec![OUT_ID_DUMP] {
+            self.msg_len = Some(unpack_u16_big([self.msg_len.unwrap() as u8, byte]) as usize);
+            self.long_message = true;
+            return;
+        }
+
+        if self.output_buffer.len() + 1 == self.msg_len.unwrap() && byte == OUT_ID_END {
+            // call message handler somehow
+            self.clear();
+            return;
+        }
+
+        self.output_buffer.push(byte);
+    }
+
+    fn update_line_buffer(&mut self, byte: u8) {
+        self.line_buffer.push(byte);
+        if self.line_buffer.ends_with(&vec![13, 10]) && self.line_buffer[1] > 32 {
+            if let Ok(line) = std::str::from_utf8(&self.line_buffer) {
+                if let Some(sender) = self.line_sender.as_ref() {
+                    sender.send(line.to_string()).unwrap();
+                }
+                if self.print_output {
+                    print!("[Hub STDOUT] {}", line);
+                }
+                self.clear();
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.line_buffer.clear();
+        self.msg_len = None;
+        self.output_buffer.clear();
+        self.long_message = false;
     }
 }
 
@@ -417,7 +484,7 @@ async fn append_output_bytes(
             }
         };
         let mut io_state = io_state.lock().unwrap();
-        io_state.on_output_byte(byte);
+        io_state.on_output_byte_received(byte);
     }
     println!("Done appending output bytes");
 }
@@ -440,7 +507,7 @@ mod test {
         let n = 420;
         let packed = pack_u32(n);
         assert_eq!(packed, vec![164, 1, 0, 0]);
-        let unpacked = unpack_u32(packed);
+        let unpacked = unpack_u32_little(packed);
         assert_eq!(n, unpacked);
     }
 }
