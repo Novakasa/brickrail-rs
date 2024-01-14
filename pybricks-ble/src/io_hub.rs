@@ -57,6 +57,15 @@ impl OutputType {
             _ => Err("Unknown output type".into()),
         }
     }
+
+    fn expect_response(&self) -> bool {
+        match self {
+            OutputType::MsgAck => false,
+            OutputType::MsgErr => false,
+            OutputType::Dump => false,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -84,18 +93,22 @@ impl InputType {
 struct Output {
     output_type: OutputType,
     data: Vec<u8>,
-    received_checksum: u8,
-    computed_checksum: u8,
+    received_checksum: Option<u8>,
+    computed_checksum: Option<u8>,
     output_id: u8,
 }
 
 impl Output {
-    fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
+    fn from_bytes(mut data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         let output_type = OutputType::from_byte(data[0])?;
-        let output_id = data[data.len() - 2];
-        let received_checksum = data[data.len() - 1];
-        let computed_checksum = xor_checksum(&data[0..data.len() - 1]);
-        let data = data[1..data.len() - 2].to_vec();
+        let mut received_checksum = None;
+        let mut computed_checksum = None;
+        if output_type.expect_response() {
+            received_checksum = data.pop();
+            computed_checksum = Some(xor_checksum(&data));
+        }
+        let output_id = data.pop().unwrap();
+        let data = data[1..].to_vec();
         Ok(Output {
             output_type: output_type,
             data: data,
@@ -136,12 +149,20 @@ impl Input {
         data.extend_from_slice(&self.data);
         data.insert(0, data.len() as u8);
         data.push(input_id);
-        if ![InputType::MsgAck, InputType::MsgErr].contains(&self.input_type) {
+        if self.expect_response() {
             let checksum = xor_checksum(&data);
             data.push(checksum);
         }
         data.push(IN_ID_END);
         data
+    }
+
+    fn expect_response(&self) -> bool {
+        match self.input_type {
+            InputType::MsgAck => false,
+            InputType::MsgErr => false,
+            _ => true,
+        }
     }
 }
 
@@ -168,14 +189,26 @@ impl IOState {
             while let Some(input) = input_queue_receiver.recv().await {
                 println!("Sending response: {:?}", input);
                 let data = input.to_bytes(next_input_id);
-                input_sender.send(data).unwrap();
-                loop {
-                    let response: Output = response_receiver.recv().await.unwrap();
-                    if response.output_id == next_input_id {
-                        break;
+                if input.expect_response() {
+                    loop {
+                        input_sender.send(data.clone()).unwrap();
+                        let response: Output = response_receiver.recv().await.unwrap();
+                        match response.output_type {
+                            OutputType::MsgAck => {
+                                assert_eq!(response.output_id, next_input_id);
+                                println!("Message acknowledged");
+                                break;
+                            }
+                            OutputType::MsgErr => {
+                                println!("Message error, retrying...");
+                            }
+                            _ => {}
+                        }
                     }
+                } else {
+                    input_sender.send(data).unwrap();
+                    next_input_id = next_input_id.wrapping_add(1);
                 }
-                next_input_id = next_input_id.wrapping_add(1);
             }
         });
 
