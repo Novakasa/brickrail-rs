@@ -27,6 +27,6 @@ io_hub.emit_data(b"hello world!")
 print("post test")
 
 io_hub.last_output = None
-io_hub.emit_data(b"0123456789")
+io_hub.emit_data(bytes([4, 2, 0, 69]))
 
 print("post test 2")

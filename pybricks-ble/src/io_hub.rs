@@ -43,7 +43,6 @@ fn xor_checksum(data: &[u8]) -> u8 {
 
 #[derive(Debug, PartialEq, Eq)]
 enum OutputType {
-    None,
     MsgAck,
     Data,
     Sys,
@@ -88,16 +87,29 @@ impl InputType {
 struct Output {
     output_type: OutputType,
     data: Vec<u8>,
+    received_checksum: u8,
+    computed_checksum: u8,
+    output_id: u8,
 }
 
 impl Output {
     fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         let output_type = OutputType::from_byte(data[0])?;
-        let data = data[1..].to_vec();
+        let output_id = data[data.len() - 2];
+        let received_checksum = data[data.len() - 1];
+        let computed_checksum = xor_checksum(&data[0..data.len() - 1]);
+        let data = data[1..data.len() - 2].to_vec();
         Ok(Output {
             output_type: output_type,
             data: data,
+            received_checksum: received_checksum,
+            computed_checksum: computed_checksum,
+            output_id: output_id,
         })
+    }
+
+    fn validate_checksum(&self) -> bool {
+        self.received_checksum == self.computed_checksum
     }
 }
 
@@ -220,8 +232,8 @@ impl IOState {
     }
 
     fn handle_output(&mut self) -> Result<(), Box<dyn Error>> {
-        let output_type = OutputType::from_byte(self.output_buffer[0]).unwrap();
-        match output_type {
+        let output = Output::from_bytes(self.output_buffer.clone())?;
+        match output.output_type {
             OutputType::MsgAck => {
                 println!("Message acknowledged");
                 return Ok(());
@@ -237,30 +249,22 @@ impl IOState {
             _ => {}
         }
 
-        let checksum = self.output_buffer[self.output_buffer.len() - 1];
-        let output_id = self.output_buffer[self.output_buffer.len() - 2];
-        let data = &self.output_buffer[1..self.output_buffer.len() - 2];
-        let expected_checksum = xor_checksum(&self.output_buffer[0..self.output_buffer.len() - 1]);
-
-        if output_id == self.next_output_id.wrapping_sub(1) {
+        if output.output_id == self.next_output_id.wrapping_sub(1) {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
-            println!("Retransmission of message {:?}", output_id);
-            self.queue_send(Input::acknowledge(output_id))?;
+            println!("Retransmission of message {:?}", output.output_id);
+            self.queue_send(Input::acknowledge(output.output_id))?;
             return Ok(());
         }
-        if checksum != expected_checksum || output_id != self.next_output_id {
-            println!(
-                "Checksum mismatch: expected {:?}, got {:?}",
-                expected_checksum, checksum
-            );
-            self.queue_send(Input::msg_err(output_id))?;
+        if !output.validate_checksum() || output.output_id != self.next_output_id {
+            println!("Message error: {:?}", output.data);
+            self.queue_send(Input::msg_err(output.output_id))?;
             return Ok(());
         }
 
         // acknowledge the message
-        println!("Message success: {:?}", data);
-        self.queue_send(Input::acknowledge(output_id))?;
+        println!("Message success: {:?}", output.data);
+        self.queue_send(Input::acknowledge(output.output_id))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         println!("Next output ID: {:?}", self.next_output_id);
         Ok(())

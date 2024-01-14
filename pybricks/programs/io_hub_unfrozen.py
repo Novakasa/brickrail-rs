@@ -209,12 +209,8 @@ class IOHub:
             self.msg_len = byte
             return
         # print(byte, self.msg_len, len(self.input_buffer))
-        if len(self.input_buffer) >= self.msg_len and byte == _IN_ID_END:
-            if len(self.input_buffer) > self.msg_len:
-                # print("buffer len!")
-                self.emit_ack(False)
-            else:
-                self.handle_input()
+        if len(self.input_buffer) == self.msg_len and byte == _IN_ID_END:
+            self.handle_input()
             self.input_buffer = bytearray()
             self.msg_len = None
             return
