@@ -153,22 +153,24 @@ impl IOState {
     }
 
     fn on_output_byte_received(&mut self, byte: u8) {
-        self.update_output_buffer(byte);
-        self.update_line_buffer(byte);
+        let just_cleared = self.update_output_buffer(byte);
+        if !just_cleared {
+            self.update_line_buffer(byte);
+        }
     }
 
-    fn update_output_buffer(&mut self, byte: u8) {
+    fn update_output_buffer(&mut self, byte: u8) -> bool {
         if self.msg_len.is_none() {
             self.msg_len = Some(byte as usize);
             println!("message length: {:?}", self.msg_len);
-            return;
+            return false;
         }
 
         if self.output_buffer == vec![OUT_ID_DUMP] {
             self.msg_len = Some(unpack_u16_little([self.msg_len.unwrap() as u8, byte]) as usize);
             println!("dump length: {:?}", self.msg_len);
             self.long_message = true;
-            return;
+            return false;
         }
 
         if self.output_buffer.len() == self.msg_len.unwrap()
@@ -178,11 +180,12 @@ impl IOState {
             println!("handling message...");
             self.handle_output();
             self.clear();
-            return;
+            return true;
         }
 
         self.output_buffer.push(byte);
-        println!("output buffer: {:?}", self.output_buffer)
+        println!("output buffer: {:?}", self.output_buffer);
+        return false;
     }
 
     fn handle_output(&mut self) {
