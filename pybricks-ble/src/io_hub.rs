@@ -1,18 +1,14 @@
 use futures::lock::Mutex;
-use tokio::sync::broadcast;
+use tokio::sync::{
+    broadcast,
+    mpsc::{self, UnboundedSender},
+};
 
 use crate::{
     pybricks_hub::{BLEAdapter, PybricksHub},
     unpack_u16_little,
 };
-use std::{
-    error::Error,
-    path::Path,
-    sync::{
-        mpsc::{self, Sender},
-        Arc, Mutex as SyncMutex,
-    },
-};
+use std::{error::Error, path::Path, sync::Arc};
 
 const IN_ID_END: u8 = 10;
 const IN_ID_MSG_ACK: u8 = 6;
@@ -84,6 +80,7 @@ impl InputType {
     }
 }
 
+#[derive(Debug)]
 struct Output {
     output_type: OutputType,
     data: Vec<u8>,
@@ -113,6 +110,7 @@ impl Output {
     }
 }
 
+#[derive(Debug)]
 pub struct Input {
     input_type: InputType,
     data: Vec<u8>,
@@ -155,12 +153,32 @@ pub struct IOState {
     output_buffer: Vec<u8>,
     long_output: bool,
     next_output_id: u8,
-    input_sender: Option<Sender<Vec<u8>>>,
     next_input_id: u8,
+    response_sender: UnboundedSender<Output>,
+    input_queue_sender: UnboundedSender<Input>,
 }
 
 impl IOState {
-    pub fn new() -> Self {
+    pub fn new(input_sender: UnboundedSender<Vec<u8>>) -> Self {
+        let (response_sender, mut response_receiver) = mpsc::unbounded_channel();
+        let (input_queue_sender, mut input_queue_receiver) = mpsc::unbounded_channel::<Input>();
+
+        tokio::spawn(async move {
+            let mut next_input_id: u8 = 0;
+            while let Some(input) = input_queue_receiver.recv().await {
+                println!("Sending response: {:?}", input);
+                let data = input.to_bytes(next_input_id);
+                input_sender.send(data).unwrap();
+                loop {
+                    let response: Output = response_receiver.recv().await.unwrap();
+                    if response.output_id == next_input_id {
+                        break;
+                    }
+                }
+                next_input_id = next_input_id.wrapping_add(1);
+            }
+        });
+
         IOState {
             line_buffer: vec![],
             line_sender: None,
@@ -169,20 +187,15 @@ impl IOState {
             output_buffer: vec![],
             long_output: false,
             next_output_id: 0,
-            input_sender: None,
             next_input_id: 0,
+            response_sender: response_sender,
+            input_queue_sender: input_queue_sender,
         }
     }
 
-    pub fn queue_send(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
-        let input_id = self.next_input_id;
-        let data = input.to_bytes(input_id);
-        self.input_sender
-            .as_mut()
-            .ok_or("No input sender")?
-            .send(data)?;
-        self.next_input_id = self.next_input_id.wrapping_add(1);
-        Ok(())
+    pub fn queue_input(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
+        Ok(self.input_queue_sender.send(input)?)
+        // lol
     }
 
     pub fn subscribe_lines(&mut self) -> broadcast::Receiver<String> {
@@ -253,18 +266,18 @@ impl IOState {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
             println!("Retransmission of message {:?}", output.output_id);
-            self.queue_send(Input::acknowledge(output.output_id))?;
+            self.queue_input(Input::acknowledge(output.output_id))?;
             return Ok(());
         }
         if !output.validate_checksum() || output.output_id != self.next_output_id {
             println!("Message error: {:?}", output.data);
-            self.queue_send(Input::msg_err(output.output_id))?;
+            self.queue_input(Input::msg_err(output.output_id))?;
             return Ok(());
         }
 
         // acknowledge the message
         println!("Message success: {:?}", output.data);
-        self.queue_send(Input::acknowledge(output.output_id))?;
+        self.queue_input(Input::acknowledge(output.output_id))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         println!("Next output ID: {:?}", self.next_output_id);
         Ok(())
@@ -295,33 +308,35 @@ impl IOState {
 
 pub struct IOHub {
     hub: Arc<Mutex<PybricksHub>>,
-    io_state: Arc<SyncMutex<IOState>>,
+    io_state: Option<Arc<Mutex<IOState>>>,
 }
 
 impl IOHub {
     pub fn new(name: String) -> Self {
         IOHub {
             hub: Arc::new(Mutex::new(PybricksHub::new(name.into()))),
-            io_state: Arc::new(SyncMutex::new(IOState::new())),
+            io_state: None,
         }
     }
 
-    pub async fn discover(&self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
+    pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(adapter).await?;
         let mut output_receiver = hub.subscribe_output()?;
-        let io_state = self.io_state.clone();
+
+        let (input_sender, mut input_receiver) = mpsc::unbounded_channel();
+        let io_state = Arc::new(Mutex::new(IOState::new(input_sender)));
+        self.io_state = Some(io_state.clone());
+
         tokio::spawn(async move {
             while let Ok(byte) = output_receiver.recv().await {
-                let mut io_state = io_state.lock().unwrap();
+                let mut io_state = io_state.lock().await;
                 io_state.on_output_byte_received(byte);
             }
         });
-        let (input_sender, input_receiver) = mpsc::channel();
-        self.io_state.lock().unwrap().input_sender = Some(input_sender);
         let hub = self.hub.clone();
         tokio::spawn(async move {
-            while let Ok(data) = input_receiver.recv() {
+            while let Some(data) = input_receiver.recv().await {
                 let unlocked_hub = hub.lock().await;
                 unlocked_hub.write_stdin(&data).await.unwrap();
             }
@@ -356,6 +371,12 @@ impl IOHub {
     pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
         let hub = self.hub.lock().await;
         hub.stop_program().await?;
+        Ok(())
+    }
+
+    pub async fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
+        let mut io_state = self.io_state.as_ref().ok_or("Not connected")?.lock().await;
+        io_state.queue_input(input)?;
         Ok(())
     }
 }

@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let adapter = BLEAdapter::new().await?;
     let name = adapter.discover_hub_name().await?;
     println!("Found hub with name {:?}", name);
-    let hub = IOHub::new(name);
+    let mut hub = IOHub::new(name);
     hub.discover(&adapter).await?;
     hub.connect().await?;
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;
