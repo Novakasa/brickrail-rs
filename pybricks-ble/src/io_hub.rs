@@ -138,10 +138,10 @@ impl Input {
 pub struct IOState {
     line_buffer: Vec<u8>,
     line_sender: Option<broadcast::Sender<String>>,
-    print_output: bool,
-    msg_len: Option<usize>,
+    print_lines: bool,
+    output_len: Option<usize>,
     output_buffer: Vec<u8>,
-    long_message: bool,
+    long_output: bool,
     next_output_id: u8,
     input_sender: Option<Sender<Vec<u8>>>,
     next_input_id: u8,
@@ -152,10 +152,10 @@ impl IOState {
         IOState {
             line_buffer: vec![],
             line_sender: None,
-            print_output: true,
-            msg_len: None,
+            print_lines: true,
+            output_len: None,
             output_buffer: vec![],
-            long_message: false,
+            long_output: false,
             next_output_id: 0,
             input_sender: None,
             next_input_id: 0,
@@ -190,20 +190,21 @@ impl IOState {
     }
 
     fn update_output_buffer(&mut self, byte: u8) -> bool {
-        if self.msg_len.is_none() {
-            self.msg_len = Some(byte as usize);
-            println!("message length: {:?}", self.msg_len);
+        if self.output_len.is_none() {
+            self.output_len = Some(byte as usize);
+            println!("message length: {:?}", self.output_len);
             return false;
         }
 
         if self.output_buffer == vec![OUT_ID_DUMP] {
-            self.msg_len = Some(unpack_u16_little([self.msg_len.unwrap() as u8, byte]) as usize);
-            println!("dump length: {:?}", self.msg_len);
-            self.long_message = true;
+            self.output_len =
+                Some(unpack_u16_little([self.output_len.unwrap() as u8, byte]) as usize);
+            println!("dump length: {:?}", self.output_len);
+            self.long_output = true;
             return false;
         }
 
-        if self.output_buffer.len() == self.msg_len.unwrap()
+        if self.output_buffer.len() == self.output_len.unwrap()
             && byte == OUT_ID_END
             && self.output_buffer[0] < 32
         {
@@ -272,7 +273,7 @@ impl IOState {
                 if let Some(sender) = self.line_sender.as_ref() {
                     sender.send(line.to_string()).unwrap();
                 }
-                if self.print_output {
+                if self.print_lines {
                     print!("[Hub STDOUT] {}", line);
                 }
                 self.clear();
@@ -282,9 +283,9 @@ impl IOState {
 
     fn clear(&mut self) {
         self.line_buffer.clear();
-        self.msg_len = None;
+        self.output_len = None;
         self.output_buffer.clear();
-        self.long_message = false;
+        self.long_output = false;
     }
 }
 
