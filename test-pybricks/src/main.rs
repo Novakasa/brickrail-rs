@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use pybricks_ble::pybricks_hub::{BLEAdapter, PybricksHub};
+use pybricks_ble::{io_hub::IOHub, pybricks_hub::BLEAdapter};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let adapter = BLEAdapter::new().await?;
     let name = adapter.discover_hub_name().await?;
     println!("Found hub with name {:?}", name);
-    let mut hub = PybricksHub::new(name);
+    let hub = IOHub::new(name);
     hub.discover(&adapter).await?;
     hub.connect().await?;
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;

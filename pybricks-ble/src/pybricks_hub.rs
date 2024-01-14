@@ -1,11 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    error::Error,
-    path::Path,
-    pin::Pin,
-    sync::{Arc, Mutex},
-    u8, vec,
-};
+use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, u8, vec};
 
 use btleplug::{
     api::{
@@ -17,29 +10,12 @@ use btleplug::{
 use futures::{Stream, StreamExt};
 use tokio::sync::broadcast;
 use uuid::Uuid;
+
+use crate::unpack_u32_little;
 pub const PYBRICKS_SERVICE_UUID: Uuid = Uuid::from_u128(0xc5f50001828046da89f46d8051e4aeef);
 pub const PYBRICKS_COMMAND_EVENT_UUID: Uuid = Uuid::from_u128(0xc5f50002828046da89f46d8051e4aeef);
 pub const PYBRICKS_HUB_CAPABILITIES_UUID: Uuid =
     Uuid::from_u128(0xc5f50003828046da89f46d8051e4aeef);
-
-const IN_ID_END: u8 = 10;
-const IN_ID_MSG_ACK: u8 = 6;
-const IN_ID_RPC: u8 = 17;
-const IN_ID_SYS: u8 = 18;
-const IN_ID_STORE: u8 = 19;
-const IN_ID_MSG_ERR: u8 = 21;
-
-const OUT_ID_END: u8 = 10;
-const OUT_ID_MSG_ACK: u8 = 6;
-const OUT_ID_DATA: u8 = 17;
-const OUT_ID_SYS: u8 = 18;
-const OUT_ID_MSG_ERR: u8 = 21;
-const OUT_ID_DUMP: u8 = 20;
-
-const SYS_CODE_STOP: u8 = 0;
-const SYS_CODE_READY: u8 = 1;
-const SYS_CODE_ALIVE: u8 = 2;
-const SYS_CODE_VERSION: u8 = 3;
 
 fn pack_u32(n: u32) -> Vec<u8> {
     vec![
@@ -48,50 +24,6 @@ fn pack_u32(n: u32) -> Vec<u8> {
         ((n >> 16) & 0xFF) as u8,
         ((n >> 24) & 0xFF) as u8,
     ]
-}
-
-fn unpack_u32_little(data: Vec<u8>) -> u32 {
-    (data[0] as u32) | ((data[1] as u32) << 8) | ((data[2] as u32) << 16) | ((data[3] as u32) << 24)
-}
-
-fn unpack_u16_big(data: [u8; 2]) -> u16 {
-    (data[0] as u16) << 8 | (data[1] as u16)
-}
-
-fn xor_checksum(data: &[u8]) -> u8 {
-    let mut checksum = 0xFF;
-    for byte in data {
-        checksum ^= byte;
-    }
-    checksum
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum OutputType {
-    None,
-    MsgAck,
-    Data,
-    Sys,
-    MsgErr,
-    Dump,
-}
-
-impl OutputType {
-    fn from_byte(byte: u8) -> Result<Self, Box<dyn Error>> {
-        match byte {
-            OUT_ID_MSG_ACK => Ok(OutputType::MsgAck),
-            OUT_ID_DATA => Ok(OutputType::Data),
-            OUT_ID_SYS => Ok(OutputType::Sys),
-            OUT_ID_MSG_ERR => Ok(OutputType::MsgErr),
-            OUT_ID_DUMP => Ok(OutputType::Dump),
-            _ => Err("Unknown output type".into()),
-        }
-    }
-}
-
-struct Output {
-    output_type: OutputType,
-    data: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -255,144 +187,12 @@ fn is_named_pybricks_hub(
     return true;
 }
 
-struct HubIOState {
-    line_buffer: Vec<u8>,
-    line_sender: Option<broadcast::Sender<String>>,
-    print_output: bool,
-    msg_len: Option<usize>,
-    output_buffer: Vec<u8>,
-    long_message: bool,
-    next_output_id: u8,
-}
-
-impl HubIOState {
-    pub fn new() -> Self {
-        HubIOState {
-            line_buffer: vec![],
-            line_sender: None,
-            print_output: true,
-            msg_len: None,
-            output_buffer: vec![],
-            long_message: false,
-            next_output_id: 0,
-        }
-    }
-
-    pub fn subscribe_lines(&mut self) -> broadcast::Receiver<String> {
-        if let Some(sender) = self.line_sender.as_ref() {
-            return sender.subscribe();
-        }
-        let (sender, receiver) = broadcast::channel(256);
-        self.line_sender = Some(sender);
-        receiver
-    }
-
-    fn on_output_byte_received(&mut self, byte: u8) {
-        self.update_output_buffer(byte);
-        self.update_line_buffer(byte);
-    }
-
-    fn update_output_buffer(&mut self, byte: u8) {
-        if self.msg_len.is_none() {
-            self.msg_len = Some(byte as usize);
-            println!("message length: {:?}", self.msg_len);
-            return;
-        }
-
-        if self.output_buffer == vec![OUT_ID_DUMP] {
-            self.msg_len = Some(unpack_u16_big([self.msg_len.unwrap() as u8, byte]) as usize);
-            println!("dump length: {:?}", self.msg_len);
-            self.long_message = true;
-            return;
-        }
-
-        if self.output_buffer.len() == self.msg_len.unwrap()
-            && byte == OUT_ID_END
-            && self.output_buffer[0] < 32
-        {
-            println!("handling message...");
-            self.handle_output();
-            self.clear();
-            return;
-        }
-
-        self.output_buffer.push(byte);
-        println!("output buffer: {:?}", self.output_buffer)
-    }
-
-    fn handle_output(&mut self) {
-        let output_type = OutputType::from_byte(self.output_buffer[0]).unwrap();
-        match output_type {
-            OutputType::MsgAck => {
-                println!("Message acknowledged");
-                return;
-            }
-            OutputType::MsgErr => {
-                println!("Message error");
-                return;
-            }
-            OutputType::Dump => {
-                println!("Dump");
-                return;
-            }
-            _ => {}
-        }
-
-        let checksum = self.output_buffer[self.output_buffer.len() - 1];
-        let output_id = self.output_buffer[self.output_buffer.len() - 2];
-        let data = &self.output_buffer[1..self.output_buffer.len() - 2];
-        let expected_checksum = xor_checksum(&self.output_buffer[0..self.output_buffer.len() - 2]);
-
-        if output_id == self.next_output_id.wrapping_sub(1) {
-            // This is a retransmission of the previous message.
-            // acknowledge it and ignore it.
-            println!("Retransmission of message {:?}", output_id);
-            return;
-        }
-        if checksum != expected_checksum || output_id != self.next_output_id {
-            println!(
-                "Checksum mismatch: expected {:?}, got {:?}",
-                expected_checksum, checksum
-            );
-            // send NAK
-            return;
-        }
-
-        // acknowledge the message
-        self.next_output_id = self.next_output_id.wrapping_add(1);
-        println!("Message success: {:?}", data);
-        println!("Next output ID: {:?}", self.next_output_id);
-    }
-
-    fn update_line_buffer(&mut self, byte: u8) {
-        self.line_buffer.push(byte);
-        if self.line_buffer.ends_with(&vec![13, 10]) && self.line_buffer[1] >= 32 {
-            if let Ok(line) = std::str::from_utf8(&self.line_buffer) {
-                if let Some(sender) = self.line_sender.as_ref() {
-                    sender.send(line.to_string()).unwrap();
-                }
-                if self.print_output {
-                    print!("[Hub STDOUT] {}", line);
-                }
-                self.clear();
-            }
-        }
-    }
-
-    fn clear(&mut self) {
-        self.line_buffer.clear();
-        self.msg_len = None;
-        self.output_buffer.clear();
-        self.long_message = false;
-    }
-}
-
 pub struct PybricksHub {
     name: String,
     client: Option<Peripheral>,
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
-    io_state: Arc<Mutex<HubIOState>>,
+    output_receiver: Option<broadcast::Receiver<u8>>,
 }
 
 impl PybricksHub {
@@ -402,21 +202,32 @@ impl PybricksHub {
             client: None,
             chars: None,
             capabilities: None,
-            io_state: Arc::new(Mutex::new(HubIOState::new())),
+            output_receiver: None,
         }
     }
 
     pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
+        if self.client.is_some() {
+            return Err("Already discovered".into());
+        }
         let device = adapter.discover_device(Some(&self.name)).await?;
         self.client = Some(device);
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
         let (sender, receiver) = broadcast::channel(256);
+        self.output_receiver = Some(receiver);
 
         tokio::task::spawn(monitor_events(stream, sender));
-        tokio::task::spawn(append_output_bytes(receiver, self.io_state.clone()));
 
         Ok(())
+    }
+
+    pub fn subscribe_output(&mut self) -> Result<broadcast::Receiver<u8>, Box<dyn Error>> {
+        Ok(self
+            .output_receiver
+            .as_ref()
+            .ok_or("No output receiver")?
+            .resubscribe())
     }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
@@ -530,25 +341,6 @@ async fn monitor_events(
         }
     }
     println!("Done listening for notifications");
-}
-
-async fn append_output_bytes(
-    mut output_receiver: broadcast::Receiver<u8>,
-    io_state: Arc<Mutex<HubIOState>>,
-) {
-    loop {
-        let next = output_receiver.recv().await;
-        let byte = match next {
-            Ok(byte) => byte,
-            Err(_) => {
-                println!("Error: {:?}", next);
-                break;
-            }
-        };
-        let mut io_state = io_state.lock().unwrap();
-        io_state.on_output_byte_received(byte);
-    }
-    println!("Done appending output bytes");
 }
 
 #[cfg(test)]
