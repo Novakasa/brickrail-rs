@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, u8, vec};
+use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, sync::mpsc, u8, vec};
 
 use btleplug::{
     api::{
@@ -193,6 +193,7 @@ pub struct PybricksHub {
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
     output_receiver: Option<broadcast::Receiver<u8>>,
+    input_sender: Option<mpsc::Sender<Vec<u8>>>,
 }
 
 impl PybricksHub {
@@ -203,6 +204,7 @@ impl PybricksHub {
             chars: None,
             capabilities: None,
             output_receiver: None,
+            input_sender: None,
         }
     }
 
@@ -228,6 +230,12 @@ impl PybricksHub {
             .as_ref()
             .ok_or("No output receiver")?
             .resubscribe())
+    }
+
+    pub fn get_input_sender(&mut self) -> Result<mpsc::Receiver<Vec<u8>>, Box<dyn Error>> {
+        let (sender, receiver) = mpsc::channel();
+        self.input_sender = Some(sender);
+        Ok(receiver)
     }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {

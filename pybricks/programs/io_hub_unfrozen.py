@@ -83,7 +83,8 @@ class IOHub:
             self.device_attrs[attr_hash] = attr
     
     def emit_msg(self, data):
-        data = bytes([len(data)+2]) + data + bytes([self.next_output_id, xor_checksum(data), _OUT_ID_END])
+        data = data + bytes([self.next_output_id])
+        data = bytes([len(data)+1]) + data + bytes([xor_checksum(data), _OUT_ID_END])
         self.next_output_id = (self.next_output_id + 1) % 256
 
         if self.last_output is not None:
@@ -150,6 +151,8 @@ class IOHub:
         
         if in_id == _IN_ID_MSG_ERR and self.last_output is not None:
             # retry last send
+            if self.input_buffer[-1] != self.last_output[-2]:
+                print("wrong msg id", self.input_buffer[-1], self.last_output[-2])
             self.retry_last_output()
             return
         
