@@ -186,7 +186,7 @@ class IOHub:
         
         if in_id == _IN_ID_RPC:
             func_hash = bytes(msg[0:2])
-            arg_bytes = msg[2:]
+            arg_bytes = msg[2:-1]
             func = getattr(self.device, self.device_attrs[func_hash])
             if len(arg_bytes)>1:
                 _result = func(arg_bytes)
@@ -199,7 +199,7 @@ class IOHub:
         if in_id == _IN_ID_STORE:
             address = msg[0]
             _type = msg[1]
-            data = msg[2:]
+            data = msg[2:-1]
             value = 0
             for i, byte in enumerate(data):
                 value += byte << 8*(len(data)-1-i)
