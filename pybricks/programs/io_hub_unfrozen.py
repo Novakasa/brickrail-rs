@@ -152,6 +152,7 @@ class IOHub:
         if in_id == _IN_ID_MSG_ERR and self.last_output is not None:
             # retry last send
             if self.input_buffer[-1] != self.last_output[-2]:
+                # this is expected when the output buffer times out, it didn't receive the id
                 print("wrong msg id", self.input_buffer[-1], self.last_output[-2])
             self.retry_last_output()
             return

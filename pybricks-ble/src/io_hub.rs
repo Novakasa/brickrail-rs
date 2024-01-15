@@ -451,9 +451,7 @@ impl IOHub {
                     if io_state.output_incomplete() {
                         println!("Output channel timed out");
                         io_state.clear();
-                        io_state
-                            .queue_input(Input::msg_err(io_state.next_input_id))
-                            .unwrap();
+                        io_state.queue_input(Input::msg_err(0)).unwrap();
                     }
                 }
             }
