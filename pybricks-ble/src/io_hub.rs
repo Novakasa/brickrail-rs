@@ -277,12 +277,10 @@ impl IOState {
         let output = Output::from_bytes(self.output_buffer.clone())?;
         match output.output_type {
             OutputType::MsgAck => {
-                println!("Message acknowledged");
                 self.response_sender.send(output)?;
                 return Ok(());
             }
             OutputType::MsgErr => {
-                println!("Message error");
                 self.response_sender.send(output)?;
                 return Ok(());
             }
@@ -296,12 +294,12 @@ impl IOState {
         if output.output_id == Some(self.next_output_id.wrapping_sub(1)) {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
-            println!("Retransmission of message {:?}", output.output_id);
+            println!("Retransmission of message {:?}, ignoring", output.output_id);
             self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
             return Ok(());
         }
         if !output.validate_checksum() || output.output_id != Some(self.next_output_id) {
-            println!("Message error: {:?}", output.data);
+            println!("Message error: {:?}, sending NAK", output.data);
             self.queue_input(Input::msg_err(output.output_id.unwrap()))?;
             return Ok(());
         }
@@ -310,7 +308,7 @@ impl IOState {
         println!("Message success: {:?}", output);
         self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
-        println!("Next output ID: {:?}", self.next_output_id);
+        // println!("Next output ID: {:?}", self.next_output_id);
         Ok(())
     }
 
@@ -352,34 +350,38 @@ impl IOState {
             if input.expect_response() {
                 loop {
                     input_sender.send(data.clone()).unwrap();
-                    let maybe_response =
-                        timeout(Duration::from_millis(500), response_receiver.recv()).await;
-                    match maybe_response {
-                        Ok(Some(response)) => match response.output_type {
-                            OutputType::MsgAck => {
-                                assert_eq!(response.data[0], next_input_id);
-                                println!("Message acknowledged");
-                                break;
-                            }
-                            OutputType::MsgErr => {
-                                println!("Message error, retrying...");
-                            }
-                            _ => {
-                                panic!("Unexpected response type");
-                            }
-                        },
-                        Ok(None) => {
-                            panic!("Response channel closed");
-                        }
-                        Err(_) => {
-                            println!("Message timeout, retrying...");
-                        }
+                    match Self::wait_acknowledged(&mut response_receiver, next_input_id).await {
+                        Ok(_) => break,
+                        Err(value) => println!("{}, retrying input...", value),
                     }
                 }
                 next_input_id = next_input_id.wrapping_add(1);
             } else {
                 input_sender.send(data).unwrap();
             }
+        }
+    }
+
+    async fn wait_acknowledged(
+        response_receiver: &mut mpsc::UnboundedReceiver<Output>,
+        next_input_id: u8,
+    ) -> Result<(), Box<dyn Error>> {
+        let maybe_response = timeout(Duration::from_millis(500), response_receiver.recv()).await;
+        match maybe_response {
+            Ok(Some(response)) => match response.output_type {
+                OutputType::MsgAck => {
+                    assert_eq!(response.data[0], next_input_id);
+                    Ok(())
+                }
+                OutputType::MsgErr => Err("Received NAK from hub".into()),
+                _ => {
+                    panic!("Unexpected response type");
+                }
+            },
+            Ok(None) => {
+                panic!("Response channel closed");
+            }
+            Err(_) => Err("Wait for ACK timeout".into()),
         }
     }
 }
