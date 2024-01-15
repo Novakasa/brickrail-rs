@@ -110,11 +110,11 @@ impl Output {
         let output_id = data.pop().unwrap();
         let data = data[1..].to_vec();
         Ok(Output {
-            output_type: output_type,
-            data: data,
-            received_checksum: received_checksum,
-            computed_checksum: computed_checksum,
-            output_id: output_id,
+            output_type,
+            data,
+            received_checksum,
+            computed_checksum,
+            output_id,
         })
     }
 
@@ -130,10 +130,10 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn acknowledge(input_id: u8) -> Self {
+    pub fn acknowledge(output_id: u8) -> Self {
         Input {
             input_type: InputType::MsgAck,
-            data: vec![input_id],
+            data: vec![output_id],
         }
     }
 
@@ -148,8 +148,8 @@ impl Input {
         let mut data = vec![self.input_type.to_u8()];
         data.extend_from_slice(&self.data);
         data.insert(0, data.len() as u8);
-        data.push(input_id);
         if self.expect_response() {
+            data.push(input_id);
             let checksum = xor_checksum(&data);
             data.push(checksum);
         }
@@ -195,7 +195,7 @@ impl IOState {
                         let response: Output = response_receiver.recv().await.unwrap();
                         match response.output_type {
                             OutputType::MsgAck => {
-                                assert_eq!(response.output_id, next_input_id);
+                                assert_eq!(response.data[0], next_input_id);
                                 println!("Message acknowledged");
                                 break;
                             }
@@ -205,9 +205,9 @@ impl IOState {
                             _ => {}
                         }
                     }
+                    next_input_id = next_input_id.wrapping_add(1);
                 } else {
                     input_sender.send(data).unwrap();
-                    next_input_id = next_input_id.wrapping_add(1);
                 }
             }
         });
@@ -228,7 +228,6 @@ impl IOState {
 
     pub fn queue_input(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
         Ok(self.input_queue_sender.send(input)?)
-        // lol
     }
 
     pub fn subscribe_lines(&mut self) -> broadcast::Receiver<String> {
