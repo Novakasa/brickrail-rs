@@ -259,10 +259,12 @@ impl IOState {
         match output.output_type {
             OutputType::MsgAck => {
                 println!("Message acknowledged");
+                self.response_sender.send(output)?;
                 return Ok(());
             }
             OutputType::MsgErr => {
                 println!("Message error");
+                self.response_sender.send(output)?;
                 return Ok(());
             }
             OutputType::Dump => {

@@ -241,7 +241,7 @@ class IOHub:
                 self.input_watch.reset()
             if self.msg_len is not None and self.input_watch.time() > 200:
                 # print("buffer timeout", self.input_buffer)
-                self.emit_ack(False)
+                self.emit_ack(False, 0)
                 self.input_buffer = bytearray()
                 self.msg_len = None
             if self.last_output is not None and self.output_watch.time() > 500:
