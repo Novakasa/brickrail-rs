@@ -1,14 +1,17 @@
 use futures::lock::Mutex;
-use tokio::sync::{
-    broadcast,
-    mpsc::{self, UnboundedSender},
+use tokio::{
+    sync::{
+        broadcast,
+        mpsc::{self, UnboundedSender},
+    },
+    time::timeout,
 };
 
 use crate::{
     pybricks_hub::{BLEAdapter, PybricksHub},
     unpack_u16_little,
 };
-use std::{error::Error, path::Path, sync::Arc};
+use std::{error::Error, path::Path, sync::Arc, time::Duration};
 
 const IN_ID_END: u8 = 10;
 const IN_ID_MSG_ACK: u8 = 6;
@@ -182,35 +185,12 @@ pub struct IOState {
 impl IOState {
     pub fn new(input_sender: UnboundedSender<Vec<u8>>) -> Self {
         let (response_sender, mut response_receiver) = mpsc::unbounded_channel();
-        let (input_queue_sender, mut input_queue_receiver) = mpsc::unbounded_channel::<Input>();
-
-        tokio::spawn(async move {
-            let mut next_input_id: u8 = 0;
-            while let Some(input) = input_queue_receiver.recv().await {
-                println!("Sending response: {:?}", input);
-                let data = input.to_bytes(next_input_id);
-                if input.expect_response() {
-                    loop {
-                        input_sender.send(data.clone()).unwrap();
-                        let response: Output = response_receiver.recv().await.unwrap();
-                        match response.output_type {
-                            OutputType::MsgAck => {
-                                assert_eq!(response.data[0], next_input_id);
-                                println!("Message acknowledged");
-                                break;
-                            }
-                            OutputType::MsgErr => {
-                                println!("Message error, retrying...");
-                            }
-                            _ => {}
-                        }
-                    }
-                    next_input_id = next_input_id.wrapping_add(1);
-                } else {
-                    input_sender.send(data).unwrap();
-                }
-            }
-        });
+        let (input_queue_sender, mut input_queue_receiver) = mpsc::unbounded_channel();
+        tokio::spawn(Self::input_queue_task(
+            input_queue_receiver,
+            input_sender,
+            response_receiver,
+        ));
 
         IOState {
             line_buffer: vec![],
@@ -226,7 +206,7 @@ impl IOState {
         }
     }
 
-    pub fn queue_input(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
+    pub fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
         Ok(self.input_queue_sender.send(input)?)
     }
 
@@ -336,6 +316,49 @@ impl IOState {
         self.output_buffer.clear();
         self.long_output = false;
     }
+
+    async fn input_queue_task(
+        mut input_queue_receiver: mpsc::UnboundedReceiver<Input>,
+        input_sender: UnboundedSender<Vec<u8>>,
+        mut response_receiver: mpsc::UnboundedReceiver<Output>,
+    ) {
+        let mut next_input_id: u8 = 0;
+        while let Some(input) = input_queue_receiver.recv().await {
+            println!("Sending response: {:?}", input);
+            let data = input.to_bytes(next_input_id);
+            if input.expect_response() {
+                loop {
+                    input_sender.send(data.clone()).unwrap();
+                    let maybe_response =
+                        timeout(Duration::from_millis(500), response_receiver.recv()).await;
+                    match maybe_response {
+                        Ok(Some(response)) => match response.output_type {
+                            OutputType::MsgAck => {
+                                assert_eq!(response.data[0], next_input_id);
+                                println!("Message acknowledged");
+                                break;
+                            }
+                            OutputType::MsgErr => {
+                                println!("Message error, retrying...");
+                            }
+                            _ => {
+                                panic!("Unexpected response type");
+                            }
+                        },
+                        Ok(None) => {
+                            panic!("Response channel closed");
+                        }
+                        Err(_) => {
+                            println!("Message timeout, retrying...");
+                        }
+                    }
+                }
+                next_input_id = next_input_id.wrapping_add(1);
+            } else {
+                input_sender.send(data).unwrap();
+            }
+        }
+    }
 }
 
 pub struct IOHub {
@@ -354,18 +377,13 @@ impl IOHub {
     pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(adapter).await?;
-        let mut output_receiver = hub.subscribe_output()?;
+        let output_receiver = hub.subscribe_output()?;
 
         let (input_sender, mut input_receiver) = mpsc::unbounded_channel();
         let io_state = Arc::new(Mutex::new(IOState::new(input_sender)));
         self.io_state = Some(io_state.clone());
 
-        tokio::spawn(async move {
-            while let Ok(byte) = output_receiver.recv().await {
-                let mut io_state = io_state.lock().await;
-                io_state.on_output_byte_received(byte);
-            }
-        });
+        tokio::spawn(Self::forward_output_task(output_receiver, io_state));
         let hub = self.hub.clone();
         tokio::spawn(async move {
             while let Some(data) = input_receiver.recv().await {
@@ -407,8 +425,36 @@ impl IOHub {
     }
 
     pub async fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
-        let mut io_state = self.io_state.as_ref().ok_or("Not connected")?.lock().await;
+        let io_state = self.io_state.as_ref().ok_or("Not connected")?.lock().await;
         io_state.queue_input(input)?;
         Ok(())
+    }
+
+    async fn forward_output_task(
+        mut output_receiver: broadcast::Receiver<u8>,
+        io_state: Arc<Mutex<IOState>>,
+    ) {
+        loop {
+            let result = timeout(Duration::from_millis(300), output_receiver.recv()).await;
+            match result {
+                Ok(Ok(byte)) => {
+                    let mut io_state = io_state.lock().await;
+                    io_state.on_output_byte_received(byte);
+                }
+                Ok(Err(_)) => {
+                    println!("Output channel closed");
+                    break;
+                }
+                Err(_) => {
+                    println!("Output channel timed out");
+                    let mut io_state = io_state.lock().await;
+                    io_state.clear();
+                    io_state
+                        .queue_input(Input::msg_err(io_state.next_input_id))
+                        .unwrap();
+                    break;
+                }
+            }
+        }
     }
 }
