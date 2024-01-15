@@ -40,6 +40,14 @@ fn xor_checksum(data: &[u8]) -> u8 {
     checksum
 }
 
+fn mod_checksum(data: &[u8]) -> u8 {
+    let mut checksum: u8 = 0x00;
+    for byte in data {
+        checksum = checksum.wrapping_add(*byte);
+    }
+    checksum
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum OutputType {
     MsgAck,
@@ -98,7 +106,7 @@ struct Output {
     data: Vec<u8>,
     received_checksum: Option<u8>,
     computed_checksum: Option<u8>,
-    output_id: u8,
+    output_id: Option<u8>,
 }
 
 impl Output {
@@ -106,11 +114,12 @@ impl Output {
         let output_type = OutputType::from_byte(data[0])?;
         let mut received_checksum = None;
         let mut computed_checksum = None;
+        let mut output_id = None;
         if output_type.expect_response() {
             received_checksum = data.pop();
             computed_checksum = Some(xor_checksum(&data));
+            output_id = data.pop();
         }
-        let output_id = data.pop().unwrap();
         let data = data[1..].to_vec();
         Ok(Output {
             output_type,
@@ -147,15 +156,25 @@ impl Input {
         }
     }
 
+    pub fn rpc(funcname: &str, args: &[u8]) -> Self {
+        let funcname_bytes = funcname.as_bytes();
+        let mut data = vec![xor_checksum(funcname_bytes), mod_checksum(funcname_bytes)];
+        data.extend_from_slice(args);
+        Input {
+            input_type: InputType::RPC,
+            data,
+        }
+    }
+
     fn to_bytes(&self, input_id: u8) -> Vec<u8> {
         let mut data = vec![self.input_type.to_u8()];
         data.extend_from_slice(&self.data);
-        data.insert(0, data.len() as u8);
         if self.expect_response() {
             data.push(input_id);
             let checksum = xor_checksum(&data);
             data.push(checksum);
         }
+        data.insert(0, data.len() as u8);
         data.push(IN_ID_END);
         data
     }
@@ -183,8 +202,8 @@ pub struct IOState {
 
 impl IOState {
     pub fn new(input_sender: UnboundedSender<Vec<u8>>) -> Self {
-        let (response_sender, mut response_receiver) = mpsc::unbounded_channel();
-        let (input_queue_sender, mut input_queue_receiver) = mpsc::unbounded_channel();
+        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let (input_queue_sender, input_queue_receiver) = mpsc::unbounded_channel();
         tokio::spawn(Self::input_queue_task(
             input_queue_receiver,
             input_sender,
@@ -250,7 +269,7 @@ impl IOState {
         }
 
         self.output_buffer.push(byte);
-        println!("output buffer: {:?}", self.output_buffer);
+        // println!("output buffer: {:?}", self.output_buffer);
         return false;
     }
 
@@ -274,22 +293,22 @@ impl IOState {
             _ => {}
         }
 
-        if output.output_id == self.next_output_id.wrapping_sub(1) {
+        if output.output_id == Some(self.next_output_id.wrapping_sub(1)) {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
             println!("Retransmission of message {:?}", output.output_id);
-            self.queue_input(Input::acknowledge(output.output_id))?;
+            self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
             return Ok(());
         }
-        if !output.validate_checksum() || output.output_id != self.next_output_id {
+        if !output.validate_checksum() || output.output_id != Some(self.next_output_id) {
             println!("Message error: {:?}", output.data);
-            self.queue_input(Input::msg_err(output.output_id))?;
+            self.queue_input(Input::msg_err(output.output_id.unwrap()))?;
             return Ok(());
         }
 
         // acknowledge the message
-        println!("Message success: {:?}", output.data);
-        self.queue_input(Input::acknowledge(output.output_id))?;
+        println!("Message success: {:?}", output);
+        self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         println!("Next output ID: {:?}", self.next_output_id);
         Ok(())
@@ -328,7 +347,7 @@ impl IOState {
     ) {
         let mut next_input_id: u8 = 0;
         while let Some(input) = input_queue_receiver.recv().await {
-            println!("Sending response: {:?}", input);
+            println!("Sending input: {:?}", input);
             let data = input.to_bytes(next_input_id);
             if input.expect_response() {
                 loop {

@@ -271,7 +271,7 @@ impl PybricksHub {
     }
 
     pub async fn write_stdin(&self, data: &Vec<u8>) -> Result<(), Box<dyn Error>> {
-        println!("Writing stdin to {:?}", self.name);
+        println!("Writing stdin to {:?}: {:?}", self.name, data);
         self.pb_command(Command::WriteSTDIN, data).await
     }
 

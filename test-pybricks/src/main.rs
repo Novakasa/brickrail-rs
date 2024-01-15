@@ -1,10 +1,13 @@
 use std::path::Path;
 
-use pybricks_ble::{io_hub::IOHub, pybricks_hub::BLEAdapter};
+use pybricks_ble::{
+    io_hub::{IOHub, Input},
+    pybricks_hub::BLEAdapter,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("../pybricks/programs/mpy/test_io1.mpy");
+    let path = Path::new("../pybricks/programs/mpy/test_io.mpy");
 
     println!("path exists: {:?}", path.exists());
     let adapter = BLEAdapter::new().await?;
@@ -19,6 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("path: {:?}", path);
     hub.download_program(&path).await?;
     hub.start_program().await?;
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    hub.queue_input(Input::rpc("print_data", &vec![42])).await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     hub.stop_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;

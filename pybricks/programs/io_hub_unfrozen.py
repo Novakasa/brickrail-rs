@@ -124,9 +124,9 @@ class IOHub:
     
     def emit_ack(self, success, msg_id):
         if success:
-            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ACK, msg_id, _OUT_ID_END]))
+            stdout.buffer.write(bytes([2, _OUT_ID_MSG_ACK, msg_id, _OUT_ID_END]))
         else:
-            stdout.buffer.write(bytes([1, _OUT_ID_MSG_ERR, msg_id, _OUT_ID_END]))
+            stdout.buffer.write(bytes([2, _OUT_ID_MSG_ERR, msg_id, _OUT_ID_END]))
     
     def retry_last_output(self):
         data = self.last_output
@@ -140,7 +140,9 @@ class IOHub:
 
         if in_id == _IN_ID_MSG_ACK:
             # release memory of last send, allow next data to be sent
-            assert self.input_buffer[-1] == self.last_output[-2]
+            # print("ack", self.input_buffer)
+            # print("last output", self.last_output)
+            assert self.input_buffer[-1] == self.last_output[-3]
             self.last_output = None
             if self.output_queue:
                 data = self.output_queue.pop(0)
@@ -151,9 +153,9 @@ class IOHub:
         
         if in_id == _IN_ID_MSG_ERR and self.last_output is not None:
             # retry last send
-            if self.input_buffer[-1] != self.last_output[-2]:
+            if self.input_buffer[-1] != self.last_output[-3]:
                 # this is expected when the output buffer times out, it didn't receive the id
-                print("wrong msg id", self.input_buffer[-1], self.last_output[-2])
+                print("wrong msg id", self.input_buffer[-1], self.last_output[-3])
             self.retry_last_output()
             return
         
@@ -170,6 +172,7 @@ class IOHub:
             self.emit_ack(False, input_id)
             return
 
+        # print("acknowledging", self.input_buffer)
         self.emit_ack(True, input_id)
         self.next_input_id = (self.next_input_id + 1) % 256
 
