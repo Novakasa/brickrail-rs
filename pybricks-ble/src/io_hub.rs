@@ -177,7 +177,6 @@ pub struct IOState {
     output_buffer: Vec<u8>,
     long_output: bool,
     next_output_id: u8,
-    next_input_id: u8,
     response_sender: UnboundedSender<Output>,
     input_queue_sender: UnboundedSender<Input>,
 }
@@ -200,7 +199,6 @@ impl IOState {
             output_buffer: vec![],
             long_output: false,
             next_output_id: 0,
-            next_input_id: 0,
             response_sender: response_sender,
             input_queue_sender: input_queue_sender,
         }
@@ -308,6 +306,10 @@ impl IOState {
                 self.clear();
             }
         }
+    }
+
+    fn output_incomplete(&self) -> bool {
+        self.output_len.is_some()
     }
 
     fn clear(&mut self) {
@@ -436,9 +438,9 @@ impl IOHub {
     ) {
         loop {
             let result = timeout(Duration::from_millis(300), output_receiver.recv()).await;
+            let mut io_state = io_state.lock().await;
             match result {
                 Ok(Ok(byte)) => {
-                    let mut io_state = io_state.lock().await;
                     io_state.on_output_byte_received(byte);
                 }
                 Ok(Err(_)) => {
@@ -446,13 +448,13 @@ impl IOHub {
                     break;
                 }
                 Err(_) => {
-                    println!("Output channel timed out");
-                    let mut io_state = io_state.lock().await;
-                    io_state.clear();
-                    io_state
-                        .queue_input(Input::msg_err(io_state.next_input_id))
-                        .unwrap();
-                    break;
+                    if io_state.output_incomplete() {
+                        println!("Output channel timed out");
+                        io_state.clear();
+                        io_state
+                            .queue_input(Input::msg_err(io_state.next_input_id))
+                            .unwrap();
+                    }
                 }
             }
         }
