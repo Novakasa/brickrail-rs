@@ -3608,6 +3608,7 @@ dependencies = [
  "btleplug",
  "futures",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -4107,6 +4108,8 @@ dependencies = [
  "pybricks-ble",
  "tokio",
  "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

@@ -6,6 +6,7 @@ use tokio::{
     },
     time::timeout,
 };
+use tracing::{debug, error, info, trace};
 
 use crate::{
     pybricks_hub::{BLEAdapter, PybricksHub},
@@ -246,14 +247,14 @@ impl IOState {
     fn update_output_buffer(&mut self, byte: u8) -> bool {
         if self.output_len.is_none() {
             self.output_len = Some(byte as usize);
-            println!("message length: {:?}", self.output_len);
+            debug!("output length: {:?}", self.output_len);
             return false;
         }
 
         if self.output_buffer == vec![OUT_ID_DUMP] {
             self.output_len =
                 Some(unpack_u16_little([self.output_len.unwrap() as u8, byte]) as usize);
-            println!("dump length: {:?}", self.output_len);
+            debug!("dump length: {:?}", self.output_len);
             self.long_output = true;
             return false;
         }
@@ -262,14 +263,14 @@ impl IOState {
             && byte == OUT_ID_END
             && self.output_buffer[0] < 32
         {
-            println!("handling message...");
+            debug!("handling message...");
             self.handle_output().unwrap();
             self.clear();
             return true;
         }
 
         self.output_buffer.push(byte);
-        // println!("output buffer: {:?}", self.output_buffer);
+        trace!("output buffer: {:?}", self.output_buffer);
         return false;
     }
 
@@ -285,7 +286,7 @@ impl IOState {
                 return Ok(());
             }
             OutputType::Dump => {
-                println!("Dump");
+                debug!("Dump");
                 return Ok(());
             }
             _ => {}
@@ -294,21 +295,21 @@ impl IOState {
         if output.output_id == Some(self.next_output_id.wrapping_sub(1)) {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
-            println!("Retransmission of message {:?}, ignoring", output.output_id);
+            debug!("Retransmission of message {:?}, ignoring", output.output_id);
             self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
             return Ok(());
         }
         if !output.validate_checksum() || output.output_id != Some(self.next_output_id) {
-            println!("Message error: {:?}, sending NAK", output.data);
+            debug!("Message error: {:?}, sending NAK", output.data);
             self.queue_input(Input::msg_err(output.output_id.unwrap()))?;
             return Ok(());
         }
 
         // acknowledge the message
-        println!("Message success: {:?}", output);
+        info!("Message success: {:?}", output);
         self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
-        // println!("Next output ID: {:?}", self.next_output_id);
+        debug!("Next output ID: {:?}", self.next_output_id);
         Ok(())
     }
 
@@ -320,7 +321,7 @@ impl IOState {
                     sender.send(line.to_string()).unwrap();
                 }
                 if self.print_lines {
-                    print!("[Hub STDOUT] {}", line);
+                    info!("[Hub STDOUT] {}", line);
                 }
                 self.clear();
             }
@@ -345,14 +346,14 @@ impl IOState {
     ) {
         let mut next_input_id: u8 = 0;
         while let Some(input) = input_queue_receiver.recv().await {
-            println!("Sending input: {:?}", input);
+            debug!("Sending input: {:?}", input);
             let data = input.to_bytes(next_input_id);
             if input.expect_response() {
                 loop {
                     input_sender.send(data.clone()).unwrap();
                     match Self::wait_acknowledged(&mut response_receiver, next_input_id).await {
                         Ok(_) => break,
-                        Err(value) => println!("{}, retrying input...", value),
+                        Err(value) => debug!("{}, retrying input...", value),
                     }
                 }
                 next_input_id = next_input_id.wrapping_add(1);
@@ -467,12 +468,12 @@ impl IOHub {
                     io_state.on_output_byte_received(byte);
                 }
                 Ok(Err(_)) => {
-                    println!("Output channel closed");
+                    error!("Output channel closed");
                     break;
                 }
                 Err(_) => {
                     if io_state.output_incomplete() {
-                        println!("Output channel timed out");
+                        debug!("Output channel timed out");
                         io_state.clear();
                         io_state.queue_input(Input::msg_err(0)).unwrap();
                     }

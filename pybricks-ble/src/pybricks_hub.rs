@@ -9,6 +9,7 @@ use btleplug::{
 };
 use futures::{Stream, StreamExt};
 use tokio::sync::broadcast;
+use tracing::{debug, error, info, trace};
 use uuid::Uuid;
 
 use crate::unpack_u32_little;
@@ -122,7 +123,7 @@ impl BLEAdapter {
             return Err("No Bluetooth adapters".into());
         }
         let adapter = adapter_list.first();
-        println!("Using adapter {:?}", adapter);
+        info!("Using BLE adapter {:?}", adapter);
         Ok(BLEAdapter {
             adapter: adapter.unwrap().clone(),
         })
@@ -143,7 +144,7 @@ impl BLEAdapter {
         name_filter: Option<&String>,
     ) -> Result<Peripheral, Box<dyn Error>> {
         self.adapter.start_scan(ScanFilter::default()).await?;
-        println!("Scanning...");
+        info!("Scanning...");
         let mut device = None;
         for device in self.adapter.peripherals().await? {
             if is_named_pybricks_hub(device.properties().await?, name_filter) {
@@ -153,7 +154,7 @@ impl BLEAdapter {
         let mut events = self.adapter.events().await?;
         while let Some(event) = events.next().await {
             if let CentralEvent::DeviceUpdated(id) = event {
-                println!("Device updated {:?}", id);
+                trace!("Device updated {:?}", id);
                 let device_candidate = self.adapter.peripheral(&id).await?;
                 if is_named_pybricks_hub(device_candidate.properties().await?, name_filter) {
                     device = Some(device_candidate);
@@ -231,7 +232,7 @@ impl PybricksHub {
     }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("Connecting to {:?}", self.name);
+        debug!("Connecting to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
         client.connect().await?;
         client.discover_services().await?;
@@ -245,14 +246,15 @@ impl PybricksHub {
         client
             .subscribe(&self.chars.as_ref().unwrap().command)
             .await?;
-        println!("connected!");
+        info!("connected to pybricks hub {}!", self.name);
         Ok(())
     }
 
     pub async fn disconnect(&self) -> Result<(), Box<dyn Error>> {
-        println!("Disconnecting from {:?}", self.name);
+        debug!("Disconnecting from {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
         client.disconnect().await?;
+        info!("disconnected from pybricks hub {}!", self.name);
         Ok(())
     }
 
@@ -271,12 +273,12 @@ impl PybricksHub {
     }
 
     pub async fn write_stdin(&self, data: &Vec<u8>) -> Result<(), Box<dyn Error>> {
-        println!("Writing stdin to {:?}: {:?}", self.name, data);
+        debug!("Writing stdin to {:?}: {:?}", self.name, data);
         self.pb_command(Command::WriteSTDIN, data).await
     }
 
     pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        println!("Downloading program to {:?}", self.name);
+        info!("Downloading program to {:?}", self.name);
 
         let data = std::fs::read(path)?;
 
@@ -298,16 +300,18 @@ impl PybricksHub {
         self.pb_command(Command::WriteUserProgramMeta, &pack_u32(data.len() as u32))
             .await?;
 
+        info!("Downloaded program finished for {:?}", self.name);
+
         Ok(())
     }
 
     pub async fn start_program(&self) -> Result<(), Box<dyn Error>> {
-        println!("Starting program on {:?}", self.name);
+        info!("Starting program on {:?}", self.name);
         self.pb_command(Command::StartUserProgram, &vec![]).await
     }
 
     pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
-        println!("Stopping program on {:?}", self.name);
+        info!("Stopping program on {:?}", self.name);
         self.pb_command(Command::StopUserProgram, &vec![]).await
     }
 }
@@ -316,7 +320,7 @@ async fn monitor_events(
     mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
     output_sender: broadcast::Sender<u8>,
 ) {
-    println!("Listening for notifications");
+    debug!("Listening for notifications");
     while let Some(data) = stream.next().await {
         match data.uuid {
             PYBRICKS_COMMAND_EVENT_UUID => {
@@ -336,11 +340,11 @@ async fn monitor_events(
                 }
             }
             _ => {
-                println!("Unknown event");
+                error!("Unknown event");
             }
         }
     }
-    println!("Done listening for notifications");
+    debug!("Done listening for notifications");
 }
 
 #[cfg(test)]
