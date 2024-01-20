@@ -237,6 +237,7 @@ pub struct IOState {
     next_output_id: u8,
     response_sender: UnboundedSender<Output>,
     input_queue_sender: UnboundedSender<Input>,
+    input_ack_sender: UnboundedSender<Input>,
     simulate_error_output: SimulatedError,
 }
 
@@ -244,6 +245,7 @@ impl IOState {
     pub fn new(input_sender: UnboundedSender<Vec<u8>>) -> Self {
         let (response_sender, response_receiver) = mpsc::unbounded_channel();
         let (input_queue_sender, input_queue_receiver) = mpsc::unbounded_channel();
+        let (input_ack_sender, input_ack_receiver) = mpsc::unbounded_channel();
 
         let state = IOState {
             line_buffer: vec![],
@@ -256,36 +258,35 @@ impl IOState {
             next_output_id: 0,
             response_sender: response_sender,
             input_queue_sender: input_queue_sender,
+            input_ack_sender: input_ack_sender,
             simulate_error_output: SimulatedError::None,
         };
 
         tokio::spawn(Self::input_queue_task(
             input_queue_receiver,
-            input_sender,
+            input_sender.clone(),
             response_receiver,
+        ));
+
+        tokio::spawn(Self::acknowledge_queue_task(
+            input_ack_receiver,
+            input_sender,
         ));
 
         state
     }
 
-    pub fn queue_input(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
-        match input.input_type {
-            InputType::MsgAck => {
-                if self.simulate_error_output == SimulatedError::SkipAcknowledge {
-                    self.simulate_error_output = SimulatedError::None;
-                    info!("Skipping output ACK");
-                    return Ok(());
-                }
-            }
-            InputType::MsgErr => {
-                if self.simulate_error_output == SimulatedError::SkipAcknowledge {
-                    self.simulate_error_output = SimulatedError::None;
-                    info!("Skipping output NAK");
-                    return Ok(());
-                }
-            }
-            _ => {}
+    pub fn queue_acknowledgement(&mut self, input: Input) -> Result<(), Box<dyn Error>> {
+        if self.simulate_error_output == SimulatedError::SkipAcknowledge {
+            self.simulate_error_output = SimulatedError::None;
+            info!("Skipping output ACK/NAK");
+            return Ok(());
         }
+        self.input_ack_sender.send(input)?;
+        Ok(())
+    }
+
+    pub fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
         Ok(self.input_queue_sender.send(input)?)
     }
 
@@ -382,14 +383,14 @@ impl IOState {
 
         if !output.validate_checksum() {
             debug!("Checksum error: {:?}, sending NAK", output.data);
-            self.queue_input(Input::msg_err(output.output_id.unwrap()))?;
+            self.queue_acknowledgement(Input::msg_err(output.output_id.unwrap()))?;
             return Ok(());
         }
         if output.output_id == Some(self.next_output_id.wrapping_sub(1)) {
             // This is a retransmission of the previous message.
             // acknowledge it and ignore it.
             debug!("Retransmission of message {:?}, ignoring", output);
-            self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
+            self.queue_acknowledgement(Input::acknowledge(output.output_id.unwrap()))?;
             return Ok(());
         }
         if output.output_id != Some(self.next_output_id) {
@@ -397,13 +398,13 @@ impl IOState {
                 "Unexpected output ID: {:?}, expected {:?}",
                 output.output_id, self.next_output_id
             );
-            self.queue_input(Input::msg_err(output.output_id.unwrap()))?;
+            self.queue_acknowledgement(Input::msg_err(output.output_id.unwrap()))?;
             return Ok(());
         }
 
         // acknowledge the message
         info!("Message success: {:?}", output);
-        self.queue_input(Input::acknowledge(output.output_id.unwrap()))?;
+        self.queue_acknowledgement(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         debug!("Next output ID: {:?}", self.next_output_id);
         Ok(())
@@ -436,6 +437,16 @@ impl IOState {
         self.buffer_callback_calls = 0;
     }
 
+    async fn acknowledge_queue_task(
+        mut input_ack_receiver: mpsc::UnboundedReceiver<Input>,
+        input_sender: UnboundedSender<Vec<u8>>,
+    ) {
+        while let Some(input) = input_ack_receiver.recv().await {
+            debug!("Sending acknowledgement: {:?}", input);
+            input_sender.send(input.to_bytes(0)).unwrap();
+        }
+    }
+
     async fn input_queue_task(
         mut input_queue_receiver: mpsc::UnboundedReceiver<Input>,
         input_sender: UnboundedSender<Vec<u8>>,
@@ -461,6 +472,7 @@ impl IOState {
                     input.simulated_error = SimulatedError::None;
                 }
                 next_input_id = next_input_id.wrapping_add(1);
+                debug!("Input success {:?}", input);
             } else {
                 let data = input.to_bytes(next_input_id);
                 input_sender.send(data).unwrap();
@@ -473,18 +485,18 @@ impl IOState {
         next_input_id: u8,
         never_arrives: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let response_future = if never_arrives {
-            // return a timeout future that always times out, returning None
-            let future = async move {
+        let response_future = async move {
+            if never_arrives {
+                // return a timeout future that always times out, returning None
+                response_receiver.recv().await;
                 debug!("Ignoring acknowledgement for input id {:?}", next_input_id);
                 tokio::time::sleep(Duration::from_millis(50000)).await;
                 None
-            };
-            timeout(Duration::from_millis(500), future.boxed())
-        } else {
-            timeout(Duration::from_millis(500), response_receiver.recv().boxed())
+            } else {
+                response_receiver.recv().await
+            }
         };
-        let maybe_response = response_future.await;
+        let maybe_response = timeout(Duration::from_millis(500), response_future).await;
         match maybe_response {
             Ok(Some(response)) => match response.output_type {
                 OutputType::MsgAck => {
@@ -577,7 +589,7 @@ impl IOHub {
     }
 
     pub async fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
-        let mut io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
+        let io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
         io_state.queue_input(input)?;
         Ok(())
     }
@@ -601,7 +613,7 @@ impl IOHub {
                     if io_state.output_incomplete() {
                         debug!("Output channel timed out");
                         io_state.clear();
-                        io_state.queue_input(Input::msg_err(0)).unwrap();
+                        io_state.queue_acknowledgement(Input::msg_err(0)).unwrap();
                     }
                 }
             }
