@@ -2,8 +2,20 @@ from io_hub_unfrozen import IOHub
 
 
 class TestDevice:
+    def __init__(self):
+        self.counter = 0
+
     def update(self, delta):
         pass
+
+    def set_counter(self, value):
+        self.counter = value
+
+    def add_to_counter(self, value):
+        self.counter += value
+
+    def get_counter(self):
+        io_hub.emit_data(bytearray([42, self.counter]))
 
     def respond(self, data):
         io_hub.emit_data(bytearray([57]) + data)

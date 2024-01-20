@@ -630,7 +630,10 @@ impl IOHub {
         Ok(())
     }
 
-    pub async fn wait_for_data_id(&self, match_id: u8) -> Result<IOEvent, Box<dyn Error>> {
+    pub async fn wait_for_data_event_with_id(
+        &self,
+        match_id: u8,
+    ) -> Result<IOEvent, Box<dyn Error>> {
         let io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
         let mut receiver = io_state.event_sender.subscribe();
         drop(io_state);
@@ -645,6 +648,14 @@ impl IOHub {
             }
         }
         Err("No data received".into())
+    }
+
+    pub async fn wait_for_data(&self, match_id: u8) -> Result<Vec<u8>, Box<dyn Error>> {
+        let event = self.wait_for_data_event_with_id(match_id).await?;
+        match event {
+            IOEvent::Data { id: _, data } => Ok(data),
+            _ => Err("Unexpected event".into()),
+        }
     }
 
     async fn forward_output_task(
