@@ -1,4 +1,4 @@
-use futures::{lock::Mutex, FutureExt};
+use futures::lock::Mutex;
 use tokio::{
     sync::{
         broadcast,
@@ -6,7 +6,7 @@ use tokio::{
     },
     time::timeout,
 };
-use tracing::{debug, error, field::debug, info, trace};
+use tracing::{debug, error, info, trace};
 
 use crate::{
     pybricks_hub::{BLEAdapter, PybricksHub},
@@ -226,6 +226,33 @@ pub enum SimulatedError {
     SkipAcknowledge,
 }
 
+#[derive(Debug, Clone)]
+pub enum IOEvent {
+    Data { id: u8, data: Vec<u8> },
+    Sys { code: u8, data: Vec<u8> },
+    Dump { id: u8, data: Vec<u8> },
+}
+
+impl IOEvent {
+    fn from_output(output: Output) -> Self {
+        match output.output_type {
+            OutputType::Data => IOEvent::Data {
+                id: output.data[0],
+                data: output.data[1..].to_vec(),
+            },
+            OutputType::Sys => IOEvent::Sys {
+                code: output.data[0],
+                data: output.data[1..].to_vec(),
+            },
+            OutputType::Dump => IOEvent::Dump {
+                id: output.data[0],
+                data: output.data[1..].to_vec(),
+            },
+            _ => panic!("Unexpected output type"),
+        }
+    }
+}
+
 pub struct IOState {
     line_buffer: Vec<u8>,
     line_sender: Option<broadcast::Sender<String>>,
@@ -238,6 +265,7 @@ pub struct IOState {
     response_sender: UnboundedSender<Output>,
     input_queue_sender: UnboundedSender<Input>,
     input_ack_sender: UnboundedSender<Input>,
+    event_sender: broadcast::Sender<IOEvent>,
     simulate_error_output: SimulatedError,
 }
 
@@ -246,6 +274,7 @@ impl IOState {
         let (response_sender, response_receiver) = mpsc::unbounded_channel();
         let (input_queue_sender, input_queue_receiver) = mpsc::unbounded_channel();
         let (input_ack_sender, input_ack_receiver) = mpsc::unbounded_channel();
+        let (event_sender, _) = broadcast::channel(256);
 
         let state = IOState {
             line_buffer: vec![],
@@ -259,6 +288,7 @@ impl IOState {
             response_sender: response_sender,
             input_queue_sender: input_queue_sender,
             input_ack_sender: input_ack_sender,
+            event_sender: event_sender,
             simulate_error_output: SimulatedError::None,
         };
 
@@ -407,6 +437,12 @@ impl IOState {
         self.queue_acknowledgement(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         debug!("Next output ID: {:?}", self.next_output_id);
+        match self.event_sender.send(IOEvent::from_output(output)) {
+            Ok(_) => {}
+            Err(_) => {
+                error!("No event receiver subscribed");
+            }
+        }
         Ok(())
     }
 
@@ -592,6 +628,23 @@ impl IOHub {
         let io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
         io_state.queue_input(input)?;
         Ok(())
+    }
+
+    pub async fn wait_for_data_id(&self, match_id: u8) -> Result<IOEvent, Box<dyn Error>> {
+        let io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
+        let mut receiver = io_state.event_sender.subscribe();
+        drop(io_state);
+        while let Ok(event) = receiver.recv().await {
+            match event {
+                IOEvent::Data { id, data: _ } => {
+                    if match_id == id {
+                        return Ok(event);
+                    }
+                }
+                _ => {}
+            }
+        }
+        Err("No data received".into())
     }
 
     async fn forward_output_task(

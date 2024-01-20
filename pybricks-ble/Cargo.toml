@@ -11,3 +11,7 @@ futures = "0.3.30"
 tokio = "1.35.1"
 tracing = "0.1.40"
 uuid = "1.6.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+test-log = { version = "0.2.14", features = ["log", "trace"] }
