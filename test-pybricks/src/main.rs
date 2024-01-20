@@ -25,9 +25,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     hub.download_program(&path).await?;
     hub.start_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    hub.set_simulated_output_error(SimulatedError::SkipAcknowledge)
+        .await?;
     hub.queue_input(
         Input::rpc("respond", &vec![1, 3, 5, 7, 11, 13, 17, 19, 23, 29, 42])
-            .with_error(SimulatedError::SkipAcknowledge),
+            .with_error(SimulatedError::None),
     )
     .await?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
