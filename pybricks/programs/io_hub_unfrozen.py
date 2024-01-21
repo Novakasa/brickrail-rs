@@ -96,13 +96,6 @@ class IOHub:
         self.output_watch.reset()
         self.output_retries = 0
 
-        # if urandom.randint(0, 10)>17: # randomly corrupt data
-        # data = bytearray(data)
-        # mod_idx = urandom.randint(2, len(data)-2)
-        # data[mod_idx] = b"X"[0]
-        # data = data[:mod_idx-1] + data[mod_idx:]
-        # data = data[:mod_idx] + b"X" + data[mod_idx:]
-
         stdout.buffer.write(data)
 
     def emit_data(self, data):

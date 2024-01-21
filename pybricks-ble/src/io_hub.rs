@@ -4,6 +4,7 @@ use tokio::{
         broadcast,
         mpsc::{self, UnboundedSender},
     },
+    task::JoinSet,
     time::timeout,
 };
 use tracing::{debug, error, info, trace};
@@ -266,6 +267,7 @@ pub struct IOState {
     input_queue_sender: UnboundedSender<Input>,
     input_ack_sender: UnboundedSender<Input>,
     event_sender: broadcast::Sender<IOEvent>,
+    tasks: JoinSet<()>,
     simulate_error_output: SimulatedError,
 }
 
@@ -276,6 +278,18 @@ impl IOState {
         let (input_ack_sender, input_ack_receiver) = mpsc::unbounded_channel();
         let (event_sender, _) = broadcast::channel(256);
 
+        let mut tasks = JoinSet::new();
+        tasks.spawn(Self::input_queue_task(
+            input_queue_receiver,
+            input_sender.clone(),
+            response_receiver,
+        ));
+
+        tasks.spawn(Self::acknowledge_queue_task(
+            input_ack_receiver,
+            input_sender,
+        ));
+
         let state = IOState {
             line_buffer: vec![],
             line_sender: None,
@@ -285,23 +299,13 @@ impl IOState {
             buffer_callback_calls: 0,
             long_output: false,
             next_output_id: 0,
-            response_sender: response_sender,
-            input_queue_sender: input_queue_sender,
-            input_ack_sender: input_ack_sender,
-            event_sender: event_sender,
+            response_sender,
+            input_queue_sender,
+            input_ack_sender,
+            event_sender,
+            tasks,
             simulate_error_output: SimulatedError::None,
         };
-
-        tokio::spawn(Self::input_queue_task(
-            input_queue_receiver,
-            input_sender.clone(),
-            response_receiver,
-        ));
-
-        tokio::spawn(Self::acknowledge_queue_task(
-            input_ack_receiver,
-            input_sender,
-        ));
 
         state
     }
@@ -568,20 +572,7 @@ impl IOHub {
     pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(adapter).await?;
-        let output_receiver = hub.subscribe_output()?;
 
-        let (input_sender, mut input_receiver) = mpsc::unbounded_channel();
-        let io_state = Arc::new(Mutex::new(IOState::new(input_sender)));
-        self.io_state = Some(io_state.clone());
-
-        tokio::spawn(Self::forward_output_task(output_receiver, io_state));
-        let hub = self.hub.clone();
-        tokio::spawn(async move {
-            while let Some(data) = input_receiver.recv().await {
-                let unlocked_hub = hub.lock().await;
-                unlocked_hub.write_stdin(&data).await.unwrap();
-            }
-        });
         Ok(())
     }
 
@@ -612,13 +603,34 @@ impl IOHub {
         Ok(())
     }
 
-    pub async fn start_program(&self) -> Result<(), Box<dyn Error>> {
-        let hub = self.hub.lock().await;
+    pub async fn start_program(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut hub = self.hub.lock().await;
+        let output_receiver = hub.subscribe_output()?;
+
+        let (input_sender, input_receiver) = mpsc::unbounded_channel();
+        let io_state = IOState::new(input_sender);
+        let io_state_mutex = Arc::new(Mutex::new(io_state));
+        let mut io_state = io_state_mutex.lock().await;
+        io_state.tasks.spawn(Self::forward_output_task(
+            output_receiver,
+            io_state_mutex.clone(),
+        ));
+        io_state
+            .tasks
+            .spawn(Self::forward_input_task(input_receiver, self.hub.clone()));
+        drop(io_state);
+
+        self.io_state = Some(io_state_mutex);
         hub.start_program().await?;
         Ok(())
     }
 
-    pub async fn stop_program(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn stop_program(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
+        io_state.tasks.abort_all();
+        drop(io_state);
+
+        self.io_state = None;
         let hub = self.hub.lock().await;
         hub.stop_program().await?;
         Ok(())
@@ -681,6 +693,16 @@ impl IOHub {
                     }
                 }
             }
+        }
+    }
+
+    async fn forward_input_task(
+        mut input_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
+        task_hub: Arc<Mutex<PybricksHub>>,
+    ) {
+        while let Some(data) = input_receiver.recv().await {
+            let unlocked_hub = task_hub.lock().await;
+            unlocked_hub.write_stdin(&data).await.unwrap();
         }
     }
 }
