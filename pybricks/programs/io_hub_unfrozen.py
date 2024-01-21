@@ -246,11 +246,11 @@ class IOHub:
                 self.update_input(byte)
                 self.input_watch.reset()
             if self.msg_len is not None and self.input_watch.time() > 200:
-                # print("buffer timeout", self.input_buffer)
+                print("input timeout", self.input_buffer)
                 self.emit_ack(False, 0)
                 self.input_buffer = bytearray()
                 self.msg_len = None
-            if self.last_output is not None and self.output_watch.time() > 500:
+            if self.last_output is not None and self.output_watch.time() > 800:
                 print("output timeout", self.last_output)
                 self.retry_last_output()
                 if self.last_output[1:3] == alive_data:

@@ -218,7 +218,7 @@ impl Input {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SimulatedError {
     None,
     Modify(usize),
@@ -525,33 +525,45 @@ impl IOState {
         next_input_id: u8,
         never_arrives: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let response_future = async move {
-            if never_arrives {
-                // return a timeout future that always times out, returning None
-                response_receiver.recv().await;
-                debug!("Ignoring acknowledgement for input id {:?}", next_input_id);
-                tokio::time::sleep(Duration::from_millis(50000)).await;
-                None
-            } else {
-                response_receiver.recv().await
-            }
-        };
-        let maybe_response = timeout(Duration::from_millis(500), response_future).await;
-        match maybe_response {
-            Ok(Some(response)) => match response.output_type {
-                OutputType::MsgAck => {
-                    assert_eq!(response.data[0], next_input_id);
-                    Ok(())
+        loop {
+            let response_future = async {
+                if never_arrives {
+                    // return a timeout future that always times out, returning None
+                    response_receiver.recv().await;
+                    debug!("Ignoring acknowledgement for input id {:?}", next_input_id);
+                    tokio::time::sleep(Duration::from_millis(50000)).await;
+                    None
+                } else {
+                    response_receiver.recv().await
                 }
-                OutputType::MsgErr => Err("Received NAK from hub".into()),
-                _ => {
-                    panic!("Unexpected response type");
+            };
+
+            let maybe_response = timeout(Duration::from_millis(800), response_future).await;
+            match maybe_response {
+                Ok(Some(response)) => match response.output_type {
+                    OutputType::MsgAck => {
+                        if response.data[0] == next_input_id.wrapping_sub(1) {
+                            // we already confirmed this message, ignore this ACK
+                            info!("Ignoring duplicate ACK for input id {:?}", next_input_id);
+                            continue;
+                        }
+                        assert_eq!(response.data[0], next_input_id);
+                        return Ok(());
+                    }
+                    OutputType::MsgErr => {
+                        return Err("Received NAK from hub".into());
+                    }
+                    _ => {
+                        panic!("Unexpected response type");
+                    }
+                },
+                Ok(None) => {
+                    panic!("Response channel closed");
                 }
-            },
-            Ok(None) => {
-                panic!("Response channel closed");
+                Err(_) => {
+                    return Err("Wait for ACK timeout".into());
+                }
             }
-            Err(_) => Err("Wait for ACK timeout".into()),
         }
     }
 }

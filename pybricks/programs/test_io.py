@@ -13,6 +13,7 @@ class TestDevice:
 
     def add_to_counter(self, value):
         self.counter += value
+        self.counter = self.counter % 256
 
     def get_counter(self):
         io_hub.emit_data(bytearray([42, self.counter]))
