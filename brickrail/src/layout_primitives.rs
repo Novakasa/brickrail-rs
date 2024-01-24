@@ -29,6 +29,19 @@ impl TrainID {
 }
 
 #[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+)]
+pub struct HubID {
+    id: usize,
+}
+
+impl HubID {
+    pub fn new(id: usize) -> Self {
+        Self { id }
+    }
+}
+
+#[derive(
     Clone,
     Copy,
     Hash,

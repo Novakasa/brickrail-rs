@@ -68,6 +68,7 @@ pub struct EntityMap {
     pub blocks: HashMap<BlockID, Entity>,
     pub trains: HashMap<TrainID, Entity>,
     pub wagons: HashMap<WagonID, Entity>,
+    pub hubs: HashMap<HubID, Entity>,
 }
 
 impl EntityMap {
@@ -77,7 +78,7 @@ impl EntityMap {
             GenericID::Block(block_id) => self.blocks.get(block_id).copied(),
             GenericID::Train(train_id) => self.trains.get(train_id).copied(),
             GenericID::Marker(track_id) => self.markers.get(track_id).copied(),
-            _ => None,
+            _ => panic!("generic id get entity not implemented for {:?}", id),
         }
     }
 
@@ -120,6 +121,22 @@ impl EntityMap {
         self.connections_inner
             .try_insert(connection, inner_entity)
             .unwrap();
+    }
+
+    pub fn new_train_id(&self) -> TrainID {
+        let mut id = 0;
+        while self.trains.contains_key(&TrainID::new(id)) {
+            id += 1;
+        }
+        return TrainID::new(id);
+    }
+
+    pub fn new_hub_id(&self) -> HubID {
+        let mut id = 0;
+        while self.hubs.contains_key(&HubID::new(id)) {
+            id += 1;
+        }
+        return HubID::new(id);
     }
 }
 

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 mod bevy_tokio_tasks;
 mod ble;
+mod ble_train;
 mod block;
 mod editor;
 mod inspector;

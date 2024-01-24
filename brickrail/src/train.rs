@@ -71,36 +71,46 @@ struct TrainSettings {
     prefer_facing: Option<Facing>,
 }
 
-#[derive(Debug, Clone)]
-enum RouteOrBlock {
-    Route(Route),
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Position")]
+enum SerializablePosition {
     Block(LogicalBlockID),
+    Storage,
 }
 
-impl Serialize for RouteOrBlock {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // convert route to block before serializing
-        match self {
-            RouteOrBlock::Route(route) => {
-                let block = route.get_current_leg().get_target_block_id();
-                block.serialize(serializer)
-            }
-            RouteOrBlock::Block(block) => block.serialize(serializer),
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "SerializablePosition", into = "SerializablePosition")]
+enum Position {
+    Route(Route),
+    Block(LogicalBlockID),
+    Storage,
+}
+
+impl From<SerializablePosition> for Position {
+    fn from(pos: SerializablePosition) -> Self {
+        match pos {
+            SerializablePosition::Block(block) => Position::Block(block),
+            SerializablePosition::Storage => Position::Storage,
         }
     }
 }
 
-impl<'a> Deserialize<'a> for RouteOrBlock {
-    fn deserialize<D: serde::Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
-        let block = LogicalBlockID::deserialize(deserializer)?;
-        Ok(RouteOrBlock::Block(block))
+impl Into<SerializablePosition> for Position {
+    fn into(self) -> SerializablePosition {
+        match self {
+            Position::Block(block) => SerializablePosition::Block(block),
+            Position::Storage => SerializablePosition::Storage,
+            Position::Route(route) => {
+                SerializablePosition::Block(route.get_current_leg().get_target_block_id())
+            }
+        }
     }
 }
 
 #[derive(Component, Debug, Clone, Serialize, Deserialize)]
 pub struct Train {
     id: TrainID,
-    route: RouteOrBlock,
+    position: Position,
     #[serde(skip)]
     state: TrainState,
     speed: f32,
@@ -113,16 +123,16 @@ impl Train {
     }
 
     pub fn get_route(&self) -> &Route {
-        match &self.route {
-            RouteOrBlock::Route(route) => route,
-            RouteOrBlock::Block(block_id) => panic!("Train {:?} has no route", block_id),
+        match &self.position {
+            Position::Route(route) => route,
+            _ => panic!("Train {:?} has no route", self.id),
         }
     }
 
     pub fn get_route_mut(&mut self) -> &mut Route {
-        match &mut self.route {
-            RouteOrBlock::Route(route) => route,
-            RouteOrBlock::Block(block_id) => panic!("Train {:?} has no route", block_id),
+        match &mut self.position {
+            Position::Route(route) => route,
+            _ => panic!("Train {:?} has no route", self.id),
         }
     }
 
@@ -265,7 +275,7 @@ fn exit_drag_train(
                         &marker_map,
                     );
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
-                    train.route = RouteOrBlock::Route(route);
+                    train.position = Position::Route(route);
                     train.get_route().update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
                 }
@@ -299,8 +309,8 @@ fn create_train(
             // println!("Creating train at block {:?}", block_id);
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train = Train {
-                id: TrainID::new(entity_map.trains.len()),
-                route: RouteOrBlock::Block(logical_block_id),
+                id: entity_map.new_train_id(),
+                position: Position::Block(logical_block_id),
                 state: TrainState::Stop,
                 speed: 0.0,
                 settings: TrainSettings {
@@ -325,9 +335,12 @@ fn spawn_train(
     for request in train_events.read() {
         println!("Spawning train {:?}", request.0.id);
         let mut train = request.0.clone();
-        let block_id = match request.0.route {
-            RouteOrBlock::Block(block_id) => block_id,
-            RouteOrBlock::Route(_) => panic!("Can't spawn train with route"),
+        let block_id = match request.0.position {
+            Position::Storage => {
+                panic!("Can't spawn train in storage")
+            }
+            Position::Block(block_id) => block_id,
+            Position::Route(_) => panic!("Can't spawn train with route"),
         };
         println!("spawning at block {:?}", block_id);
         let block = q_blocks
@@ -348,7 +361,7 @@ fn spawn_train(
             &marker_map,
         );
         route.update_locks(&mut track_locks);
-        train.route = RouteOrBlock::Route(route);
+        train.position = Position::Route(route);
         println!("train block: {:?}", train.get_logical_block_id());
         let train = TrainBundle::from_train(train);
         let train_id = train.train.id;
