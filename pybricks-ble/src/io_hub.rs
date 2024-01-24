@@ -10,7 +10,7 @@ use tokio::{
 use tracing::{debug, error, info, trace};
 
 use crate::{
-    pybricks_hub::{BLEAdapter, PybricksHub},
+    pybricks_hub::{BLEAdapter, HubState, PybricksHub},
     unpack_u16_little,
 };
 use std::{error::Error, path::Path, sync::Arc, time::Duration};
@@ -574,16 +574,20 @@ pub struct IOHub {
 }
 
 impl IOHub {
-    pub fn new(name: String) -> Self {
+    pub fn new() -> Self {
         IOHub {
-            hub: Arc::new(Mutex::new(PybricksHub::new(name.into()))),
+            hub: Arc::new(Mutex::new(PybricksHub::new())),
             io_state: None,
         }
     }
 
-    pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
+    pub async fn discover(
+        &mut self,
+        adapter: &BLEAdapter,
+        name: &str,
+    ) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
-        hub.discover(adapter).await?;
+        hub.discover(adapter, name).await?;
 
         Ok(())
     }
@@ -716,5 +720,11 @@ impl IOHub {
             let unlocked_hub = task_hub.lock().await;
             unlocked_hub.write_stdin(&data).await.unwrap();
         }
+    }
+}
+
+impl Default for IOHub {
+    fn default() -> Self {
+        Self::new()
     }
 }

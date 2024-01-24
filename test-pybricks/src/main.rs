@@ -18,8 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let adapter = BLEAdapter::new().await?;
     let name = adapter.discover_hub_name().await?;
     println!("Found hub with name {:?}", name);
-    let mut hub = IOHub::new(name);
-    hub.discover(&adapter).await?;
+    let mut hub = IOHub::new();
+    hub.discover(&adapter, name.as_str()).await?;
     hub.connect().await?;
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;
     hub.download_program(&path).await?;

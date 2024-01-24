@@ -27,6 +27,13 @@ fn pack_u32(n: u32) -> Vec<u8> {
     ]
 }
 
+pub enum HubState {
+    Undiscovered,
+    Disconnected,
+    Connected,
+    Running,
+}
+
 #[derive(Debug)]
 enum HubEvent {
     Status(u32),
@@ -141,7 +148,7 @@ impl BLEAdapter {
 
     pub async fn discover_device(
         &self,
-        name_filter: Option<&String>,
+        name_filter: Option<&str>,
     ) -> Result<Peripheral, Box<dyn Error>> {
         self.adapter.start_scan(ScanFilter::default()).await?;
         info!("Scanning...");
@@ -169,14 +176,14 @@ impl BLEAdapter {
 
 fn is_named_pybricks_hub(
     properties: Option<PeripheralProperties>,
-    name_filter: Option<&String>,
+    name_filter: Option<&str>,
 ) -> bool {
     if properties.is_none() {
         return false;
     }
     let properties = properties.unwrap();
-    let this_name = properties.local_name.clone();
-    if name_filter.is_some() && this_name.as_ref() != name_filter {
+    let this_name = properties.local_name;
+    if name_filter.is_some() && this_name.as_deref() != name_filter {
         return false;
     }
     if !properties.services.contains(&PYBRICKS_SERVICE_UUID) {
@@ -189,17 +196,26 @@ fn is_named_pybricks_hub(
 }
 
 pub struct PybricksHub {
-    name: String,
+    name: Option<String>,
     client: Option<Peripheral>,
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
     output_receiver: Option<broadcast::Receiver<u8>>,
 }
 
+impl std::fmt::Display for PybricksHub {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(name) = &self.name {
+            return write!(f, "{}", name);
+        }
+        write!(f, "{:?}", self.name)
+    }
+}
+
 impl PybricksHub {
-    pub fn new(name: String) -> Self {
+    pub fn new() -> Self {
         PybricksHub {
-            name: name,
+            name: None,
             client: None,
             chars: None,
             capabilities: None,
@@ -207,12 +223,17 @@ impl PybricksHub {
         }
     }
 
-    pub async fn discover(&mut self, adapter: &BLEAdapter) -> Result<(), Box<dyn Error>> {
+    pub async fn discover(
+        &mut self,
+        adapter: &BLEAdapter,
+        name: &str,
+    ) -> Result<(), Box<dyn Error>> {
         if self.client.is_some() {
             return Err("Already discovered".into());
         }
-        let device = adapter.discover_device(Some(&self.name)).await?;
+        let device = adapter.discover_device(Some(name)).await?;
         self.client = Some(device);
+        self.name = Some(name.to_string());
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
         let (sender, receiver) = broadcast::channel(256);
@@ -232,8 +253,8 @@ impl PybricksHub {
     }
 
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
-        debug!("Connecting to {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
+        debug!("Connecting to {:?}", client);
         client.connect().await?;
         client.discover_services().await?;
         self.chars = Some(HubCharacteristics::from_characteristics(
@@ -246,15 +267,18 @@ impl PybricksHub {
         client
             .subscribe(&self.chars.as_ref().unwrap().command)
             .await?;
-        info!("connected to pybricks hub {}!", self.name);
+        info!("connected to pybricks hub {:?}!", self.name);
         Ok(())
     }
 
     pub async fn disconnect(&self) -> Result<(), Box<dyn Error>> {
-        debug!("Disconnecting from {:?}", self.name);
         let client = self.client.as_ref().ok_or("No client")?;
+        debug!("Disconnecting from {:}", self);
         client.disconnect().await?;
-        info!("disconnected from pybricks hub {}!", self.name);
+        info!(
+            "disconnected from pybricks hub {:?}!",
+            self.name.as_ref().unwrap()
+        );
         Ok(())
     }
 
@@ -273,12 +297,12 @@ impl PybricksHub {
     }
 
     pub async fn write_stdin(&self, data: &Vec<u8>) -> Result<(), Box<dyn Error>> {
-        debug!("Writing stdin to {:?}: {:?}", self.name, data);
+        debug!("Writing stdin to {:}: {:?}", self, data);
         self.pb_command(Command::WriteSTDIN, data).await
     }
 
     pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        info!("Downloading program to {:?}", self.name);
+        info!("Downloading program to {:}", self);
 
         let data = std::fs::read(path)?;
 

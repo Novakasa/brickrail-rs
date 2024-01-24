@@ -1,4 +1,3 @@
-use core::num;
 use std::path::Path;
 
 use pybricks_ble::{
@@ -10,8 +9,8 @@ async fn get_and_connect_hub() -> IOHub {
     let adapter = BLEAdapter::new().await.unwrap();
     let name = adapter.discover_hub_name().await.unwrap();
     println!("Found hub with name {:?}", name);
-    let mut hub = IOHub::new(name);
-    hub.discover(&adapter).await.unwrap();
+    let mut hub = IOHub::new();
+    hub.discover(&adapter, name.as_str()).await.unwrap();
     hub.connect().await.unwrap();
     hub
 }

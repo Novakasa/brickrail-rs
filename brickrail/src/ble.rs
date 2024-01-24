@@ -1,6 +1,7 @@
 use crate::bevy_tokio_tasks::TokioTasksRuntime;
 use bevy::prelude::*;
-use pybricks_ble::pybricks_hub::BLEAdapter;
+use pybricks_ble::{io_hub::IOHub, pybricks_hub::BLEAdapter};
+use serde::{Deserialize, Serialize};
 
 #[derive(Resource)]
 struct BLEState {
@@ -8,6 +9,13 @@ struct BLEState {
 }
 
 impl BLEState {}
+
+#[derive(Component, Serialize, Deserialize)]
+struct BLEHub {
+    #[serde(skip)]
+    hub: IOHub,
+    name: Option<String>,
+}
 
 fn ble_startup_system(runtime: Res<TokioTasksRuntime>) {
     println!("Starting BLE");
