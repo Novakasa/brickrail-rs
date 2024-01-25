@@ -622,9 +622,20 @@ impl IOHub {
     }
 
     pub async fn start_program(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.io_state.is_some() {
+            self.reset_io_state().await?;
+        }
+
+        let hub = self.setup_io_state().await?;
+        hub.start_program().await?;
+        Ok(())
+    }
+
+    async fn setup_io_state(
+        &mut self,
+    ) -> Result<futures::lock::MutexGuard<'_, PybricksHub>, Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         let output_receiver = hub.subscribe_output()?;
-
         let (input_sender, input_receiver) = mpsc::unbounded_channel();
         let io_state = IOState::new(input_sender);
         self.input_queue_sender = Some(io_state.input_queue_sender.clone());
@@ -638,21 +649,24 @@ impl IOHub {
             .tasks
             .spawn(Self::forward_input_task(input_receiver, self.hub.clone()));
         drop(io_state);
-
         self.io_state = Some(io_state_mutex);
-        hub.start_program().await?;
-        Ok(())
+        Ok(hub)
     }
 
     pub async fn stop_program(&mut self) -> Result<(), Box<dyn Error>> {
+        self.reset_io_state().await?;
+
+        let hub = self.hub.lock().await;
+        hub.stop_program().await?;
+        Ok(())
+    }
+
+    async fn reset_io_state(&mut self) -> Result<(), Box<dyn Error>> {
         let mut io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
         io_state.tasks.abort_all();
         drop(io_state);
-
         self.io_state = None;
         self.input_queue_sender = None;
-        let hub = self.hub.lock().await;
-        hub.stop_program().await?;
         Ok(())
     }
 

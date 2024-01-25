@@ -30,8 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     hub.queue_input(
         Input::rpc("respond", &vec![1, 3, 5, 7, 11, 13, 17, 19, 23, 29, 42])
             .with_error(SimulatedError::None),
-    )
-    .await?;
+    )?;
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     hub.stop_program().await?;
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
