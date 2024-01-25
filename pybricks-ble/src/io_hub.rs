@@ -232,6 +232,7 @@ pub enum IOEvent {
     Data { id: u8, data: Vec<u8> },
     Sys { code: u8, data: Vec<u8> },
     Dump { id: u8, data: Vec<u8> },
+    Status(u32),
 }
 
 impl IOEvent {
@@ -272,11 +273,13 @@ pub struct IOState {
 }
 
 impl IOState {
-    pub fn new(input_sender: UnboundedSender<Vec<u8>>) -> Self {
+    pub fn new(
+        input_sender: UnboundedSender<Vec<u8>>,
+        event_sender: broadcast::Sender<IOEvent>,
+    ) -> Self {
         let (response_sender, response_receiver) = mpsc::unbounded_channel();
         let (input_queue_sender, input_queue_receiver) = mpsc::unbounded_channel();
         let (input_ack_sender, input_ack_receiver) = mpsc::unbounded_channel();
-        let (event_sender, _) = broadcast::channel(256);
 
         let mut tasks = JoinSet::new();
         tasks.spawn(Self::input_queue_task(
@@ -572,6 +575,7 @@ pub struct IOHub {
     hub: Arc<Mutex<PybricksHub>>,
     io_state: Option<Arc<Mutex<IOState>>>,
     input_queue_sender: Option<UnboundedSender<Input>>,
+    event_sender: Option<broadcast::Sender<IOEvent>>,
 }
 
 impl IOHub {
@@ -580,6 +584,7 @@ impl IOHub {
             hub: Arc::new(Mutex::new(PybricksHub::new())),
             io_state: None,
             input_queue_sender: None,
+            event_sender: None,
         }
     }
 
@@ -590,8 +595,32 @@ impl IOHub {
     ) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(adapter, name).await?;
+        let (event_sender, _) = broadcast::channel(256);
+        self.event_sender = Some(event_sender.clone());
+        let status_receiver = hub.subscribe_status()?;
+        tokio::task::spawn(Self::forward_status_task(
+            status_receiver,
+            event_sender.clone(),
+        ));
 
         Ok(())
+    }
+
+    async fn forward_status_task(
+        mut status_receiver: broadcast::Receiver<u32>,
+        event_sender: broadcast::Sender<IOEvent>,
+    ) {
+        while let Ok(event) = status_receiver.recv().await {
+            event_sender.send(IOEvent::Status(event)).unwrap();
+        }
+    }
+
+    pub fn subscribe_events(&self) -> Result<broadcast::Receiver<IOEvent>, Box<dyn Error>> {
+        Ok(self
+            .event_sender
+            .as_ref()
+            .ok_or("No event sender!")?
+            .subscribe())
     }
 
     pub async fn set_simulated_output_error(
@@ -637,7 +666,10 @@ impl IOHub {
         let mut hub = self.hub.lock().await;
         let output_receiver = hub.subscribe_output()?;
         let (input_sender, input_receiver) = mpsc::unbounded_channel();
-        let io_state = IOState::new(input_sender);
+        let io_state = IOState::new(
+            input_sender,
+            self.event_sender.as_ref().ok_or("No event sender")?.clone(),
+        );
         self.input_queue_sender = Some(io_state.input_queue_sender.clone());
         let io_state_mutex = Arc::new(Mutex::new(io_state));
         let mut io_state = io_state_mutex.lock().await;

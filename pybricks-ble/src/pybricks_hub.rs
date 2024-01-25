@@ -201,6 +201,7 @@ pub struct PybricksHub {
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
     output_receiver: Option<broadcast::Receiver<u8>>,
+    status_receiver: Option<broadcast::Receiver<u32>>,
 }
 
 impl std::fmt::Display for PybricksHub {
@@ -220,6 +221,7 @@ impl PybricksHub {
             chars: None,
             capabilities: None,
             output_receiver: None,
+            status_receiver: None,
         }
     }
 
@@ -237,9 +239,11 @@ impl PybricksHub {
 
         let stream = self.client.as_ref().unwrap().notifications().await?;
         let (sender, receiver) = broadcast::channel(256);
+        let (status_sender, status_receiver) = broadcast::channel(256);
         self.output_receiver = Some(receiver);
+        self.status_receiver = Some(status_receiver);
 
-        tokio::task::spawn(monitor_events(stream, sender));
+        tokio::task::spawn(monitor_events(stream, sender, status_sender));
 
         Ok(())
     }
@@ -249,6 +253,14 @@ impl PybricksHub {
             .output_receiver
             .as_ref()
             .ok_or("No output receiver")?
+            .resubscribe())
+    }
+
+    pub fn subscribe_status(&mut self) -> Result<broadcast::Receiver<u32>, Box<dyn Error>> {
+        Ok(self
+            .status_receiver
+            .as_ref()
+            .ok_or("No status receiver")?
             .resubscribe())
     }
 
@@ -343,6 +355,7 @@ impl PybricksHub {
 async fn monitor_events(
     mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
     output_sender: broadcast::Sender<u8>,
+    status_sender: broadcast::Sender<u32>,
 ) {
     debug!("Listening for notifications");
     while let Some(data) = stream.next().await {
@@ -357,8 +370,10 @@ async fn monitor_events(
                                 }
                             }
                         }
-                        _ => {
-                            // println!("Event: {:?}", event);
+                        HubEvent::Status(flags) => {
+                            if status_sender.send(flags).is_err() {
+                                println!("Failed to send status flags {}", flags);
+                            }
                         }
                     }
                 }
