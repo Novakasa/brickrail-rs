@@ -571,6 +571,7 @@ impl IOState {
 pub struct IOHub {
     hub: Arc<Mutex<PybricksHub>>,
     io_state: Option<Arc<Mutex<IOState>>>,
+    input_queue_sender: Option<UnboundedSender<Input>>,
 }
 
 impl IOHub {
@@ -578,6 +579,7 @@ impl IOHub {
         IOHub {
             hub: Arc::new(Mutex::new(PybricksHub::new())),
             io_state: None,
+            input_queue_sender: None,
         }
     }
 
@@ -625,6 +627,7 @@ impl IOHub {
 
         let (input_sender, input_receiver) = mpsc::unbounded_channel();
         let io_state = IOState::new(input_sender);
+        self.input_queue_sender = Some(io_state.input_queue_sender.clone());
         let io_state_mutex = Arc::new(Mutex::new(io_state));
         let mut io_state = io_state_mutex.lock().await;
         io_state.tasks.spawn(Self::forward_output_task(
@@ -647,14 +650,17 @@ impl IOHub {
         drop(io_state);
 
         self.io_state = None;
+        self.input_queue_sender = None;
         let hub = self.hub.lock().await;
         hub.stop_program().await?;
         Ok(())
     }
 
-    pub async fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
-        let io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
-        io_state.queue_input(input)?;
+    pub fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
+        self.input_queue_sender
+            .as_ref()
+            .ok_or("No input queue sender")?
+            .send(input)?;
         Ok(())
     }
 

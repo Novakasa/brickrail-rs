@@ -28,7 +28,6 @@ async fn test_io(hub: &mut IOHub) {
     hub.start_program().await.unwrap();
     hub.set_simulated_output_error(TEST_ERR).await.unwrap();
     hub.queue_input(Input::rpc("respond", &vec![29, 42]).with_error(TEST_ERR))
-        .await
         .unwrap();
     match hub.wait_for_data_event_with_id(57).await.unwrap() {
         IOEvent::Data { id, data } => {
@@ -45,13 +44,10 @@ async fn test_io_hub_counter(hub: &mut IOHub) {
     hub.start_program().await.unwrap();
     hub.set_simulated_output_error(TEST_ERR).await.unwrap();
     hub.queue_input(Input::rpc("set_counter", &vec![33]).with_error(TEST_ERR))
-        .await
         .unwrap();
     hub.queue_input(Input::rpc("add_to_counter", &vec![5]).with_error(TEST_ERR))
-        .await
         .unwrap();
     hub.queue_input(Input::rpc("get_counter", &vec![]).with_error(TEST_ERR))
-        .await
         .unwrap();
     assert_eq!(hub.wait_for_data(42).await.unwrap(), vec![38]);
 
@@ -62,7 +58,6 @@ async fn test_io_hub_counter(hub: &mut IOHub) {
 async fn test_io_hub_many_messages(hub: &mut IOHub) {
     hub.start_program().await.unwrap();
     hub.queue_input(Input::rpc("set_counter", &vec![0]))
-        .await
         .unwrap();
 
     let err = SimulatedError::Modify(0);
@@ -70,11 +65,9 @@ async fn test_io_hub_many_messages(hub: &mut IOHub) {
     let num_messages = 12;
     for _i in 0..num_messages {
         hub.queue_input(Input::rpc("add_to_counter", &vec![1]).with_error(err))
-            .await
             .unwrap();
     }
     hub.queue_input(Input::rpc("get_counter", &vec![]).with_error(err))
-        .await
         .unwrap();
     let result = hub.wait_for_data(42).await.unwrap()[0];
     assert_eq!(result as u32, num_messages % 256);
