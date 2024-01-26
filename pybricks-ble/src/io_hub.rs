@@ -575,16 +575,17 @@ pub struct IOHub {
     hub: Arc<Mutex<PybricksHub>>,
     io_state: Option<Arc<Mutex<IOState>>>,
     input_queue_sender: Option<UnboundedSender<Input>>,
-    event_sender: Option<broadcast::Sender<IOEvent>>,
+    event_sender: broadcast::Sender<IOEvent>,
 }
 
 impl IOHub {
     pub fn new() -> Self {
+        let (event_sender, _) = broadcast::channel(256);
         IOHub {
             hub: Arc::new(Mutex::new(PybricksHub::new())),
             io_state: None,
             input_queue_sender: None,
-            event_sender: None,
+            event_sender: event_sender,
         }
     }
 
@@ -595,12 +596,10 @@ impl IOHub {
     ) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(adapter, name).await?;
-        let (event_sender, _) = broadcast::channel(256);
-        self.event_sender = Some(event_sender.clone());
         let status_receiver = hub.subscribe_status()?;
         tokio::task::spawn(Self::forward_status_task(
             status_receiver,
-            event_sender.clone(),
+            self.event_sender.clone(),
         ));
 
         Ok(())
@@ -615,12 +614,8 @@ impl IOHub {
         }
     }
 
-    pub fn subscribe_events(&self) -> Result<broadcast::Receiver<IOEvent>, Box<dyn Error>> {
-        Ok(self
-            .event_sender
-            .as_ref()
-            .ok_or("No event sender!")?
-            .subscribe())
+    pub fn subscribe_events(&self) -> broadcast::Receiver<IOEvent> {
+        self.event_sender.subscribe()
     }
 
     pub async fn set_simulated_output_error(
@@ -666,10 +661,7 @@ impl IOHub {
         let mut hub = self.hub.lock().await;
         let output_receiver = hub.subscribe_output()?;
         let (input_sender, input_receiver) = mpsc::unbounded_channel();
-        let io_state = IOState::new(
-            input_sender,
-            self.event_sender.as_ref().ok_or("No event sender")?.clone(),
-        );
+        let io_state = IOState::new(input_sender, self.event_sender.clone());
         self.input_queue_sender = Some(io_state.input_queue_sender.clone());
         let io_state_mutex = Arc::new(Mutex::new(io_state));
         let mut io_state = io_state_mutex.lock().await;

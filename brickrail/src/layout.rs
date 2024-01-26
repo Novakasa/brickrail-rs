@@ -99,6 +99,10 @@ impl EntityMap {
         self.markers.try_insert(track, entity).unwrap();
     }
 
+    pub fn add_hub(&mut self, hub: HubID, entity: Entity) {
+        self.hubs.try_insert(hub, entity).unwrap();
+    }
+
     pub fn remove_marker(&mut self, track: TrackID) {
         self.markers.remove(&track);
     }

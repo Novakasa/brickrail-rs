@@ -10,8 +10,8 @@ async fn get_and_connect_hub() -> IOHub {
     let name = adapter.discover_hub_name().await.unwrap();
     println!("Found hub with name {:?}", name);
     let mut hub = IOHub::new();
+    let mut events_receiver = hub.subscribe_events();
     hub.discover(&adapter, name.as_str()).await.unwrap();
-    let mut events_receiver = hub.subscribe_events().unwrap();
     tokio::task::spawn(async move {
         while let Ok(event) = events_receiver.recv().await {
             println!("Event: {:?}", event);

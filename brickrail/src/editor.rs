@@ -31,6 +31,7 @@ pub enum GenericID {
     Switch(DirectedTrackID),
     TrackConnection(TrackConnectionID),
     Marker(TrackID),
+    Hub(HubID),
 }
 
 #[derive(Default, Debug, Clone, Reflect, PartialEq, Eq)]
