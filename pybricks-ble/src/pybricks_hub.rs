@@ -225,11 +225,8 @@ impl PybricksHub {
         }
     }
 
-    pub async fn discover(
-        &mut self,
-        adapter: &BLEAdapter,
-        name: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn discover(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+        let adapter = BLEAdapter::new().await?;
         if self.client.is_some() {
             return Err("Already discovered".into());
         }

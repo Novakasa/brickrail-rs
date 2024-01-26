@@ -41,22 +41,18 @@ impl Selectable for BLEHub {
 }
 
 fn discover_hub_name(
-    state: ResMut<BLEState>,
     q_hubs: Query<&BLEHub>,
     runtime: Res<TokioTasksRuntime>,
     keyboard_input: Res<Input<keyboard::KeyCode>>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::D) {
-        if let Some(adapter) = &state.adapter {
-            for hub in q_hubs.iter() {
-                let io_hub = hub.hub.clone();
-                let adapter = adapter.clone();
-                if hub.name.is_none() {
-                    runtime.spawn_background_task(move |_| async move {
-                        io_hub.discover_name(&adapter).await.unwrap();
-                    });
-                    return;
-                }
+        for hub in q_hubs.iter() {
+            let io_hub = hub.hub.clone();
+            if hub.name.is_none() {
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.discover_name().await.unwrap();
+                });
+                return;
             }
         }
     }
@@ -116,6 +112,7 @@ fn distribute_hub_events(
             for mut hub in q_hubs.iter_mut() {
                 if hub.id == event.hub_id {
                     hub.name = Some(name.clone());
+                    return;
                 }
             }
         }

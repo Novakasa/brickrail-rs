@@ -590,20 +590,17 @@ impl IOHub {
         }
     }
 
-    pub async fn discover_name(&self, adapter: &BLEAdapter) -> Result<String, Box<dyn Error>> {
+    pub async fn discover_name(&self) -> Result<String, Box<dyn Error>> {
+        let adapter = BLEAdapter::new().await?;
         let name = adapter.discover_hub_name().await?;
         self.event_sender
             .send(IOEvent::NameDiscovered(name.clone()))?;
         Ok(name)
     }
 
-    pub async fn discover(
-        &mut self,
-        adapter: &BLEAdapter,
-        name: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn discover(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
-        hub.discover(adapter, name).await?;
+        hub.discover(name).await?;
         let status_receiver = hub.subscribe_status()?;
         tokio::task::spawn(Self::forward_status_task(
             status_receiver,
