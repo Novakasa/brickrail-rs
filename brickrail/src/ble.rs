@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Resource)]
 struct BLEState {
-    adapter: Option<BLEAdapter>,
+    adapter: Option<Arc<BLEAdapter>>,
 }
 
 impl BLEState {}
@@ -37,6 +37,28 @@ struct BLEHub {
 impl Selectable for BLEHub {
     fn get_id(&self) -> GenericID {
         GenericID::Hub(self.id)
+    }
+}
+
+fn discover_hub_name(
+    state: ResMut<BLEState>,
+    q_hubs: Query<&BLEHub>,
+    runtime: Res<TokioTasksRuntime>,
+    keyboard_input: Res<Input<keyboard::KeyCode>>,
+) {
+    if keyboard_input.just_pressed(keyboard::KeyCode::D) {
+        if let Some(adapter) = &state.adapter {
+            for hub in q_hubs.iter() {
+                let io_hub = hub.hub.clone();
+                let adapter = adapter.clone();
+                if hub.name.is_none() {
+                    runtime.spawn_background_task(move |_| async move {
+                        io_hub.discover_name(&adapter).await.unwrap();
+                    });
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -86,8 +108,17 @@ fn spawn_hub(
 fn distribute_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
     mut q_receivers: Query<&mut HubEventReceiver>,
+    mut q_hubs: Query<&mut BLEHub>,
 ) {
     for event in hub_event_reader.read() {
+        println!("Event: {:?}", event);
+        if let IOEvent::NameDiscovered(name) = &event.event {
+            for mut hub in q_hubs.iter_mut() {
+                if hub.id == event.hub_id {
+                    hub.name = Some(name.clone());
+                }
+            }
+        }
         for mut receiver in q_receivers.iter_mut() {
             if receiver.hubs.contains(&event.hub_id) {
                 receiver.events.push(event.event.clone());
@@ -96,7 +127,7 @@ fn distribute_hub_events(
     }
 }
 
-#[derive(Event)]
+#[derive(Event, Debug)]
 struct HubEvent {
     hub_id: HubID,
     event: IOEvent,
@@ -109,7 +140,7 @@ fn ble_startup_system(runtime: Res<TokioTasksRuntime>) {
         let adapter = BLEAdapter::new().await.unwrap();
         ctx.run_on_main_thread(move |ctx| {
             if let Some(mut ble_state) = ctx.world.get_resource_mut::<BLEState>() {
-                ble_state.adapter = Some(adapter);
+                ble_state.adapter = Some(Arc::new(adapter));
             }
         })
         .await;
@@ -124,6 +155,14 @@ impl Plugin for BLEPlugin {
         app.add_event::<HubEvent>();
         app.add_event::<SpawnEvent<BLEHub>>();
         app.add_systems(Startup, ble_startup_system);
-        app.add_systems(Update, (spawn_hub, distribute_hub_events, create_hub));
+        app.add_systems(
+            Update,
+            (
+                spawn_hub,
+                distribute_hub_events,
+                create_hub,
+                discover_hub_name,
+            ),
+        );
     }
 }

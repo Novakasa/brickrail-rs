@@ -232,6 +232,7 @@ pub enum IOEvent {
     Data { id: u8, data: Vec<u8> },
     Sys { code: u8, data: Vec<u8> },
     Dump { id: u8, data: Vec<u8> },
+    NameDiscovered(String),
     Status(u32),
 }
 
@@ -587,6 +588,13 @@ impl IOHub {
             input_queue_sender: None,
             event_sender: event_sender,
         }
+    }
+
+    pub async fn discover_name(&self, adapter: &BLEAdapter) -> Result<String, Box<dyn Error>> {
+        let name = adapter.discover_hub_name().await?;
+        self.event_sender
+            .send(IOEvent::NameDiscovered(name.clone()))?;
+        Ok(name)
     }
 
     pub async fn discover(
