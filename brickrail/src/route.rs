@@ -19,6 +19,19 @@ pub struct RouteMarkerData {
     pub position: f32,
 }
 
+impl RouteMarkerData {
+    pub fn as_train_u8(&self, override_enter_key: bool) -> u8 {
+        let speed = self.speed.as_train_u8();
+        let color = self.color.as_train_u8();
+        let key = if override_enter_key {
+            MarkerKey::Enter.as_train_u8()
+        } else {
+            self.key.as_train_u8()
+        };
+        (speed << 6) | color | (key << 4)
+    }
+}
+
 pub fn build_route(
     train_id: TrainID,
     logical_section: &LogicalSection,
@@ -110,6 +123,10 @@ impl Route {
 
     pub fn num_legs(&self) -> usize {
         self.legs.len()
+    }
+
+    pub fn iter_legs(&self) -> std::slice::Iter<RouteLeg> {
+        self.legs.iter()
     }
 
     pub fn push_leg(&mut self, leg: RouteLeg) {
@@ -227,6 +244,15 @@ impl Route {
 pub enum LegIntention {
     Pass,
     Stop,
+}
+
+impl LegIntention {
+    pub fn as_train_flag(&self) -> u8 {
+        match self {
+            LegIntention::Pass => 0,
+            LegIntention::Stop => 1,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -358,5 +384,14 @@ impl RouteLeg {
         }
         self.section_position += remainder;
         None
+    }
+
+    pub fn as_train_data(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+        for (i, marker) in self.markers.iter().enumerate() {
+            data.push(marker.as_train_u8(i == self.get_enter_index()));
+        }
+        data.push(self.intention.as_train_flag() | self.get_final_facing().as_train_flag());
+        data
     }
 }

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["rt", "sync"] }
+tokio = { version = "1", features = ["full"] }
 bevy = { version = "0.12.1", features = ["dynamic_linking", "serialize"] }
 bevy-inspector-egui = "0.21.0"
 bevy-trait-query = "0.4.0"
@@ -26,6 +26,7 @@ strum_macros = "0.25.3"
 pybricks-ble = { path = "../pybricks-ble" }
 bevy_ecs = "0.12.1"
 bevy_app = "0.12.1"
+test-log = "0.2.14"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread"] }

@@ -24,6 +24,16 @@ pub enum MarkerKey {
     None,
 }
 
+impl MarkerKey {
+    pub fn as_train_u8(&self) -> u8 {
+        match self {
+            MarkerKey::Enter => 1,
+            MarkerKey::In => 2,
+            MarkerKey::None => 0,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Serialize, Deserialize,
 )]
@@ -42,6 +52,14 @@ impl MarkerSpeed {
             MarkerSpeed::Fast => 8.0,
         }
     }
+
+    pub fn as_train_u8(&self) -> u8 {
+        match self {
+            MarkerSpeed::Slow => 2,
+            MarkerSpeed::Cruise => 3,
+            MarkerSpeed::Fast => 1,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Serialize, Deserialize)]
@@ -51,6 +69,18 @@ pub enum MarkerColor {
     Blue,
     Yellow,
     Green,
+}
+
+impl MarkerColor {
+    pub fn as_train_u8(&self) -> u8 {
+        match self {
+            MarkerColor::Any => 15,
+            MarkerColor::Red => 3,
+            MarkerColor::Blue => 1,
+            MarkerColor::Yellow => 0,
+            MarkerColor::Green => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

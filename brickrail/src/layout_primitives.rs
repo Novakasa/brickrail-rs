@@ -827,6 +827,13 @@ impl Facing {
             _ => None,
         }
     }
+
+    pub fn as_train_flag(&self) -> u8 {
+        match self {
+            Facing::Forward => 0,
+            Facing::Backward => 1,
+        }
+    }
 }
 
 #[derive(

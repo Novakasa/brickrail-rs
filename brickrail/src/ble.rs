@@ -8,7 +8,7 @@ use crate::{
 };
 use bevy::{input::keyboard, prelude::*};
 use pybricks_ble::{
-    io_hub::{IOEvent, IOHub},
+    io_hub::{IOEvent, IOHub, Input as IOInput},
     pybricks_hub::BLEAdapter,
 };
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,7 @@ struct BLEHub {
     #[serde(skip)]
     hub: Arc<IOHub>,
     name: Option<String>,
+    active: bool,
 }
 
 impl Selectable for BLEHub {
@@ -69,6 +70,7 @@ fn create_hub(
             id,
             hub: Arc::new(IOHub::new()),
             name: None,
+            active: true,
         };
         hub_event_writer.send(SpawnEvent(hub));
     }
@@ -98,6 +100,31 @@ fn spawn_hub(
                 .await;
             }
         });
+    }
+}
+
+#[derive(Event, Debug)]
+pub struct HubInput {
+    pub hub_id: HubID,
+    pub input: IOInput,
+}
+
+impl HubInput {
+    pub fn new(hub_id: HubID, input: IOInput) -> Self {
+        Self { hub_id, input }
+    }
+}
+
+fn handle_hub_input(
+    mut hub_input_reader: EventReader<HubInput>,
+    q_hubs: Query<&BLEHub>,
+    entity_map: Res<EntityMap>,
+) {
+    for event in hub_input_reader.read() {
+        println!("Input: {:?}", event);
+        let entity = entity_map.hubs.get(&event.hub_id).unwrap();
+        let hub = q_hubs.get(*entity).unwrap();
+        hub.hub.queue_input(event.input.clone()).unwrap();
     }
 }
 

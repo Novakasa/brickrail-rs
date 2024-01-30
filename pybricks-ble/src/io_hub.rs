@@ -81,7 +81,7 @@ impl OutputType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum InputType {
     MsgAck,
     RPC,
@@ -142,7 +142,7 @@ impl Output {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Input {
     input_type: InputType,
     data: Vec<u8>,

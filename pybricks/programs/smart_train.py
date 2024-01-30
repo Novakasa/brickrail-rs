@@ -12,7 +12,7 @@ _COLOR_YELLOW = const(0)
 _COLOR_BLUE = const(1)
 _COLOR_GREEN = const(2)
 _COLOR_RED = const(3)
-_COLOR_NONE = const(15)
+_COLOR_ANY = const(15)
 COLOR_HUES = (51, 219, 133, 359)
 
 _SENSOR_KEY_NONE = const(0)
@@ -170,20 +170,19 @@ class Route:
             RouteLeg(
                 bytearray(
                     [
-                        _SENSOR_SPEED_CRUISE << 6 | _SENSOR_KEY_IN << 4 | _COLOR_NONE,
+                        _SENSOR_SPEED_CRUISE << 6 | _SENSOR_KEY_IN << 4 | _COLOR_ANY,
                         _LEG_FLAG_STOP,
                     ]
                 )
             )
         ]
-        self.index = 0
 
     def current_leg(self):
-        return self.legs[self.index]
+        return self.legs[0]
 
     def next_leg(self):
         try:
-            return self.legs[self.index + 1]
+            return self.legs[1]
         except IndexError:
             return None
 
@@ -195,13 +194,13 @@ class Route:
         self.legs[leg_index] = leg
 
     def advance(self):
-        self.index += 1
-        assert self.index < len(self.legs)
+        self.legs.pop(0)
+        assert len(self.legs) > 0
         io_hub.emit_data(bytes((_DATA_LEG_ADVANCE, self.index)))
 
     def advance_sensor(self, color):
         next_color = self.current_leg().get_next_color()
-        if next_color != color and next_color != _COLOR_NONE:
+        if next_color != color and next_color != _COLOR_ANY:
             # print(next_color, color, train.sensor.initial_chroma, train.sensor.initial_hue, train.sensor.marker_samples)
             data = pack(
                 ">BBBHHH",

@@ -1394,6 +1394,7 @@ dependencies = [
  "serde_with",
  "strum",
  "strum_macros",
+ "test-log",
  "tokio",
 ]
 
