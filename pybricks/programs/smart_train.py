@@ -176,13 +176,14 @@ class Route:
                 )
             )
         ]
+        self.index = 0
 
     def current_leg(self):
-        return self.legs[0]
+        return self.legs[self.index]
 
     def next_leg(self):
         try:
-            return self.legs[1]
+            return self.legs[self.index + 1]
         except IndexError:
             return None
 
@@ -194,8 +195,8 @@ class Route:
         self.legs[leg_index] = leg
 
     def advance(self):
-        self.legs.pop(0)
-        assert len(self.legs) > 0
+        self.index += 1
+        assert self.index < len(self.legs)
         io_hub.emit_data(bytes((_DATA_LEG_ADVANCE, self.index)))
 
     def advance_sensor(self, color):

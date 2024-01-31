@@ -111,6 +111,7 @@ impl TrainState {
 pub struct Route {
     legs: Vec<RouteLeg>,
     train_id: TrainID,
+    leg_index: usize,
 }
 
 impl Route {
@@ -118,6 +119,7 @@ impl Route {
         Route {
             legs: vec![],
             train_id: id,
+            leg_index: 0,
         }
     }
 
@@ -129,36 +131,38 @@ impl Route {
         self.legs.iter()
     }
 
+    pub fn iter_legs_remaining(&self) -> std::slice::Iter<RouteLeg> {
+        self.legs[self.leg_index..].iter()
+    }
+
     pub fn push_leg(&mut self, leg: RouteLeg) {
         self.legs.push(leg);
     }
 
     pub fn next_leg(&mut self) {
-        if self.legs.len() == 1 {
-            panic!("Can't advance with single leg!");
-        }
-        self.legs.remove(0);
+        assert_ne!(self.legs.len(), self.leg_index + 1, "No next leg!");
+        self.leg_index += 1;
     }
 
     pub fn get_current_leg(&self) -> &RouteLeg {
-        &self.legs[0]
+        &self.legs[self.leg_index]
     }
 
     pub fn get_next_leg(&self) -> Option<&RouteLeg> {
-        self.legs.get(1)
+        self.legs.get(self.leg_index + 1)
     }
 
     pub fn get_current_leg_mut(&mut self) -> &mut RouteLeg {
-        &mut self.legs[0]
+        &mut self.legs[self.leg_index]
     }
 
     pub fn update_intentions(&mut self, track_locks: &TrackLocks) {
         let mut free_until = 0;
-        for (i, leg) in self.legs.iter().enumerate() {
+        for (i, leg) in self.iter_legs_remaining().enumerate() {
             if track_locks.can_lock(&self.train_id, &leg.section)
                 && track_locks.can_lock(&self.train_id, &leg.to_section)
             {
-                free_until = i;
+                free_until = i + self.leg_index;
             } else {
                 break;
             }
