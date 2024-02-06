@@ -1,3 +1,5 @@
+use std::iter::Inspect;
+
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, Id},
@@ -25,12 +27,18 @@ fn inspector_system(
             let selection = selection_state.selection.clone();
             if let Selection::Single(generic_id) = selection {
                 if let Some(entity) = entity_map.get_entity(&generic_id) {
+                    let mut context = InspectorContext {
+                        ui,
+                        type_registry: &type_registry.read(),
+                        entity_map: &entity_map,
+                    };
+
                     let mut inspectable_iter = q_inspectable.get_mut(entity).unwrap();
                     for mut inspectable in inspectable_iter.iter_mut() {
                         if inspectable.get_id() != generic_id {
                             continue;
                         }
-                        inspectable.inspector_ui(ui, &type_registry.read(), &mut entity_map);
+                        inspectable.inspector_ui(&mut context);
                     }
                 }
             }

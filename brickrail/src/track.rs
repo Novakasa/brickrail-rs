@@ -1,5 +1,7 @@
 use crate::{
-    editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent},
+    editor::{
+        GenericID, HoverState, InspectorContext, Selectable, Selection, SelectionState, SpawnEvent,
+    },
     layout::{Connections, EntityMap},
     layout_primitives::*,
     utils::bresenham_line,
@@ -178,13 +180,8 @@ pub struct Track {
 }
 
 impl Selectable for Track {
-    fn inspector_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        _type_registry: &TypeRegistry,
-        _layout: &mut EntityMap,
-    ) {
-        ui.label("Inspectable track lol");
+    fn inspector_ui(&mut self, context: &mut InspectorContext) {
+        context.ui.label("Inspectable track lol");
     }
 
     fn get_depth(&self) -> f32 {

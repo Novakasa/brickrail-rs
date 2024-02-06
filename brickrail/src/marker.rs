@@ -144,13 +144,8 @@ impl Selectable for Marker {
             - 0.05
     }
 
-    fn inspector_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        _type_registry: &TypeRegistry,
-        _: &mut EntityMap,
-    ) {
-        ui.label("Inspectable marker lol");
+    fn inspector_ui(&mut self, context: &mut InspectorContext) {
+        context.ui.label("Inspectable marker lol");
     }
 }
 

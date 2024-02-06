@@ -149,17 +149,12 @@ impl Train {
 }
 
 impl Selectable for Train {
-    fn inspector_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        type_registry: &TypeRegistry,
-        _entity_map: &mut EntityMap,
-    ) {
-        ui.label("Inspectable train lol");
-        if ui.button("Turn around").clicked() {
+    fn inspector_ui(&mut self, context: &mut InspectorContext) {
+        context.ui.label("Inspectable train lol");
+        if context.ui.button("Turn around").clicked() {
             println!("can't lol");
         }
-        ui_for_value(&mut self.settings, ui, type_registry);
+        ui_for_value(&mut self.settings, context.ui, context.type_registry);
     }
 
     fn get_id(&self) -> GenericID {

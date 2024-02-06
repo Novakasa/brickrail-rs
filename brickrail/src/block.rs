@@ -1,6 +1,6 @@
 use crate::editor::{
-    delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
-    SpawnEvent,
+    delete_selection, DespawnEvent, GenericID, HoverState, InspectorContext, Selectable, Selection,
+    SelectionState, SpawnEvent,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
@@ -72,9 +72,9 @@ impl Block {
 }
 
 impl Selectable for Block {
-    fn inspector_ui(&mut self, ui: &mut egui::Ui, type_registry: &TypeRegistry, _: &mut EntityMap) {
-        ui.label("Inspectable block lol");
-        ui_for_value(&mut self.settings, ui, type_registry);
+    fn inspector_ui(&mut self, context: &mut InspectorContext) {
+        context.ui.label("Inspectable block lol");
+        ui_for_value(&mut self.settings, context.ui, context.type_registry);
     }
 
     fn get_depth(&self) -> f32 {

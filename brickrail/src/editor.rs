@@ -43,15 +43,15 @@ pub enum Selection {
     Section(DirectedSection),
 }
 
+pub struct InspectorContext<'a> {
+    pub ui: &'a mut egui::Ui,
+    pub type_registry: &'a TypeRegistry,
+    pub entity_map: &'a EntityMap,
+}
+
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(
-        &mut self,
-        _ui: &mut egui::Ui,
-        _type_registry: &TypeRegistry,
-        _entity_map: &mut EntityMap,
-    ) {
-    }
+    fn inspector_ui(&mut self, context: &mut InspectorContext) {}
 
     fn get_id(&self) -> GenericID;
 
