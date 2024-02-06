@@ -3,6 +3,7 @@ use crate::{
     inspector::InspectorContext,
     layout::{Connections, EntityMap},
     layout_primitives::*,
+    marker::{Marker, MarkerColor},
     utils::bresenham_line,
 };
 use bevy::prelude::*;
@@ -180,6 +181,15 @@ pub struct Track {
 impl Selectable for Track {
     fn inspector_ui(&mut self, context: &mut InspectorContext) {
         context.ui.label("Inspectable track lol");
+        if !context.entity_map.markers.contains_key(&self.id) {
+            if context.ui.button("Add Marker").clicked() {
+                let id = self.id.clone();
+                context.commands.add(move |world: &mut World| {
+                    let marker = Marker::new(id, MarkerColor::Red);
+                    world.send_event(SpawnEvent(marker));
+                });
+            }
+        }
     }
 
     fn get_depth(&self) -> f32 {
