@@ -1,6 +1,7 @@
 use std::io::{Read, Write};
 
 use crate::block::Block;
+use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
 use crate::marker::Marker;
@@ -9,8 +10,6 @@ use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
-use bevy::reflect::TypeRegistry;
-use bevy_egui::egui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -43,15 +42,9 @@ pub enum Selection {
     Section(DirectedSection),
 }
 
-pub struct InspectorContext<'a> {
-    pub ui: &'a mut egui::Ui,
-    pub type_registry: &'a TypeRegistry,
-    pub entity_map: &'a EntityMap,
-}
-
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(&mut self, context: &mut InspectorContext) {}
+    fn inspector_ui(&mut self, _context: &mut InspectorContext) {}
 
     fn get_id(&self) -> GenericID;
 

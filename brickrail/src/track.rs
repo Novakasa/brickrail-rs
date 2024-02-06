@@ -1,13 +1,11 @@
 use crate::{
-    editor::{
-        GenericID, HoverState, InspectorContext, Selectable, Selection, SelectionState, SpawnEvent,
-    },
+    editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent},
+    inspector::InspectorContext,
     layout::{Connections, EntityMap},
     layout_primitives::*,
     utils::bresenham_line,
 };
-use bevy::{prelude::*, reflect::TypeRegistry};
-use bevy_egui::egui;
+use bevy::prelude::*;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;

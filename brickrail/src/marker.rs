@@ -1,17 +1,13 @@
 use bevy::{
-    gizmos::gizmos::Gizmos,
-    prelude::*,
-    reflect::{Reflect, TypeRegistry},
-    render::color::Color,
-    utils::HashMap,
+    gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
-use bevy_egui::egui;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::{
     editor::*,
+    inspector::InspectorContext,
     layout::{EntityMap, MarkerMap},
     layout_primitives::*,
     track::{spawn_track, LAYOUT_SCALE},

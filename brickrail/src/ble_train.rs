@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::HubInput,
-    editor::{GenericID, InspectorContext, Selectable},
+    editor::{GenericID, Selectable},
+    inspector::InspectorContext,
     layout_primitives::{Facing, HubID, TrainID},
     marker::MarkerSpeed,
     route::Route,
@@ -81,6 +82,7 @@ impl Selectable for BLETrain {
 
     fn inspector_ui(&mut self, context: &mut InspectorContext) {
         context.ui.label("BLE Train");
+        context.select_hub_ui(&mut self.master_hub);
     }
 }
 

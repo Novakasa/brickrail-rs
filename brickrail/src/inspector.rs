@@ -1,20 +1,37 @@
-use std::iter::Inspect;
-
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::{
     egui::{self, Id},
     EguiContexts, EguiMousePosition,
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
-use crate::{editor::*, layout::EntityMap};
+use crate::{editor::*, layout::EntityMap, layout_primitives::HubID};
+
+pub struct InspectorContext<'a> {
+    pub ui: &'a mut egui::Ui,
+    pub type_registry: &'a TypeRegistry,
+    pub entity_map: &'a EntityMap,
+}
+
+impl<'a> InspectorContext<'a> {
+    pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>) {
+        egui::ComboBox::from_label("Select one!")
+            .selected_text(format!("{:?}", selected))
+            .show_ui(self.ui, |ui| {
+                ui.selectable_value(selected, None, "None");
+                for id in self.entity_map.hubs.keys() {
+                    ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
+                }
+            });
+    }
+}
 
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
     mut q_inspectable: Query<&mut dyn Selectable>,
     selection_state: Res<SelectionState>,
-    mut entity_map: ResMut<EntityMap>,
+    entity_map: ResMut<EntityMap>,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
 ) {

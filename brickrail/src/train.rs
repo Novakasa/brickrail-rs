@@ -2,14 +2,14 @@ use crate::{
     ble_train::BLETrain,
     block::{spawn_block, Block},
     editor::*,
+    inspector::InspectorContext,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route, TrainState},
     track::LAYOUT_SCALE,
 };
-use bevy::{input::keyboard, prelude::*, reflect::TypeRegistry};
-use bevy_egui::egui::{self};
+use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,

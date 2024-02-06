@@ -1,15 +1,14 @@
 use crate::editor::{
-    delete_selection, DespawnEvent, GenericID, HoverState, InspectorContext, Selectable, Selection,
-    SelectionState, SpawnEvent,
+    delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
+    SpawnEvent,
 };
+use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::prelude::*;
-use bevy::reflect::TypeRegistry;
-use bevy_egui::egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
