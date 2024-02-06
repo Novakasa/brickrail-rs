@@ -1,4 +1,5 @@
 use crate::{
+    ble_train::BLETrain,
     block::{spawn_block, Block},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
@@ -371,7 +372,8 @@ fn spawn_train(
             "Creating train {:?} at logical block {:?}",
             train_id, logical_block_id
         );*/
-        let entity = commands.spawn(train).id();
+        let ble_train = BLETrain::new(train_id);
+        let entity = commands.spawn((train, ble_train)).id();
         entity_map.add_train(train_id, entity);
     }
 }

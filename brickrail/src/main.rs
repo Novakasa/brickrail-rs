@@ -32,5 +32,6 @@ fn main() {
         .add_plugins(inspector::InspectorPlugin)
         .add_plugins(bevy_tokio_tasks::TokioTasksPlugin::default())
         .add_plugins(ble::BLEPlugin)
+        .add_plugins(ble_train::BLETrainPlugin)
         .run();
 }
