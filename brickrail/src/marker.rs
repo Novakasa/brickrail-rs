@@ -1,6 +1,7 @@
 use bevy::{
     gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
+use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
@@ -31,7 +32,18 @@ impl MarkerKey {
 }
 
 #[derive(
-    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Serialize, Deserialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
 )]
 pub enum MarkerSpeed {
     Slow,
@@ -58,7 +70,9 @@ impl MarkerSpeed {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Serialize, Deserialize, Reflect,
+)]
 pub enum MarkerColor {
     Any,
     Red,
@@ -79,12 +93,12 @@ impl MarkerColor {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LogicalMarkerData {
     pub speed: MarkerSpeed,
 }
 
-#[derive(Debug, Component, Serialize, Deserialize, Clone)]
+#[derive(Debug, Component, Serialize, Deserialize, Clone, Reflect)]
 pub struct Marker {
     pub track: TrackID,
     pub color: MarkerColor,
@@ -142,6 +156,14 @@ impl Selectable for Marker {
 
     fn inspector_ui(&mut self, context: &mut InspectorContext) {
         context.ui.label("Inspectable marker lol");
+        ui_for_value(&mut self.color, context.ui, context.type_registry);
+        context.ui.label("Logical data");
+        for (logical, data) in self.logical_data.iter_mut() {
+            context.ui.push_id(logical, |ui| {
+                ui.label(&format!("{:?}", logical));
+                ui_for_value(data, ui, context.type_registry);
+            });
+        }
     }
 }
 
