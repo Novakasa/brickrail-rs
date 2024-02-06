@@ -119,6 +119,21 @@ pub struct Train {
 }
 
 impl Train {
+    pub fn at_block_id(train_id: TrainID, logical_block_id: LogicalBlockID) -> Train {
+        let train = Train {
+            id: train_id,
+            position: Position::Block(logical_block_id),
+            state: TrainState::Stop,
+            speed: 0.0,
+            settings: TrainSettings {
+                num_wagons: 3,
+                home: None,
+                prefer_facing: None,
+            },
+        };
+        train
+    }
+
     pub fn get_logical_block_id(&self) -> LogicalBlockID {
         self.get_route().get_current_leg().get_target_block_id()
     }
@@ -304,21 +319,13 @@ fn create_train(
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             // println!("Creating train at block {:?}", block_id);
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
-            let train = Train {
-                id: entity_map.new_train_id(),
-                position: Position::Block(logical_block_id),
-                state: TrainState::Stop,
-                speed: 0.0,
-                settings: TrainSettings {
-                    num_wagons: 3,
-                    home: None,
-                    prefer_facing: None,
-                },
-            };
+            let train_id = entity_map.new_train_id();
+            let train = Train::at_block_id(train_id, logical_block_id);
             train_events.send(SpawnEvent(train));
         }
     }
 }
+
 fn spawn_train(
     mut train_events: EventReader<SpawnEvent<Train>>,
     mut commands: Commands,

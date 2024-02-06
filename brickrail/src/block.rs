@@ -6,6 +6,7 @@ use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
+use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::prelude::*;
@@ -74,6 +75,15 @@ impl Selectable for Block {
     fn inspector_ui(&mut self, context: &mut InspectorContext) {
         context.ui.label("Inspectable block lol");
         ui_for_value(&mut self.settings, context.ui, context.type_registry);
+
+        if context.ui.button("Add train").clicked() {
+            let train_id = context.entity_map.new_train_id();
+            let logical_block_id = self.id.to_logical(BlockDirection::Aligned, Facing::Forward);
+            let train = Train::at_block_id(train_id, logical_block_id);
+            context
+                .commands
+                .add(|world: &mut World| world.send_event(SpawnEvent(train)));
+        }
     }
 
     fn get_depth(&self) -> f32 {
