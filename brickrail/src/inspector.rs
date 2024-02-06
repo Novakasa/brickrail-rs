@@ -5,23 +5,34 @@ use bevy_egui::{
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
-use crate::{editor::*, layout::EntityMap, layout_primitives::HubID};
+use crate::{ble::BLEHub, editor::*, layout::EntityMap, layout_primitives::HubID};
 
 pub struct InspectorContext<'a> {
     pub ui: &'a mut egui::Ui,
     pub type_registry: &'a TypeRegistry,
     pub entity_map: &'a EntityMap,
+    pub commands: Commands<'a, 'a>,
 }
 
 impl<'a> InspectorContext<'a> {
     pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>) {
-        egui::ComboBox::from_label("Select one!")
+        egui::ComboBox::from_label("Hub")
             .selected_text(format!("{:?}", selected))
             .show_ui(self.ui, |ui| {
                 ui.selectable_value(selected, None, "None");
                 for id in self.entity_map.hubs.keys() {
                     ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
                 }
+                if ui
+                    .button("New Hub")
+                    .on_hover_text("Create a new hub")
+                    .clicked()
+                {
+                    *selected = Some(self.entity_map.new_hub_id());
+                    let hub = BLEHub::new(selected.unwrap().clone());
+                    self.commands
+                        .add(|world: &mut World| world.send_event(SpawnEvent(hub)));
+                };
             });
     }
 }
@@ -34,6 +45,7 @@ fn inspector_system(
     entity_map: ResMut<EntityMap>,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
+    commands: Commands,
 ) {
     let inner_response = egui::SidePanel::new(egui::panel::Side::Right, Id::new("Inspector")).show(
         contexts.ctx_mut(),
@@ -48,6 +60,7 @@ fn inspector_system(
                         ui,
                         type_registry: &type_registry.read(),
                         entity_map: &entity_map,
+                        commands: commands,
                     };
 
                     let mut inspectable_iter = q_inspectable.get_mut(entity).unwrap();

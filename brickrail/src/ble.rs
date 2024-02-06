@@ -27,12 +27,23 @@ struct HubEventReceiver {
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
-struct BLEHub {
+pub struct BLEHub {
     id: HubID,
     #[serde(skip)]
     hub: Arc<IOHub>,
     name: Option<String>,
     active: bool,
+}
+
+impl BLEHub {
+    pub fn new(id: HubID) -> Self {
+        Self {
+            id,
+            hub: Arc::new(IOHub::new()),
+            name: None,
+            active: false,
+        }
+    }
 }
 
 impl Selectable for BLEHub {
@@ -66,12 +77,7 @@ fn create_hub(
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::H) {
         let id = entity_map.new_hub_id();
-        let hub = BLEHub {
-            id,
-            hub: Arc::new(IOHub::new()),
-            name: None,
-            active: true,
-        };
+        let hub = BLEHub::new(id);
         hub_event_writer.send(SpawnEvent(hub));
     }
 }
