@@ -83,6 +83,7 @@ impl Selectable for BLETrain {
 
     fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
         ui.label("BLE Train");
+        ui.label("Master Hub");
         context.select_hub_ui(ui, &mut self.master_hub, HubType::Train);
         ui.label("Puppets");
         let mut remove_index = None;

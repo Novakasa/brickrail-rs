@@ -83,6 +83,7 @@ fn inspector_system(
                             continue;
                         }
                         inspectable.inspector_ui(ui, &mut context);
+                        ui.separator();
                     }
                 }
             }

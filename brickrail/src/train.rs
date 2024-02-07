@@ -166,7 +166,7 @@ impl Train {
 
 impl Selectable for Train {
     fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label("Inspectable train lol");
+        ui.label(format!("Train {:?}", self.id));
         if ui.button("Turn around").clicked() {
             println!("can't lol");
         }
