@@ -31,13 +31,22 @@ impl TrainID {
 #[derive(
     Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
 )]
+pub enum HubType {
+    Train,
+    Layout,
+}
+
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct HubID {
-    id: usize,
+    pub id: usize,
+    pub kind: HubType,
 }
 
 impl HubID {
-    pub fn new(id: usize) -> Self {
-        Self { id }
+    pub fn new(id: usize, kind: HubType) -> Self {
+        Self { id, kind }
     }
 }
 

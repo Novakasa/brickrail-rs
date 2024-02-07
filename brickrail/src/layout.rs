@@ -135,12 +135,12 @@ impl EntityMap {
         return TrainID::new(id);
     }
 
-    pub fn new_hub_id(&self) -> HubID {
+    pub fn new_hub_id(&self, kind: HubType) -> HubID {
         let mut id = 0;
-        while self.hubs.contains_key(&HubID::new(id)) {
+        while self.hubs.contains_key(&HubID::new(id, kind)) {
             id += 1;
         }
-        return HubID::new(id);
+        return HubID::new(id, kind);
     }
 }
 

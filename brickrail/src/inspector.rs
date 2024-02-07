@@ -5,7 +5,12 @@ use bevy_egui::{
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
-use crate::{ble::BLEHub, editor::*, layout::EntityMap, layout_primitives::HubID};
+use crate::{
+    ble::BLEHub,
+    editor::*,
+    layout::EntityMap,
+    layout_primitives::{HubID, HubType},
+};
 
 pub struct InspectorContext<'a> {
     pub ui: &'a mut egui::Ui,
@@ -15,12 +20,12 @@ pub struct InspectorContext<'a> {
 }
 
 impl<'a> InspectorContext<'a> {
-    pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>) {
+    pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>, kind: HubType) {
         egui::ComboBox::from_label("Hub")
             .selected_text(format!("{:?}", selected))
             .show_ui(self.ui, |ui| {
                 ui.selectable_value(selected, None, "None");
-                for id in self.entity_map.hubs.keys() {
+                for id in self.entity_map.hubs.keys().filter(|id| id.kind == kind) {
                     ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
                 }
                 if ui
@@ -28,7 +33,7 @@ impl<'a> InspectorContext<'a> {
                     .on_hover_text("Create a new hub")
                     .clicked()
                 {
-                    *selected = Some(self.entity_map.new_hub_id());
+                    *selected = Some(self.entity_map.new_hub_id(kind));
                     let hub = BLEHub::new(selected.unwrap().clone());
                     self.commands
                         .add(|world: &mut World| world.send_event(SpawnEvent(hub)));

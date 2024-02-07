@@ -4,7 +4,7 @@ use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     editor::{GenericID, Selectable, SpawnEvent},
     layout::EntityMap,
-    layout_primitives::HubID,
+    layout_primitives::{HubID, HubType},
 };
 use bevy::{input::keyboard, prelude::*};
 use pybricks_ble::{
@@ -76,7 +76,7 @@ fn create_hub(
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::H) {
-        let id = entity_map.new_hub_id();
+        let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
         hub_event_writer.send(SpawnEvent(hub));
     }
