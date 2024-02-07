@@ -112,11 +112,7 @@ pub struct BlockBundle {
 
 impl BlockBundle {
     pub fn new(section: DirectedSection) -> Self {
-        Self::from_block(Block {
-            id: section.to_block_id(),
-            section: section,
-            settings: BlockSettings::default(),
-        })
+        Self::from_block(Block::new(section))
     }
 
     pub fn from_block(block: Block) -> Self {
