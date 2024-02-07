@@ -53,7 +53,7 @@ impl Selectable for BLEHub {
     }
 
     fn inspector_ui(&mut self, context: &mut crate::inspector::InspectorContext) {
-        context.ui.label("BLE Hub");
+        context.ui.label(format!("BLE Hub {:?}", self.id));
         context.ui.label(format!(
             "Name: {}",
             self.name.as_deref().unwrap_or("Unknown")

@@ -1,6 +1,6 @@
 use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::{
-    egui::{self, Id},
+    egui::{self, Id, Layout},
     EguiContexts, EguiMousePosition,
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
@@ -22,29 +22,33 @@ pub struct InspectorContext<'a> {
 
 impl<'a> InspectorContext<'a> {
     pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>, kind: HubType) {
-        egui::ComboBox::from_label("Hub")
-            .selected_text(format!("{:?}", selected))
-            .show_ui(self.ui, |ui| {
-                ui.selectable_value(selected, None, "None");
-                for id in self.entity_map.hubs.keys().filter(|id| id.kind == kind) {
-                    ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
+        self.ui
+            .with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                egui::ComboBox::from_label("")
+                    .selected_text(format!("{:?}", selected))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(selected, None, "None");
+                        for id in self.entity_map.hubs.keys().filter(|id| id.kind == kind) {
+                            ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
+                        }
+                        if ui
+                            .button("New Hub")
+                            .on_hover_text("Create a new hub")
+                            .clicked()
+                        {
+                            *selected = Some(self.entity_map.new_hub_id(kind));
+                            let hub = BLEHub::new(selected.unwrap().clone());
+                            self.commands
+                                .add(|world: &mut World| world.send_event(SpawnEvent(hub)));
+                        };
+                    });
+                if let Some(hub_id) = selected {
+                    if ui.button("edit").clicked() {
+                        self.selection_state.selection =
+                            Selection::Single(GenericID::Hub(hub_id.clone()));
+                    }
                 }
-                if ui
-                    .button("New Hub")
-                    .on_hover_text("Create a new hub")
-                    .clicked()
-                {
-                    *selected = Some(self.entity_map.new_hub_id(kind));
-                    let hub = BLEHub::new(selected.unwrap().clone());
-                    self.commands
-                        .add(|world: &mut World| world.send_event(SpawnEvent(hub)));
-                };
             });
-        if let Some(hub_id) = selected {
-            if self.ui.button("edit").clicked() {
-                self.selection_state.selection = Selection::Single(GenericID::Hub(hub_id.clone()));
-            }
-        }
     }
 }
 
@@ -61,7 +65,7 @@ fn inspector_system(
     let inner_response = egui::SidePanel::new(egui::panel::Side::Right, Id::new("Inspector")).show(
         contexts.ctx_mut(),
         |ui| {
-            ui.label("Hello World!");
+            ui.label("Inspector");
             // ui_for_value_readonly(&layout.in_markers, ui, &type_registry.read());
             ui.separator();
             let selection = selection_state.selection.clone();
