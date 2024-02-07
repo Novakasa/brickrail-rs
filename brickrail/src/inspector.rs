@@ -1,6 +1,6 @@
 use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::{
-    egui::{self, Id, Layout},
+    egui::{self, Id, Layout, Ui},
     EguiContexts, EguiMousePosition,
 };
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
@@ -21,9 +21,9 @@ pub struct InspectorContext<'a> {
 }
 
 impl<'a> InspectorContext<'a> {
-    pub fn select_hub_ui(&mut self, selected: &mut Option<HubID>, kind: HubType) {
-        self.ui
-            .with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+    pub fn select_hub_ui(&mut self, index: usize, selected: &mut Option<HubID>, kind: HubType) {
+        self.ui.push_id(index, |ui| {
+            ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
                 egui::ComboBox::from_label("")
                     .selected_text(format!("{:?}", selected))
                     .show_ui(ui, |ui| {
@@ -49,6 +49,7 @@ impl<'a> InspectorContext<'a> {
                     }
                 }
             });
+        });
     }
 }
 
@@ -85,7 +86,6 @@ fn inspector_system(
                             continue;
                         }
                         inspectable.inspector_ui(&mut context);
-                        context.ui.separator();
                     }
                 }
             }

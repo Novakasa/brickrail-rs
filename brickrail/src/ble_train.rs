@@ -15,7 +15,7 @@ use crate::{
 #[derive(Component, Serialize, Deserialize)]
 pub struct BLETrain {
     master_hub: Option<HubID>,
-    puppets: Vec<HubID>,
+    puppets: Vec<Option<HubID>>,
     train_id: TrainID,
 }
 
@@ -59,7 +59,7 @@ impl BLETrain {
 
     fn puppet_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        for hub_id in self.puppets.iter() {
+        for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
             command.push(HubInput::new(*hub_id, input.clone()));
         }
         command
@@ -68,7 +68,7 @@ impl BLETrain {
     fn all_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
         command.push(HubInput::new(self.master_hub.unwrap(), input.clone()));
-        for hub_id in self.puppets.iter() {
+        for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
             command.push(HubInput::new(*hub_id, input.clone()));
         }
         command
@@ -82,7 +82,14 @@ impl Selectable for BLETrain {
 
     fn inspector_ui(&mut self, context: &mut InspectorContext) {
         context.ui.label("BLE Train");
-        context.select_hub_ui(&mut self.master_hub, HubType::Train);
+        context.select_hub_ui(0, &mut self.master_hub, HubType::Train);
+        context.ui.label("Puppets");
+        for (i, hub_id) in self.puppets.iter_mut().enumerate() {
+            context.select_hub_ui(i + 1, hub_id, HubType::Train);
+        }
+        if context.ui.button("Add Puppet").clicked() {
+            self.puppets.push(None);
+        }
     }
 }
 
