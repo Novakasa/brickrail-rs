@@ -36,8 +36,9 @@ impl<'a> InspectorContext<'a> {
                     {
                         *selected = Some(self.entity_map.new_hub_id(kind));
                         let hub = BLEHub::new(selected.unwrap().clone());
-                        self.commands
-                            .add(|world: &mut World| world.send_event(SpawnEvent(hub)));
+                        self.commands.add(|world: &mut World| {
+                            world.send_event(SpawnEvent(SerializedHub { hub }))
+                        });
                     };
                 });
             if let Some(hub_id) = selected {

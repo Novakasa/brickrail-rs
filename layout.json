@@ -1,13 +1,13 @@
 {
   "marker_map": {
     "in_markers": {
-      "\"L(1,4,0|EW<)\"": "LB[(1,4,0|EW)<(-3,4,0|EW)]",
-      "\"L(1,-1,0|WE>)\"": "LB[(-2,-1,0|NE)>(1,-1,0|WE)]",
-      "\"L(-2,-1,0|EN>)\"": "LB[(1,-1,0|EW)>(-2,-1,0|EN)]",
-      "\"L(-3,4,0|WE<)\"": "LB[(-3,4,0|WE)<(1,4,0|WE)]",
-      "\"L(-3,4,0|EW>)\"": "LB[(1,4,0|EW)>(-3,4,0|EW)]",
       "\"L(-2,-1,0|NE<)\"": "LB[(-2,-1,0|NE)<(1,-1,0|WE)]",
       "\"L(1,-1,0|EW<)\"": "LB[(1,-1,0|EW)<(-2,-1,0|EN)]",
+      "\"L(-2,-1,0|EN>)\"": "LB[(1,-1,0|EW)>(-2,-1,0|EN)]",
+      "\"L(1,-1,0|WE>)\"": "LB[(-2,-1,0|NE)>(1,-1,0|WE)]",
+      "\"L(-3,4,0|WE<)\"": "LB[(-3,4,0|WE)<(1,4,0|WE)]",
+      "\"L(1,4,0|EW<)\"": "LB[(1,4,0|EW)<(-3,4,0|EW)]",
+      "\"L(-3,4,0|EW>)\"": "LB[(1,4,0|EW)>(-3,4,0|EW)]",
       "\"L(1,4,0|WE>)\"": "LB[(-3,4,0|WE)>(1,4,0|WE)]"
     },
     "enter_markers": {}
@@ -250,16 +250,16 @@
       "track": "T(1,4,0|EW)",
       "color": "Green",
       "logical_data": {
-        "\"L(1,4,0|WE<)\"": {
-          "speed": "Cruise"
-        },
-        "\"L(1,4,0|EW<)\"": {
+        "\"L(1,4,0|EW>)\"": {
           "speed": "Cruise"
         },
         "\"L(1,4,0|WE>)\"": {
           "speed": "Cruise"
         },
-        "\"L(1,4,0|EW>)\"": {
+        "\"L(1,4,0|EW<)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(1,4,0|WE<)\"": {
           "speed": "Cruise"
         }
       }
@@ -271,13 +271,13 @@
         "\"L(-3,4,0|WE<)\"": {
           "speed": "Cruise"
         },
-        "\"L(-3,4,0|EW>)\"": {
+        "\"L(-3,4,0|EW<)\"": {
           "speed": "Cruise"
         },
         "\"L(-3,4,0|WE>)\"": {
           "speed": "Cruise"
         },
-        "\"L(-3,4,0|EW<)\"": {
+        "\"L(-3,4,0|EW>)\"": {
           "speed": "Cruise"
         }
       }
@@ -292,10 +292,10 @@
         "\"L(1,-1,0|EW<)\"": {
           "speed": "Cruise"
         },
-        "\"L(1,-1,0|WE<)\"": {
+        "\"L(1,-1,0|EW>)\"": {
           "speed": "Cruise"
         },
-        "\"L(1,-1,0|EW>)\"": {
+        "\"L(1,-1,0|WE<)\"": {
           "speed": "Cruise"
         }
       }
@@ -304,13 +304,13 @@
       "track": "T(-2,-1,0|NE)",
       "color": "Green",
       "logical_data": {
-        "\"L(-2,-1,0|EN>)\"": {
+        "\"L(-2,-1,0|NE>)\"": {
           "speed": "Cruise"
         },
         "\"L(-2,-1,0|EN<)\"": {
           "speed": "Cruise"
         },
-        "\"L(-2,-1,0|NE>)\"": {
+        "\"L(-2,-1,0|EN>)\"": {
           "speed": "Cruise"
         },
         "\"L(-2,-1,0|NE<)\"": {
@@ -336,10 +336,17 @@
         }
       },
       "ble_train": {
-        "master_hub": null,
+        "master_hub": {
+          "id": 3,
+          "kind": "Train"
+        },
         "puppets": [
           {
             "id": 0,
+            "kind": "Train"
+          },
+          {
+            "id": 1,
             "kind": "Train"
           }
         ],
@@ -364,11 +371,56 @@
         }
       },
       "ble_train": {
-        "master_hub": null,
+        "master_hub": {
+          "id": 2,
+          "kind": "Train"
+        },
         "puppets": [],
         "train_id": {
           "id": 1
         }
+      }
+    }
+  ],
+  "hubs": [
+    {
+      "hub": {
+        "id": {
+          "id": 0,
+          "kind": "Train"
+        },
+        "name": "city_hub",
+        "active": false
+      }
+    },
+    {
+      "hub": {
+        "id": {
+          "id": 1,
+          "kind": "Train"
+        },
+        "name": null,
+        "active": false
+      }
+    },
+    {
+      "hub": {
+        "id": {
+          "id": 2,
+          "kind": "Train"
+        },
+        "name": null,
+        "active": false
+      }
+    },
+    {
+      "hub": {
+        "id": {
+          "id": 3,
+          "kind": "Train"
+        },
+        "name": "technic-blue",
+        "active": false
       }
     }
   ]

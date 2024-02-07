@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
-    editor::{GenericID, Selectable, SpawnEvent},
+    editor::{GenericID, Selectable, SerializedHub, SpawnEvent},
     layout::EntityMap,
     layout_primitives::{HubID, HubType},
 };
@@ -96,25 +96,25 @@ fn discover_hub_name(
 }
 
 fn create_hub(
-    mut hub_event_writer: EventWriter<SpawnEvent<BLEHub>>,
+    mut hub_event_writer: EventWriter<SpawnEvent<SerializedHub>>,
     keyboard_input: Res<Input<keyboard::KeyCode>>,
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::H) {
         let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
-        hub_event_writer.send(SpawnEvent(hub));
+        hub_event_writer.send(SpawnEvent(SerializedHub { hub }));
     }
 }
 
 fn spawn_hub(
     runtime: Res<TokioTasksRuntime>,
-    mut spawn_event_reader: EventReader<SpawnEvent<BLEHub>>,
+    mut spawn_event_reader: EventReader<SpawnEvent<SerializedHub>>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for event in spawn_event_reader.read() {
-        let hub = event.0.clone();
+        let hub = event.0.hub.clone();
         let hub_id = hub.id;
         let mut event_receiver = hub.hub.subscribe_events();
         let entity = commands.spawn(hub).id();
@@ -209,12 +209,11 @@ impl Plugin for BLEPlugin {
         app.insert_resource(BLEState { adapter: None });
         app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
-        app.add_event::<SpawnEvent<BLEHub>>();
         app.add_systems(Startup, ble_startup_system);
         app.add_systems(
             Update,
             (
-                spawn_hub,
+                spawn_hub.run_if(on_event::<SpawnEvent<SerializedHub>>()),
                 distribute_hub_events,
                 create_hub,
                 discover_hub_name,

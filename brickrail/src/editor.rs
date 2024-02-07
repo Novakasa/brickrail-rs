@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 
+use crate::ble::BLEHub;
 use crate::ble_train::BLETrain;
 use crate::block::Block;
 use crate::inspector::InspectorContext;
@@ -214,6 +215,11 @@ pub struct SerializedTrain {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct SerializedHub {
+    pub hub: BLEHub,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 struct SerializableLayout {
     marker_map: MarkerMap,
     tracks: Vec<Track>,
@@ -222,6 +228,8 @@ struct SerializableLayout {
     markers: Vec<Marker>,
     #[serde(default)]
     trains: Vec<SerializedTrain>,
+    #[serde(default)]
+    hubs: Vec<SerializedHub>,
 }
 
 pub fn save_layout(
@@ -231,6 +239,7 @@ pub fn save_layout(
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
     q_connections: Query<&TrackConnection>,
+    q_hubs: Query<&BLEHub>,
     keyboard_buttons: Res<Input<KeyCode>>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::S) {
@@ -246,6 +255,10 @@ pub fn save_layout(
                 ble_train: Some(ble_train.clone()),
             })
             .collect();
+        let hubs = q_hubs
+            .iter()
+            .map(|hub| SerializedHub { hub: hub.clone() })
+            .collect();
         let connections = q_connections.iter().map(|c| c.clone()).collect();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
@@ -254,6 +267,7 @@ pub fn save_layout(
             tracks,
             connections,
             trains,
+            hubs,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -295,6 +309,9 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         for serialized_train in layout_value.trains {
             commands.add(|world: &mut World| world.send_event(SpawnEvent(serialized_train)));
         }
+        for serialized_hub in layout_value.hubs {
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(serialized_hub)));
+        }
         commands.insert_resource(marker_map);
     }
 }
@@ -314,6 +331,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
         app.add_event::<SpawnEvent<SerializedTrain>>();
+        app.add_event::<SpawnEvent<SerializedHub>>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
