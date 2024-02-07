@@ -78,6 +78,7 @@ impl EntityMap {
             GenericID::Block(block_id) => self.blocks.get(block_id).copied(),
             GenericID::Train(train_id) => self.trains.get(train_id).copied(),
             GenericID::Marker(track_id) => self.markers.get(track_id).copied(),
+            GenericID::Hub(hub_id) => self.hubs.get(hub_id).copied(),
             _ => panic!("generic id get entity not implemented for {:?}", id),
         }
     }

@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::{HubID, HubType},
 };
 use bevy::{input::keyboard, prelude::*};
+use bevy_trait_query::RegisterExt;
 use pybricks_ble::{
     io_hub::{IOEvent, IOHub, Input as IOInput},
     pybricks_hub::BLEAdapter,
@@ -49,6 +50,30 @@ impl BLEHub {
 impl Selectable for BLEHub {
     fn get_id(&self) -> GenericID {
         GenericID::Hub(self.id)
+    }
+
+    fn inspector_ui(&mut self, context: &mut crate::inspector::InspectorContext) {
+        context.ui.label("BLE Hub");
+        context.ui.label(format!(
+            "Name: {}",
+            self.name.as_deref().unwrap_or("Unknown")
+        ));
+        if context
+            .ui
+            .button("Discover Name")
+            .on_hover_text("Discover the name of the hub")
+            .clicked()
+        {
+            let io_hub = self.hub.clone();
+            context.commands.add(move |world: &mut World| {
+                let runtime = world
+                    .get_resource::<crate::bevy_tokio_tasks::TokioTasksRuntime>()
+                    .unwrap();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.discover_name().await.unwrap();
+                });
+            });
+        }
     }
 }
 
@@ -182,6 +207,7 @@ pub struct BLEPlugin;
 impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(BLEState { adapter: None });
+        app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
         app.add_event::<SpawnEvent<BLEHub>>();
         app.add_systems(Startup, ble_startup_system);

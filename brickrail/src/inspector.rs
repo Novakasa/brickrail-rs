@@ -16,6 +16,7 @@ pub struct InspectorContext<'a> {
     pub ui: &'a mut egui::Ui,
     pub type_registry: &'a TypeRegistry,
     pub entity_map: &'a EntityMap,
+    pub selection_state: &'a mut SelectionState,
     pub commands: Commands<'a, 'a>,
 }
 
@@ -39,6 +40,11 @@ impl<'a> InspectorContext<'a> {
                         .add(|world: &mut World| world.send_event(SpawnEvent(hub)));
                 };
             });
+        if let Some(hub_id) = selected {
+            if self.ui.button("edit").clicked() {
+                self.selection_state.selection = Selection::Single(GenericID::Hub(hub_id.clone()));
+            }
+        }
     }
 }
 
@@ -46,7 +52,7 @@ fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
     mut q_inspectable: Query<&mut dyn Selectable>,
-    selection_state: Res<SelectionState>,
+    mut selection_state: ResMut<SelectionState>,
     entity_map: ResMut<EntityMap>,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
@@ -66,6 +72,7 @@ fn inspector_system(
                         type_registry: &type_registry.read(),
                         entity_map: &entity_map,
                         commands: commands,
+                        selection_state: &mut selection_state,
                     };
 
                     let mut inspectable_iter = q_inspectable.get_mut(entity).unwrap();
