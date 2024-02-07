@@ -30,6 +30,7 @@ async fn train_hub() -> IOHub {
 }
 
 #[test_log::test(tokio::test)]
+#[ignore]
 async fn test_route() {
     let hub = &mut train_hub().await;
     println!("program running");

@@ -86,7 +86,7 @@ impl Selectable for BLETrain {
     }
 }
 
-struct HubCommands {
+pub struct HubCommands {
     hub_events: Vec<HubInput>,
 }
 
