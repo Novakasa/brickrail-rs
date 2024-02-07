@@ -10,6 +10,7 @@ use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::prelude::*;
+use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
@@ -71,11 +72,11 @@ impl Block {
 }
 
 impl Selectable for Block {
-    fn inspector_ui(&mut self, context: &mut InspectorContext) {
-        context.ui.label("Inspectable block lol");
-        ui_for_value(&mut self.settings, context.ui, context.type_registry);
+    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
+        ui.label("Inspectable block lol");
+        ui_for_value(&mut self.settings, ui, context.type_registry);
 
-        if context.ui.button("Add train").clicked() {
+        if ui.button("Add train").clicked() {
             let train_id = context.entity_map.new_train_id();
             let logical_block_id = self.id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train = Train::at_block_id(train_id, logical_block_id);

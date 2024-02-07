@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui::{Align, Layout, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::Input as IOInput;
 use serde::{Deserialize, Serialize};
@@ -80,14 +81,25 @@ impl Selectable for BLETrain {
         GenericID::Train(self.train_id)
     }
 
-    fn inspector_ui(&mut self, context: &mut InspectorContext) {
-        context.ui.label("BLE Train");
-        context.select_hub_ui(0, &mut self.master_hub, HubType::Train);
-        context.ui.label("Puppets");
+    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
+        ui.label("BLE Train");
+        context.select_hub_ui(ui, &mut self.master_hub, HubType::Train);
+        ui.label("Puppets");
+        let mut remove_index = None;
         for (i, hub_id) in self.puppets.iter_mut().enumerate() {
-            context.select_hub_ui(i + 1, hub_id, HubType::Train);
+            ui.push_id(i, |ui| {
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    context.select_hub_ui(ui, hub_id, HubType::Train);
+                    if ui.button("Remove").clicked() {
+                        remove_index = Some(i);
+                    }
+                });
+            });
         }
-        if context.ui.button("Add Puppet").clicked() {
+        if let Some(i) = remove_index {
+            self.puppets.remove(i);
+        }
+        if ui.button("Add Puppet").clicked() {
             self.puppets.push(None);
         }
     }

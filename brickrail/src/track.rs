@@ -7,6 +7,7 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::prelude::*;
+use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;
@@ -179,10 +180,10 @@ pub struct Track {
 }
 
 impl Selectable for Track {
-    fn inspector_ui(&mut self, context: &mut InspectorContext) {
-        context.ui.label("Inspectable track lol");
+    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
+        ui.label("Inspectable track lol");
         if !context.entity_map.markers.contains_key(&self.id) {
-            if context.ui.button("Add Marker").clicked() {
+            if ui.button("Add Marker").clicked() {
                 let id = self.id.clone();
                 context.commands.add(move |world: &mut World| {
                     let marker = Marker::new(id, MarkerColor::Red);

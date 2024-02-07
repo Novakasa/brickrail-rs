@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::{HubID, HubType},
 };
 use bevy::{input::keyboard, prelude::*};
+use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::{
     io_hub::{IOEvent, IOHub, Input as IOInput},
@@ -52,14 +53,13 @@ impl Selectable for BLEHub {
         GenericID::Hub(self.id)
     }
 
-    fn inspector_ui(&mut self, context: &mut crate::inspector::InspectorContext) {
-        context.ui.label(format!("BLE Hub {:?}", self.id));
-        context.ui.label(format!(
+    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut crate::inspector::InspectorContext) {
+        ui.label(format!("BLE Hub {:?}", self.id));
+        ui.label(format!(
             "Name: {}",
             self.name.as_deref().unwrap_or("Unknown")
         ));
-        if context
-            .ui
+        if ui
             .button("Discover Name")
             .on_hover_text("Discover the name of the hub")
             .clicked()

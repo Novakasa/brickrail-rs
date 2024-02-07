@@ -1,6 +1,7 @@
 use bevy::{
     gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
+use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
@@ -154,12 +155,12 @@ impl Selectable for Marker {
             - 0.05
     }
 
-    fn inspector_ui(&mut self, context: &mut InspectorContext) {
-        context.ui.label("Inspectable marker lol");
-        ui_for_value(&mut self.color, context.ui, context.type_registry);
-        context.ui.label("Logical data");
+    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
+        ui.label("Inspectable marker lol");
+        ui_for_value(&mut self.color, ui, context.type_registry);
+        ui.label("Logical data");
         for (logical, data) in self.logical_data.iter_mut() {
-            context.ui.push_id(logical, |ui| {
+            ui.push_id(logical, |ui| {
                 ui.label(&format!("{:?}", logical));
                 ui_for_value(data, ui, context.type_registry);
             });

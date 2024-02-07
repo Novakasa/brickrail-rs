@@ -10,6 +10,7 @@ use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
+use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -44,7 +45,7 @@ pub enum Selection {
 
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(&mut self, _context: &mut InspectorContext) {}
+    fn inspector_ui(&mut self, ui: &mut Ui, _context: &mut InspectorContext) {}
 
     fn get_id(&self) -> GenericID;
 
