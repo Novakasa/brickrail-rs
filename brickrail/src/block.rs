@@ -1,6 +1,6 @@
 use crate::editor::{
     delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
-    SpawnEvent,
+    SerializedTrain, SpawnEvent,
 };
 use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
@@ -73,16 +73,19 @@ impl Block {
 
 impl Selectable for Block {
     fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label("Inspectable block lol");
+        ui.label(format!("Block {:?}", self.id));
         ui_for_value(&mut self.settings, ui, context.type_registry);
 
         if ui.button("Add train").clicked() {
             let train_id = context.entity_map.new_train_id();
             let logical_block_id = self.id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train = Train::at_block_id(train_id, logical_block_id);
-            context
-                .commands
-                .add(|world: &mut World| world.send_event(SpawnEvent(train)));
+            context.commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(SerializedTrain {
+                    train: train,
+                    ble_train: None,
+                }))
+            });
         }
     }
 

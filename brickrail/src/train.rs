@@ -312,7 +312,7 @@ fn update_drag_train(
 
 fn create_train(
     keyboard_input: Res<Input<keyboard::KeyCode>>,
-    mut train_events: EventWriter<SpawnEvent<Train>>,
+    mut train_events: EventWriter<SpawnEvent<SerializedTrain>>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -322,13 +322,16 @@ fn create_train(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.send(SpawnEvent(train));
+            train_events.send(SpawnEvent(SerializedTrain {
+                train,
+                ble_train: None,
+            }));
         }
     }
 }
 
 fn spawn_train(
-    mut train_events: EventReader<SpawnEvent<Train>>,
+    mut train_events: EventReader<SpawnEvent<SerializedTrain>>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
@@ -337,9 +340,9 @@ fn spawn_train(
     q_markers: Query<&Marker>,
 ) {
     for request in train_events.read() {
-        println!("Spawning train {:?}", request.0.id);
-        let mut train = request.0.clone();
-        let block_id = match request.0.position {
+        let serialized_train = request.0.clone();
+        let mut train = serialized_train.train;
+        let block_id = match train.position {
             Position::Storage => {
                 panic!("Can't spawn train in storage")
             }
@@ -375,7 +378,9 @@ fn spawn_train(
             "Creating train {:?} at logical block {:?}",
             train_id, logical_block_id
         );*/
-        let ble_train = BLETrain::new(train_id);
+        let ble_train = serialized_train
+            .ble_train
+            .unwrap_or(BLETrain::new(train_id));
         let entity = commands.spawn((train, ble_train)).id();
         entity_map.add_train(train_id, entity);
     }
@@ -425,7 +430,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SpawnEvent<Train>>())
+                .run_if(on_event::<SpawnEvent<SerializedTrain>>())
                 .after(spawn_block),
         );
     }

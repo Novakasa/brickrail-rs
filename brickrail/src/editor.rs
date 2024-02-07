@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 
+use crate::ble_train::BLETrain;
 use crate::block::Block;
 use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
@@ -45,7 +46,7 @@ pub enum Selection {
 
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(&mut self, ui: &mut Ui, _context: &mut InspectorContext) {}
+    fn inspector_ui(&mut self, _ui: &mut Ui, _context: &mut InspectorContext) {}
 
     fn get_id(&self) -> GenericID;
 
@@ -207,6 +208,12 @@ fn extend_selection(
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct SerializedTrain {
+    pub train: Train,
+    pub ble_train: Option<BLETrain>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 struct SerializableLayout {
     marker_map: MarkerMap,
     tracks: Vec<Track>,
@@ -214,12 +221,12 @@ struct SerializableLayout {
     blocks: Vec<Block>,
     markers: Vec<Marker>,
     #[serde(default)]
-    trains: Vec<Train>,
+    trains: Vec<SerializedTrain>,
 }
 
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
-    q_trains: Query<&Train>,
+    q_trains: Query<(&Train, &BLETrain)>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
@@ -232,7 +239,13 @@ pub fn save_layout(
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
         let tracks = q_tracks.iter().map(|t| t.clone()).collect();
-        let trains = q_trains.iter().map(|t| t.clone()).collect();
+        let trains = q_trains
+            .iter()
+            .map(|(train, ble_train)| SerializedTrain {
+                train: train.clone(),
+                ble_train: Some(ble_train.clone()),
+            })
+            .collect();
         let connections = q_connections.iter().map(|c| c.clone()).collect();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
@@ -248,7 +261,7 @@ pub fn save_layout(
 }
 
 #[derive(Event)]
-pub struct SpawnEvent<T: Selectable>(pub T);
+pub struct SpawnEvent<T>(pub T);
 
 #[derive(Event)]
 pub struct DespawnEvent<T>(pub T);
@@ -279,8 +292,8 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         for marker in layout_value.markers {
             commands.add(|world: &mut World| world.send_event(SpawnEvent(marker)));
         }
-        for train in layout_value.trains {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(train)));
+        for serialized_train in layout_value.trains {
+            commands.add(|world: &mut World| world.send_event(SpawnEvent(serialized_train)));
         }
         commands.insert_resource(marker_map);
     }
@@ -300,6 +313,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
+        app.add_event::<SpawnEvent<SerializedTrain>>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());

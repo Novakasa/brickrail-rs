@@ -13,7 +13,7 @@ use crate::{
     route::Route,
 };
 
-#[derive(Component, Serialize, Deserialize)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLETrain {
     master_hub: Option<HubID>,
     puppets: Vec<Option<HubID>>,
