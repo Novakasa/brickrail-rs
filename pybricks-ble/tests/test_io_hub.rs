@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use pybricks_ble::{
-    io_hub::{IOEvent, IOHub, Input, SimulatedError},
+    io_hub::{IOEvent, IOHub, IOMessage, Input, SimulatedError},
     pybricks_hub::BLEAdapter,
 };
 
@@ -36,7 +36,7 @@ async fn test_io(hub: &mut IOHub) {
     hub.queue_input(Input::rpc("respond", &vec![29, 42]).with_error(TEST_ERR))
         .unwrap();
     match hub.wait_for_data_event_with_id(57).await.unwrap() {
-        IOEvent::Data { id, data } => {
+        IOEvent::Message(IOMessage::Data { id, data }) => {
             assert_eq!(id, 57);
             assert_eq!(data, vec![29, 42]);
         }

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use bevy::log::info;
 use pybricks_ble::{
-    io_hub::{IOEvent, IOHub, Input, SimulatedError},
+    io_hub::{IOHub, IOMessage, Input, SimulatedError},
     pybricks_hub::BLEAdapter,
 };
 

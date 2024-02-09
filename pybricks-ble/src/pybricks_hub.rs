@@ -27,23 +27,65 @@ fn pack_u32(n: u32) -> Vec<u8> {
     ]
 }
 
+#[derive(Debug, Clone)]
 pub enum HubState {
     Undiscovered,
+    Discovering,
     Disconnected,
+    Connecting,
     Connected,
-    Running,
+    Downloading,
+    StartingProgram,
+    RunningProgram,
+    Shutdown,
+}
+
+#[derive(Debug, Clone)]
+pub struct HubStatus {
+    pub state: HubState,
+    pub high_current: bool,
+    pub battery_low_voltage_shutdown: bool,
+    pub battery_low_voltage_warning: bool,
+    pub ble_advertising: bool,
+    pub ble_low_signal: bool,
+    pub power_button_pressed: bool,
+    pub shutdown_requested: bool,
+}
+
+impl HubStatus {
+    pub fn from_flags(flags: u32) -> Self {
+        let state = if flags & 128 != 0 {
+            HubState::Shutdown
+        } else if flags & 64 != 0 {
+            HubState::RunningProgram
+        } else {
+            HubState::Connected
+        };
+        HubStatus {
+            state: state,
+            high_current: flags & 1 != 0,
+            battery_low_voltage_shutdown: flags & 2 != 0,
+            battery_low_voltage_warning: flags & 4 != 0,
+            ble_advertising: flags & 8 != 0,
+            ble_low_signal: flags & 16 != 0,
+            power_button_pressed: flags & 32 != 0,
+            shutdown_requested: flags & 256 != 0,
+        }
+    }
 }
 
 #[derive(Debug)]
 enum HubEvent {
-    Status(u32),
+    Status(HubStatus),
     STDOUT(Vec<u8>),
 }
 
 impl HubEvent {
     fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         match data[0] {
-            0 => Ok(HubEvent::Status(unpack_u32_little(data[1..].to_vec()))),
+            0 => Ok(HubEvent::Status(HubStatus::from_flags(unpack_u32_little(
+                data[1..].to_vec(),
+            )))),
             1 => Ok(HubEvent::STDOUT(data[1..].to_vec())),
             _ => Err("Unknown event".into()),
         }
@@ -201,7 +243,7 @@ pub struct PybricksHub {
     chars: Option<HubCharacteristics>,
     capabilities: Option<HubCapabilities>,
     output_receiver: Option<broadcast::Receiver<u8>>,
-    status_receiver: Option<broadcast::Receiver<u32>>,
+    status_receiver: Option<broadcast::Receiver<HubStatus>>,
 }
 
 impl std::fmt::Display for PybricksHub {
@@ -253,7 +295,7 @@ impl PybricksHub {
             .resubscribe())
     }
 
-    pub fn subscribe_status(&mut self) -> Result<broadcast::Receiver<u32>, Box<dyn Error>> {
+    pub fn subscribe_status(&mut self) -> Result<broadcast::Receiver<HubStatus>, Box<dyn Error>> {
         Ok(self
             .status_receiver
             .as_ref()
@@ -352,7 +394,7 @@ impl PybricksHub {
 async fn monitor_events(
     mut stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
     output_sender: broadcast::Sender<u8>,
-    status_sender: broadcast::Sender<u32>,
+    status_sender: broadcast::Sender<HubStatus>,
 ) {
     debug!("Listening for notifications");
     while let Some(data) = stream.next().await {
@@ -367,9 +409,9 @@ async fn monitor_events(
                                 }
                             }
                         }
-                        HubEvent::Status(flags) => {
-                            if status_sender.send(flags).is_err() {
-                                println!("Failed to send status flags {}", flags);
+                        HubEvent::Status(status) => {
+                            if status_sender.send(status.clone()).is_err() {
+                                println!("Failed to send status {:?}", status);
                             }
                         }
                     }

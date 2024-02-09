@@ -10,7 +10,7 @@ use tokio::{
 use tracing::{debug, error, info, trace};
 
 use crate::{
-    pybricks_hub::{BLEAdapter, PybricksHub},
+    pybricks_hub::{BLEAdapter, HubStatus, PybricksHub},
     unpack_u16_little,
 };
 use std::{error::Error, path::Path, sync::Arc, time::Duration};
@@ -228,26 +228,31 @@ pub enum SimulatedError {
 }
 
 #[derive(Debug, Clone)]
-pub enum IOEvent {
+pub enum IOMessage {
     Data { id: u8, data: Vec<u8> },
     Sys { code: u8, data: Vec<u8> },
     Dump { id: u8, data: Vec<u8> },
-    NameDiscovered(String),
-    Status(u32),
 }
 
-impl IOEvent {
+#[derive(Debug, Clone)]
+pub enum IOEvent {
+    Message(IOMessage),
+    NameDiscovered(String),
+    Status(HubStatus),
+}
+
+impl IOMessage {
     fn from_output(output: Output) -> Self {
         match output.output_type {
-            OutputType::Data => IOEvent::Data {
+            OutputType::Data => Self::Data {
                 id: output.data[0],
                 data: output.data[1..].to_vec(),
             },
-            OutputType::Sys => IOEvent::Sys {
+            OutputType::Sys => Self::Sys {
                 code: output.data[0],
                 data: output.data[1..].to_vec(),
             },
-            OutputType::Dump => IOEvent::Dump {
+            OutputType::Dump => Self::Dump {
                 id: output.data[0],
                 data: output.data[1..].to_vec(),
             },
@@ -445,7 +450,10 @@ impl IOState {
         self.queue_acknowledgement(Input::acknowledge(output.output_id.unwrap()))?;
         self.next_output_id = self.next_output_id.wrapping_add(1);
         debug!("Next output ID: {:?}", self.next_output_id);
-        match self.event_sender.send(IOEvent::from_output(output)) {
+        match self
+            .event_sender
+            .send(IOEvent::Message(IOMessage::from_output(output)))
+        {
             Ok(_) => {}
             Err(_) => {
                 error!("No event receiver subscribed");
@@ -611,7 +619,7 @@ impl IOHub {
     }
 
     async fn forward_status_task(
-        mut status_receiver: broadcast::Receiver<u32>,
+        mut status_receiver: broadcast::Receiver<HubStatus>,
         event_sender: broadcast::Sender<IOEvent>,
     ) {
         while let Ok(event) = status_receiver.recv().await {
@@ -716,7 +724,7 @@ impl IOHub {
         drop(io_state);
         while let Ok(event) = receiver.recv().await {
             match event {
-                IOEvent::Data { id, data: _ } => {
+                IOEvent::Message(IOMessage::Data { id, data: _ }) => {
                     if match_id == id {
                         return Ok(event);
                     }
@@ -730,7 +738,7 @@ impl IOHub {
     pub async fn wait_for_data(&self, match_id: u8) -> Result<Vec<u8>, Box<dyn Error>> {
         let event = self.wait_for_data_event_with_id(match_id).await?;
         match event {
-            IOEvent::Data { id: _, data } => Ok(data),
+            IOEvent::Message(IOMessage::Data { id: _, data }) => Ok(data),
             _ => Err("Unexpected event".into()),
         }
     }

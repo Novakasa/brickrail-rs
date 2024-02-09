@@ -10,7 +10,7 @@ use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::{
-    io_hub::{IOEvent, IOHub, Input as IOInput},
+    io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput},
     pybricks_hub::BLEAdapter,
 };
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,17 @@ impl BLEState {}
 #[derive(Component)]
 struct HubEventReceiver {
     hubs: Vec<HubID>,
-    events: Vec<IOEvent>,
+    events: Vec<IOMessage>,
+}
+
+#[derive(Clone, Default)]
+enum HubState {
+    #[default]
+    Disconnected,
+    Connecting,
+    Connected,
+    Downloading,
+    Ready,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -34,7 +44,10 @@ pub struct BLEHub {
     #[serde(skip)]
     hub: Arc<IOHub>,
     name: Option<String>,
+    #[serde(skip)]
     active: bool,
+    #[serde(skip)]
+    state: HubState,
 }
 
 impl BLEHub {
@@ -44,6 +57,7 @@ impl BLEHub {
             hub: Arc::new(IOHub::new()),
             name: None,
             active: false,
+            state: HubState::Disconnected,
         }
     }
 }
@@ -173,21 +187,23 @@ fn distribute_hub_events(
 ) {
     for event in hub_event_reader.read() {
         println!("Event: {:?}", event);
-        if let IOEvent::NameDiscovered(name) = &event.event {
-            for mut hub in q_hubs.iter_mut() {
-                if hub.id == event.hub_id {
-                    hub.name = Some(name.clone());
-                    entity_map
-                        .names
-                        .insert(GenericID::Hub(hub.id), name.clone());
-                    return;
+        let mut hub = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
+        match &event.event {
+            IOEvent::NameDiscovered(name) => {
+                hub.name = Some(name.clone());
+                entity_map
+                    .names
+                    .insert(GenericID::Hub(hub.id), name.clone());
+                return;
+            }
+            IOEvent::Message(msg) => {
+                for mut receiver in q_receivers.iter_mut() {
+                    if receiver.hubs.contains(&event.hub_id) {
+                        receiver.events.push(msg.clone());
+                    }
                 }
             }
-        }
-        for mut receiver in q_receivers.iter_mut() {
-            if receiver.hubs.contains(&event.hub_id) {
-                receiver.events.push(event.event.clone());
-            }
+            _ => {}
         }
     }
 }
