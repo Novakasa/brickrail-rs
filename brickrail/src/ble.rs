@@ -117,8 +117,14 @@ fn spawn_hub(
         let hub = event.0.hub.clone();
         let hub_id = hub.id;
         let mut event_receiver = hub.hub.subscribe_events();
+        if let Some(name) = &hub.name {
+            entity_map
+                .names
+                .insert(GenericID::Hub(hub_id), name.clone());
+        }
         let entity = commands.spawn(hub).id();
         entity_map.add_hub(hub_id, entity);
+
         runtime.spawn_background_task(move |mut ctx| async move {
             println!("Listening for events on hub {:?}", hub_id);
             while let Ok(event) = event_receiver.recv().await {
@@ -163,6 +169,7 @@ fn distribute_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
     mut q_receivers: Query<&mut HubEventReceiver>,
     mut q_hubs: Query<&mut BLEHub>,
+    mut entity_map: ResMut<EntityMap>,
 ) {
     for event in hub_event_reader.read() {
         println!("Event: {:?}", event);
@@ -170,6 +177,9 @@ fn distribute_hub_events(
             for mut hub in q_hubs.iter_mut() {
                 if hub.id == event.hub_id {
                     hub.name = Some(name.clone());
+                    entity_map
+                        .names
+                        .insert(GenericID::Hub(hub.id), name.clone());
                     return;
                 }
             }

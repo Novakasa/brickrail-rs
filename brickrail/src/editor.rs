@@ -23,7 +23,7 @@ pub struct InputData {
     pub mouse_over_ui: bool,
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect, Hash)]
 pub enum GenericID {
     Cell(CellID),
     Track(TrackID),

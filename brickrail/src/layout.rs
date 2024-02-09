@@ -69,6 +69,7 @@ pub struct EntityMap {
     pub trains: HashMap<TrainID, Entity>,
     pub wagons: HashMap<WagonID, Entity>,
     pub hubs: HashMap<HubID, Entity>,
+    pub names: HashMap<GenericID, String>,
 }
 
 impl EntityMap {

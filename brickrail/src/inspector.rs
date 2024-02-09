@@ -23,11 +23,14 @@ impl<'a> InspectorContext<'a> {
     pub fn select_hub_ui(&mut self, ui: &mut Ui, selected: &mut Option<HubID>, kind: HubType) {
         ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", selected))
+                .selected_text(match selected {
+                    Some(id) => self.get_hub_label(id),
+                    None => "None".to_string(),
+                })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(selected, None, "None");
                     for id in self.entity_map.hubs.keys().filter(|id| id.kind == kind) {
-                        ui.selectable_value(selected, Some(id.clone()), format!("{:?}", id));
+                        ui.selectable_value(selected, Some(id.clone()), self.get_hub_label(id));
                     }
                     if ui
                         .button("New Hub")
@@ -48,6 +51,16 @@ impl<'a> InspectorContext<'a> {
                 }
             }
         });
+    }
+
+    fn get_hub_label(&mut self, id: &HubID) -> String {
+        let label = self
+            .entity_map
+            .names
+            .get(&GenericID::Hub(id.clone()))
+            .cloned()
+            .unwrap_or(format!("Unknown {:}", id));
+        label
     }
 }
 

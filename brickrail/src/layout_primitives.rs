@@ -50,6 +50,12 @@ impl HubID {
     }
 }
 
+impl fmt::Display for HubID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}{}", self.kind, self.id)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
