@@ -11,6 +11,7 @@ use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput};
+use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
@@ -100,6 +101,24 @@ impl Selectable for BLEHub {
                 world.send_event(HubCommandEvent {
                     hub_id: id,
                     command: HubCommand::Disconnect,
+                });
+            });
+        }
+        if ui.button("Start Program").clicked() {
+            let id = self.id.clone();
+            context.commands.add(move |world: &mut World| {
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::StartProgram,
+                });
+            });
+        }
+        if ui.button("Stop Program").clicked() {
+            let id = self.id.clone();
+            context.commands.add(move |world: &mut World| {
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::StopProgram,
                 });
             });
         }
@@ -216,12 +235,25 @@ fn execute_hub_commands(
                     .await;
                 });
             }
+            HubCommand::StartProgram => {
+                let io_hub = hub.hub.clone();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.lock().await.start_program().await.unwrap();
+                });
+            }
+            HubCommand::StopProgram => {
+                let io_hub = hub.hub.clone();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.lock().await.stop_program().await.unwrap();
+                });
+            }
             HubCommand::QueueInput(input) => {
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.queue_input(input).unwrap();
                 });
             }
+
             _ => {}
         }
     }
@@ -244,6 +276,7 @@ fn distribute_hub_events(
                 return;
             }
             IOEvent::Message(msg) => {
+                println!("Message: {:?}", msg);
                 for mut receiver in q_receivers.iter_mut() {
                     if receiver.hubs.contains(&event.hub_id) {
                         receiver.events.push(msg.clone());
@@ -251,8 +284,11 @@ fn distribute_hub_events(
                 }
             }
             IOEvent::Status(status) => {
-                if status.program_running {
+                println!("Status: {:?}", status);
+                if status.clone() & HubStatus::PROGRAM_RUNNING == HubStatus::PROGRAM_RUNNING {
                     hub.state = HubState::Running;
+                } else if hub.state == HubState::Running {
+                    hub.state = HubState::Connected;
                 }
                 if hub.state == HubState::Connecting {
                     hub.state = HubState::Connected;

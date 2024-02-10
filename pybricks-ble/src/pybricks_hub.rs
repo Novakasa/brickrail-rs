@@ -27,32 +27,18 @@ fn pack_u32(n: u32) -> Vec<u8> {
     ]
 }
 
-#[derive(Debug, Clone)]
-pub struct HubStatus {
-    pub high_current: bool,
-    pub battery_low_voltage_shutdown: bool,
-    pub battery_low_voltage_warning: bool,
-    pub ble_advertising: bool,
-    pub ble_low_signal: bool,
-    pub power_button_pressed: bool,
-    pub program_running: bool,
-    pub shutdown: bool,
-    pub shutdown_requested: bool,
-}
-
-impl HubStatus {
-    pub fn from_flags(flags: u32) -> Self {
-        HubStatus {
-            high_current: flags & 1 != 0,
-            battery_low_voltage_shutdown: flags & 2 != 0,
-            battery_low_voltage_warning: flags & 4 != 0,
-            ble_advertising: flags & 8 != 0,
-            ble_low_signal: flags & 16 != 0,
-            power_button_pressed: flags & 32 != 0,
-            program_running: flags & 64 != 0,
-            shutdown: flags & 128 != 0,
-            shutdown_requested: flags & 256 != 0,
-        }
+bitflags::bitflags! {
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct HubStatus: u32 {
+        const HIGH_CURRENT = 1;
+        const BATTERY_LOW_VOLTAGE_SHUTDOWN = 2;
+        const BATTERY_LOW_VOLTAGE_WARNING = 4;
+        const BLE_ADVERTISING = 8;
+        const BLE_LOW_SIGNAL = 16;
+        const POWER_BUTTON_PRESSED = 32;
+        const PROGRAM_RUNNING = 64;
+        const SHUTDOWN = 128;
+        const SHUTDOWN_REQUESTED = 256;
     }
 }
 
@@ -65,9 +51,9 @@ enum HubEvent {
 impl HubEvent {
     fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         match data[0] {
-            0 => Ok(HubEvent::Status(HubStatus::from_flags(unpack_u32_little(
-                data[1..].to_vec(),
-            )))),
+            0 => Ok(HubEvent::Status(
+                HubStatus::from_bits(unpack_u32_little(data[1..].to_vec())).unwrap(),
+            )),
             1 => Ok(HubEvent::STDOUT(data[1..].to_vec())),
             _ => Err("Unknown event".into()),
         }
