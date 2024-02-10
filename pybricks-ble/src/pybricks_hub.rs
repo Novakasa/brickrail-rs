@@ -267,11 +267,12 @@ impl PybricksHub {
         }
     }
 
+    pub fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
     pub async fn discover(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
         let adapter = BLEAdapter::new().await?;
-        if self.client.is_some() {
-            return Err("Already discovered".into());
-        }
         let device = adapter.discover_device(Some(name)).await?;
         self.client = Some(device);
         self.name = Some(name.to_string());

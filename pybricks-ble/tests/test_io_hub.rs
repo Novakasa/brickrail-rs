@@ -17,7 +17,7 @@ async fn get_and_connect_hub() -> IOHub {
             println!("Event: {:?}", event);
         }
     });
-    hub.connect().await.unwrap();
+    hub.connect(&name).await.unwrap();
     hub
 }
 

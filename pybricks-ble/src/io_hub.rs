@@ -640,8 +640,11 @@ impl IOHub {
         Ok(())
     }
 
-    pub async fn connect(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn connect(&self, name: &str) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
+        if hub.name() != Some(name.to_string()) {
+            hub.discover(name).await?;
+        }
         hub.connect().await?;
         Ok(())
     }

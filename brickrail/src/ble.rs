@@ -87,6 +87,21 @@ impl Selectable for BLEHub {
                 });
             });
         }
+        if self.name.is_some() {
+            if ui
+                .button("Connect")
+                .on_hover_text("Connect to the hub")
+                .clicked()
+            {
+                let id = self.id.clone();
+                context.commands.add(move |world: &mut World| {
+                    world.send_event(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::Connect,
+                    });
+                });
+            }
+        }
     }
 }
 
@@ -136,7 +151,7 @@ fn spawn_hub(
     }
 }
 
-#[derive(Event, Debug)]
+#[derive(Event, Debug, Clone)]
 pub enum HubCommand {
     DiscoverName,
     Connect,
@@ -171,11 +186,24 @@ fn execute_hub_commands(
     for event in hub_command_reader.read() {
         let entity = entity_map.hubs[&event.hub_id];
         let hub = q_hubs.get(entity).unwrap();
-        match event.command {
+        match event.command.clone() {
             HubCommand::DiscoverName => {
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.discover_name().await.unwrap();
+                });
+            }
+            HubCommand::Connect => {
+                let io_hub = hub.hub.clone();
+                let name = hub.name.as_ref().unwrap().clone();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.lock().await.connect(&name).await.unwrap();
+                });
+            }
+            HubCommand::QueueInput(input) => {
+                let io_hub = hub.hub.clone();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.lock().await.queue_input(input).unwrap();
                 });
             }
             _ => {}

@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Found hub with name {:?}", name);
     let mut hub = IOHub::new();
     hub.discover(name.as_str()).await?;
-    hub.connect().await?;
+    hub.connect(&name).await?;
     tokio::time::sleep(std::time::Duration::from_secs(0)).await;
     hub.download_program(&path).await?;
     hub.start_program().await?;
