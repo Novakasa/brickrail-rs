@@ -10,19 +10,9 @@ use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
-use pybricks_ble::{
-    io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput},
-    pybricks_hub::BLEAdapter,
-};
+use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-
-#[derive(Resource)]
-struct BLEState {
-    adapter: Option<Arc<BLEAdapter>>,
-}
-
-impl BLEState {}
 
 #[derive(Component)]
 struct HubEventReceiver {
@@ -278,29 +268,13 @@ struct HubEvent {
     event: IOEvent,
 }
 
-fn ble_startup_system(runtime: Res<TokioTasksRuntime>) {
-    println!("Starting BLE");
-    runtime.spawn_background_task(|mut ctx| async move {
-        println!("BLE task");
-        let adapter = BLEAdapter::new().await.unwrap();
-        ctx.run_on_main_thread(move |ctx| {
-            if let Some(mut ble_state) = ctx.world.get_resource_mut::<BLEState>() {
-                ble_state.adapter = Some(Arc::new(adapter));
-            }
-        })
-        .await;
-    });
-}
-
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(BLEState { adapter: None });
         app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
         app.add_event::<HubCommandEvent>();
-        app.add_systems(Startup, ble_startup_system);
         app.add_systems(
             Update,
             (
