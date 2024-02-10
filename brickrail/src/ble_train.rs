@@ -5,7 +5,7 @@ use pybricks_ble::io_hub::Input as IOInput;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::HubInput,
+    ble::HubCommandEvent,
     editor::{GenericID, Selectable},
     inspector::InspectorContext,
     layout_primitives::{Facing, HubID, HubType, TrainID},
@@ -42,7 +42,7 @@ impl BLETrain {
 
     fn master_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        command.push(HubInput::new(self.master_hub.unwrap(), input));
+        command.push(HubCommandEvent::input(self.master_hub.unwrap(), input));
         command
     }
 
@@ -61,16 +61,19 @@ impl BLETrain {
     fn puppet_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
         for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
-            command.push(HubInput::new(*hub_id, input.clone()));
+            command.push(HubCommandEvent::input(*hub_id, input.clone()));
         }
         command
     }
 
     fn all_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        command.push(HubInput::new(self.master_hub.unwrap(), input.clone()));
+        command.push(HubCommandEvent::input(
+            self.master_hub.unwrap(),
+            input.clone(),
+        ));
         for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
-            command.push(HubInput::new(*hub_id, input.clone()));
+            command.push(HubCommandEvent::input(*hub_id, input.clone()));
         }
         command
     }
@@ -107,7 +110,7 @@ impl Selectable for BLETrain {
 }
 
 pub struct HubCommands {
-    hub_events: Vec<HubInput>,
+    hub_events: Vec<HubCommandEvent>,
 }
 
 impl HubCommands {
@@ -117,7 +120,7 @@ impl HubCommands {
         }
     }
 
-    fn push(&mut self, hub_input: HubInput) {
+    fn push(&mut self, hub_input: HubCommandEvent) {
         self.hub_events.push(hub_input);
     }
 

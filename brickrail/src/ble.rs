@@ -14,6 +14,7 @@ use pybricks_ble::{
     pybricks_hub::BLEAdapter,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 #[derive(Resource)]
 struct BLEState {
@@ -42,7 +43,7 @@ enum HubState {
 pub struct BLEHub {
     id: HubID,
     #[serde(skip)]
-    hub: Arc<IOHub>,
+    hub: Arc<Mutex<IOHub>>,
     name: Option<String>,
     #[serde(skip)]
     active: bool,
@@ -54,7 +55,7 @@ impl BLEHub {
     pub fn new(id: HubID) -> Self {
         Self {
             id,
-            hub: Arc::new(IOHub::new()),
+            hub: Arc::new(Mutex::new(IOHub::new())),
             name: None,
             active: false,
             state: HubState::Disconnected,
@@ -84,7 +85,7 @@ impl Selectable for BLEHub {
                     .get_resource::<crate::bevy_tokio_tasks::TokioTasksRuntime>()
                     .unwrap();
                 runtime.spawn_background_task(move |_| async move {
-                    io_hub.discover_name().await.unwrap();
+                    io_hub.lock().await.discover_name().await.unwrap();
                 });
             });
         }
@@ -101,7 +102,7 @@ fn discover_hub_name(
             let io_hub = hub.hub.clone();
             if hub.name.is_none() {
                 runtime.spawn_background_task(move |_| async move {
-                    io_hub.discover_name().await.unwrap();
+                    io_hub.lock().await.discover_name().await.unwrap();
                 });
                 return;
             }
@@ -130,16 +131,17 @@ fn spawn_hub(
     for event in spawn_event_reader.read() {
         let hub = event.0.hub.clone();
         let hub_id = hub.id;
-        let mut event_receiver = hub.hub.subscribe_events();
         if let Some(name) = &hub.name {
             entity_map
                 .names
                 .insert(GenericID::Hub(hub_id), name.clone());
         }
+        let hub_mutex = hub.hub.clone();
         let entity = commands.spawn(hub).id();
         entity_map.add_hub(hub_id, entity);
 
         runtime.spawn_background_task(move |mut ctx| async move {
+            let mut event_receiver = hub_mutex.lock().await.subscribe_events();
             println!("Listening for events on hub {:?}", hub_id);
             while let Ok(event) = event_receiver.recv().await {
                 ctx.run_on_main_thread(move |ctx| {
@@ -155,28 +157,50 @@ fn spawn_hub(
 }
 
 #[derive(Event, Debug)]
+pub enum HubCommand {
+    Discover,
+    Connect,
+    Disconnect,
+    DownloadProgram,
+    StartProgram,
+    StopProgram,
+    QueueInput(IOInput),
+}
+
+#[derive(Event, Debug)]
+pub struct HubCommandEvent {
+    pub hub_id: HubID,
+    pub command: HubCommand,
+}
+
+impl HubCommandEvent {
+    pub fn input(hub_id: HubID, input: IOInput) -> Self {
+        Self {
+            hub_id,
+            command: HubCommand::QueueInput(input),
+        }
+    }
+}
+
+fn execute_hub_commands(
+    mut hub_command_reader: EventReader<HubCommandEvent>,
+    q_hubs: Query<&BLEHub>,
+    entity_map: Res<EntityMap>,
+    runtime: Res<TokioTasksRuntime>,
+) {
+    for event in hub_command_reader.read() {
+        let entity = entity_map.hubs[&event.hub_id];
+        let hub = q_hubs.get(entity).unwrap();
+        match event.command {
+            _ => {}
+        }
+    }
+}
+
+#[derive(Event, Debug)]
 pub struct HubInput {
     pub hub_id: HubID,
     pub input: IOInput,
-}
-
-impl HubInput {
-    pub fn new(hub_id: HubID, input: IOInput) -> Self {
-        Self { hub_id, input }
-    }
-}
-
-fn handle_hub_input(
-    mut hub_input_reader: EventReader<HubInput>,
-    q_hubs: Query<&BLEHub>,
-    entity_map: Res<EntityMap>,
-) {
-    for event in hub_input_reader.read() {
-        println!("Input: {:?}", event);
-        let entity = entity_map.hubs.get(&event.hub_id).unwrap();
-        let hub = q_hubs.get(*entity).unwrap();
-        hub.hub.queue_input(event.input.clone()).unwrap();
-    }
 }
 
 fn distribute_hub_events(
