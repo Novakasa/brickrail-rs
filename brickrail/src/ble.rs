@@ -8,7 +8,7 @@ use crate::{
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::Ui;
+use bevy_egui::egui::{widgets::Button, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput};
 use pybricks_ble::pybricks_hub::HubStatus;
@@ -80,22 +80,26 @@ impl Selectable for BLEHub {
                 });
             });
         }
-        if self.name.is_some() {
-            if ui
-                .button("Connect")
-                .on_hover_text("Connect to the hub")
-                .clicked()
-            {
-                let id = self.id.clone();
-                context.commands.add(move |world: &mut World| {
-                    world.send_event(HubCommandEvent {
-                        hub_id: id,
-                        command: HubCommand::Connect,
-                    });
+        if ui
+            .add_enabled(
+                self.name.is_some() && self.state == HubState::Disconnected,
+                Button::new("Connect"),
+            )
+            .on_hover_text("Connect to the hub")
+            .clicked()
+        {
+            let id = self.id.clone();
+            context.commands.add(move |world: &mut World| {
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::Connect,
                 });
-            }
+            });
         }
-        if ui.button("Disconnect").clicked() {
+        if ui
+            .add_enabled(self.state == HubState::Connected, Button::new("Disconnect"))
+            .clicked()
+        {
             let id = self.id.clone();
             context.commands.add(move |world: &mut World| {
                 world.send_event(HubCommandEvent {
@@ -104,7 +108,13 @@ impl Selectable for BLEHub {
                 });
             });
         }
-        if ui.button("Start Program").clicked() {
+        if ui
+            .add_enabled(
+                self.state == HubState::Connected,
+                Button::new("Start Program"),
+            )
+            .clicked()
+        {
             let id = self.id.clone();
             context.commands.add(move |world: &mut World| {
                 world.send_event(HubCommandEvent {
@@ -113,7 +123,10 @@ impl Selectable for BLEHub {
                 });
             });
         }
-        if ui.button("Stop Program").clicked() {
+        if ui
+            .add_enabled(self.state == HubState::Running, Button::new("Stop Program"))
+            .clicked()
+        {
             let id = self.id.clone();
             context.commands.add(move |world: &mut World| {
                 world.send_event(HubCommandEvent {
