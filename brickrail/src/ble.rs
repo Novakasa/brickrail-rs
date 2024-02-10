@@ -79,33 +79,13 @@ impl Selectable for BLEHub {
             .on_hover_text("Discover the name of the hub")
             .clicked()
         {
-            let io_hub = self.hub.clone();
+            let id = self.id.clone();
             context.commands.add(move |world: &mut World| {
-                let runtime = world
-                    .get_resource::<crate::bevy_tokio_tasks::TokioTasksRuntime>()
-                    .unwrap();
-                runtime.spawn_background_task(move |_| async move {
-                    io_hub.lock().await.discover_name().await.unwrap();
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::DiscoverName,
                 });
             });
-        }
-    }
-}
-
-fn discover_hub_name(
-    q_hubs: Query<&BLEHub>,
-    runtime: Res<TokioTasksRuntime>,
-    keyboard_input: Res<Input<keyboard::KeyCode>>,
-) {
-    if keyboard_input.just_pressed(keyboard::KeyCode::D) {
-        for hub in q_hubs.iter() {
-            let io_hub = hub.hub.clone();
-            if hub.name.is_none() {
-                runtime.spawn_background_task(move |_| async move {
-                    io_hub.lock().await.discover_name().await.unwrap();
-                });
-                return;
-            }
         }
     }
 }
@@ -158,7 +138,7 @@ fn spawn_hub(
 
 #[derive(Event, Debug)]
 pub enum HubCommand {
-    Discover,
+    DiscoverName,
     Connect,
     Disconnect,
     DownloadProgram,
@@ -192,15 +172,15 @@ fn execute_hub_commands(
         let entity = entity_map.hubs[&event.hub_id];
         let hub = q_hubs.get(entity).unwrap();
         match event.command {
+            HubCommand::DiscoverName => {
+                let io_hub = hub.hub.clone();
+                runtime.spawn_background_task(move |_| async move {
+                    io_hub.lock().await.discover_name().await.unwrap();
+                });
+            }
             _ => {}
         }
     }
-}
-
-#[derive(Event, Debug)]
-pub struct HubInput {
-    pub hub_id: HubID,
-    pub input: IOInput,
 }
 
 fn distribute_hub_events(
@@ -259,14 +239,15 @@ impl Plugin for BLEPlugin {
         app.insert_resource(BLEState { adapter: None });
         app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
+        app.add_event::<HubCommandEvent>();
         app.add_systems(Startup, ble_startup_system);
         app.add_systems(
             Update,
             (
                 spawn_hub.run_if(on_event::<SpawnEvent<SerializedHub>>()),
-                distribute_hub_events,
+                distribute_hub_events.run_if(on_event::<HubEvent>()),
+                execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,
-                discover_hub_name,
             ),
         );
     }
