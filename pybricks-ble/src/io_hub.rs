@@ -609,11 +609,6 @@ impl IOHub {
     pub async fn discover(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
         hub.discover(name).await?;
-        let status_receiver = hub.subscribe_status()?;
-        tokio::task::spawn(Self::forward_status_task(
-            status_receiver,
-            self.event_sender.clone(),
-        ));
 
         Ok(())
     }
@@ -642,9 +637,13 @@ impl IOHub {
 
     pub async fn connect(&self, name: &str) -> Result<(), Box<dyn Error>> {
         let mut hub = self.hub.lock().await;
-        if hub.name() != Some(name.to_string()) {
-            hub.discover(name).await?;
-        }
+        hub.discover(name).await?;
+        let status_receiver = hub.subscribe_status()?;
+        debug!("Starting status forward task");
+        tokio::task::spawn(Self::forward_status_task(
+            status_receiver,
+            self.event_sender.clone(),
+        ));
         hub.connect().await?;
         Ok(())
     }

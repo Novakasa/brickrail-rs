@@ -28,47 +28,29 @@ fn pack_u32(n: u32) -> Vec<u8> {
 }
 
 #[derive(Debug, Clone)]
-pub enum HubState {
-    Undiscovered,
-    Discovering,
-    Disconnected,
-    Connecting,
-    Connected,
-    Downloading,
-    StartingProgram,
-    RunningProgram,
-    Shutdown,
-}
-
-#[derive(Debug, Clone)]
 pub struct HubStatus {
-    pub state: HubState,
     pub high_current: bool,
     pub battery_low_voltage_shutdown: bool,
     pub battery_low_voltage_warning: bool,
     pub ble_advertising: bool,
     pub ble_low_signal: bool,
     pub power_button_pressed: bool,
+    pub program_running: bool,
+    pub shutdown: bool,
     pub shutdown_requested: bool,
 }
 
 impl HubStatus {
     pub fn from_flags(flags: u32) -> Self {
-        let state = if flags & 128 != 0 {
-            HubState::Shutdown
-        } else if flags & 64 != 0 {
-            HubState::RunningProgram
-        } else {
-            HubState::Connected
-        };
         HubStatus {
-            state: state,
             high_current: flags & 1 != 0,
             battery_low_voltage_shutdown: flags & 2 != 0,
             battery_low_voltage_warning: flags & 4 != 0,
             ble_advertising: flags & 8 != 0,
             ble_low_signal: flags & 16 != 0,
             power_button_pressed: flags & 32 != 0,
+            program_running: flags & 64 != 0,
+            shutdown: flags & 128 != 0,
             shutdown_requested: flags & 256 != 0,
         }
     }

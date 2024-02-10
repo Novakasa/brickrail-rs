@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::{HubID, HubType},
 };
 use bevy::{input::keyboard, prelude::*};
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::{
@@ -29,14 +30,14 @@ struct HubEventReceiver {
     events: Vec<IOMessage>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 enum HubState {
     #[default]
     Disconnected,
     Connecting,
     Connected,
     Downloading,
-    Ready,
+    Running,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -74,6 +75,7 @@ impl Selectable for BLEHub {
             "Name: {}",
             self.name.as_deref().unwrap_or("Unknown")
         ));
+        ui.label(format!("State: {:?}", self.state));
         if ui
             .button("Discover Name")
             .on_hover_text("Discover the name of the hub")
@@ -101,6 +103,15 @@ impl Selectable for BLEHub {
                     });
                 });
             }
+        }
+        if ui.button("Disconnect").clicked() {
+            let id = self.id.clone();
+            context.commands.add(move |world: &mut World| {
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::Disconnect,
+                });
+            });
         }
     }
 }
@@ -179,13 +190,13 @@ impl HubCommandEvent {
 
 fn execute_hub_commands(
     mut hub_command_reader: EventReader<HubCommandEvent>,
-    q_hubs: Query<&BLEHub>,
+    mut q_hubs: Query<&mut BLEHub>,
     entity_map: Res<EntityMap>,
     runtime: Res<TokioTasksRuntime>,
 ) {
     for event in hub_command_reader.read() {
         let entity = entity_map.hubs[&event.hub_id];
-        let hub = q_hubs.get(entity).unwrap();
+        let mut hub = q_hubs.get_mut(entity).unwrap();
         match event.command.clone() {
             HubCommand::DiscoverName => {
                 let io_hub = hub.hub.clone();
@@ -194,10 +205,25 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::Connect => {
+                hub.state = HubState::Connecting;
                 let io_hub = hub.hub.clone();
                 let name = hub.name.as_ref().unwrap().clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.connect(&name).await.unwrap();
+                });
+            }
+            HubCommand::Disconnect => {
+                let io_hub = hub.hub.clone();
+                runtime.spawn_background_task(move |mut ctx| async move {
+                    io_hub.lock().await.disconnect().await.unwrap();
+                    ctx.run_on_main_thread(move |ctx_main| {
+                        let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                            SystemState::new(ctx_main.world);
+                        let mut query = system_state.get_mut(ctx_main.world);
+                        let mut hub = query.0.get_mut(entity).unwrap();
+                        hub.state = HubState::Disconnected;
+                    })
+                    .await;
                 });
             }
             HubCommand::QueueInput(input) => {
@@ -218,7 +244,6 @@ fn distribute_hub_events(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for event in hub_event_reader.read() {
-        println!("Event: {:?}", event);
         let mut hub = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
         match &event.event {
             IOEvent::NameDiscovered(name) => {
@@ -235,7 +260,14 @@ fn distribute_hub_events(
                     }
                 }
             }
-            _ => {}
+            IOEvent::Status(status) => {
+                if status.program_running {
+                    hub.state = HubState::Running;
+                }
+                if hub.state == HubState::Connecting {
+                    hub.state = HubState::Connected;
+                }
+            }
         }
     }
 }
