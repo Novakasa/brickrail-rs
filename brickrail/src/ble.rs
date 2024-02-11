@@ -22,7 +22,7 @@ struct HubEventReceiver {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-enum HubState {
+pub enum HubState {
     #[default]
     Disconnected,
     Connecting,
@@ -32,6 +32,8 @@ enum HubState {
     Running,
     StoppingProgram,
     Disconnecting,
+    ProgramError,
+    ConnectError,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -43,7 +45,7 @@ pub struct BLEHub {
     #[serde(skip)]
     pub active: bool,
     #[serde(skip)]
-    state: HubState,
+    pub state: HubState,
     #[serde(default)]
     downloaded: bool,
 }
@@ -320,7 +322,7 @@ fn execute_hub_commands(
     }
 }
 
-fn distribute_hub_events(
+fn handle_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
     mut q_receivers: Query<&mut HubEventReceiver>,
     mut q_hubs: Query<&mut BLEHub>,
@@ -346,13 +348,20 @@ fn distribute_hub_events(
             }
             IOEvent::Status(status) => {
                 println!("Status: {:?}", status);
-                if status.clone() & HubStatus::PROGRAM_RUNNING == HubStatus::PROGRAM_RUNNING {
+                let running_flag =
+                    status.clone() & HubStatus::PROGRAM_RUNNING == HubStatus::PROGRAM_RUNNING;
+                if running_flag {
                     hub.state = HubState::Running;
-                } else if hub.state == HubState::Running {
-                    hub.state = HubState::Connected;
-                }
-                if hub.state == HubState::Connecting {
-                    hub.state = HubState::Connected;
+                } else {
+                    match hub.state {
+                        HubState::Running => {
+                            hub.state = HubState::ProgramError;
+                        }
+                        HubState::StoppingProgram | HubState::Connecting => {
+                            hub.state = HubState::Connected;
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
@@ -399,9 +408,18 @@ pub fn prepare_hubs(
                     }
                 }
                 HubState::Running => {}
+                HubState::ConnectError | HubState::ProgramError => {
+                    prepared = false;
+                    editor_state.set(EditorState::Edit);
+                }
                 _ => {
                     prepared = false;
                 }
+            }
+            if !prepared {
+                // don't parallelize ble stuff, because downloading is slow otherwise
+                // this only makes sense if the query iteration order is deterministic, which it honestly might not be i dunno
+                return;
             }
         }
     }
@@ -422,7 +440,7 @@ impl Plugin for BLEPlugin {
             Update,
             (
                 spawn_hub.run_if(on_event::<SpawnEvent<SerializedHub>>()),
-                distribute_hub_events.run_if(on_event::<HubEvent>()),
+                handle_hub_events.run_if(on_event::<HubEvent>()),
                 execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,
                 prepare_hubs.run_if(in_state(EditorState::PreparingControl)),

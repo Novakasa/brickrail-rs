@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::ble::BLEHub;
+use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::Block;
 use crate::inspector::InspectorContext;
@@ -100,6 +100,13 @@ fn update_editor_state(
 fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
     for mut hub in hubs.iter_mut() {
         hub.active = true;
+
+        if hub.state == HubState::ProgramError {
+            hub.state = HubState::Connected;
+        }
+        if hub.state == HubState::ConnectError {
+            hub.state = HubState::Disconnected;
+        }
     }
 }
 
