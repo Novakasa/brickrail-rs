@@ -295,7 +295,7 @@ fn exit_drag_train(
 
                     let commands = ble_train.download_route(&train.get_route());
                     for input in commands.hub_events {
-                        debug!("Sending {:?}", input);
+                        info!("Sending {:?}", input);
                         hub_commands.send(input);
                     }
                 }

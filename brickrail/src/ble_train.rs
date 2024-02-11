@@ -101,6 +101,8 @@ impl BLETrain {
             let input = IOInput::rpc("set_route_leg", &args);
             command.merge(self.all_command(input));
         }
+        let input = IOInput::rpc("advance_route", &vec![]);
+        command.merge(self.all_command(input));
         command
     }
 

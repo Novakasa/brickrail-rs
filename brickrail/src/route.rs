@@ -254,7 +254,7 @@ impl LegIntention {
     pub fn as_train_flag(&self) -> u8 {
         match self {
             LegIntention::Pass => 0,
-            LegIntention::Stop => 1,
+            LegIntention::Stop => 2,
         }
     }
 }

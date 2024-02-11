@@ -270,6 +270,10 @@ class RouteLeg:
         self.backwards = bool(data[-1] & _LEG_FLAG_BACKWARDS)
         self.index = 0
         self.entered = False
+        print("new leg")
+        print("markers", self.markers)
+        print("intent_stop", self.intent_stop)
+        print("backwards", self.backwards)
 
     def is_complete(self):
         return self.index == len(self.markers) - 1
