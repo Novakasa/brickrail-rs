@@ -19,7 +19,7 @@ mod utils;
 
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
-    env::set_var("RUST_LOG", "pybricks_ble=error,brickrail=info");
+    env::set_var("RUST_LOG", "pybricks_ble=info,brickrail=info");
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(bevy_framepace::FramepacePlugin)

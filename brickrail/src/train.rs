@@ -1,4 +1,5 @@
 use crate::{
+    ble::HubCommandEvent,
     ble_train::BLETrain,
     block::{spawn_block, Block},
     editor::*,
@@ -257,14 +258,15 @@ fn exit_drag_train(
     marker_map: Res<MarkerMap>,
     connections: Res<Connections>,
     mut track_locks: ResMut<TrackLocks>,
-    mut q_trains: Query<&mut Train>,
+    mut q_trains: Query<(&mut Train, &mut BLETrain)>,
+    mut hub_commands: EventWriter<HubCommandEvent>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
-                let mut train = q_trains
+                let (mut train, mut ble_train) = q_trains
                     .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                     .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
@@ -290,6 +292,12 @@ fn exit_drag_train(
                     train.position = Position::Route(route);
                     train.get_route().update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
+
+                    let commands = ble_train.download_route(&train.get_route());
+                    for input in commands.hub_events {
+                        debug!("Sending {:?}", input);
+                        hub_commands.send(input);
+                    }
                 }
             }
             train_drag_state.train_id = None;

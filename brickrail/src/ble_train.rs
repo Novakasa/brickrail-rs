@@ -98,7 +98,7 @@ impl BLETrain {
         for (i, leg) in route.iter_legs().enumerate() {
             let mut args = vec![i as u8];
             args.extend(leg.as_train_data());
-            let input = IOInput::rpc("add_leg", &args);
+            let input = IOInput::rpc("set_route_leg", &args);
             command.merge(self.all_command(input));
         }
         command
@@ -156,7 +156,7 @@ impl Selectable for BLETrain {
 }
 
 pub struct HubCommands {
-    hub_events: Vec<HubCommandEvent>,
+    pub hub_events: Vec<HubCommandEvent>,
 }
 
 impl HubCommands {
@@ -177,7 +177,7 @@ impl HubCommands {
 
 fn handle_messages(
     mut hub_message_events: EventReader<HubMessageEvent<TrainData>>,
-    mut ble_trains: Query<&BLETrain>,
+    ble_trains: Query<&BLETrain>,
 ) {
     for event in hub_message_events.read() {
         for train in ble_trains.iter() {
@@ -188,7 +188,7 @@ fn handle_messages(
                         num_motors,
                     } => {
                         if !has_sensor {
-                            warn!("Train master hub {:?} has no sensor", event.id);
+                            error!("Train master hub {:?} has no sensor", event.id);
                         }
                     }
                     _ => warn!("Unhandled TrainData: {:?}", event.data),

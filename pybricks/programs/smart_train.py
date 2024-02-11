@@ -63,7 +63,7 @@ class TrainSensor:
         self.marker_samples = 0
 
         self.last_hsv = None
-        self.valid_colors = []
+        self.valid_colors = [0, 1, 2, 3, 15]
         self.initial_hue = 0
         self.initial_chroma = 0
 
@@ -354,6 +354,7 @@ class Train:
 
     def set_route_leg(self, data):
         self.route.set_leg(data)
+        self.set_state(self.route.get_train_state())
 
     def set_leg_intention(self, data):
         self.route.legs[data[0]].intent_stop = bool(data[1])
