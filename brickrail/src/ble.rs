@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
-    editor::{GenericID, Selectable, SerializedHub, SpawnEvent},
+    editor::{EditorState, GenericID, Selectable, SerializedHub, SpawnEvent},
     layout::EntityMap,
     layout_primitives::{HubID, HubType},
 };
@@ -28,7 +28,10 @@ enum HubState {
     Connecting,
     Connected,
     Downloading,
+    StartingProgram,
     Running,
+    StoppingProgram,
+    Disconnecting,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -38,7 +41,7 @@ pub struct BLEHub {
     hub: Arc<Mutex<IOHub>>,
     name: Option<String>,
     #[serde(skip)]
-    active: bool,
+    pub active: bool,
     #[serde(skip)]
     state: HubState,
 }
@@ -235,6 +238,7 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::Disconnect => {
+                hub.state = HubState::Disconnecting;
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     io_hub.lock().await.disconnect().await.unwrap();
@@ -249,12 +253,14 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::StartProgram => {
+                hub.state = HubState::StartingProgram;
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.start_program().await.unwrap();
                 });
             }
             HubCommand::StopProgram => {
+                hub.state = HubState::StoppingProgram;
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.stop_program().await.unwrap();
@@ -317,6 +323,28 @@ struct HubEvent {
     event: IOEvent,
 }
 
+pub fn prepare_hubs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<HubCommandEvent>) {
+    for hub in q_hubs.iter() {
+        if hub.active {
+            match hub.state {
+                HubState::Disconnected => {
+                    command_events.send(HubCommandEvent {
+                        hub_id: hub.id,
+                        command: HubCommand::Connect,
+                    });
+                }
+                HubState::Connected => {
+                    command_events.send(HubCommandEvent {
+                        hub_id: hub.id,
+                        command: HubCommand::StartProgram,
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
@@ -331,6 +359,7 @@ impl Plugin for BLEPlugin {
                 distribute_hub_events.run_if(on_event::<HubEvent>()),
                 execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,
+                prepare_hubs.run_if(in_state(EditorState::PreparingControl)),
             ),
         );
     }

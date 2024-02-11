@@ -23,6 +23,14 @@ pub struct InputData {
     pub mouse_over_ui: bool,
 }
 
+#[derive(Debug, States, Default, Hash, PartialEq, Eq, Clone)]
+pub enum EditorState {
+    #[default]
+    Edit,
+    PreparingControl,
+    Control,
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect, Hash)]
 pub enum GenericID {
     Cell(CellID),
@@ -69,6 +77,30 @@ pub struct SelectionState {
 #[derive(Resource, Default)]
 pub struct HoverState {
     pub hover: Option<GenericID>,
+}
+
+pub struct ControlState {
+    pub random_targets: bool,
+    pub control_devices: bool,
+}
+
+fn update_editor_state(
+    mut editor_state: ResMut<NextState<EditorState>>,
+    keyboard_buttons: Res<Input<KeyCode>>,
+) {
+    if keyboard_buttons.just_pressed(KeyCode::Key1) {
+        editor_state.set(EditorState::Edit);
+    }
+    if keyboard_buttons.just_pressed(KeyCode::Key2) {
+        editor_state.set(EditorState::PreparingControl);
+    }
+}
+
+// runs on enter prepare_control state
+fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
+    for mut hub in hubs.iter_mut() {
+        hub.active = true;
+    }
 }
 
 fn spawn_camera(mut commands: Commands) {
@@ -330,6 +362,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
+        app.add_state::<EditorState>();
         app.add_event::<SpawnEvent<SerializedTrain>>();
         app.add_event::<SpawnEvent<SerializedHub>>();
         app.insert_resource(HoverState::default());
@@ -346,7 +379,9 @@ impl Plugin for EditorPlugin {
                 save_layout,
                 load_layout,
                 draw_markers,
+                update_editor_state,
             ),
         );
+        app.add_systems(OnEnter(EditorState::PreparingControl), update_active_hubs);
     }
 }
