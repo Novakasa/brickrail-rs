@@ -41,14 +41,21 @@ _CONFIG_MOTOR_DEC = const(2)
 _CONFIG_MOTOR_FAST_SPEED = const(3)
 _CONFIG_MOTOR_SLOW_SPEED = const(4)
 _CONFIG_MOTOR_CRUISE_SPEED = const(5)
-_CONFIG_MOTOR_INVERTED = const(6)
+_CONFIG_MOTOR_INVERTED = const(6)  # and the following 5 adresses are also reserved
 
 _DUMP_TYPE_COLORS = const(1)
 
 
 class TrainSensor:
     def __init__(self, marker_exit_callback):
-        self.sensor = ColorDistanceSensor(Port.B)
+        for port in ["A", "B", "C", "D", "E", "F"]:
+            port = getattr(Port, port)
+            try:
+                self.sensor = ColorDistanceSensor(port)
+            except OSError:
+                continue
+            else:
+                break
         self.marker_exit_callback = marker_exit_callback
 
         self.last_marker_color = None
@@ -123,10 +130,19 @@ class TrainMotor:
     def __init__(self):
         self.speed = 0
         self.target_speed = 0
-        try:
-            self.motor = DCMotor(Port.A)
-        except OSError:
-            self.motor = Motor(Port.A)
+        self.motors = []
+        for port in ["A", "B", "C", "D", "E", "F"]:
+            try:
+                port = getattr(Port, port)
+            except AttributeError:
+                break
+            try:
+                self.motors.append(DCMotor(port))
+            except OSError:
+                try:
+                    self.motors.append(Motor(port))
+                except OSError:
+                    continue
         self.facing = 1
 
     def set_facing(self, facing):
@@ -160,8 +176,9 @@ class TrainMotor:
         else:
             self.speed += delta * io_hub.storage[_CONFIG_MOTOR_DEC] * self.facing
 
-        polarity = (io_hub.storage[_CONFIG_MOTOR_INVERTED] * -2) + 1
-        self.motor.dc(self.speed * polarity)
+        for i, motor in enumerate(self.motors):
+            polarity = (io_hub.storage[_CONFIG_MOTOR_INVERTED + i] * -2) + 1
+            motor.dc(self.speed * polarity)
 
 
 class Route:
@@ -290,7 +307,14 @@ class RouteLeg:
 class Train:
     def __init__(self):
         self.motor = TrainMotor()
-        self.sensor = TrainSensor(self.on_marker_passed)
+        print(self.motor.motors)
+
+        try:
+            self.sensor = TrainSensor(self.on_marker_passed)
+        except AttributeError:
+            self.sensor = None
+
+        print(self.sensor)
 
         self.route: Route = Route()
 
@@ -329,10 +353,15 @@ class Train:
             self.set_state(state)
 
     def update(self, delta):
-        if self.motor.target_speed != 0 and len(self.route.legs) > 1:
+        if (
+            self.sensor is not None
+            and self.motor.target_speed != 0
+            and len(self.route.legs) > 1
+        ):
             self.sensor.update(delta)
 
-        self.motor.update(delta)
+        if self.motor is not None:
+            self.motor.update(delta)
 
     def set_valid_colors(self, data):
         self.sensor.valid_colors = list(data)
