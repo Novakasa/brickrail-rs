@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
@@ -44,6 +44,8 @@ pub struct BLEHub {
     pub active: bool,
     #[serde(skip)]
     state: HubState,
+    #[serde(default)]
+    downloaded: bool,
 }
 
 impl BLEHub {
@@ -54,6 +56,16 @@ impl BLEHub {
             name: None,
             active: false,
             state: HubState::Disconnected,
+            downloaded: false,
+        }
+    }
+
+    pub fn get_program_path(&self) -> &'static Path {
+        // print cwd:
+        println!("{:?}", std::env::current_dir().unwrap());
+        match self.id.kind {
+            HubType::Layout => Path::new("pybricks/programs/mpy/test_io.mpy"),
+            HubType::Train => Path::new("pybricks/programs/mpy/smart_train.mpy"),
         }
     }
 }
@@ -108,6 +120,21 @@ impl Selectable for BLEHub {
                 world.send_event(HubCommandEvent {
                     hub_id: id,
                     command: HubCommand::Disconnect,
+                });
+            });
+        }
+        if ui
+            .add_enabled(
+                self.state == HubState::Connected && !self.downloaded,
+                Button::new("Download Program"),
+            )
+            .clicked()
+        {
+            let id = self.id.clone();
+            context.commands.add(move |world: &mut World| {
+                world.send_event(HubCommandEvent {
+                    hub_id: id,
+                    command: HubCommand::DownloadProgram,
                 });
             });
         }
@@ -252,6 +279,23 @@ fn execute_hub_commands(
                     .await;
                 });
             }
+            HubCommand::DownloadProgram => {
+                hub.state = HubState::Downloading;
+                let io_hub = hub.hub.clone();
+                let program = hub.get_program_path();
+                runtime.spawn_background_task(move |mut ctx| async move {
+                    io_hub.lock().await.download_program(program).await.unwrap();
+                    ctx.run_on_main_thread(move |ctx_main| {
+                        let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                            SystemState::new(ctx_main.world);
+                        let mut query = system_state.get_mut(ctx_main.world);
+                        let mut hub = query.0.get_mut(entity).unwrap();
+                        hub.downloaded = true;
+                        hub.state = HubState::Connected;
+                    })
+                    .await;
+                });
+            }
             HubCommand::StartProgram => {
                 hub.state = HubState::StartingProgram;
                 let io_hub = hub.hub.clone();
@@ -272,8 +316,6 @@ fn execute_hub_commands(
                     io_hub.lock().await.queue_input(input).unwrap();
                 });
             }
-
-            _ => {}
         }
     }
 }
@@ -323,25 +365,49 @@ struct HubEvent {
     event: IOEvent,
 }
 
-pub fn prepare_hubs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<HubCommandEvent>) {
+pub fn prepare_hubs(
+    q_hubs: Query<&BLEHub>,
+    mut command_events: EventWriter<HubCommandEvent>,
+    mut editor_state: ResMut<NextState<EditorState>>,
+) {
+    let mut prepared = true;
     for hub in q_hubs.iter() {
+        if hub.name.is_none() {
+            continue;
+        }
         if hub.active {
             match hub.state {
                 HubState::Disconnected => {
+                    prepared = false;
                     command_events.send(HubCommandEvent {
                         hub_id: hub.id,
                         command: HubCommand::Connect,
                     });
                 }
                 HubState::Connected => {
-                    command_events.send(HubCommandEvent {
-                        hub_id: hub.id,
-                        command: HubCommand::StartProgram,
-                    });
+                    prepared = false;
+                    if hub.downloaded {
+                        command_events.send(HubCommandEvent {
+                            hub_id: hub.id,
+                            command: HubCommand::StartProgram,
+                        });
+                    } else {
+                        command_events.send(HubCommandEvent {
+                            hub_id: hub.id,
+                            command: HubCommand::DownloadProgram,
+                        });
+                    }
                 }
-                _ => {}
+                HubState::Running => {}
+                _ => {
+                    prepared = false;
+                }
             }
         }
+    }
+    if prepared {
+        println!("Hubs prepared");
+        editor_state.set(EditorState::Control);
     }
 }
 
