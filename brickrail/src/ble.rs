@@ -323,8 +323,8 @@ pub trait FromIOMessage: Sized {
 
 #[derive(Event, Debug)]
 pub struct HubMessageEvent<T: FromIOMessage> {
-    id: HubID,
-    data: T,
+    pub id: HubID,
+    pub data: T,
 }
 
 fn handle_hub_events(

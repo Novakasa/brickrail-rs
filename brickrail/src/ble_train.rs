@@ -175,9 +175,39 @@ impl HubCommands {
     }
 }
 
-fn handle_messages(mut hub_message_events: EventReader<HubMessageEvent<TrainData>>) {
+fn handle_messages(
+    mut hub_message_events: EventReader<HubMessageEvent<TrainData>>,
+    mut ble_trains: Query<&BLETrain>,
+) {
     for event in hub_message_events.read() {
-        println!("TrainData: {:?}", event);
+        for train in ble_trains.iter() {
+            if train.master_hub == Some(event.id) {
+                match event.data {
+                    TrainData::ReportDevices {
+                        has_sensor,
+                        num_motors,
+                    } => {
+                        if !has_sensor {
+                            warn!("Train master hub {:?} has no sensor", event.id);
+                        }
+                    }
+                    _ => warn!("Unhandled TrainData: {:?}", event.data),
+                }
+            }
+            if train.puppets.contains(&Some(event.id)) {
+                match event.data {
+                    TrainData::ReportDevices {
+                        has_sensor,
+                        num_motors,
+                    } => {
+                        if has_sensor {
+                            info!("Train puppet hub {:?} has sensor", event.id);
+                        }
+                    }
+                    _ => warn!("Unhandled TrainData for puppet: {:?}", event.data),
+                }
+            }
+        }
     }
 }
 
