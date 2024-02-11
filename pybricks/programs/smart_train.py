@@ -34,6 +34,7 @@ _DATA_ROUTE_COMPLETE = const(1)
 _DATA_LEG_ADVANCE = const(2)
 _DATA_SENSOR_ADVANCE = const(3)
 _DATA_UNEXPECTED_MARKER = const(4)
+_DATA_REPORT_DEVICES = const(5)
 
 _CONFIG_CHROMA_THRESHOLD = const(0)
 _CONFIG_MOTOR_ACC = const(1)
@@ -307,14 +308,22 @@ class RouteLeg:
 class Train:
     def __init__(self):
         self.motor = TrainMotor()
-        print(self.motor.motors)
 
         try:
             self.sensor = TrainSensor(self.on_marker_passed)
         except AttributeError:
             self.sensor = None
 
-        print(self.sensor)
+    def report_devices(self):
+        io_hub.emit_data(
+            bytes(
+                (
+                    _DATA_REPORT_DEVICES,
+                    int(self.sensor is not None),
+                    len(self.motor.motors),
+                )
+            )
+        )
 
         self.route: Route = Route()
 
@@ -377,6 +386,7 @@ class Train:
 assert VERSION != b"1.0.0"
 train = Train()
 io_hub = IOHub(train)
+train.report_devices()
 
 io_hub.storage[_CONFIG_CHROMA_THRESHOLD] = 3500
 io_hub.storage[_CONFIG_MOTOR_ACC] = 40
@@ -384,6 +394,7 @@ io_hub.storage[_CONFIG_MOTOR_DEC] = 90
 io_hub.storage[_CONFIG_MOTOR_SLOW_SPEED] = 40
 io_hub.storage[_CONFIG_MOTOR_CRUISE_SPEED] = 75
 io_hub.storage[_CONFIG_MOTOR_FAST_SPEED] = 100
-io_hub.storage[_CONFIG_MOTOR_INVERTED] = 0
+for i in range(6):
+    io_hub.storage[_CONFIG_MOTOR_INVERTED + i] = 0
 
 io_hub.run_loop()

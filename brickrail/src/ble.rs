@@ -2,6 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
+    ble_train::TrainData,
     editor::{EditorState, GenericID, Selectable, SerializedHub, SpawnEvent},
     layout::EntityMap,
     layout_primitives::{HubID, HubType},
@@ -14,12 +15,6 @@ use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput};
 use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-
-#[derive(Component)]
-struct HubEventReceiver {
-    hubs: Vec<HubID>,
-    events: Vec<IOMessage>,
-}
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub enum HubState {
@@ -322,9 +317,19 @@ fn execute_hub_commands(
     }
 }
 
+pub trait FromIOMessage: Sized {
+    fn from_io_message(msg: &IOMessage) -> Option<Self>;
+}
+
+#[derive(Event, Debug)]
+pub struct HubMessageEvent<T: FromIOMessage> {
+    id: HubID,
+    data: T,
+}
+
 fn handle_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
-    mut q_receivers: Query<&mut HubEventReceiver>,
+    mut train_sender: EventWriter<HubMessageEvent<TrainData>>,
     mut q_hubs: Query<&mut BLEHub>,
     mut entity_map: ResMut<EntityMap>,
 ) {
@@ -339,19 +344,35 @@ fn handle_hub_events(
                 return;
             }
             IOEvent::Message(msg) => {
-                println!("Message: {:?}", msg);
-                for mut receiver in q_receivers.iter_mut() {
-                    if receiver.hubs.contains(&event.hub_id) {
-                        receiver.events.push(msg.clone());
+                debug!("Message: {:?}", msg);
+                match msg {
+                    IOMessage::Sys { code, data } => {
+                        info!("unhandled sys message: {:?} {:?}", code, data);
                     }
+                    _ => match hub.id.kind {
+                        HubType::Train => {
+                            if let Some(data) = TrainData::from_io_message(msg) {
+                                debug!("sending TrainData: {:?}", data);
+                                train_sender.send(HubMessageEvent { id: hub.id, data });
+                            }
+                        }
+                        _ => {
+                            info!(
+                                "Unhandled message for hub kind: {:?} {:?}",
+                                hub.id.kind, msg
+                            );
+                        }
+                    },
                 }
             }
             IOEvent::Status(status) => {
-                println!("Status: {:?}", status);
+                debug!("Status: {:?}", status);
                 let running_flag =
                     status.clone() & HubStatus::PROGRAM_RUNNING == HubStatus::PROGRAM_RUNNING;
                 if running_flag {
-                    hub.state = HubState::Running;
+                    if hub.state == HubState::StartingProgram {
+                        hub.state = HubState::Running;
+                    }
                 } else {
                     match hub.state {
                         HubState::Running => {

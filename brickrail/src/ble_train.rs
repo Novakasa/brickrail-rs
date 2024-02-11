@@ -1,17 +1,63 @@
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, Layout, Ui};
 use bevy_trait_query::RegisterExt;
-use pybricks_ble::io_hub::Input as IOInput;
+use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::HubCommandEvent,
+    ble::{FromIOMessage, HubCommandEvent, HubMessageEvent},
     editor::{GenericID, Selectable},
     inspector::InspectorContext,
     layout_primitives::{Facing, HubID, HubType, TrainID},
-    marker::MarkerSpeed,
+    marker::{MarkerColor, MarkerSpeed},
     route::Route,
 };
+
+#[derive(Debug)]
+pub enum TrainData {
+    RouteComplete(u8),
+    LegAdvance(u8),
+    SensorAdvance(u8),
+    UnexpectedMarker {
+        expected_color: MarkerColor,
+        actual_color: MarkerColor,
+        chroma: u16,
+        hue: u16,
+        samples: u16,
+    },
+    ReportDevices {
+        has_sensor: bool,
+        num_motors: u8,
+    },
+    SysCode(u8, Vec<u8>),
+    Dump(u8, Vec<u8>),
+}
+
+impl FromIOMessage for TrainData {
+    fn from_io_message(msg: &IOMessage) -> Option<Self> {
+        match msg {
+            IOMessage::Data { id, data } => match id {
+                1 => Some(TrainData::RouteComplete(data[0])),
+                2 => Some(TrainData::LegAdvance(data[0])),
+                3 => Some(TrainData::SensorAdvance(data[0])),
+                4 => Some(TrainData::UnexpectedMarker {
+                    expected_color: MarkerColor::from_train_u8(data[0]).unwrap(),
+                    actual_color: MarkerColor::from_train_u8(data[1]).unwrap(),
+                    chroma: u16::from_be_bytes([data[2], data[3]]),
+                    hue: u16::from_be_bytes([data[4], data[5]]),
+                    samples: u16::from_be_bytes([data[6], data[7]]),
+                }),
+                5 => Some(TrainData::ReportDevices {
+                    has_sensor: data[0] != 0,
+                    num_motors: data[1],
+                }),
+                _ => None,
+            },
+            IOMessage::Sys { code, data } => panic!("Unhandled SysCode: {} {:?}", code, data),
+            IOMessage::Dump { id, data } => Some(TrainData::Dump(*id, data.clone())),
+        }
+    }
+}
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLETrain {
@@ -129,10 +175,21 @@ impl HubCommands {
     }
 }
 
+fn handle_messages(mut hub_message_events: EventReader<HubMessageEvent<TrainData>>) {
+    for event in hub_message_events.read() {
+        println!("TrainData: {:?}", event);
+    }
+}
+
 pub struct BLETrainPlugin;
 
 impl Plugin for BLETrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, BLETrain>();
+        app.add_event::<HubMessageEvent<TrainData>>();
+        app.add_systems(
+            Update,
+            handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>()),
+        );
     }
 }

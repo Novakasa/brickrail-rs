@@ -92,6 +92,20 @@ impl MarkerColor {
             MarkerColor::Green => 2,
         }
     }
+
+    pub fn from_train_u8(value: u8) -> Option<Self> {
+        let color = match value {
+            15 => MarkerColor::Any,
+            3 => MarkerColor::Red,
+            1 => MarkerColor::Blue,
+            0 => MarkerColor::Yellow,
+            2 => MarkerColor::Green,
+            _ => {
+                return None;
+            }
+        };
+        Some(color)
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
