@@ -184,6 +184,7 @@ class TrainMotor:
 
 class Route:
     def __init__(self):
+        print("new route")
         self.legs = [
             RouteLeg(
                 bytearray(
@@ -207,6 +208,7 @@ class Route:
 
     def set_leg(self, data):
         leg_index = data[0]
+        print("set leg", leg_index)
         if leg_index == len(self.legs):
             self.legs.append(None)
         leg = RouteLeg(data[1:])
@@ -270,7 +272,6 @@ class RouteLeg:
         self.backwards = bool(data[-1] & _LEG_FLAG_BACKWARDS)
         self.index = 0
         self.entered = False
-        print("new leg")
         print("markers", self.markers)
         print("intent_stop", self.intent_stop)
         print("backwards", self.backwards)

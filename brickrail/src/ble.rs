@@ -36,6 +36,8 @@ pub struct BLEHub {
     id: HubID,
     #[serde(skip)]
     hub: Arc<Mutex<IOHub>>,
+    #[serde(skip)]
+    input_sender: Option<tokio::sync::mpsc::UnboundedSender<IOInput>>,
     name: Option<String>,
     #[serde(skip)]
     pub active: bool,
@@ -50,6 +52,7 @@ impl BLEHub {
         Self {
             id,
             hub: Arc::new(Mutex::new(IOHub::new())),
+            input_sender: None,
             name: None,
             active: false,
             state: HubState::Disconnected,
@@ -296,8 +299,19 @@ fn execute_hub_commands(
             HubCommand::StartProgram => {
                 hub.state = HubState::StartingProgram;
                 let io_hub = hub.hub.clone();
-                runtime.spawn_background_task(move |_| async move {
-                    io_hub.lock().await.start_program().await.unwrap();
+                runtime.spawn_background_task(move |mut ctx| async move {
+                    let mut hub_mut = io_hub.lock().await;
+                    hub_mut.start_program().await.unwrap();
+                    let input_sender = hub_mut.get_input_queue_sender();
+                    assert!(input_sender.is_some());
+                    ctx.run_on_main_thread(move |ctx_main| {
+                        let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                            SystemState::new(ctx_main.world);
+                        let mut query = system_state.get_mut(ctx_main.world);
+                        let mut hub = query.0.get_mut(entity).unwrap();
+                        hub.input_sender = input_sender;
+                    })
+                    .await;
                 });
             }
             HubCommand::StopProgram => {
@@ -308,10 +322,7 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::QueueInput(input) => {
-                let io_hub = hub.hub.clone();
-                runtime.spawn_background_task(move |_| async move {
-                    io_hub.lock().await.queue_input(input).unwrap();
-                });
+                hub.input_sender.as_ref().unwrap().send(input).unwrap();
             }
         }
     }

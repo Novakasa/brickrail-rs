@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bevy::prelude::*;
 use itertools::Itertools;
 
@@ -29,6 +31,16 @@ impl RouteMarkerData {
             self.key.as_train_u8()
         };
         (speed << 6) | color | (key << 4)
+    }
+}
+
+impl fmt::Display for RouteMarkerData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "MarkerData: {:?} {:?} {:?} {:?} {:?}",
+            self.track, self.color, self.speed, self.key, self.position
+        )
     }
 }
 
@@ -242,6 +254,19 @@ impl Route {
             }
         }
     }
+
+    pub fn pretty_print(&self) {
+        println!("Route: {:?}", self.train_id);
+        for leg in self.legs.iter() {
+            println!("  Leg to {:?}:", leg.target_block);
+            println!("    Markers:");
+            for marker in leg.markers.iter() {
+                println!("      {:}", marker);
+            }
+            println!("    Intention: {:?}", leg.intention);
+            println!("    Final facing: {:?}", leg.get_final_facing());
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -397,5 +422,15 @@ impl RouteLeg {
         }
         data.push(self.intention.as_train_flag() | self.get_final_facing().as_train_flag());
         data
+    }
+}
+
+impl fmt::Display for RouteLeg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "RouteLeg: {:?} {:?} {:?}",
+            self.markers, self.intention, self.target_block
+        )
     }
 }

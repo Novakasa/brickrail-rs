@@ -288,6 +288,7 @@ fn exit_drag_train(
                         &entity_map,
                         &marker_map,
                     );
+                    route.pretty_print();
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.position = Position::Route(route);
                     train.get_route().update_locks(&mut track_locks);

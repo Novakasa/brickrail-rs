@@ -470,7 +470,7 @@ impl IOState {
                     sender.send(line.to_string()).unwrap();
                 }
                 if self.print_lines {
-                    info!("[Hub STDOUT] {}", line);
+                    info!("[Hub STDOUT] {}", line[..line.len() - 2].to_string());
                 }
                 self.clear();
             }
@@ -624,6 +624,10 @@ impl IOHub {
 
     pub fn subscribe_events(&self) -> broadcast::Receiver<IOEvent> {
         self.event_sender.subscribe()
+    }
+
+    pub fn get_input_queue_sender(&self) -> Option<UnboundedSender<Input>> {
+        self.input_queue_sender.clone()
     }
 
     pub async fn set_simulated_output_error(
