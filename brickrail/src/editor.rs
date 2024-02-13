@@ -27,8 +27,9 @@ pub struct InputData {
 pub enum EditorState {
     #[default]
     Edit,
-    PreparingControl,
-    Control,
+    PreparingDeviceControl,
+    DeviceControl,
+    VirtualControl,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect, Hash)]
@@ -92,7 +93,7 @@ fn update_editor_state(
         editor_state.set(EditorState::Edit);
     }
     if keyboard_buttons.just_pressed(KeyCode::Key2) {
-        editor_state.set(EditorState::PreparingControl);
+        editor_state.set(EditorState::PreparingDeviceControl);
     }
 }
 
@@ -389,6 +390,9 @@ impl Plugin for EditorPlugin {
                 update_editor_state,
             ),
         );
-        app.add_systems(OnEnter(EditorState::PreparingControl), update_active_hubs);
+        app.add_systems(
+            OnEnter(EditorState::PreparingDeviceControl),
+            update_active_hubs,
+        );
     }
 }

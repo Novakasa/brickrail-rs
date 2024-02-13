@@ -266,7 +266,7 @@ fn exit_drag_train(
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
             if let Some(GenericID::Block(block_id)) = hover_state.hover {
-                let (mut train, mut ble_train) = q_trains
+                let (mut train, ble_train) = q_trains
                     .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                     .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);

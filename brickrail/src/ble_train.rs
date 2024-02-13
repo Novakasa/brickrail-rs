@@ -187,7 +187,7 @@ fn handle_messages(
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,
-                        num_motors,
+                        num_motors: _,
                     } => {
                         if !has_sensor {
                             error!("Train master hub {:?} has no sensor", event.id);
@@ -200,7 +200,7 @@ fn handle_messages(
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,
-                        num_motors,
+                        num_motors: _,
                     } => {
                         if has_sensor {
                             info!("Train puppet hub {:?} has sensor", event.id);

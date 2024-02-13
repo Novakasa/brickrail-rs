@@ -457,7 +457,21 @@ pub fn prepare_hubs(
     }
     if prepared {
         println!("Hubs prepared");
-        editor_state.set(EditorState::Control);
+        editor_state.set(EditorState::DeviceControl);
+    }
+}
+
+fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<EditorState>>) {
+    for hub in q_hubs.iter() {
+        if hub.active {
+            match hub.state {
+                HubState::Running => {}
+                _ => {
+                    warn!("Hub {:?} not ready", hub.id);
+                    editor_state.set(EditorState::VirtualControl);
+                }
+            }
+        }
     }
 }
 
@@ -475,7 +489,8 @@ impl Plugin for BLEPlugin {
                 handle_hub_events.run_if(on_event::<HubEvent>()),
                 execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,
-                prepare_hubs.run_if(in_state(EditorState::PreparingControl)),
+                prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
+                monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
     }
