@@ -10,7 +10,8 @@ use crate::{
     inspector::InspectorContext,
     layout_primitives::{Facing, HubID, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
-    route::Route,
+    route::{LegIntention, Route},
+    train::Train,
 };
 
 #[derive(Debug)]
@@ -29,7 +30,6 @@ pub enum TrainData {
         has_sensor: bool,
         num_motors: u8,
     },
-    SysCode(u8, Vec<u8>),
     Dump(u8, Vec<u8>),
 }
 
@@ -75,6 +75,10 @@ impl BLETrain {
         }
     }
 
+    pub fn iter_puppets(&self) -> impl Iterator<Item = &HubID> {
+        self.puppets.iter().filter_map(|id| id.as_ref())
+    }
+
     pub fn run_command(&self, facing: Facing, speed: MarkerSpeed) -> HubCommands {
         let arg: u8 = (facing.as_train_flag()) << 4 | speed.as_train_u8();
         let input = IOInput::rpc("run", &vec![arg]);
@@ -106,9 +110,20 @@ impl BLETrain {
         command
     }
 
+    pub fn set_leg_intention(&self, leg_index: u8, intention: LegIntention) -> HubCommands {
+        let args = vec![leg_index, intention.as_train_flag()];
+        let input = IOInput::rpc("set_leg_intention", &args);
+        self.all_command(input)
+    }
+
+    pub fn advance_sensor(&self) -> HubCommands {
+        let input = IOInput::rpc("advance_sensor", &vec![]);
+        self.puppet_command(input)
+    }
+
     fn puppet_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
+        for hub_id in self.iter_puppets() {
             command.push(HubCommandEvent::input(*hub_id, input.clone()));
         }
         command
@@ -177,13 +192,21 @@ impl HubCommands {
     }
 }
 
+#[derive(Event)]
+pub struct BLESensorAdvanceEvent {
+    pub id: TrainID,
+    pub index: u8,
+}
+
 fn handle_messages(
     mut hub_message_events: EventReader<HubMessageEvent<TrainData>>,
-    ble_trains: Query<&BLETrain>,
+    mut ble_trains: Query<(&BLETrain, &mut Train)>,
+    mut advance_events: EventWriter<BLESensorAdvanceEvent>,
+    mut ble_commands: EventWriter<HubCommandEvent>,
 ) {
     for event in hub_message_events.read() {
-        for train in ble_trains.iter() {
-            if train.master_hub == Some(event.id) {
+        for (ble_train, mut train) in ble_trains.iter_mut() {
+            if ble_train.master_hub == Some(event.id) {
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,
@@ -193,18 +216,35 @@ fn handle_messages(
                             error!("Train master hub {:?} has no sensor", event.id);
                         }
                     }
+                    TrainData::SensorAdvance(index) => {
+                        info!("Train master hub {:?} sensor advance: {}", event.id, index);
+                        train.get_route_mut().advance_sensor();
+                        advance_events.send(BLESensorAdvanceEvent {
+                            id: ble_train.train_id,
+                            index,
+                        });
+                        for input in ble_train.advance_sensor().hub_events {
+                            ble_commands.send(input);
+                        }
+                    }
                     _ => warn!("Unhandled TrainData: {:?}", event.data),
                 }
             }
-            if train.puppets.contains(&Some(event.id)) {
+            if ble_train.puppets.contains(&Some(event.id)) {
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,
                         num_motors: _,
                     } => {
                         if has_sensor {
-                            info!("Train puppet hub {:?} has sensor", event.id);
+                            error!("Train puppet hub {:?} has sensor", event.id);
                         }
+                    }
+                    TrainData::SensorAdvance(index) => {
+                        error!(
+                            "Train puppet hub {:?} sensor advance event: {}",
+                            event.id, index
+                        );
                     }
                     _ => warn!("Unhandled TrainData for puppet: {:?}", event.data),
                 }
@@ -219,6 +259,7 @@ impl Plugin for BLETrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, BLETrain>();
         app.add_event::<HubMessageEvent<TrainData>>();
+        app.add_event::<BLESensorAdvanceEvent>();
         app.add_systems(
             Update,
             handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>()),

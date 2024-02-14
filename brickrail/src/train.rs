@@ -1,6 +1,6 @@
 use crate::{
     ble::HubCommandEvent,
-    ble_train::BLETrain,
+    ble_train::{BLESensorAdvanceEvent, BLETrain},
     block::{spawn_block, Block},
     editor::*,
     inspector::InspectorContext,
@@ -398,7 +398,7 @@ fn spawn_train(
     }
 }
 
-fn update_train(
+fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
     mut track_locks: ResMut<TrackLocks>,
@@ -414,6 +414,53 @@ fn update_train(
         let change_locks = train.traverse_route(time.delta_seconds());
         if change_locks {
             train.get_route().update_locks(&mut track_locks);
+        }
+    }
+}
+
+fn handle_ble_sensor_advance(
+    mut q_trains: Query<&mut Train, With<BLETrain>>,
+    mut ble_sensor_advance_events: EventReader<BLESensorAdvanceEvent>,
+    entity_map: Res<EntityMap>,
+    mut track_locks: ResMut<TrackLocks>,
+) {
+    for advance in ble_sensor_advance_events.read() {
+        let mut train = q_trains
+            .get_mut(
+                entity_map
+                    .get_entity(&GenericID::Train(advance.id))
+                    .unwrap(),
+            )
+            .unwrap();
+        let route = train.get_route_mut();
+        route.advance_sensor();
+        route.update_locks(&mut track_locks);
+
+        for mut train in q_trains.iter_mut() {
+            if !track_locks.is_clean(&train.id) {
+                train
+                    .get_route_mut()
+                    .update_intentions(track_locks.as_ref());
+                track_locks.mark_clean(&train.id);
+            }
+        }
+    }
+}
+
+fn sync_intentions(
+    mut q_trains: Query<(&mut Train, &BLETrain)>,
+    mut hub_commands: EventWriter<HubCommandEvent>,
+) {
+    for (mut train, ble_train) in q_trains.iter_mut() {
+        let route = train.get_route_mut();
+        for (leg_index, leg) in route.iter_legs_mut().enumerate() {
+            if leg.intention_synced {
+                continue;
+            }
+            let commands = ble_train.set_leg_intention(leg_index as u8, leg.intention);
+            for input in commands.hub_events {
+                hub_commands.send(input);
+            }
         }
     }
 }
@@ -436,7 +483,11 @@ impl Plugin for TrainPlugin {
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,
-                update_train,
+                update_virtual_trains,
+                handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
+                sync_intentions
+                    .after(handle_ble_sensor_advance)
+                    .run_if(in_state(EditorState::DeviceControl)),
             ),
         );
         app.add_systems(

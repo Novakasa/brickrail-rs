@@ -219,32 +219,7 @@ class Route:
         assert self.index < len(self.legs)
         io_hub.emit_data(bytes((_DATA_LEG_ADVANCE, self.index)))
 
-    def advance_sensor(self, color):
-        next_color = self.current_leg().get_next_color()
-        if next_color != color and next_color != _COLOR_ANY:
-            # print(next_color, color, train.sensor.initial_chroma, train.sensor.initial_hue, train.sensor.marker_samples)
-            data = pack(
-                ">BBBHHH",
-                _DATA_UNEXPECTED_MARKER,
-                next_color,
-                color,
-                train.sensor.initial_chroma,
-                train.sensor.initial_hue,
-                train.sensor.marker_samples,
-            )
-            io_hub.emit_data(bytes(data))
-            pack_into(
-                ">HBB",
-                train.sensor.color_buf,
-                train.sensor.buf_index,
-                361,
-                1,
-                next_color + (color << 4),
-            )
-            train.sensor.buf_index = (train.sensor.buf_index + 4) % 1000
-            return
-        pack_into(">HBB", train.sensor.color_buf, train.sensor.buf_index, 361, 0, color)
-        train.sensor.buf_index = (train.sensor.buf_index + 4) % 1000
+    def advance_sensor(self):
 
         current_leg = self.current_leg()
         current_leg.advance_sensor()
@@ -282,7 +257,6 @@ class RouteLeg:
     def advance_sensor(self):
         self.index += 1
         assert self.index < len(self.markers)
-        io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.index)))
         if self.get_prev_key() == _SENSOR_KEY_ENTER:
             self.entered = True
 
@@ -333,13 +307,40 @@ class Train:
         self.route: Route = Route()
 
     def on_marker_passed(self, color):
-        self.route.advance_sensor(color)
+        next_color = self.route.current_leg().get_next_color()
+        if next_color != color and next_color != _COLOR_ANY:
+            # print(next_color, color, train.sensor.initial_chroma, train.sensor.initial_hue, train.sensor.marker_samples)
+            data = pack(
+                ">BBBHHH",
+                _DATA_UNEXPECTED_MARKER,
+                next_color,
+                color,
+                self.sensor.initial_chroma,
+                self.sensor.initial_hue,
+                self.sensor.marker_samples,
+            )
+            io_hub.emit_data(bytes(data))
+            pack_into(
+                ">HBB",
+                self.sensor.color_buf,
+                self.sensor.buf_index,
+                361,
+                1,
+                next_color + (color << 4),
+            )
+            self.sensor.buf_index = (self.sensor.buf_index + 4) % 1000
+            return
+        pack_into(">HBB", self.sensor.color_buf, self.sensor.buf_index, 361, 0, color)
+        self.sensor.buf_index = (self.sensor.buf_index + 4) % 1000
+
+        self.route.advance_sensor()
         self.set_state(self.route.get_train_state())
         if self.route.next_leg() == None and self.route.current_leg().is_complete():
             self.route = None
+        io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index)))
 
-    def advance_route(self):
-        self.route.advance()
+    def advance_sensor(self):
+        self.route.advance_sensor()
         self.set_state(self.route.get_train_state())
 
     def set_state(self, state):

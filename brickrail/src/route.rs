@@ -88,6 +88,7 @@ pub fn build_route(
             section_position: 0.0,
             target_block: target_id.clone(),
             to_section: target_section,
+            intention_synced: false,
         };
         route.push_leg(leg);
     }
@@ -143,8 +144,16 @@ impl Route {
         self.legs.iter()
     }
 
+    pub fn iter_legs_mut(&mut self) -> std::slice::IterMut<RouteLeg> {
+        self.legs.iter_mut()
+    }
+
     pub fn iter_legs_remaining(&self) -> std::slice::Iter<RouteLeg> {
         self.legs[self.leg_index..].iter()
+    }
+
+    pub fn iter_legs_remaining_mut(&mut self) -> std::slice::IterMut<RouteLeg> {
+        self.legs[self.leg_index..].iter_mut()
     }
 
     pub fn push_leg(&mut self, leg: RouteLeg) {
@@ -181,8 +190,14 @@ impl Route {
         }
         for (i, leg) in self.legs.iter_mut().enumerate() {
             if i < free_until {
+                if leg.intention != LegIntention::Pass {
+                    leg.intention_synced = false;
+                }
                 leg.intention = LegIntention::Pass;
             } else {
+                if leg.intention != LegIntention::Stop {
+                    leg.intention_synced = false;
+                }
                 leg.intention = LegIntention::Stop;
             }
         }
@@ -208,6 +223,7 @@ impl Route {
     pub fn advance_sensor(&mut self) {
         let current_leg = self.get_current_leg_mut();
         current_leg.advance_marker();
+        current_leg.reset_pos_to_prev_marker();
         if current_leg.get_leg_state() == LegState::Completed {
             self.next_leg();
         }
@@ -300,6 +316,7 @@ pub struct RouteLeg {
     pub intention: LegIntention,
     pub section_position: f32,
     target_block: LogicalBlockID,
+    pub intention_synced: bool,
 }
 
 impl RouteLeg {
@@ -402,8 +419,8 @@ impl RouteLeg {
         let mut remainder = distance;
         while self.section_position + remainder > self.get_next_marker_pos() {
             remainder -= self.get_next_marker_pos() - self.section_position;
-            self.section_position = self.get_next_marker_pos();
             self.advance_marker();
+            self.reset_pos_to_prev_marker();
             if self.get_leg_state() == LegState::Completed {
                 if self.intention == LegIntention::Stop {
                     return None;
@@ -413,6 +430,10 @@ impl RouteLeg {
         }
         self.section_position += remainder;
         None
+    }
+
+    pub fn reset_pos_to_prev_marker(&mut self) {
+        self.section_position = self.get_previous_marker_pos();
     }
 
     pub fn as_train_data(&self) -> Vec<u8> {

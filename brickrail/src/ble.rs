@@ -125,7 +125,7 @@ impl Selectable for BLEHub {
         }
         if ui
             .add_enabled(
-                self.state == HubState::Connected && !self.downloaded,
+                self.state == HubState::Connected,
                 Button::new("Download Program"),
             )
             .clicked()
