@@ -32,6 +32,15 @@ pub enum EditorState {
     VirtualControl,
 }
 
+impl EditorState {
+    pub fn ble_commands_enabled(&self) -> bool {
+        match self {
+            EditorState::DeviceControl => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect, Hash)]
 pub enum GenericID {
     Cell(CellID),

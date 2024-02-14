@@ -262,6 +262,7 @@ fn exit_drag_train(
     mut hub_commands: EventWriter<HubCommandEvent>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
+    editor_state: Res<State<EditorState>>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
@@ -294,10 +295,12 @@ fn exit_drag_train(
                     train.get_route().update_locks(&mut track_locks);
                     // println!("state: {:?}", train.route.get_train_state());
 
-                    let commands = ble_train.download_route(&train.get_route());
-                    for input in commands.hub_events {
-                        info!("Sending {:?}", input);
-                        hub_commands.send(input);
+                    if editor_state.get().ble_commands_enabled() {
+                        let commands = ble_train.download_route(&train.get_route());
+                        for input in commands.hub_events {
+                            info!("Sending {:?}", input);
+                            hub_commands.send(input);
+                        }
                     }
                 }
             }

@@ -66,9 +66,9 @@ pub fn build_route(
         let target_section = target_block.get_logical_section(target_id.clone());
 
         for logical in section.tracks.iter() {
-            println!("looking for marker at {:?}", logical);
+            debug!("looking for marker at {:?}", logical);
             if let Some(entity) = entity_map.markers.get(&logical.track()) {
-                println!("found marker at {:?}", logical);
+                debug!("found marker at {:?}", logical);
                 let marker = q_markers.get(*entity).unwrap();
                 let route_marker = RouteMarkerData {
                     track: logical.clone(),
@@ -92,7 +92,7 @@ pub fn build_route(
         route.push_leg(leg);
     }
     route.get_current_leg_mut().set_completed();
-    println!(
+    debug!(
         "legs: {:?}, {:?}",
         route.legs.len(),
         route.get_current_leg().markers
