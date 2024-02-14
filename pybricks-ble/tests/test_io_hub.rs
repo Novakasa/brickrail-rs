@@ -61,12 +61,10 @@ async fn test_io_hub_counter(hub: &mut IOHub) {
     hub.stop_program().await.unwrap();
 }
 
-async fn test_io_hub_many_messages(hub: &mut IOHub) {
+async fn test_io_hub_many_messages(hub: &mut IOHub, err: SimulatedError) {
     hub.start_program().await.unwrap();
     hub.queue_input(Input::rpc("set_counter", &vec![0]))
         .unwrap();
-
-    let err = SimulatedError::Modify(0);
 
     let num_messages = 12;
     for _i in 0..num_messages {
@@ -89,7 +87,27 @@ async fn test_io_hub() {
 
     test_io(&mut hub).await;
 
-    test_io_hub_many_messages(&mut hub).await;
+    test_io_hub_many_messages(&mut hub, SimulatedError::Modify(4)).await;
 
     hub.disconnect().await.unwrap();
+}
+
+#[test_log::test(tokio::test)]
+#[ignore]
+async fn test_io_2_hubs() {
+    let mut hub1 = hub_with_io_program().await;
+    let mut hub2 = hub_with_io_program().await;
+
+    // in sequence
+    test_io_hub_many_messages(&mut hub1, SimulatedError::Modify(3)).await;
+    test_io_hub_many_messages(&mut hub2, SimulatedError::Modify(2)).await;
+
+    // in parallel
+    let ((), ()) = tokio::join!(
+        test_io_hub_many_messages(&mut hub1, SimulatedError::Modify(3)),
+        test_io_hub_many_messages(&mut hub2, SimulatedError::Modify(2)),
+    );
+
+    hub1.disconnect().await.unwrap();
+    hub2.disconnect().await.unwrap();
 }
