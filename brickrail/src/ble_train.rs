@@ -105,8 +105,6 @@ impl BLETrain {
             let input = IOInput::rpc("set_route_leg", &args);
             command.merge(self.all_command(input));
         }
-        let input = IOInput::rpc("advance_route", &vec![]);
-        command.merge(self.all_command(input));
         command
     }
 
@@ -216,9 +214,12 @@ fn handle_messages(
                             error!("Train master hub {:?} has no sensor", event.id);
                         }
                     }
+                    TrainData::LegAdvance(index) => {
+                        info!("Train master hub {:?} leg advance: {}", event.id, index);
+                        train.get_route_mut().next_leg();
+                    }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
-                        train.get_route_mut().advance_sensor();
                         advance_events.send(BLESensorAdvanceEvent {
                             id: ble_train.train_id,
                             index,

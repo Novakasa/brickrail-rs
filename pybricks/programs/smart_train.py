@@ -333,11 +333,11 @@ class Train:
         pack_into(">HBB", self.sensor.color_buf, self.sensor.buf_index, 361, 0, color)
         self.sensor.buf_index = (self.sensor.buf_index + 4) % 1000
 
+        io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index)))
         self.route.advance_sensor()
         self.set_state(self.route.get_train_state())
         if self.route.next_leg() == None and self.route.current_leg().is_complete():
             self.route = None
-        io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index)))
 
     def advance_sensor(self):
         self.route.advance_sensor()
@@ -364,6 +364,12 @@ class Train:
 
     def set_leg_intention(self, data):
         self.route.legs[data[0]].intent_stop = bool(data[1])
+        if (
+            self.route.current_leg().is_complete()
+            and not self.route.current_leg().intent_stop
+        ):
+            self.route.advance()
+        print("set leg intention", data[0], bool(data[1]))
         if self.route.index == data[0]:
             state = self.route.get_train_state()
             self.set_state(state)

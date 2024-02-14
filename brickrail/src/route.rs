@@ -221,12 +221,14 @@ impl Route {
     }
 
     pub fn advance_sensor(&mut self) {
+        info!(
+            "Manually advancing sensor, leg index: {}, old marker index: {}",
+            self.leg_index,
+            self.get_current_leg().index
+        );
         let current_leg = self.get_current_leg_mut();
         current_leg.advance_marker();
         current_leg.reset_pos_to_prev_marker();
-        if current_leg.get_leg_state() == LegState::Completed {
-            self.next_leg();
-        }
     }
 
     pub fn get_train_state(&self) -> TrainState {

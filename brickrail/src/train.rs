@@ -293,6 +293,9 @@ fn exit_drag_train(
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.position = Position::Route(route);
                     train.get_route().update_locks(&mut track_locks);
+                    train
+                        .get_route_mut()
+                        .update_intentions(track_locks.as_ref());
                     // println!("state: {:?}", train.route.get_train_state());
 
                     if editor_state.get().ble_commands_enabled() {
@@ -458,6 +461,11 @@ fn sync_intentions(
                 continue;
             }
             let commands = ble_train.set_leg_intention(leg_index as u8, leg.intention);
+            println!(
+                "Setting intention for leg {}: {:?}",
+                leg_index, leg.intention
+            );
+            leg.intention_synced = true;
             for input in commands.hub_events {
                 hub_commands.send(input);
             }
@@ -483,11 +491,9 @@ impl Plugin for TrainPlugin {
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,
-                update_virtual_trains,
+                update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
                 handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
-                sync_intentions
-                    .after(handle_ble_sensor_advance)
-                    .run_if(in_state(EditorState::DeviceControl)),
+                sync_intentions.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
         app.add_systems(
