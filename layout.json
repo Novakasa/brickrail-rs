@@ -1,12 +1,12 @@
 {
   "marker_map": {
     "in_markers": {
+      "\"L(-4,1,0|WE>)\"": "LB[(-7,1,0|WE)>(-4,1,0|WE)]",
+      "\"L(2,1,0|EW<)\"": "LB[(2,1,0|EW)<(-1,1,0|EW)]",
       "\"L(-4,1,0|EW<)\"": "LB[(-4,1,0|EW)<(-7,1,0|EW)]",
       "\"L(2,1,0|WE>)\"": "LB[(-1,1,0|WE)>(2,1,0|WE)]",
-      "\"L(2,1,0|EW<)\"": "LB[(2,1,0|EW)<(-1,1,0|EW)]",
       "\"L(-1,1,0|EW>)\"": "LB[(2,1,0|EW)>(-1,1,0|EW)]",
       "\"L(-7,1,0|EW>)\"": "LB[(-4,1,0|EW)>(-7,1,0|EW)]",
-      "\"L(-4,1,0|WE>)\"": "LB[(-7,1,0|WE)>(-4,1,0|WE)]",
       "\"L(-1,1,0|WE<)\"": "LB[(-1,1,0|WE)<(2,1,0|WE)]",
       "\"L(-7,1,0|WE<)\"": "LB[(-7,1,0|WE)<(-4,1,0|WE)]"
     },
@@ -32,9 +32,6 @@
       "id": "T(-3,1,0|EW)"
     },
     {
-      "id": "T(-2,1,0|EW)"
-    },
-    {
       "id": "T(0,1,0|EW)"
     },
     {
@@ -48,6 +45,9 @@
     },
     {
       "id": "T(-1,1,0|EW)"
+    },
+    {
+      "id": "T(-2,1,0|EW)"
     }
   ],
   "connections": [
@@ -120,16 +120,16 @@
       "track": "T(-4,1,0|EW)",
       "color": "Blue",
       "logical_data": {
-        "\"L(-4,1,0|EW<)\"": {
+        "\"L(-4,1,0|WE<)\"": {
           "speed": "Cruise"
         },
         "\"L(-4,1,0|EW>)\"": {
           "speed": "Cruise"
         },
-        "\"L(-4,1,0|WE<)\"": {
+        "\"L(-4,1,0|WE>)\"": {
           "speed": "Cruise"
         },
-        "\"L(-4,1,0|WE>)\"": {
+        "\"L(-4,1,0|EW<)\"": {
           "speed": "Cruise"
         }
       }
@@ -138,16 +138,16 @@
       "track": "T(-7,1,0|EW)",
       "color": "Blue",
       "logical_data": {
-        "\"L(-7,1,0|WE>)\"": {
-          "speed": "Cruise"
-        },
         "\"L(-7,1,0|EW>)\"": {
           "speed": "Cruise"
         },
-        "\"L(-7,1,0|EW<)\"": {
+        "\"L(-7,1,0|WE>)\"": {
           "speed": "Cruise"
         },
         "\"L(-7,1,0|WE<)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-7,1,0|EW<)\"": {
           "speed": "Cruise"
         }
       }
@@ -156,16 +156,16 @@
       "track": "T(2,1,0|EW)",
       "color": "Blue",
       "logical_data": {
-        "\"L(2,1,0|WE<)\"": {
-          "speed": "Cruise"
-        },
-        "\"L(2,1,0|EW>)\"": {
-          "speed": "Cruise"
-        },
         "\"L(2,1,0|WE>)\"": {
           "speed": "Cruise"
         },
+        "\"L(2,1,0|WE<)\"": {
+          "speed": "Cruise"
+        },
         "\"L(2,1,0|EW<)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|EW>)\"": {
           "speed": "Cruise"
         }
       }
@@ -177,14 +177,32 @@
         "\"L(-1,1,0|EW>)\"": {
           "speed": "Cruise"
         },
-        "\"L(-1,1,0|WE>)\"": {
-          "speed": "Cruise"
+        "\"L(-1,1,0|EW<)\"": {
+          "speed": "Fast"
         },
         "\"L(-1,1,0|WE<)\"": {
           "speed": "Cruise"
         },
-        "\"L(-1,1,0|EW<)\"": {
+        "\"L(-1,1,0|WE>)\"": {
           "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-2,1,0|EW)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,1,0|WE<)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,1,0|EW>)\"": {
+          "speed": "Fast"
+        },
+        "\"L(-2,1,0|EW<)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,1,0|WE>)\"": {
+          "speed": "Fast"
         }
       }
     }
@@ -230,7 +248,7 @@
           "kind": "Train"
         },
         "name": "technic-blue",
-        "downloaded": false
+        "downloaded": true
       }
     },
     {
@@ -240,7 +258,7 @@
           "kind": "Train"
         },
         "name": "city_hub",
-        "downloaded": false
+        "downloaded": true
       }
     }
   ]
