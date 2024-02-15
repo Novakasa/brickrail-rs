@@ -247,6 +247,8 @@ class RouteLeg:
         self.backwards = bool(data[-1] & _LEG_FLAG_BACKWARDS)
         self.index = 0
         self.entered = False
+        if self.get_prev_key() == _SENSOR_KEY_ENTER:
+            self.entered = True
         # print("markers", self.markers)
         # print("intent_stop", self.intent_stop)
         # print("backwards", self.backwards)
@@ -270,6 +272,7 @@ class RouteLeg:
         return (self.markers[self.index] >> 4) & 0b11
 
     def get_train_state(self, will_turn):
+        # print("entered:", self.entered)
         speed = self.get_prev_speed()
         if self.intent_stop or will_turn:
             if self.is_complete():
@@ -334,14 +337,13 @@ class Train:
         self.sensor.buf_index = (self.sensor.buf_index + 4) % 1000
 
         io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index)))
-        self.route.advance_sensor()
-        self.set_state(self.route.get_train_state())
-        if self.route.next_leg() == None and self.route.current_leg().is_complete():
-            self.route = None
+        self.advance_sensor()
 
     def advance_sensor(self):
         self.route.advance_sensor()
         self.set_state(self.route.get_train_state())
+        if self.route.next_leg() == None and self.route.current_leg().is_complete():
+            self.route = None
 
     def set_state(self, state):
         if state & _STATE_FLAG_STOP:

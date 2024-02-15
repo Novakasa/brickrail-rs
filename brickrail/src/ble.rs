@@ -43,7 +43,7 @@ pub struct BLEHub {
     pub active: bool,
     #[serde(skip)]
     pub state: HubState,
-    #[serde(default)]
+    #[serde(skip)]
     downloaded: bool,
 }
 

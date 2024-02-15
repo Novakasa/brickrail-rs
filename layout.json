@@ -248,7 +248,7 @@
           "kind": "Train"
         },
         "name": "technic-blue",
-        "downloaded": true
+        "downloaded": false
       }
     },
     {
@@ -258,7 +258,7 @@
           "kind": "Train"
         },
         "name": "city_hub",
-        "downloaded": true
+        "downloaded": false
       }
     }
   ]
