@@ -2,13 +2,13 @@
   "marker_map": {
     "in_markers": {
       "\"L(-4,1,0|EW<)\"": "LB[(-4,1,0|EW)<(-7,1,0|EW)]",
-      "\"L(-1,1,0|WE<)\"": "LB[(-1,1,0|WE)<(2,1,0|WE)]",
-      "\"L(-7,1,0|WE<)\"": "LB[(-7,1,0|WE)<(-4,1,0|WE)]",
       "\"L(2,1,0|WE>)\"": "LB[(-1,1,0|WE)>(2,1,0|WE)]",
       "\"L(2,1,0|EW<)\"": "LB[(2,1,0|EW)<(-1,1,0|EW)]",
       "\"L(-1,1,0|EW>)\"": "LB[(2,1,0|EW)>(-1,1,0|EW)]",
+      "\"L(-7,1,0|EW>)\"": "LB[(-4,1,0|EW)>(-7,1,0|EW)]",
       "\"L(-4,1,0|WE>)\"": "LB[(-7,1,0|WE)>(-4,1,0|WE)]",
-      "\"L(-7,1,0|EW>)\"": "LB[(-4,1,0|EW)>(-7,1,0|EW)]"
+      "\"L(-1,1,0|WE<)\"": "LB[(-1,1,0|WE)<(2,1,0|WE)]",
+      "\"L(-7,1,0|WE<)\"": "LB[(-7,1,0|WE)<(-4,1,0|WE)]"
     },
     "enter_markers": {}
   },
@@ -120,13 +120,13 @@
       "track": "T(-4,1,0|EW)",
       "color": "Blue",
       "logical_data": {
-        "\"L(-4,1,0|WE<)\"": {
-          "speed": "Cruise"
-        },
         "\"L(-4,1,0|EW<)\"": {
           "speed": "Cruise"
         },
         "\"L(-4,1,0|EW>)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|WE<)\"": {
           "speed": "Cruise"
         },
         "\"L(-4,1,0|WE>)\"": {
@@ -141,13 +141,13 @@
         "\"L(-7,1,0|WE>)\"": {
           "speed": "Cruise"
         },
+        "\"L(-7,1,0|EW>)\"": {
+          "speed": "Cruise"
+        },
         "\"L(-7,1,0|EW<)\"": {
           "speed": "Cruise"
         },
         "\"L(-7,1,0|WE<)\"": {
-          "speed": "Cruise"
-        },
-        "\"L(-7,1,0|EW>)\"": {
           "speed": "Cruise"
         }
       }
@@ -159,13 +159,13 @@
         "\"L(2,1,0|WE<)\"": {
           "speed": "Cruise"
         },
+        "\"L(2,1,0|EW>)\"": {
+          "speed": "Cruise"
+        },
         "\"L(2,1,0|WE>)\"": {
           "speed": "Cruise"
         },
         "\"L(2,1,0|EW<)\"": {
-          "speed": "Cruise"
-        },
-        "\"L(2,1,0|EW>)\"": {
           "speed": "Cruise"
         }
       }
@@ -210,7 +210,12 @@
           "id": 0,
           "kind": "Train"
         },
-        "puppets": [],
+        "puppets": [
+          {
+            "id": 1,
+            "kind": "Train"
+          }
+        ],
         "train_id": {
           "id": 0
         }
@@ -225,6 +230,16 @@
           "kind": "Train"
         },
         "name": "technic-blue",
+        "downloaded": false
+      }
+    },
+    {
+      "hub": {
+        "id": {
+          "id": 1,
+          "kind": "Train"
+        },
+        "name": "city_hub",
         "downloaded": false
       }
     }

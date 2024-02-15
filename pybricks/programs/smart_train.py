@@ -118,11 +118,11 @@ class TrainSensor:
                         self.last_marker_color + (marker_color << 4),
                     )
                     self.buf_index = (self.buf_index + 4) % 1000
-                    print(
-                        "marker color inconsistent:",
-                        marker_color,
-                        self.last_marker_color,
-                    )
+                    # print(
+                    #    "marker color inconsistent:",
+                    #    marker_color,
+                    #    self.last_marker_color,
+                    # )
 
         self.last_marker_color = marker_color
 
@@ -184,7 +184,7 @@ class TrainMotor:
 
 class Route:
     def __init__(self):
-        print("new route")
+        # print("new route")
         self.legs = [
             RouteLeg(
                 bytearray(
@@ -208,7 +208,7 @@ class Route:
 
     def set_leg(self, data):
         leg_index = data[0]
-        print("set leg", leg_index)
+        # print("set leg", leg_index)
         if leg_index == len(self.legs):
             self.legs.append(None)
         leg = RouteLeg(data[1:])
@@ -247,9 +247,9 @@ class RouteLeg:
         self.backwards = bool(data[-1] & _LEG_FLAG_BACKWARDS)
         self.index = 0
         self.entered = False
-        print("markers", self.markers)
-        print("intent_stop", self.intent_stop)
-        print("backwards", self.backwards)
+        # print("markers", self.markers)
+        # print("intent_stop", self.intent_stop)
+        # print("backwards", self.backwards)
 
     def is_complete(self):
         return self.index == len(self.markers) - 1
@@ -369,7 +369,7 @@ class Train:
             and not self.route.current_leg().intent_stop
         ):
             self.route.advance()
-        print("set leg intention", data[0], bool(data[1]))
+        # print("set leg intention", data[0], bool(data[1]))
         if self.route.index == data[0]:
             state = self.route.get_train_state()
             self.set_state(state)

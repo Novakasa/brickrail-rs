@@ -276,10 +276,12 @@ pub struct IOState {
     event_sender: broadcast::Sender<IOEvent>,
     tasks: JoinSet<()>,
     simulate_error_output: SimulatedError,
+    name: String,
 }
 
 impl IOState {
     pub fn new(
+        name: String,
         input_sender: UnboundedSender<Vec<u8>>,
         event_sender: broadcast::Sender<IOEvent>,
     ) -> Self {
@@ -300,6 +302,7 @@ impl IOState {
         ));
 
         let state = IOState {
+            name,
             line_buffer: vec![],
             line_sender: None,
             print_lines: true,
@@ -470,7 +473,11 @@ impl IOState {
                     sender.send(line.to_string()).unwrap();
                 }
                 if self.print_lines {
-                    info!("[Hub STDOUT] {}", line[..line.len() - 2].to_string());
+                    info!(
+                        "[Hub {:} STDOUT] {}",
+                        self.name,
+                        line[..line.len() - 2].to_string()
+                    );
                 }
                 self.clear();
             }
@@ -680,7 +687,11 @@ impl IOHub {
         let mut hub = self.hub.lock().await;
         let output_receiver = hub.subscribe_output()?;
         let (input_sender, input_receiver) = mpsc::unbounded_channel();
-        let io_state = IOState::new(input_sender, self.event_sender.clone());
+        let io_state = IOState::new(
+            hub.name().unwrap_or("Unknown".to_string()),
+            input_sender,
+            self.event_sender.clone(),
+        );
         self.input_queue_sender = Some(io_state.input_queue_sender.clone());
         let io_state_mutex = Arc::new(Mutex::new(io_state));
         let mut io_state = io_state_mutex.lock().await;
