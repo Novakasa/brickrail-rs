@@ -11,6 +11,7 @@ use crate::{
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*};
+use bevy_ecs::{system::SystemState, world};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
@@ -162,6 +163,16 @@ impl Train {
         return change_locks;
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
         // println!("Route: {:?}", self.route.get_current_leg().section_position);
+    }
+}
+
+pub fn train_inspector(ui: &mut Ui, world: &mut World) {
+    if let Some((mut train)) = get_selected::<Train>(world) {
+        let mut state2 = SystemState::<(Query<&mut BLETrain>, Res<EntityMap>)>::new(world);
+        let (mut ble_trains, entity_map) = state2.get_mut(world);
+        let entity = entity_map.get_entity(&GenericID::Train(train.id)).unwrap();
+        let mut ble_train = ble_trains.get_mut(entity).unwrap();
+        ui.label(format!("{:?}", ble_train.master_hub));
     }
 }
 

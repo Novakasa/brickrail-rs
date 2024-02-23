@@ -12,6 +12,7 @@ use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -67,6 +68,10 @@ pub enum Selection {
 pub trait Selectable {
     fn inspector_ui(&mut self, _ui: &mut Ui, _context: &mut InspectorContext) {}
 
+    fn inspector_ui_world(&self, ui: &mut Ui, world: &mut World) {
+        ui.label("No inspector");
+    }
+
     fn get_id(&self) -> GenericID;
 
     fn get_depth(&self) -> f32 {
@@ -82,6 +87,18 @@ pub trait Selectable {
 pub struct SelectionState {
     pub selection: Selection,
     drag_select: bool,
+}
+
+pub fn get_selected<T: Selectable + Component + Clone>(world: &mut World) -> Option<(Mut<'_, T>)> {
+    let mut state = SystemState::<(Res<SelectionState>, Query<&mut T>, Res<EntityMap>)>::new(world);
+    let (selection_state, mut q_selectable, entity_map) = state.get_mut(world);
+    if let Selection::Single(id) = &selection_state.selection {
+        if let Some(entity) = entity_map.get_entity(id) {
+            let selectable = q_selectable.get_mut(entity).ok()?;
+            return Some((selectable));
+        }
+    }
+    None
 }
 
 #[derive(Resource, Default)]

@@ -1,4 +1,5 @@
 use bevy::{prelude::*, reflect::TypeRegistry};
+use bevy_ecs::system::SystemState;
 use bevy_egui::{
     egui::{self, Id, Layout, Ui},
     EguiContexts, EguiMousePosition,
@@ -64,6 +65,45 @@ impl<'a> InspectorContext<'a> {
     }
 }
 
+fn inspector_widget(ui: &mut Ui, world: &mut World) {
+    let mut state =
+        SystemState::<(Query<&dyn Selectable>, Res<SelectionState>, Res<EntityMap>)>::new(world);
+    let (inspectable, selection_state, entity_map) = state.get(world);
+    ui.separator();
+    let selection = selection_state.selection.clone();
+    if let Selection::Single(generic_id) = selection {
+        if let Some(entity) = entity_map.get_entity(&generic_id) {
+            let inspectable_iter = inspectable.get(entity).unwrap();
+            for inspectable in inspectable_iter.iter() {
+                if inspectable.get_id() != generic_id {
+                    continue;
+                }
+                ui.label(format!("Inspectable {:?}", generic_id));
+                inspectable.inspector_ui_world(ui, world);
+                ui.separator();
+            }
+        }
+    }
+}
+
+fn inspector_system_world(world: &mut World) {
+    let mut state = SystemState::<(EguiContexts,)>::new(world);
+    let (mut egui_contexts,) = state.get_mut(world);
+    let inner_response = egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(
+        &egui_contexts.ctx_mut().clone(),
+        |ui| {
+            ui.label("Inspector 2");
+            inspector_widget(ui, world);
+        },
+    );
+
+    let mut state = SystemState::<(Res<EguiMousePosition>, ResMut<InputData>)>::new(world);
+    let (egui_mouse_pos, mut input_data) = state.get_mut(world);
+    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
+        input_data.mouse_over_ui = inner_response.response.rect.contains(mouse_pos.to_pos2());
+    }
+}
+
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
@@ -111,7 +151,7 @@ pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, inspector_system);
+        app.add_systems(Update, inspector_system_world);
         app.add_plugins(DefaultInspectorConfigPlugin);
     }
 }
