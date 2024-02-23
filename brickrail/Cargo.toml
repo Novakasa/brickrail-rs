@@ -9,10 +9,10 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 bevy = { version = "0.12.1", features = ["dynamic_linking", "serialize"] }
 bevy-inspector-egui = "0.21.0"
-bevy-trait-query = "0.4.0"
+bevy-trait-query = "0.4.0"                                                 # only 0.12
 bevy_egui = "0.23.0"
 bevy_framepace = "0.14.1"
-bevy_mouse_tracking_plugin = "0.7.0"
+bevy_mouse_tracking_plugin = "0.7.0"                                       # only 0.12
 bevy_pancam = "0.10.0"
 bevy_prototype_lyon = "0.10.0"
 itertools = "0.11.0"

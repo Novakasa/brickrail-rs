@@ -1,4 +1,5 @@
 use bevy::{prelude::*, reflect::TypeRegistry};
+use bevy_ecs::schedule::ScheduleLabel;
 use bevy_egui::{
     egui::{self, Id, Layout, Ui},
     EguiContexts, EguiMousePosition,
@@ -11,6 +12,9 @@ use crate::{
     layout::EntityMap,
     layout_primitives::{HubID, HubType},
 };
+
+#[derive(ScheduleLabel, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct InspectorSchedule;
 
 pub struct InspectorContext<'a> {
     pub type_registry: &'a TypeRegistry,
@@ -64,6 +68,34 @@ impl<'a> InspectorContext<'a> {
     }
 }
 
+#[derive(Resource)]
+pub struct InspectorUI {
+    pub ui: Ui,
+}
+
+fn test_inspector(ui_input: In<&mut Ui>) {
+    ui_input.0.label("Inspector test");
+}
+
+fn setup_inspector(
+    mut contexts: EguiContexts,
+    egui_mouse_pos: Res<EguiMousePosition>,
+    mut input_data: ResMut<InputData>,
+    mut commands: Commands,
+) {
+    let inner_response = egui::SidePanel::new(egui::panel::Side::Right, Id::new("Inspector")).show(
+        contexts.ctx_mut(),
+        |mut ui| {
+            ui.label("Inspector");
+            ui.separator();
+            ui.label("Select an entity to inspect");
+        },
+    );
+    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
+        input_data.mouse_over_ui = inner_response.response.rect.contains(mouse_pos.to_pos2());
+    }
+}
+
 fn inspector_system(
     type_registry: Res<AppTypeRegistry>,
     mut contexts: EguiContexts,
@@ -111,6 +143,7 @@ pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
+        app.add_schedule(Schedule::new(InspectorSchedule));
         app.add_systems(Update, inspector_system);
         app.add_plugins(DefaultInspectorConfigPlugin);
     }
