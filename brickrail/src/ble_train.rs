@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandEvent, HubMessageEvent},
     editor::{GenericID, Selectable, SelectionState, SerializedHub, SpawnEvent},
-    inspector::select_hub_ui,
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
@@ -162,7 +161,7 @@ impl BLETrain {
             if let Ok(mut ble_train) = ble_trains.get_mut(entity) {
                 ui.label("BLE Train");
                 ui.label("Master Hub");
-                select_hub_ui(
+                BLEHub::select_id_ui(
                     ui,
                     &mut ble_train.master_hub,
                     HubType::Train,
@@ -176,7 +175,7 @@ impl BLETrain {
                 for (i, hub_id) in ble_train.puppets.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
                         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                            select_hub_ui(
+                            BLEHub::select_id_ui(
                                 ui,
                                 hub_id,
                                 HubType::Train,
