@@ -392,6 +392,32 @@ pub trait FromIOMessage: Sized {
     fn from_io_message(msg: &IOMessage) -> Option<Self>;
 }
 
+#[derive(Debug)]
+pub enum SysData {
+    Stop,
+    Ready,
+    Alive { voltage: f32, current: f32 },
+    Version,
+}
+
+impl FromIOMessage for SysData {
+    fn from_io_message(msg: &IOMessage) -> Option<Self> {
+        match msg {
+            IOMessage::Sys { code, data } => match code {
+                0x00 => Some(SysData::Stop),
+                0x01 => Some(SysData::Ready),
+                0x02 => Some(SysData::Alive {
+                    voltage: u16::from_be_bytes([data[0], data[1]]) as f32 / 1000.0,
+                    current: u16::from_be_bytes([data[2], data[3]]) as f32 / 1000.0,
+                }),
+                0x03 => Some(SysData::Version),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
 #[derive(Event, Debug)]
 pub struct HubMessageEvent<T: FromIOMessage> {
     pub id: HubID,
@@ -418,7 +444,14 @@ fn handle_hub_events(
                 debug!("Message: {:?}", msg);
                 match msg {
                     IOMessage::Sys { code, data } => {
-                        info!("unhandled sys message: {:?} {:?}", code, data);
+                        let data = SysData::from_io_message(msg).expect(
+                            &format!(
+                                "Could not parse SysData with code: {:?} data: {:?}",
+                                code, data,
+                            )
+                            .to_string(),
+                        );
+                        info!("Received SysData: {:?}", data);
                     }
                     _ => match hub.id.kind {
                         HubType::Train => {
