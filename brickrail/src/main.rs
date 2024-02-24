@@ -13,6 +13,7 @@ mod layout_primitives;
 mod marker;
 mod route;
 mod section;
+mod switch;
 mod track;
 mod train;
 mod utils;
@@ -34,5 +35,6 @@ fn main() {
         .add_plugins(bevy_tokio_tasks::TokioTasksPlugin::default())
         .add_plugins(ble::BLEPlugin)
         .add_plugins(ble_train::BLETrainPlugin)
+        .add_plugins(switch::SwitchPlugin)
         .run();
 }
