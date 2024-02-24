@@ -1,13 +1,15 @@
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::{Align, Layout, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::{FromIOMessage, HubCommandEvent, HubMessageEvent},
-    editor::{GenericID, Selectable},
-    inspector::InspectorContext,
+    ble::{BLEHub, FromIOMessage, HubCommandEvent, HubMessageEvent},
+    editor::{GenericID, Selectable, SelectionState, SerializedHub, SpawnEvent},
+    inspector::select_hub_ui,
+    layout::EntityMap,
     layout_primitives::{Facing, HubID, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
     route::{LegIntention, Route},
@@ -61,7 +63,7 @@ impl FromIOMessage for TrainData {
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLETrain {
-    master_hub: Option<HubID>,
+    pub master_hub: Option<HubID>,
     puppets: Vec<Option<HubID>>,
     train_id: TrainID,
 }
@@ -138,35 +140,71 @@ impl BLETrain {
         }
         command
     }
+
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut BLETrain>,
+            ResMut<EntityMap>,
+            ResMut<SelectionState>,
+            Res<AppTypeRegistry>,
+            Query<&BLEHub>,
+            EventWriter<SpawnEvent<SerializedHub>>,
+        )>::new(world);
+        let (
+            mut ble_trains,
+            mut entity_map,
+            mut selection_state,
+            _type_registry,
+            hubs,
+            mut spawn_events,
+        ) = state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut ble_train) = ble_trains.get_mut(entity) {
+                ui.label("BLE Train");
+                ui.label("Master Hub");
+                select_hub_ui(
+                    ui,
+                    &mut ble_train.master_hub,
+                    HubType::Train,
+                    &hubs,
+                    &mut spawn_events,
+                    &mut entity_map,
+                    &mut selection_state,
+                );
+                ui.label("Puppets");
+                let mut remove_index = None;
+                for (i, hub_id) in ble_train.puppets.iter_mut().enumerate() {
+                    ui.push_id(i, |ui| {
+                        ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                            select_hub_ui(
+                                ui,
+                                hub_id,
+                                HubType::Train,
+                                &hubs,
+                                &mut spawn_events,
+                                &mut entity_map,
+                                &mut selection_state,
+                            );
+                            if ui.button("Remove").clicked() {
+                                remove_index = Some(i);
+                            }
+                        });
+                    });
+                }
+                if let Some(i) = remove_index {
+                    ble_train.puppets.remove(i);
+                }
+                if ui.button("Add Puppet").clicked() {
+                    ble_train.puppets.push(None);
+                }
+            }
+        }
+    }
 }
 
 impl Selectable for BLETrain {
     fn get_id(&self) -> GenericID {
         GenericID::Train(self.train_id)
-    }
-
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label("BLE Train");
-        ui.label("Master Hub");
-        context.select_hub_ui(ui, &mut self.master_hub, HubType::Train);
-        ui.label("Puppets");
-        let mut remove_index = None;
-        for (i, hub_id) in self.puppets.iter_mut().enumerate() {
-            ui.push_id(i, |ui| {
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                    context.select_hub_ui(ui, hub_id, HubType::Train);
-                    if ui.button("Remove").clicked() {
-                        remove_index = Some(i);
-                    }
-                });
-            });
-        }
-        if let Some(i) = remove_index {
-            self.puppets.remove(i);
-        }
-        if ui.button("Add Puppet").clicked() {
-            self.puppets.push(None);
-        }
     }
 }
 

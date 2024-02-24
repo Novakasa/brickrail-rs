@@ -3,7 +3,7 @@ use std::{path::Path, sync::Arc};
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     ble_train::TrainData,
-    editor::{EditorState, GenericID, Selectable, SerializedHub, SpawnEvent},
+    editor::{EditorState, GenericID, Selectable, SelectionState, SerializedHub, SpawnEvent},
     layout::EntityMap,
     layout_primitives::{HubID, HubType},
 };
@@ -33,12 +33,12 @@ pub enum HubState {
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLEHub {
-    id: HubID,
+    pub id: HubID,
     #[serde(skip)]
     hub: Arc<Mutex<IOHub>>,
     #[serde(skip)]
     input_sender: Option<tokio::sync::mpsc::UnboundedSender<IOInput>>,
-    name: Option<String>,
+    pub name: Option<String>,
     #[serde(skip)]
     pub active: bool,
     #[serde(skip)]
@@ -74,96 +74,99 @@ impl Selectable for BLEHub {
     fn get_id(&self) -> GenericID {
         GenericID::Hub(self.id)
     }
+}
 
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut crate::inspector::InspectorContext) {
-        ui.label(format!("BLE Hub {:?}", self.id));
-        ui.label(format!(
-            "Name: {}",
-            self.name.as_deref().unwrap_or("Unknown")
-        ));
-        ui.label(format!("State: {:?}", self.state));
-        if ui
-            .button("Discover Name")
-            .on_hover_text("Discover the name of the hub")
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::DiscoverName,
-                });
-            });
-        }
-        if ui
-            .add_enabled(
-                self.name.is_some() && self.state == HubState::Disconnected,
-                Button::new("Connect"),
-            )
-            .on_hover_text("Connect to the hub")
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::Connect,
-                });
-            });
-        }
-        if ui
-            .add_enabled(self.state == HubState::Connected, Button::new("Disconnect"))
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::Disconnect,
-                });
-            });
-        }
-        if ui
-            .add_enabled(
-                self.state == HubState::Connected,
-                Button::new("Download Program"),
-            )
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::DownloadProgram,
-                });
-            });
-        }
-        if ui
-            .add_enabled(
-                self.state == HubState::Connected,
-                Button::new("Start Program"),
-            )
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::StartProgram,
-                });
-            });
-        }
-        if ui
-            .add_enabled(self.state == HubState::Running, Button::new("Stop Program"))
-            .clicked()
-        {
-            let id = self.id.clone();
-            context.commands.add(move |world: &mut World| {
-                world.send_event(HubCommandEvent {
-                    hub_id: id,
-                    command: HubCommand::StopProgram,
-                });
-            });
+impl BLEHub {
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&BLEHub>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+            EventWriter<HubCommandEvent>,
+        )>::new(world);
+        let (hubs, entity_map, selection_state, _type_registry, mut command_events) =
+            state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(hub) = hubs.get(entity) {
+                ui.label(format!("BLE Hub {:?}", hub.id));
+                ui.label(format!(
+                    "Name: {}",
+                    hub.name.as_deref().unwrap_or("Unknown")
+                ));
+                ui.label(format!("State: {:?}", hub.state));
+                if ui
+                    .button("Discover Name")
+                    .on_hover_text("Discover the name of the hub")
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::DiscoverName,
+                    });
+                }
+                if ui
+                    .add_enabled(
+                        hub.name.is_some() && hub.state == HubState::Disconnected,
+                        Button::new("Connect"),
+                    )
+                    .on_hover_text("Connect to the hub")
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::Connect,
+                    });
+                }
+                if ui
+                    .add_enabled(hub.state == HubState::Connected, Button::new("Disconnect"))
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::Disconnect,
+                    });
+                }
+                if ui
+                    .add_enabled(
+                        hub.state == HubState::Connected,
+                        Button::new("Download Program"),
+                    )
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::DownloadProgram,
+                    });
+                }
+                if ui
+                    .add_enabled(
+                        hub.state == HubState::Connected,
+                        Button::new("Start Program"),
+                    )
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::StartProgram,
+                    });
+                }
+                if ui
+                    .add_enabled(hub.state == HubState::Running, Button::new("Stop Program"))
+                    .clicked()
+                {
+                    let id = hub.id.clone();
+                    command_events.send(HubCommandEvent {
+                        hub_id: id,
+                        command: HubCommand::StopProgram,
+                    });
+                }
+            }
         }
     }
 }

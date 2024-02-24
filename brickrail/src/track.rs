@@ -1,12 +1,12 @@
 use crate::{
     editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent},
-    inspector::InspectorContext,
     layout::{Connections, EntityMap},
     layout_primitives::*,
     marker::{Marker, MarkerColor},
     utils::bresenham_line,
 };
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
@@ -179,20 +179,34 @@ pub struct Track {
     pub id: TrackID,
 }
 
-impl Selectable for Track {
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label("Inspectable track lol");
-        if !context.entity_map.markers.contains_key(&self.id) {
-            if ui.button("Add Marker").clicked() {
-                let id = self.id.clone();
-                context.commands.add(move |world: &mut World| {
-                    let marker = Marker::new(id, MarkerColor::Red);
-                    world.send_event(SpawnEvent(marker));
-                });
+impl Track {
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut Track>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+            EventWriter<SpawnEvent<Marker>>,
+        )>::new(world);
+        let (mut tracks, entity_map, selection_state, _type_registry, mut marker_spawner) =
+            state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(track) = tracks.get_mut(entity) {
+                ui.label("Inspectable track lol");
+                if !entity_map.markers.contains_key(&track.id) {
+                    if ui.button("Add Marker").clicked() {
+                        let id = track.id.clone();
+
+                        let marker = Marker::new(id, MarkerColor::Red);
+                        marker_spawner.send(SpawnEvent(marker));
+                    }
+                }
             }
         }
     }
+}
 
+impl Selectable for Track {
     fn get_depth(&self) -> f32 {
         1.0
     }

@@ -2,7 +2,6 @@ use crate::editor::{
     delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
     SerializedTrain, SpawnEvent,
 };
-use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
 use crate::section::LogicalSection;
@@ -10,6 +9,7 @@ use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::input::keyboard;
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
@@ -69,26 +69,39 @@ impl Block {
             BlockDirection::Opposite => self.section.get_opposite().get_logical(block_id.facing),
         }
     }
+
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut Block>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+            EventWriter<SpawnEvent<SerializedTrain>>,
+        )>::new(world);
+        let (mut blocks, entity_map, selection_state, type_registry, mut train_spawner) =
+            state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut block) = blocks.get_mut(entity) {
+                ui.label(format!("Block {:?}", block.id));
+                ui_for_value(&mut block.settings, ui, &type_registry.read());
+
+                if ui.button("Add train").clicked() {
+                    let train_id = entity_map.new_train_id();
+                    let logical_block_id = block
+                        .id
+                        .to_logical(BlockDirection::Aligned, Facing::Forward);
+                    let train = Train::at_block_id(train_id, logical_block_id);
+                    train_spawner.send(SpawnEvent(SerializedTrain {
+                        train: train,
+                        ble_train: None,
+                    }))
+                }
+            }
+        }
+    }
 }
 
 impl Selectable for Block {
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label(format!("Block {:?}", self.id));
-        ui_for_value(&mut self.settings, ui, context.type_registry);
-
-        if ui.button("Add train").clicked() {
-            let train_id = context.entity_map.new_train_id();
-            let logical_block_id = self.id.to_logical(BlockDirection::Aligned, Facing::Forward);
-            let train = Train::at_block_id(train_id, logical_block_id);
-            context.commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(SerializedTrain {
-                    train: train,
-                    ble_train: None,
-                }))
-            });
-        }
-    }
-
     fn get_depth(&self) -> f32 {
         0.0
     }

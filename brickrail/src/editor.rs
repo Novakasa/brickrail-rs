@@ -3,7 +3,6 @@ use std::io::{Read, Write};
 use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::Block;
-use crate::inspector::InspectorContext;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
 use crate::marker::Marker;
@@ -12,7 +11,6 @@ use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
-use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -65,8 +63,6 @@ pub enum Selection {
 
 #[bevy_trait_query::queryable]
 pub trait Selectable {
-    fn inspector_ui(&mut self, _ui: &mut Ui, _context: &mut InspectorContext) {}
-
     fn get_id(&self) -> GenericID;
 
     fn get_depth(&self) -> f32 {
@@ -82,6 +78,15 @@ pub trait Selectable {
 pub struct SelectionState {
     pub selection: Selection,
     drag_select: bool,
+}
+
+impl SelectionState {
+    pub fn get_entity(&self, entity_map: &EntityMap) -> Option<Entity> {
+        match &self.selection {
+            Selection::Single(id) => entity_map.get_entity(id),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Resource, Default)]

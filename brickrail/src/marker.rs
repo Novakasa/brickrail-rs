@@ -1,6 +1,7 @@
 use bevy::{
     gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
@@ -9,7 +10,6 @@ use serde_json_any_key::any_key_map;
 
 use crate::{
     editor::*,
-    inspector::InspectorContext,
     layout::{EntityMap, MarkerMap},
     layout_primitives::*,
     track::{spawn_track, LAYOUT_SCALE},
@@ -150,6 +150,29 @@ impl Marker {
             * LAYOUT_SCALE;
         gizmos.circle_2d(position, 0.05 * LAYOUT_SCALE, Color::WHITE);
     }
+
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut Marker>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+        )>::new(world);
+        let (mut markers, entity_map, selection_state, type_registry) = state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut marker) = markers.get_mut(entity) {
+                ui.label("Inspectable marker lol");
+                ui_for_value(&mut marker.color, ui, &type_registry.read());
+                ui.label("Logical data");
+                for (logical, data) in marker.logical_data.iter_mut() {
+                    ui.push_id(logical, |ui| {
+                        ui.label(&format!("{:?}", logical));
+                        ui_for_value(data, ui, &type_registry.read());
+                    });
+                }
+            }
+        }
+    }
 }
 
 impl Selectable for Marker {
@@ -167,18 +190,6 @@ impl Selectable for Marker {
             .get_center_vec2()
             .distance(pos)
             - 0.05
-    }
-
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label("Inspectable marker lol");
-        ui_for_value(&mut self.color, ui, context.type_registry);
-        ui.label("Logical data");
-        for (logical, data) in self.logical_data.iter_mut() {
-            ui.push_id(logical, |ui| {
-                ui.label(&format!("{:?}", logical));
-                ui_for_value(data, ui, context.type_registry);
-            });
-        }
     }
 }
 

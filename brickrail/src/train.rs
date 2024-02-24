@@ -3,7 +3,6 @@ use crate::{
     ble_train::{BLESensorAdvanceEvent, BLETrain},
     block::{spawn_block, Block},
     editor::*,
-    inspector::InspectorContext,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
@@ -11,6 +10,7 @@ use crate::{
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*};
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
@@ -165,15 +165,22 @@ impl Train {
     }
 }
 
-impl Selectable for Train {
-    fn inspector_ui(&mut self, ui: &mut Ui, context: &mut InspectorContext) {
-        ui.label(format!("Train {:?}", self.id));
-        if ui.button("Turn around").clicked() {
-            println!("can't lol");
+pub fn train_inspector(ui: &mut Ui, world: &mut World) {
+    let mut state = SystemState::<(
+        Query<&mut Train>,
+        Res<EntityMap>,
+        Res<SelectionState>,
+        Res<AppTypeRegistry>,
+    )>::new(world);
+    let (mut trains, entity_map, selection_state, type_registry) = state.get_mut(world);
+    if let Some(entity) = selection_state.get_entity(&entity_map) {
+        if let Ok(mut train) = trains.get_mut(entity) {
+            ui_for_value(&mut train.settings, ui, &type_registry.read());
         }
-        ui_for_value(&mut self.settings, ui, context.type_registry);
     }
+}
 
+impl Selectable for Train {
     fn get_id(&self) -> GenericID {
         GenericID::Train(self.id)
     }
