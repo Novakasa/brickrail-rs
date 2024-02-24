@@ -11,7 +11,7 @@ use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -113,7 +113,7 @@ pub enum TrackShapeType {
     Inner,
 }
 
-#[derive(Component, Serialize, Deserialize, Clone)]
+#[derive(Component, Clone)]
 pub struct TrackConnection {
     pub id: TrackConnectionID,
 }
@@ -127,6 +127,26 @@ impl TrackConnection {
 impl Selectable for TrackConnection {
     fn get_id(&self) -> GenericID {
         GenericID::TrackConnection(self.id)
+    }
+}
+
+impl Serialize for TrackConnection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.id.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TrackConnection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self {
+            id: TrackConnectionID::deserialize(deserializer)?,
+        })
     }
 }
 
@@ -174,9 +194,29 @@ impl TrackBaseShape {
     }
 }
 
-#[derive(Component, Serialize, Deserialize, Clone)]
+#[derive(Component, Clone)]
 pub struct Track {
     pub id: TrackID,
+}
+
+impl Serialize for Track {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.id.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Track {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self {
+            id: TrackID::deserialize(deserializer)?,
+        })
+    }
 }
 
 impl Track {
