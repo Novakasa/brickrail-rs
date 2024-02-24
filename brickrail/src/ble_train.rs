@@ -197,6 +197,7 @@ impl BLETrain {
                 if ui.button("Add Puppet").clicked() {
                     ble_train.puppets.push(None);
                 }
+                ui.separator();
             }
         }
     }

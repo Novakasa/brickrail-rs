@@ -96,6 +96,7 @@ impl Block {
                         ble_train: None,
                     }))
                 }
+                ui.separator();
             }
         }
     }

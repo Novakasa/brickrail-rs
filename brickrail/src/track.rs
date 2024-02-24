@@ -201,6 +201,7 @@ impl Track {
                         marker_spawner.send(SpawnEvent(marker));
                     }
                 }
+                ui.separator();
             }
         }
     }

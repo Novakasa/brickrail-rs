@@ -163,19 +163,20 @@ impl Train {
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
         // println!("Route: {:?}", self.route.get_current_leg().section_position);
     }
-}
 
-pub fn train_inspector(ui: &mut Ui, world: &mut World) {
-    let mut state = SystemState::<(
-        Query<&mut Train>,
-        Res<EntityMap>,
-        Res<SelectionState>,
-        Res<AppTypeRegistry>,
-    )>::new(world);
-    let (mut trains, entity_map, selection_state, type_registry) = state.get_mut(world);
-    if let Some(entity) = selection_state.get_entity(&entity_map) {
-        if let Ok(mut train) = trains.get_mut(entity) {
-            ui_for_value(&mut train.settings, ui, &type_registry.read());
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut Train>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+        )>::new(world);
+        let (mut trains, entity_map, selection_state, type_registry) = state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut train) = trains.get_mut(entity) {
+                ui_for_value(&mut train.settings, ui, &type_registry.read());
+                ui.separator();
+            }
         }
     }
 }

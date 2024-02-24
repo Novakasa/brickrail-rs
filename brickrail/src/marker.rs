@@ -170,6 +170,7 @@ impl Marker {
                         ui_for_value(data, ui, &type_registry.read());
                     });
                 }
+                ui.separator();
             }
         }
     }

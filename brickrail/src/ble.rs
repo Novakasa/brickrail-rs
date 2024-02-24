@@ -166,6 +166,7 @@ impl BLEHub {
                         command: HubCommand::StopProgram,
                     });
                 }
+                ui.separator();
             }
         }
     }

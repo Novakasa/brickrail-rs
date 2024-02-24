@@ -15,7 +15,7 @@ use crate::{
     layout_primitives::{HubID, HubType},
     marker::Marker,
     track::Track,
-    train::train_inspector,
+    train::Train,
 };
 
 pub fn select_hub_ui(
@@ -78,16 +78,14 @@ fn inspector_system_world(world: &mut World) {
     let inner_response = egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(
         &egui_contexts.ctx_mut().clone(),
         |ui| {
-            ui.label("Inspector 2");
+            ui.label("Inspector");
             {
                 ui.separator();
-                train_inspector(ui, world);
-                ui.separator();
+                Train::inspector(ui, world);
                 BLETrain::inspector(ui, world);
                 BLEHub::inspector(ui, world);
                 Block::inspector(ui, world);
                 Track::inspector(ui, world);
-                ui.separator();
                 Marker::inspector(ui, world);
             };
         },
