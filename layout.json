@@ -177,24 +177,6 @@
         "id": "Train0",
         "name": "city_hub"
       }
-    },
-    {
-      "hub": {
-        "id": "Train1",
-        "name": "city_hub"
-      }
-    },
-    {
-      "hub": {
-        "id": "Train2",
-        "name": null
-      }
-    },
-    {
-      "hub": {
-        "id": "Train3",
-        "name": null
-      }
     }
   ]
 }
