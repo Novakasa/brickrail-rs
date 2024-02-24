@@ -397,7 +397,7 @@ pub enum SysData {
     Stop,
     Ready,
     Alive { voltage: f32, current: f32 },
-    Version,
+    Version(String),
 }
 
 impl FromIOMessage for SysData {
@@ -410,7 +410,10 @@ impl FromIOMessage for SysData {
                     voltage: u16::from_be_bytes([data[0], data[1]]) as f32 / 1000.0,
                     current: u16::from_be_bytes([data[2], data[3]]) as f32 / 1000.0,
                 }),
-                0x03 => Some(SysData::Version),
+                0x03 => match std::str::from_utf8(data) {
+                    Ok(version) => Some(SysData::Version(version.to_string())),
+                    Err(_) => None,
+                },
                 _ => None,
             },
             _ => None,
