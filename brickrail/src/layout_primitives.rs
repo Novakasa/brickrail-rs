@@ -37,7 +37,17 @@ pub enum HubType {
 }
 
 #[derive(
-    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Debug,
+    Reflect,
+    SerializeDisplay,
+    DeserializeFromStr,
 )]
 pub struct HubID {
     pub id: usize,
@@ -53,6 +63,20 @@ impl HubID {
 impl fmt::Display for HubID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}{}", self.kind, self.id)
+    }
+}
+
+impl FromStr for HubID {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("Train") {
+            Ok(Self::new(s[5..].parse().unwrap(), HubType::Train))
+        } else if s.starts_with("Layout") {
+            Ok(Self::new(s[7..].parse().unwrap(), HubType::Layout))
+        } else {
+            Err(format!("invalid hub id: {}", s))
+        }
     }
 }
 

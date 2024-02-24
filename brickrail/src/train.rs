@@ -116,6 +116,7 @@ pub struct Train {
     position: Position,
     #[serde(skip)]
     state: TrainState,
+    #[serde(skip)]
     speed: f32,
     settings: TrainSettings,
 }

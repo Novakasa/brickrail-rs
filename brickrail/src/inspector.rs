@@ -63,13 +63,13 @@ pub fn select_hub_ui(
 fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
     for hub in hubs.iter() {
         if &hub.id == id {
-            match hub.name.as_ref() {
-                Some(name) => return name.clone(),
-                None => return format!("Unkown {:?}", id),
-            }
+            return match hub.name.as_ref() {
+                Some(name) => name.clone(),
+                None => format!("Unkown {:}", id),
+            };
         }
     }
-    return format!("Unkown {:?}", id);
+    return format!("Unkown {:}", id);
 }
 
 fn inspector_system_world(world: &mut World) {
