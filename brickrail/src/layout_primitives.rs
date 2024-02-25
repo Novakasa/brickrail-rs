@@ -590,6 +590,17 @@ impl Orientation {
             _ => None,
         }
     }
+
+    pub fn get_unicode_arrow(&self) -> &'static str {
+        match self {
+            Self::EW => "↔",
+            Self::NE => "⤡",
+            Self::NS => "↕",
+            Self::NW => "⤢",
+            Self::SE => "⤢",
+            Self::SW => "⤡",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -938,13 +949,23 @@ impl LogicalTrackID {
 
 impl fmt::Debug for LogicalTrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "L({})", self.get_name())
+        write!(
+            f,
+            "L({}|{})",
+            self.get_name(),
+            self.dirtrack.get_unicode_arrow()
+        )
     }
 }
 
 impl fmt::Display for LogicalTrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "L({})", self.get_name())
+        write!(
+            f,
+            "L({}|{})",
+            self.get_name(),
+            self.dirtrack.get_unicode_arrow()
+        )
     }
 }
 
@@ -953,7 +974,8 @@ impl FromStr for LogicalTrackID {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // strip L( and ):
-        let s = &s[2..s.len() - 1];
+        let end_index = s.char_indices().nth_back(2).map(|(i, _)| i).unwrap();
+        let s = &s[2..end_index];
         // println!("parsing logical track id: {}", s);
         Self::from_name(s).ok_or_else(|| format!("invalid logical track id: {}", s))
     }
@@ -1097,6 +1119,20 @@ impl DirectedTrackID {
         self.interpolate_pos(self.straight_length())
     }
 
+    pub fn get_unicode_arrow(&self) -> &'static str {
+        match self.dir_index() {
+            2 => "↑",
+            3 => "↗",
+            4 => "→",
+            5 => "↘",
+            6 => "↓",
+            7 => "↙",
+            0 => "←",
+            1 => "↖",
+            _ => "X",
+        }
+    }
+
     pub fn get_name(&self) -> String {
         let dirstr = match self.direction {
             TrackDirection::First => self.track.orientation.get_reversed_name(),
@@ -1137,13 +1173,13 @@ impl DirectedTrackID {
 
 impl fmt::Debug for DirectedTrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "D({})", self.get_name())
+        write!(f, "D({}|{})", self.get_name(), self.get_unicode_arrow())
     }
 }
 
 impl fmt::Display for DirectedTrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "D({})", self.get_name())
+        write!(f, "D({}|{})", self.get_name(), self.get_unicode_arrow())
     }
 }
 
@@ -1152,7 +1188,8 @@ impl FromStr for DirectedTrackID {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // strip D( and ):
-        let s = &s[2..s.len() - 1];
+        let end_index = s.char_indices().nth_back(2).map(|(i, _)| i).unwrap();
+        let s = &s[2..end_index];
         // println!("parsing directed track id: {}", s);
         Self::from_name(s).ok_or_else(|| format!("invalid directed track id: {}", s))
     }
@@ -1271,13 +1308,23 @@ impl TrackID {
 
 impl fmt::Debug for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "T({})", self.get_name())
+        write!(
+            f,
+            "T({}|{})",
+            self.get_name(),
+            self.orientation.get_unicode_arrow()
+        )
     }
 }
 
 impl fmt::Display for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "T({})", self.get_name())
+        write!(
+            f,
+            "T({}|{})",
+            self.get_name(),
+            self.orientation.get_unicode_arrow()
+        )
     }
 }
 
@@ -1286,7 +1333,8 @@ impl FromStr for TrackID {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // strip T( and ):
-        let s = &s[2..s.len() - 1];
+        let end_index = s.char_indices().nth_back(2).map(|(i, _)| i).unwrap();
+        let s = &s[2..end_index];
         // println!("parsing track id: {}", s);
         Self::from_name(s).ok_or_else(|| format!("invalid track id: {}", s))
     }
