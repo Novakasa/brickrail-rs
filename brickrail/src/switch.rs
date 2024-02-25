@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -25,7 +26,7 @@ impl Selectable for Switch {
     }
 
     fn get_distance(&self, pos: Vec2) -> f32 {
-        self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
+        self.id.to_slot().get_vec2().distance(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }
 
@@ -90,6 +91,7 @@ impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnEvent<SerializedSwitch>>();
         app.add_event::<UpdateSwitchTurnsEvent>();
+        app.register_component_as::<dyn Selectable, Switch>();
         app.add_systems(
             Update,
             (
