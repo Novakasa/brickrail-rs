@@ -7,15 +7,8 @@ use crate::{
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone)]
-enum SwitchPosition {
-    Left,
-    Center,
-    Right,
-}
-
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
-struct Switch {
+pub struct Switch {
     id: DirectedTrackID,
     positions: Vec<SwitchPosition>,
     pos_index: usize,
@@ -34,10 +27,22 @@ impl Selectable for Switch {
         self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SerializedSwitch {
+    pub switch: Switch,
+}
+
+#[derive(Debug, Event)]
+pub struct UpdateSwitchTurnsEvent {
+    pub id: DirectedTrackID,
+    pub positions: Vec<SwitchPosition>,
+}
 pub struct SwitchPlugin;
 
 impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnEvent<Switch>>();
+        app.add_event::<SpawnEvent<SerializedSwitch>>();
+        app.add_event::<UpdateSwitchTurnsEvent>();
     }
 }

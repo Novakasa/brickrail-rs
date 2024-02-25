@@ -342,6 +342,24 @@ impl Connections {
             .remove_edge(track_a.clone(), track_b.clone());
     }
 
+    pub fn get_directed_connections_from(
+        &self,
+        track: DirectedTrackID,
+    ) -> Vec<DirectedTrackConnectionID> {
+        let mut connections = Vec::new();
+        for logical in track.logical_tracks() {
+            for next in self.iter_next_tracks(logical) {
+                let directed_connection =
+                    LogicalTrackConnectionID::new(logical, next).to_directed();
+                if !connections.contains(&directed_connection) {
+                    connections.push(directed_connection);
+                }
+            }
+        }
+
+        connections
+    }
+
     pub fn find_route_section(
         &self,
         start: LogicalBlockID,

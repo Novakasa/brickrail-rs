@@ -3,6 +3,7 @@ use crate::{
     layout::{Connections, EntityMap},
     layout_primitives::*,
     marker::{Marker, MarkerColor},
+    switch::UpdateSwitchTurnsEvent,
     utils::bresenham_line,
 };
 use bevy::prelude::*;
@@ -91,6 +92,7 @@ fn spawn_connection(
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: EventReader<SpawnEvent<TrackConnection>>,
+    mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
 ) {
     for request in event_reader.read() {
         let connection = request.0.clone();
@@ -104,6 +106,19 @@ fn spawn_connection(
             .id();
         connections.connect_tracks_simple(&connection_id);
         entity_map.add_connection(connection_id, entity, outer_entity, inner_entity);
+
+        for track_id in connection_id.tracks() {
+            let existing_connections = connections.get_directed_connections_from(track_id);
+            let event = UpdateSwitchTurnsEvent {
+                id: track_id,
+                positions: existing_connections
+                    .iter()
+                    .map(|c| c.get_switch_position())
+                    .collect::<Vec<SwitchPosition>>(),
+            };
+            println!("{:?}", event);
+            switch_update_events.send(event);
+        }
     }
 }
 

@@ -9,6 +9,13 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone)]
+pub enum SwitchPosition {
+    Left,
+    Center,
+    Right,
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct WagonID {
     train: TrainID,
@@ -315,6 +322,11 @@ impl CellID {
         None
     }
 
+    pub fn get_opposite_slot(&self, slot: &Slot) -> Option<Slot> {
+        let cardinal = self.cardinal_to_slot(slot)?;
+        Some(self.get_slot(cardinal.opposite()))
+    }
+
     pub fn get_slot(&self, cardinal: Cardinal) -> Slot {
         if let Some(interface) = CellInterface::from_cardinal(cardinal) {
             return Slot {
@@ -592,8 +604,8 @@ pub enum ConnectionDirection {
 pub struct TrackConnectionID {
     // DirectedTrackIDs point at each other to avoid bias
     // They are sorted according to track_a < track_b
-    track_a: DirectedTrackID,
-    track_b: DirectedTrackID,
+    pub track_a: DirectedTrackID,
+    pub track_b: DirectedTrackID,
 }
 
 impl TrackConnectionID {
@@ -603,6 +615,10 @@ impl TrackConnectionID {
         } else {
             Self { track_b, track_a }
         }
+    }
+
+    pub fn tracks(&self) -> [DirectedTrackID; 2] {
+        [self.track_a, self.track_b]
     }
 
     pub fn track_a(&self) -> DirectedTrackID {
@@ -799,6 +815,10 @@ impl DirectedTrackConnectionID {
             track_b: self.to_track.opposite(),
         }
     }
+
+    pub fn get_switch_position(&self) -> SwitchPosition {
+        self.to_track.get_switch_position()
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
@@ -965,6 +985,29 @@ pub struct DirectedTrackID {
 }
 
 impl DirectedTrackID {
+    pub fn from_slots(from_slot: Slot, to_slot: Slot) -> Option<Self> {
+        let track = TrackID::from_slots(from_slot, to_slot)?;
+        track.get_directed_to_slot(to_slot)
+    }
+
+    pub fn get_switch_position(&self) -> SwitchPosition {
+        let opposite_from_slot = self
+            .track
+            .cell
+            .get_opposite_slot(&self.from_slot())
+            .unwrap();
+        let center_track =
+            DirectedTrackID::from_slots(self.from_slot(), opposite_from_slot).unwrap();
+
+        let delta = ((self.dir_index() - center_track.dir_index() + 12) % 8) - 4;
+        match delta {
+            1 => SwitchPosition::Right,
+            -1 => SwitchPosition::Left,
+            0 => SwitchPosition::Center,
+            i => panic!("invalid switch position {:?}", i),
+        }
+    }
+
     pub fn opposite(&self) -> Self {
         Self {
             track: self.track,
@@ -1157,6 +1200,11 @@ impl TrackID {
             track: *self,
             direction: self.orientation.get_direction_to(cardinal)?,
         })
+    }
+
+    pub fn get_directed_to_slot(&self, slot: Slot) -> Option<DirectedTrackID> {
+        let cardinal = self.cell.cardinal_to_slot(&slot)?;
+        self.get_directed_to_cardinal(cardinal)
     }
 
     pub fn get_connection_to(&self, other: TrackID) -> Option<TrackConnectionID> {
