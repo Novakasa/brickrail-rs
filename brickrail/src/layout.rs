@@ -64,6 +64,7 @@ pub struct EntityMap {
     pub connections: HashMap<TrackConnectionID, Entity>,
     pub connections_outer: HashMap<TrackConnectionID, Entity>,
     pub connections_inner: HashMap<TrackConnectionID, Entity>,
+    pub switches: HashMap<DirectedTrackID, Entity>,
     pub markers: HashMap<TrackID, Entity>,
     pub blocks: HashMap<BlockID, Entity>,
     pub trains: HashMap<TrainID, Entity>,
@@ -76,6 +77,7 @@ impl EntityMap {
     pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
         match id {
             GenericID::Track(track_id) => self.tracks.get(track_id).copied(),
+            GenericID::Switch(switch_id) => self.switches.get(switch_id).copied(),
             GenericID::Block(block_id) => self.blocks.get(block_id).copied(),
             GenericID::Train(train_id) => self.trains.get(train_id).copied(),
             GenericID::Marker(track_id) => self.markers.get(track_id).copied(),
@@ -86,6 +88,10 @@ impl EntityMap {
 
     pub fn add_track(&mut self, track: TrackID, entity: Entity) {
         self.tracks.try_insert(track, entity).unwrap();
+    }
+
+    pub fn add_switch(&mut self, switch: DirectedTrackID, entity: Entity) {
+        self.switches.try_insert(switch, entity).unwrap();
     }
 
     pub fn add_block(&mut self, block: BlockID, entity: Entity) {
