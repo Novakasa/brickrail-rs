@@ -92,7 +92,7 @@ impl FromStr for HubID {
         if s.starts_with("Train") {
             Ok(Self::new(s[5..].parse().unwrap(), HubType::Train))
         } else if s.starts_with("Layout") {
-            Ok(Self::new(s[7..].parse().unwrap(), HubType::Layout))
+            Ok(Self::new(s[6..].parse().unwrap(), HubType::Layout))
         } else {
             Err(format!("invalid hub id: {}", s))
         }

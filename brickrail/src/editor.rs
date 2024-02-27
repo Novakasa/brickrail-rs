@@ -1,13 +1,15 @@
 use std::io::{Read, Write};
 
 use crate::ble::{BLEHub, HubState};
+use crate::ble_switch::BLESwitch;
 use crate::ble_train::BLETrain;
 use crate::block::Block;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
 use crate::marker::Marker;
 use crate::section::DirectedSection;
-use crate::track::{Track, TrackConnection, LAYOUT_SCALE};
+use crate::switch::{SerializedSwitch, Switch};
+use crate::track::{SpawnConnection, Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
@@ -277,18 +279,21 @@ pub struct SerializedHub {
 struct SerializableLayout {
     marker_map: MarkerMap,
     tracks: Vec<Track>,
-    connections: Vec<TrackConnection>,
+    connections: Vec<SpawnConnection>,
     blocks: Vec<Block>,
     markers: Vec<Marker>,
     #[serde(default)]
     trains: Vec<SerializedTrain>,
     #[serde(default)]
     hubs: Vec<SerializedHub>,
+    #[serde(default)]
+    switches: Vec<SerializedSwitch>,
 }
 
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
     q_trains: Query<(&Train, &BLETrain)>,
+    q_switches: Query<(&Switch, &BLESwitch)>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
@@ -309,11 +314,24 @@ pub fn save_layout(
                 ble_train: Some(ble_train.clone()),
             })
             .collect();
+        let switches = q_switches
+            .iter()
+            .map(|(switch, ble_switch)| SerializedSwitch {
+                switch: switch.clone(),
+                ble_switch: ble_switch.clone(),
+            })
+            .collect();
         let hubs = q_hubs
             .iter()
             .map(|hub| SerializedHub { hub: hub.clone() })
             .collect();
-        let connections = q_connections.iter().map(|c| c.clone()).collect();
+        let connections = q_connections
+            .iter()
+            .map(|c| SpawnConnection {
+                id: c.id,
+                update_switches: false,
+            })
+            .collect();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
             blocks,
@@ -322,6 +340,7 @@ pub fn save_layout(
             connections,
             trains,
             hubs,
+            switches,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -376,6 +395,11 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<Key
         for serialized_hub in layout_value.hubs {
             commands.add(|world: &mut World| {
                 world.send_event(SpawnEvent(serialized_hub));
+            });
+        }
+        for serialized_switch in layout_value.switches {
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(serialized_switch));
             });
         }
         commands.insert_resource(marker_map);

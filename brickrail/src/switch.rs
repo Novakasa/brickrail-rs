@@ -34,6 +34,7 @@ impl Selectable for Switch {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializedSwitch {
     pub switch: Switch,
+    pub ble_switch: BLESwitch,
 }
 
 #[derive(Debug, Event)]
@@ -60,6 +61,7 @@ pub fn update_switches(
                         positions: update.positions.clone(),
                         pos_index: 0,
                     },
+                    ble_switch: BLESwitch::new(update.id),
                 }));
             }
         } else {
@@ -81,9 +83,11 @@ pub fn spawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for SpawnEvent(serialized_switch) in events.read() {
-        let ble_switch = BLESwitch::new(serialized_switch.switch.id);
         let entity = commands
-            .spawn((serialized_switch.switch.clone(), ble_switch))
+            .spawn((
+                serialized_switch.switch.clone(),
+                serialized_switch.ble_switch.clone(),
+            ))
             .id();
         entity_map.add_switch(serialized_switch.switch.id, entity);
     }
