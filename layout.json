@@ -4,74 +4,47 @@
     "enter_markers": {}
   },
   "tracks": [
-    "T(-5,0,0|EW|↔)",
-    "T(-4,0,0|EW|↔)",
-    "T(-3,0,0|EW|↔)",
-    "T(-2,0,0|EW|↔)",
-    "T(-1,0,0|EW|↔)",
-    "T(0,0,0|EW|↔)",
-    "T(1,0,0|EW|↔)",
-    "T(2,0,0|NW|⤢)",
+    "T(-8,-1,0|EW|↔)",
+    "T(-7,-1,0|EW|↔)",
+    "T(-6,-1,0|EW|↔)",
+    "T(-5,-1,0|EW|↔)",
+    "T(-4,-1,0|EW|↔)",
+    "T(-3,-1,0|EW|↔)",
+    "T(-2,-1,0|EW|↔)",
+    "T(-1,-1,0|EW|↔)",
+    "T(0,-1,0|EW|↔)",
+    "T(1,-1,0|EW|↔)",
+    "T(2,-1,0|NW|⤢)",
+    "T(2,0,0|NS|↕)",
     "T(2,1,0|NS|↕)",
     "T(2,2,0|NS|↕)",
     "T(2,3,0|NS|↕)",
-    "T(2,0,0|EW|↔)",
-    "T(3,0,0|EW|↔)",
-    "T(4,0,0|EW|↔)"
+    "T(2,4,0|NS|↕)",
+    "T(2,5,0|NS|↕)",
+    "T(2,-1,0|EW|↔)",
+    "T(3,-1,0|EW|↔)",
+    "T(4,-1,0|EW|↔)"
   ],
   "connections": [
-    {
-      "id": "C(-5,0,0|WE><-4,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(-4,0,0|WE><-3,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(-3,0,0|WE><-2,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(-2,0,0|WE><-1,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(-1,0,0|WE><0,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(0,0,0|WE><1,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(1,0,0|WE><2,0,0|NW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(2,0,0|WN><2,1,0|NS)",
-      "update_switches": false
-    },
-    {
-      "id": "C(2,1,0|SN><2,2,0|NS)",
-      "update_switches": false
-    },
-    {
-      "id": "C(2,2,0|SN><2,3,0|NS)",
-      "update_switches": false
-    },
-    {
-      "id": "C(1,0,0|WE><2,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(2,0,0|WE><3,0,0|EW)",
-      "update_switches": false
-    },
-    {
-      "id": "C(3,0,0|WE><4,0,0|EW)",
-      "update_switches": false
-    }
+    "C(-8,-1,0|WE><-7,-1,0|EW)",
+    "C(-7,-1,0|WE><-6,-1,0|EW)",
+    "C(-6,-1,0|WE><-5,-1,0|EW)",
+    "C(-5,-1,0|WE><-4,-1,0|EW)",
+    "C(-4,-1,0|WE><-3,-1,0|EW)",
+    "C(-3,-1,0|WE><-2,-1,0|EW)",
+    "C(-2,-1,0|WE><-1,-1,0|EW)",
+    "C(-1,-1,0|WE><0,-1,0|EW)",
+    "C(0,-1,0|WE><1,-1,0|EW)",
+    "C(1,-1,0|WE><2,-1,0|NW)",
+    "C(2,-1,0|WN><2,0,0|NS)",
+    "C(2,0,0|SN><2,1,0|NS)",
+    "C(2,1,0|SN><2,2,0|NS)",
+    "C(2,2,0|SN><2,3,0|NS)",
+    "C(2,3,0|SN><2,4,0|NS)",
+    "C(2,4,0|SN><2,5,0|NS)",
+    "C(2,-1,0|WE><3,-1,0|EW)",
+    "C(3,-1,0|WE><4,-1,0|EW)",
+    "C(1,-1,0|WE><2,-1,0|EW)"
   ],
   "blocks": [],
   "markers": [],
@@ -80,14 +53,14 @@
     {
       "hub": {
         "id": "Layout0",
-        "name": "technic-blue"
+        "name": null
       }
     }
   ],
   "switches": [
     {
       "switch": {
-        "id": "D(1,0,0|WE|→)",
+        "id": "D(1,-1,0|WE|→)",
         "positions": [
           "Left",
           "Center"
@@ -95,15 +68,11 @@
         "pos_index": 0
       },
       "ble_switch": {
-        "id": "D(1,0,0|WE|→)",
+        "id": "D(1,-1,0|WE|→)",
         "motors": [
           {
             "hub_id": "Layout0",
-            "port": null
-          },
-          {
-            "hub_id": null,
-            "port": null
+            "port": "C"
           }
         ]
       }

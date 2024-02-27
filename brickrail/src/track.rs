@@ -89,10 +89,31 @@ pub fn spawn_track(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpawnConnection {
     pub id: TrackConnectionID,
     pub update_switches: bool,
+}
+
+impl Serialize for SpawnConnection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.id.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SpawnConnection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self {
+            id: TrackConnectionID::deserialize(deserializer)?,
+            update_switches: false,
+        })
+    }
 }
 
 fn spawn_connection(
