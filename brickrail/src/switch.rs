@@ -3,6 +3,7 @@ use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    ble_switch::BLESwitch,
     editor::{GenericID, Selectable, SpawnEvent},
     layout::EntityMap,
     layout_primitives::*,
@@ -80,7 +81,10 @@ pub fn spawn_switches(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for SpawnEvent(serialized_switch) in events.read() {
-        let entity = commands.spawn(serialized_switch.switch.clone()).id();
+        let ble_switch = BLESwitch::new(serialized_switch.switch.id);
+        let entity = commands
+            .spawn((serialized_switch.switch.clone(), ble_switch))
+            .id();
         entity_map.add_switch(serialized_switch.switch.id, entity);
     }
 }
