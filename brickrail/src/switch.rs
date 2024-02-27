@@ -75,7 +75,7 @@ pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
     }
 }
 
-pub fn spawn_switches(
+pub fn spawn_switch(
     mut commands: Commands,
     mut events: EventReader<SpawnEvent<SerializedSwitch>>,
     mut entity_map: ResMut<EntityMap>,
@@ -99,7 +99,7 @@ impl Plugin for SwitchPlugin {
         app.add_systems(
             Update,
             (
-                spawn_switches.run_if(on_event::<SpawnEvent<SerializedSwitch>>()),
+                spawn_switch.run_if(on_event::<SpawnEvent<SerializedSwitch>>()),
                 update_switches.run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 draw_switches,
             ),

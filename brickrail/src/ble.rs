@@ -7,7 +7,7 @@ use crate::{
         EditorState, GenericID, Selectable, Selection, SelectionState, SerializedHub, SpawnEvent,
     },
     layout::EntityMap,
-    layout_primitives::{HubID, HubType},
+    layout_primitives::{HubID, HubPort, HubType},
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
@@ -171,6 +171,53 @@ impl BLEHub {
                 ui.separator();
             }
         }
+    }
+
+    pub fn select_port_ui(
+        ui: &mut Ui,
+        selected_hub: &mut Option<HubID>,
+        selected_port: &mut Option<HubPort>,
+        kind: HubType,
+        hubs: &Query<&BLEHub>,
+        spawn_events: &mut EventWriter<SpawnEvent<SerializedHub>>,
+        entity_map: &mut ResMut<EntityMap>,
+        selection_state: &mut ResMut<SelectionState>,
+    ) {
+        ui.push_id("motor", |ui| {
+            Self::select_id_ui(
+                ui,
+                selected_hub,
+                kind,
+                hubs,
+                spawn_events,
+                entity_map,
+                selection_state,
+            );
+        });
+        if selected_hub.is_none() && selected_port.is_some() {
+            *selected_port = None;
+        }
+        ui.add_enabled_ui(selected_hub.is_some(), |ui| {
+            ui.push_id("port", |ui| {
+                ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                    egui::ComboBox::from_label("")
+                        .selected_text(format!("{:?}", selected_port))
+                        .show_ui(ui, |ui| {
+                            for option in [
+                                None,
+                                Some(HubPort::A),
+                                Some(HubPort::B),
+                                Some(HubPort::C),
+                                Some(HubPort::D),
+                                Some(HubPort::E),
+                                Some(HubPort::F),
+                            ] {
+                                ui.selectable_value(selected_port, option, format!("{:?}", option));
+                            }
+                        });
+                });
+            });
+        });
     }
 
     pub fn select_id_ui(
