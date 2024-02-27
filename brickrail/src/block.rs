@@ -94,7 +94,7 @@ impl Block {
                     train_spawner.send(SpawnEvent(SerializedTrain {
                         train: train,
                         ble_train: None,
-                    }))
+                    }));
                 }
                 ui.separator();
             }
@@ -171,14 +171,14 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
 }
 
 fn create_block(
-    keyboard_input: Res<Input<keyboard::KeyCode>>,
+    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
     mut block_event_writer: EventWriter<SpawnEvent<Block>>,
     mut marker_event_writer: EventWriter<SpawnEvent<Marker>>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
-        if keyboard_input.just_pressed(keyboard::KeyCode::B) {
+        if keyboard_input.just_pressed(keyboard::KeyCode::KeyB) {
             let block = Block::new(section.clone());
             let block_id = block.id;
             block_event_writer.send(SpawnEvent(block));

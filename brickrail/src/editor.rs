@@ -101,12 +101,12 @@ pub struct ControlState {
 
 fn update_editor_state(
     mut editor_state: ResMut<NextState<EditorState>>,
-    keyboard_buttons: Res<Input<KeyCode>>,
+    keyboard_buttons: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard_buttons.just_pressed(KeyCode::Key1) {
+    if keyboard_buttons.just_pressed(KeyCode::Digit1) {
         editor_state.set(EditorState::Edit);
     }
-    if keyboard_buttons.just_pressed(KeyCode::Key2) {
+    if keyboard_buttons.just_pressed(KeyCode::Digit2) {
         editor_state.set(EditorState::PreparingDeviceControl);
     }
 }
@@ -167,7 +167,7 @@ fn update_hover(
 }
 
 fn init_select(
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     hover_state: Res<HoverState>,
     mut selection_state: ResMut<SelectionState>,
     input_data: Res<InputData>,
@@ -189,7 +189,7 @@ fn init_select(
 }
 
 pub fn delete_selection<T: Selectable + Component + Clone>(
-    keyboard_buttons: Res<Input<KeyCode>>,
+    keyboard_buttons: Res<ButtonInput<KeyCode>>,
     selection_state: Res<SelectionState>,
     mut q_selectable: Query<&mut T>,
     mut despawn_events: EventWriter<DespawnEvent<T>>,
@@ -221,7 +221,7 @@ fn draw_selection(mut gizmos: Gizmos, selection_state: Res<SelectionState>) {
 
 fn extend_selection(
     hover_state: Res<HoverState>,
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     mut selection_state: ResMut<SelectionState>,
     connections: Res<Connections>,
 ) {
@@ -294,9 +294,9 @@ pub fn save_layout(
     q_tracks: Query<&Track>,
     q_connections: Query<&TrackConnection>,
     q_hubs: Query<&BLEHub>,
-    keyboard_buttons: Res<Input<KeyCode>>,
+    keyboard_buttons: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard_buttons.just_pressed(KeyCode::S) {
+    if keyboard_buttons.just_pressed(KeyCode::KeyS) {
         println!("Saving layout");
         let mut file = std::fs::File::create("layout.json").unwrap();
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
@@ -334,8 +334,8 @@ pub struct SpawnEvent<T>(pub T);
 #[derive(Event)]
 pub struct DespawnEvent<T>(pub T);
 
-pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>) {
-    if keyboard_buttons.just_pressed(KeyCode::L) {
+pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<KeyCode>>) {
+    if keyboard_buttons.just_pressed(KeyCode::KeyL) {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
         commands.remove_resource::<MarkerMap>();
@@ -349,22 +349,34 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<Input<KeyCode>>
         println!("Sending spawn events");
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(track)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(track));
+            });
         }
         for connection in layout_value.connections {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(connection)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(connection));
+            });
         }
         for block in layout_value.blocks {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(block)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(block));
+            });
         }
         for marker in layout_value.markers {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(marker)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(marker));
+            });
         }
         for serialized_train in layout_value.trains {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(serialized_train)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(serialized_train));
+            });
         }
         for serialized_hub in layout_value.hubs {
-            commands.add(|world: &mut World| world.send_event(SpawnEvent(serialized_hub)));
+            commands.add(|world: &mut World| {
+                world.send_event(SpawnEvent(serialized_hub));
+            });
         }
         commands.insert_resource(marker_map);
     }
@@ -384,7 +396,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
-        app.add_state::<EditorState>();
+        app.init_state::<EditorState>();
         app.add_event::<SpawnEvent<SerializedTrain>>();
         app.add_event::<SpawnEvent<SerializedHub>>();
         app.insert_resource(HoverState::default());

@@ -7,14 +7,14 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-bevy = { version = "0.12.1", features = ["dynamic_linking", "serialize"] }
-bevy-inspector-egui = "0.21.0"
-bevy-trait-query = "0.4.0"
-bevy_egui = "0.23.0"
-bevy_framepace = "0.14.1"
-bevy_mouse_tracking_plugin = "0.7.0"
-bevy_pancam = "0.10.0"
-bevy_prototype_lyon = "0.10.0"
+bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize"] }
+bevy-inspector-egui = "0.23.0"
+bevy-trait-query = { git = "https://github.com/RobWalt/bevy-trait-query.git", branch = "bevy-0.13" }
+bevy_egui = "0.25.0"
+bevy_framepace = "0.15.0"
+bevy_mouse_tracking_plugin = { git = "https://github.com/iiiii7d/bevy-mouse-tracking.git", branch = "main" }
+bevy_pancam = "0.11.0"
+bevy_prototype_lyon = "0.11.0"
 itertools = "0.11.0"
 petgraph = { version = "0.6.4", features = ["serde-1"] }
 serde = "1.0.193"
@@ -24,8 +24,8 @@ serde_with = "3.4.0"
 strum = "0.25.0"
 strum_macros = "0.25.3"
 pybricks-ble = { path = "../pybricks-ble" }
-bevy_ecs = "0.12.1"
-bevy_app = "0.12.1"
+bevy_ecs = "0.13.0"
+bevy_app = "0.13.0"
 test-log = "0.2.14"
 bitflags = "2.4.2"
 

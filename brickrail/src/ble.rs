@@ -230,10 +230,10 @@ fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
 
 fn create_hub(
     mut hub_event_writer: EventWriter<SpawnEvent<SerializedHub>>,
-    keyboard_input: Res<Input<keyboard::KeyCode>>,
+    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     entity_map: Res<EntityMap>,
 ) {
-    if keyboard_input.just_pressed(keyboard::KeyCode::H) {
+    if keyboard_input.just_pressed(keyboard::KeyCode::KeyH) {
         let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
         hub_event_writer.send(SpawnEvent(SerializedHub { hub }));

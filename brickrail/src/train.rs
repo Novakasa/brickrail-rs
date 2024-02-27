@@ -246,7 +246,7 @@ fn draw_locked_tracks(mut gizmos: Gizmos, track_locks: Res<TrackLocks>) {
 }
 
 fn init_drag_train(
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     hover_state: Res<HoverState>,
 ) {
@@ -260,7 +260,7 @@ fn init_drag_train(
 }
 
 fn exit_drag_train(
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     hover_state: Res<HoverState>,
     entity_map: Res<EntityMap>,
@@ -322,7 +322,7 @@ fn exit_drag_train(
 }
 
 fn update_drag_train(
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
 ) {
     if train_drag_state.train_id.is_none() {
@@ -335,12 +335,12 @@ fn update_drag_train(
 }
 
 fn create_train(
-    keyboard_input: Res<Input<keyboard::KeyCode>>,
+    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     mut train_events: EventWriter<SpawnEvent<SerializedTrain>>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
-    if keyboard_input.just_pressed(keyboard::KeyCode::T) {
+    if keyboard_input.just_pressed(keyboard::KeyCode::KeyT) {
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             // println!("Creating train at block {:?}", block_id);
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);

@@ -197,9 +197,9 @@ impl Selectable for Marker {
 fn create_marker(
     selection_state: Res<SelectionState>,
     mut marker_events: EventWriter<SpawnEvent<Marker>>,
-    keyboard: Res<Input<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard.just_pressed(KeyCode::M) {
+    if keyboard.just_pressed(KeyCode::KeyM) {
         if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
             let marker = Marker::new(track_id, MarkerColor::Any);
             marker_events.send(SpawnEvent(marker));

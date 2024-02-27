@@ -299,7 +299,7 @@ impl TrackBundle {
 
 fn init_draw_track(
     mut track_build_state: ResMut<TrackBuildState>,
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_world_pos: Res<MousePosWorld>,
     hover_state: Res<HoverState>,
 ) {
@@ -322,7 +322,7 @@ fn init_draw_track(
 
 fn exit_draw_track(
     mut track_build_state: ResMut<TrackBuildState>,
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         track_build_state.hover_cells = vec![];
