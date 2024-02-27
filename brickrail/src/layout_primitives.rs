@@ -35,6 +35,15 @@ impl TrainID {
     }
 }
 
+pub enum HubPort {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+}
+
 #[derive(
     Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
 )]
