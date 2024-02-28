@@ -3,9 +3,7 @@ use std::{path::Path, sync::Arc};
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     ble_train::TrainData,
-    editor::{
-        EditorState, GenericID, Selectable, Selection, SelectionState, SerializedHub, SpawnEvent,
-    },
+    editor::{EditorState, GenericID, Selectable, Selection, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::{HubID, HubPort, HubType},
 };
@@ -179,7 +177,7 @@ impl BLEHub {
         selected_port: &mut Option<HubPort>,
         kind: HubType,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnEvent<SerializedHub>>,
+        spawn_events: &mut EventWriter<SpawnHubEvent>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -225,7 +223,7 @@ impl BLEHub {
         selected: &mut Option<HubID>,
         kind: HubType,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnEvent<SerializedHub>>,
+        spawn_events: &mut EventWriter<SpawnHubEvent>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -251,7 +249,7 @@ impl BLEHub {
                     {
                         *selected = Some(entity_map.new_hub_id(kind));
                         let hub = BLEHub::new(selected.unwrap().clone());
-                        spawn_events.send(SpawnEvent(SerializedHub { hub }));
+                        spawn_events.send(SpawnHubEvent { hub });
                     };
                 });
             if let Some(hub_id) = selected {
@@ -276,25 +274,25 @@ fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
 }
 
 fn create_hub(
-    mut hub_event_writer: EventWriter<SpawnEvent<SerializedHub>>,
+    mut hub_event_writer: EventWriter<SpawnHubEvent>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::KeyH) {
         let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
-        hub_event_writer.send(SpawnEvent(SerializedHub { hub }));
+        hub_event_writer.send(SpawnHubEvent { hub });
     }
 }
 
 fn spawn_hub(
     runtime: Res<TokioTasksRuntime>,
-    mut spawn_event_reader: EventReader<SpawnEvent<SerializedHub>>,
+    mut spawn_event_reader: EventReader<SpawnHubEvent>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for event in spawn_event_reader.read() {
-        let hub = event.0.hub.clone();
+        let hub = event.hub.clone();
         let hub_id = hub.id;
         if let Some(name) = &hub.name {
             entity_map
@@ -628,7 +626,7 @@ impl Plugin for BLEPlugin {
         app.add_systems(
             Update,
             (
-                spawn_hub.run_if(on_event::<SpawnEvent<SerializedHub>>()),
+                spawn_hub.run_if(on_event::<SpawnHubEvent>()),
                 handle_hub_events.run_if(on_event::<HubEvent>()),
                 execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,

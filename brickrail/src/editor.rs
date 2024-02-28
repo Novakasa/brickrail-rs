@@ -3,13 +3,13 @@ use std::io::{Read, Write};
 use crate::ble::{BLEHub, HubState};
 use crate::ble_switch::BLESwitch;
 use crate::ble_train::BLETrain;
-use crate::block::Block;
+use crate::block::{Block, BlockSpawnEvent};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_primitives::*;
-use crate::marker::Marker;
+use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
-use crate::switch::{SerializedSwitch, Switch};
-use crate::track::{SpawnConnection, Track, TrackConnection, LAYOUT_SCALE};
+use crate::switch::{SpawnSwitchEvent, Switch};
+use crate::track::{SpawnConnection, Track, TrackConnection, TrackSpawnEvent, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
@@ -264,14 +264,14 @@ fn extend_selection(
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Event)]
 pub struct SerializedTrain {
     pub train: Train,
     pub ble_train: Option<BLETrain>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SerializedHub {
+#[derive(Serialize, Deserialize, Clone, Event)]
+pub struct SpawnHubEvent {
     pub hub: BLEHub,
 }
 
@@ -285,9 +285,9 @@ struct SerializableLayout {
     #[serde(default)]
     trains: Vec<SerializedTrain>,
     #[serde(default)]
-    hubs: Vec<SerializedHub>,
+    hubs: Vec<SpawnHubEvent>,
     #[serde(default)]
-    switches: Vec<SerializedSwitch>,
+    switches: Vec<SpawnSwitchEvent>,
 }
 
 pub fn save_layout(
@@ -316,14 +316,14 @@ pub fn save_layout(
             .collect();
         let switches = q_switches
             .iter()
-            .map(|(switch, ble_switch)| SerializedSwitch {
+            .map(|(switch, ble_switch)| SpawnSwitchEvent {
                 switch: switch.clone(),
                 ble_switch: ble_switch.clone(),
             })
             .collect();
         let hubs = q_hubs
             .iter()
-            .map(|hub| SerializedHub { hub: hub.clone() })
+            .map(|hub| SpawnHubEvent { hub: hub.clone() })
             .collect();
         let connections = q_connections
             .iter()
@@ -348,9 +348,6 @@ pub fn save_layout(
 }
 
 #[derive(Event)]
-pub struct SpawnEvent<T>(pub T);
-
-#[derive(Event)]
 pub struct DespawnEvent<T>(pub T);
 
 pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<KeyCode>>) {
@@ -369,37 +366,37 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<Key
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(track));
+                world.send_event(TrackSpawnEvent(track));
             });
         }
         for connection in layout_value.connections {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(connection));
+                world.send_event(connection);
             });
         }
         for block in layout_value.blocks {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(block));
+                world.send_event(BlockSpawnEvent(block));
             });
         }
         for marker in layout_value.markers {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(marker));
+                world.send_event(MarkerSpawnEvent(marker));
             });
         }
         for serialized_train in layout_value.trains {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(serialized_train));
+                world.send_event(serialized_train);
             });
         }
         for serialized_hub in layout_value.hubs {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(serialized_hub));
+                world.send_event(serialized_hub);
             });
         }
         for serialized_switch in layout_value.switches {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnEvent(serialized_switch));
+                world.send_event(serialized_switch);
             });
         }
         commands.insert_resource(marker_map);
@@ -421,8 +418,8 @@ impl Plugin for EditorPlugin {
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
         app.init_state::<EditorState>();
-        app.add_event::<SpawnEvent<SerializedTrain>>();
-        app.add_event::<SpawnEvent<SerializedHub>>();
+        app.add_event::<SerializedTrain>();
+        app.add_event::<SpawnHubEvent>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());

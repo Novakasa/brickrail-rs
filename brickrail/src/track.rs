@@ -1,8 +1,8 @@
 use crate::{
-    editor::{GenericID, HoverState, Selectable, Selection, SelectionState, SpawnEvent},
+    editor::{GenericID, HoverState, Selectable, Selection, SelectionState},
     layout::{Connections, EntityMap},
     layout_primitives::*,
-    marker::{Marker, MarkerColor},
+    marker::{Marker, MarkerColor, MarkerSpawnEvent},
     switch::UpdateSwitchTurnsEvent,
     utils::bresenham_line,
 };
@@ -41,12 +41,15 @@ fn build_connection_path(connection: TrackConnectionID) -> Path {
     path_builder.build()
 }
 
+#[derive(Debug, Clone, Event)]
+pub struct TrackSpawnEvent(pub Track);
+
 impl TrackBuildState {
     fn build(
         &mut self,
         connections: &mut Connections,
-        track_event_writer: &mut EventWriter<SpawnEvent<Track>>,
-        connection_event_writer: &mut EventWriter<SpawnEvent<SpawnConnection>>,
+        track_event_writer: &mut EventWriter<TrackSpawnEvent>,
+        connection_event_writer: &mut EventWriter<SpawnConnection>,
     ) {
         while self.hover_cells.len() > 2 {
             if let Some(track_id) = TrackID::from_cells(
@@ -55,15 +58,15 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.send(SpawnEvent(Track { id: track_id }));
+                    track_event_writer.send(TrackSpawnEvent(Track { id: track_id }));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !connections.has_connection(&connection_id) {
-                            connection_event_writer.send(SpawnEvent(SpawnConnection {
+                            connection_event_writer.send(SpawnConnection {
                                 id: connection_id,
                                 update_switches: true,
-                            }));
+                            });
                         }
                     }
                 }
@@ -78,7 +81,7 @@ pub fn spawn_track(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnEvent<Track>>,
+    mut event_reader: EventReader<TrackSpawnEvent>,
 ) {
     for request in event_reader.read() {
         let track = request.0.clone();
@@ -89,7 +92,7 @@ pub fn spawn_track(
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Event)]
 pub struct SpawnConnection {
     pub id: TrackConnectionID,
     pub update_switches: bool,
@@ -120,11 +123,11 @@ fn spawn_connection(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnEvent<SpawnConnection>>,
+    mut event_reader: EventReader<SpawnConnection>,
     mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
 ) {
-    for request in event_reader.read() {
-        let connection_id = request.0.id;
+    for spawn_connection in event_reader.read() {
+        let connection_id = spawn_connection.id;
         let entity = commands.spawn(TrackConnection::new(connection_id)).id();
         let outer_entity = commands
             .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer))
@@ -135,7 +138,7 @@ fn spawn_connection(
         connections.connect_tracks_simple(&connection_id);
         entity_map.add_connection(connection_id, entity, outer_entity, inner_entity);
 
-        if request.0.update_switches {
+        if spawn_connection.update_switches {
             for track_id in connection_id.tracks() {
                 let existing_connections = connections.get_directed_connections_from(track_id);
                 let event = UpdateSwitchTurnsEvent {
@@ -239,7 +242,7 @@ impl TrackBaseShape {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub struct Track {
     pub id: TrackID,
 }
@@ -271,7 +274,7 @@ impl Track {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<SpawnEvent<Marker>>,
+            EventWriter<MarkerSpawnEvent>,
         )>::new(world);
         let (mut tracks, entity_map, selection_state, _type_registry, mut marker_spawner) =
             state.get_mut(world);
@@ -283,7 +286,7 @@ impl Track {
                         let id = track.id.clone();
 
                         let marker = Marker::new(id, MarkerColor::Red);
-                        marker_spawner.send(SpawnEvent(marker));
+                        marker_spawner.send(MarkerSpawnEvent(marker));
                     }
                 }
                 ui.separator();
@@ -364,8 +367,8 @@ fn update_draw_track(
     mut connections: ResMut<Connections>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
-    mut track_event_writer: EventWriter<SpawnEvent<Track>>,
-    mut connection_event_writer: EventWriter<SpawnEvent<SpawnConnection>>,
+    mut track_event_writer: EventWriter<TrackSpawnEvent>,
+    mut connection_event_writer: EventWriter<SpawnConnection>,
 ) {
     let last_cell = track_build_state.hover_cells.last();
     if last_cell.is_none() {
@@ -453,8 +456,8 @@ impl Plugin for TrackPlugin {
         app.insert_resource(TrackBuildState::default());
         app.register_component_as::<dyn Selectable, Track>();
         app.register_component_as::<dyn Selectable, TrackConnection>();
-        app.add_event::<SpawnEvent<Track>>();
-        app.add_event::<SpawnEvent<SpawnConnection>>();
+        app.add_event::<TrackSpawnEvent>();
+        app.add_event::<SpawnConnection>();
         app.add_systems(
             Update,
             (
@@ -468,8 +471,8 @@ impl Plugin for TrackPlugin {
         app.add_systems(
             PostUpdate,
             (
-                spawn_track.run_if(on_event::<SpawnEvent<Track>>()),
-                spawn_connection.run_if(on_event::<SpawnEvent<SpawnConnection>>()),
+                spawn_track.run_if(on_event::<TrackSpawnEvent>()),
+                spawn_connection.run_if(on_event::<SpawnConnection>()),
             ),
         );
     }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble_switch::BLESwitch,
-    editor::{GenericID, Selectable, SpawnEvent},
+    editor::{GenericID, Selectable},
     layout::EntityMap,
     layout_primitives::*,
     track::{LAYOUT_SCALE, TRACK_WIDTH},
@@ -31,8 +31,8 @@ impl Selectable for Switch {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SerializedSwitch {
+#[derive(Serialize, Deserialize, Clone, Event)]
+pub struct SpawnSwitchEvent {
     pub switch: Switch,
     pub ble_switch: BLESwitch,
 }
@@ -45,7 +45,7 @@ pub struct UpdateSwitchTurnsEvent {
 
 pub fn update_switches(
     mut events: EventReader<UpdateSwitchTurnsEvent>,
-    mut switch_spawn_events: EventWriter<SpawnEvent<SerializedSwitch>>,
+    mut switch_spawn_events: EventWriter<SpawnSwitchEvent>,
     mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
 ) {
@@ -55,14 +55,14 @@ pub fn update_switches(
                 let mut switch = switches.get_mut(*entity).unwrap();
                 switch.positions = update.positions.clone();
             } else {
-                switch_spawn_events.send(SpawnEvent(SerializedSwitch {
+                switch_spawn_events.send(SpawnSwitchEvent {
                     switch: Switch {
                         id: update.id,
                         positions: update.positions.clone(),
                         pos_index: 0,
                     },
                     ble_switch: BLESwitch::new(update.id),
-                }));
+                });
             }
         } else {
             //todo!("Remove switches")
@@ -79,17 +79,14 @@ pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
 
 pub fn spawn_switch(
     mut commands: Commands,
-    mut events: EventReader<SpawnEvent<SerializedSwitch>>,
+    mut events: EventReader<SpawnSwitchEvent>,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for SpawnEvent(serialized_switch) in events.read() {
+    for spawn_event in events.read() {
         let entity = commands
-            .spawn((
-                serialized_switch.switch.clone(),
-                serialized_switch.ble_switch.clone(),
-            ))
+            .spawn((spawn_event.switch.clone(), spawn_event.ble_switch.clone()))
             .id();
-        entity_map.add_switch(serialized_switch.switch.id, entity);
+        entity_map.add_switch(spawn_event.switch.id, entity);
     }
 }
 
@@ -97,13 +94,13 @@ pub struct SwitchPlugin;
 
 impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnEvent<SerializedSwitch>>();
+        app.add_event::<SpawnSwitchEvent>();
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.register_component_as::<dyn Selectable, Switch>();
         app.add_systems(
             Update,
             (
-                spawn_switch.run_if(on_event::<SpawnEvent<SerializedSwitch>>()),
+                spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
                 update_switches.run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 draw_switches,
             ),

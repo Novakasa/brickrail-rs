@@ -1,9 +1,9 @@
 use crate::editor::{
     delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
-    SerializedTrain, SpawnEvent,
+    SerializedTrain,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey};
+use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
 use crate::section::LogicalSection;
 use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
@@ -76,7 +76,7 @@ impl Block {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<SpawnEvent<SerializedTrain>>,
+            EventWriter<SerializedTrain>,
         )>::new(world);
         let (mut blocks, entity_map, selection_state, type_registry, mut train_spawner) =
             state.get_mut(world);
@@ -91,10 +91,10 @@ impl Block {
                         .id
                         .to_logical(BlockDirection::Aligned, Facing::Forward);
                     let train = Train::at_block_id(train_id, logical_block_id);
-                    train_spawner.send(SpawnEvent(SerializedTrain {
+                    train_spawner.send(SerializedTrain {
                         train: train,
                         ble_train: None,
-                    }));
+                    });
                 }
                 ui.separator();
             }
@@ -170,23 +170,26 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
     shape
 }
 
+#[derive(Debug, Event, Clone, Serialize, Deserialize)]
+pub struct BlockSpawnEvent(pub Block);
+
 fn create_block(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
-    mut block_event_writer: EventWriter<SpawnEvent<Block>>,
-    mut marker_event_writer: EventWriter<SpawnEvent<Marker>>,
+    mut block_event_writer: EventWriter<BlockSpawnEvent>,
+    mut marker_event_writer: EventWriter<MarkerSpawnEvent>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
     if let Selection::Section(section) = &selection_state.selection {
         if keyboard_input.just_pressed(keyboard::KeyCode::KeyB) {
             let block = Block::new(section.clone());
             let block_id = block.id;
-            block_event_writer.send(SpawnEvent(block));
+            block_event_writer.send(BlockSpawnEvent(block));
             for logical_id in block_id.logical_block_ids() {
                 let in_track = logical_id.default_in_marker_track();
                 if logical_id.facing == Facing::Forward {
                     let marker = Marker::new(in_track.track(), MarkerColor::Green);
-                    marker_event_writer.send(SpawnEvent(marker));
+                    marker_event_writer.send(MarkerSpawnEvent(marker));
                 }
                 marker_map.register_marker(in_track, MarkerKey::In, logical_id);
             }
@@ -197,7 +200,7 @@ fn create_block(
 pub fn spawn_block(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut block_event_reader: EventReader<SpawnEvent<Block>>,
+    mut block_event_reader: EventReader<BlockSpawnEvent>,
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
@@ -268,7 +271,7 @@ impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
         app.register_component_as::<dyn Selectable, Block>();
-        app.add_event::<SpawnEvent<Block>>();
+        app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();
         app.add_systems(
             Update,
@@ -278,7 +281,7 @@ impl Plugin for BlockPlugin {
             PostUpdate,
             (
                 spawn_block
-                    .run_if(on_event::<SpawnEvent<Block>>())
+                    .run_if(on_event::<BlockSpawnEvent>())
                     .after(spawn_marker),
                 despawn_block,
             ),

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandEvent, HubMessageEvent},
-    editor::{GenericID, Selectable, SelectionState, SerializedHub, SpawnEvent},
+    editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
@@ -147,7 +147,7 @@ impl BLETrain {
             ResMut<SelectionState>,
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
-            EventWriter<SpawnEvent<SerializedHub>>,
+            EventWriter<SpawnHubEvent>,
         )>::new(world);
         let (
             mut ble_trains,

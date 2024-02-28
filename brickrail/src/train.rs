@@ -336,7 +336,7 @@ fn update_drag_train(
 
 fn create_train(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    mut train_events: EventWriter<SpawnEvent<SerializedTrain>>,
+    mut train_events: EventWriter<SerializedTrain>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -346,16 +346,16 @@ fn create_train(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.send(SpawnEvent(SerializedTrain {
+            train_events.send(SerializedTrain {
                 train,
                 ble_train: None,
-            }));
+            });
         }
     }
 }
 
 fn spawn_train(
-    mut train_events: EventReader<SpawnEvent<SerializedTrain>>,
+    mut train_events: EventReader<SerializedTrain>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
@@ -363,8 +363,8 @@ fn spawn_train(
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
 ) {
-    for request in train_events.read() {
-        let serialized_train = request.0.clone();
+    for spawn_train in train_events.read() {
+        let serialized_train = spawn_train.clone();
         let mut train = serialized_train.train;
         let block_id = match train.position {
             Position::Storage => {
@@ -489,7 +489,6 @@ impl Plugin for TrainPlugin {
         app.register_component_as::<dyn Selectable, Train>();
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
-        app.add_event::<SpawnEvent<Train>>();
         app.add_systems(
             Update,
             (
@@ -508,7 +507,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SpawnEvent<SerializedTrain>>())
+                .run_if(on_event::<SerializedTrain>())
                 .after(spawn_block),
         );
     }

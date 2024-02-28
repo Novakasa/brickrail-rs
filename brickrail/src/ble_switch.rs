@@ -1,6 +1,6 @@
 use crate::{
     ble::BLEHub,
-    editor::{GenericID, Selectable, SelectionState, SerializedHub, SpawnEvent},
+    editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::*,
 };
@@ -37,7 +37,7 @@ impl BLESwitch {
             ResMut<SelectionState>,
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
-            EventWriter<SpawnEvent<SerializedHub>>,
+            EventWriter<SpawnHubEvent>,
         )>::new(world);
         let (
             mut ble_switches,
