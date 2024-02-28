@@ -1,6 +1,6 @@
 use crate::editor::{
     delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
-    SerializedTrain,
+    SpawnTrainEvent,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
@@ -76,7 +76,7 @@ impl Block {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<SerializedTrain>,
+            EventWriter<SpawnTrainEvent>,
         )>::new(world);
         let (mut blocks, entity_map, selection_state, type_registry, mut train_spawner) =
             state.get_mut(world);
@@ -91,7 +91,7 @@ impl Block {
                         .id
                         .to_logical(BlockDirection::Aligned, Facing::Forward);
                     let train = Train::at_block_id(train_id, logical_block_id);
-                    train_spawner.send(SerializedTrain {
+                    train_spawner.send(SpawnTrainEvent {
                         train: train,
                         ble_train: None,
                     });

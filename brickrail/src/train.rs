@@ -336,7 +336,7 @@ fn update_drag_train(
 
 fn create_train(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    mut train_events: EventWriter<SerializedTrain>,
+    mut train_events: EventWriter<SpawnTrainEvent>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -346,7 +346,7 @@ fn create_train(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.send(SerializedTrain {
+            train_events.send(SpawnTrainEvent {
                 train,
                 ble_train: None,
             });
@@ -355,7 +355,7 @@ fn create_train(
 }
 
 fn spawn_train(
-    mut train_events: EventReader<SerializedTrain>,
+    mut train_events: EventReader<SpawnTrainEvent>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
@@ -507,7 +507,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SerializedTrain>())
+                .run_if(on_event::<SpawnTrainEvent>())
                 .after(spawn_block),
         );
     }

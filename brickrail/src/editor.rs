@@ -9,7 +9,7 @@ use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, Switch};
-use crate::track::{SpawnConnection, Track, TrackConnection, TrackSpawnEvent, LAYOUT_SCALE};
+use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
@@ -265,7 +265,7 @@ fn extend_selection(
 }
 
 #[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SerializedTrain {
+pub struct SpawnTrainEvent {
     pub train: Train,
     pub ble_train: Option<BLETrain>,
 }
@@ -279,11 +279,11 @@ pub struct SpawnHubEvent {
 struct SerializableLayout {
     marker_map: MarkerMap,
     tracks: Vec<Track>,
-    connections: Vec<SpawnConnection>,
+    connections: Vec<SpawnConnectionEvent>,
     blocks: Vec<Block>,
     markers: Vec<Marker>,
     #[serde(default)]
-    trains: Vec<SerializedTrain>,
+    trains: Vec<SpawnTrainEvent>,
     #[serde(default)]
     hubs: Vec<SpawnHubEvent>,
     #[serde(default)]
@@ -309,7 +309,7 @@ pub fn save_layout(
         let tracks = q_tracks.iter().map(|t| t.clone()).collect();
         let trains = q_trains
             .iter()
-            .map(|(train, ble_train)| SerializedTrain {
+            .map(|(train, ble_train)| SpawnTrainEvent {
                 train: train.clone(),
                 ble_train: Some(ble_train.clone()),
             })
@@ -327,7 +327,7 @@ pub fn save_layout(
             .collect();
         let connections = q_connections
             .iter()
-            .map(|c| SpawnConnection {
+            .map(|c| SpawnConnectionEvent {
                 id: c.id,
                 update_switches: false,
             })
@@ -366,7 +366,7 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<Key
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
             commands.add(|world: &mut World| {
-                world.send_event(TrackSpawnEvent(track));
+                world.send_event(SpawnTrackEvent(track));
             });
         }
         for connection in layout_value.connections {
@@ -418,7 +418,7 @@ impl Plugin for EditorPlugin {
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
         app.init_state::<EditorState>();
-        app.add_event::<SerializedTrain>();
+        app.add_event::<SpawnTrainEvent>();
         app.add_event::<SpawnHubEvent>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
