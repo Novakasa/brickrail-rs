@@ -10,10 +10,22 @@ use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt as _;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default)]
+pub enum MotorPosition {
+    #[default]
+    Unknown,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone)]
 struct SwitchMotor {
     hub_id: Option<HubID>,
     port: Option<HubPort>,
+    #[serde(default)]
+    position: MotorPosition,
+    #[serde(default)]
+    inverted: bool,
 }
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
@@ -52,7 +64,7 @@ impl BLESwitch {
                 ui.label("BLE Switch");
                 for (i, motor) in &mut ble_switch.motors.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
-                        ui.label("Motor");
+                        ui.label(format!("Motor {:}", i));
                         BLEHub::select_port_ui(
                             ui,
                             &mut motor.hub_id,
@@ -63,12 +75,16 @@ impl BLESwitch {
                             &mut entity_map,
                             &mut selection_state,
                         );
+                        ui.checkbox(&mut motor.inverted, "Inverted");
                     });
+                    ui.separator();
                 }
                 if ui.button("Add motor").clicked() {
                     ble_switch.motors.push(SwitchMotor {
                         hub_id: None,
                         port: None,
+                        position: MotorPosition::Unknown,
+                        inverted: false,
                     });
                 }
             }
