@@ -14,7 +14,15 @@ use crate::{
 pub struct Switch {
     id: DirectedTrackID,
     positions: Vec<SwitchPosition>,
+    #[serde(skip)]
     pos_index: usize,
+}
+
+impl Switch {
+    pub fn set_positions(&mut self, positions: Vec<SwitchPosition>) {
+        self.positions = positions;
+        self.pos_index = 0;
+    }
 }
 
 impl Selectable for Switch {
@@ -43,25 +51,46 @@ pub struct UpdateSwitchTurnsEvent {
     pub positions: Vec<SwitchPosition>,
 }
 
-pub fn update_switches(
+#[derive(Debug, Event)]
+pub struct SetSwitchPositionEvent {
+    pub id: DirectedTrackID,
+    pub position: SwitchPosition,
+}
+
+pub fn update_switch_position(
+    mut events: EventReader<SetSwitchPositionEvent>,
+    mut switches: Query<(&mut Switch, &mut BLESwitch)>,
+    entity_map: Res<EntityMap>,
+) {
+    for update in events.read() {
+        if let Some(entity) = entity_map.switches.get(&update.id) {
+            let (mut switch, mut ble_switch) = switches.get_mut(*entity).unwrap();
+        }
+    }
+}
+
+pub fn update_switch_turns(
     mut events: EventReader<UpdateSwitchTurnsEvent>,
     mut switch_spawn_events: EventWriter<SpawnSwitchEvent>,
-    mut switches: Query<&mut Switch>,
+    mut switches: Query<(&mut Switch, &mut BLESwitch)>,
     entity_map: Res<EntityMap>,
 ) {
     for update in events.read() {
         if update.positions.len() > 1 {
             if let Some(entity) = entity_map.switches.get(&update.id) {
-                let mut switch = switches.get_mut(*entity).unwrap();
-                switch.positions = update.positions.clone();
+                let (mut switch, mut ble_switch) = switches.get_mut(*entity).unwrap();
+                switch.set_positions(update.positions.clone());
+                ble_switch.set_num_motors(update.positions.len() - 1);
             } else {
+                let mut ble_switch = BLESwitch::new(update.id);
+                ble_switch.set_num_motors(update.positions.len() - 1);
                 switch_spawn_events.send(SpawnSwitchEvent {
                     switch: Switch {
                         id: update.id,
                         positions: update.positions.clone(),
                         pos_index: 0,
                     },
-                    ble_switch: BLESwitch::new(update.id),
+                    ble_switch: ble_switch,
                 });
             }
         } else {
@@ -101,7 +130,7 @@ impl Plugin for SwitchPlugin {
             Update,
             (
                 spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
-                update_switches.run_if(on_event::<UpdateSwitchTurnsEvent>()),
+                update_switch_turns.run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 draw_switches,
             ),
         );

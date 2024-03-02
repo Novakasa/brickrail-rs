@@ -7,6 +7,7 @@ use crate::{
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
+
 use bevy_trait_query::RegisterExt as _;
 use serde::{Deserialize, Serialize};
 
@@ -18,11 +19,11 @@ pub enum MotorPosition {
     Right,
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone)]
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default)]
 struct SwitchMotor {
     hub_id: Option<HubID>,
     port: Option<HubPort>,
-    #[serde(default)]
+    #[serde(skip)]
     position: MotorPosition,
     #[serde(default)]
     inverted: bool,
@@ -40,6 +41,10 @@ impl BLESwitch {
             id,
             motors: Vec::new(),
         }
+    }
+
+    pub fn set_num_motors(&mut self, num: usize) {
+        self.motors.resize_with(num, Default::default);
     }
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {
@@ -78,14 +83,6 @@ impl BLESwitch {
                         ui.checkbox(&mut motor.inverted, "Inverted");
                     });
                     ui.separator();
-                }
-                if ui.button("Add motor").clicked() {
-                    ble_switch.motors.push(SwitchMotor {
-                        hub_id: None,
-                        port: None,
-                        position: MotorPosition::Unknown,
-                        inverted: false,
-                    });
                 }
             }
         }
