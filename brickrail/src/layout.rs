@@ -71,6 +71,7 @@ pub struct EntityMap {
     pub wagons: HashMap<WagonID, Entity>,
     pub hubs: HashMap<HubID, Entity>,
     pub names: HashMap<GenericID, String>,
+    pub layout_devices: HashMap<LayoutDeviceID, Entity>,
 }
 
 impl EntityMap {
@@ -149,6 +150,17 @@ impl EntityMap {
             id += 1;
         }
         return HubID::new(id, kind);
+    }
+
+    pub fn new_layout_device_id(&self, kind: LayoutDeviceType) -> LayoutDeviceID {
+        let mut id = 0;
+        while self
+            .layout_devices
+            .contains_key(&LayoutDeviceID::new(id, kind))
+        {
+            id += 1;
+        }
+        return LayoutDeviceID::new(id, kind);
     }
 }
 

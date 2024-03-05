@@ -10,6 +10,7 @@ mod block;
 mod editor;
 mod inspector;
 mod layout;
+mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod route;

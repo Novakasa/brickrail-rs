@@ -99,6 +99,25 @@ impl FromStr for HubID {
     }
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+pub enum LayoutDeviceType {
+    Switch,
+    Crossing,
+    Signal,
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+pub struct LayoutDeviceID {
+    pub id: usize,
+    pub kind: LayoutDeviceType,
+}
+
+impl LayoutDeviceID {
+    pub fn new(id: usize, kind: LayoutDeviceType) -> Self {
+        Self { id, kind }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

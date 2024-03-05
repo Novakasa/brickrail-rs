@@ -2,6 +2,7 @@ use crate::{
     ble::BLEHub,
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
+    layout_devices::{select_device_id, LayoutDevice, SpawnLayoutDeviceEvent},
     layout_primitives::*,
 };
 use bevy::prelude::*;
@@ -27,12 +28,36 @@ struct SwitchMotor {
     position: MotorPosition,
     #[serde(default)]
     inverted: bool,
+    pulse_duration: f32,
+    pulse_strength: f32,
+}
+
+impl SwitchMotor {
+    pub fn inspector(
+        &mut self,
+        ui: &mut Ui,
+        hubs: &Query<&BLEHub>,
+        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        entity_map: &mut ResMut<EntityMap>,
+        selection_state: &mut ResMut<SelectionState>,
+    ) {
+        BLEHub::select_port_ui(
+            ui,
+            &mut self.hub_id,
+            &mut self.port,
+            HubType::Layout,
+            hubs,
+            spawn_events,
+            entity_map,
+            selection_state,
+        )
+    }
 }
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
 pub struct BLESwitch {
     id: DirectedTrackID,
-    motors: Vec<SwitchMotor>,
+    motors: Vec<Option<LayoutDeviceID>>,
 }
 
 impl BLESwitch {
@@ -55,6 +80,8 @@ impl BLESwitch {
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
             EventWriter<SpawnHubEvent>,
+            EventWriter<SpawnLayoutDeviceEvent>,
+            Query<&mut LayoutDevice>,
         )>::new(world);
         let (
             mut ble_switches,
@@ -63,24 +90,28 @@ impl BLESwitch {
             _type_registry,
             hubs,
             mut spawn_events,
+            mut spawn_devices,
+            mut devices,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut ble_switch) = ble_switches.get_mut(entity) {
                 ui.label("BLE Switch");
-                for (i, motor) in &mut ble_switch.motors.iter_mut().enumerate() {
+                for (i, motor_id) in &mut ble_switch.motors.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
                         ui.label(format!("Motor {:}", i));
-                        BLEHub::select_port_ui(
+                        select_device_id(
                             ui,
-                            &mut motor.hub_id,
-                            &mut motor.port,
-                            HubType::Layout,
-                            &hubs,
-                            &mut spawn_events,
+                            motor_id,
+                            LayoutDeviceType::Switch,
+                            &devices,
+                            &mut spawn_devices,
                             &mut entity_map,
-                            &mut selection_state,
                         );
-                        ui.checkbox(&mut motor.inverted, "Inverted");
+                        if let Some(motor_id) = motor_id {
+                            let motor = devices
+                                .get_mut(entity_map.layout_devices[motor_id])
+                                .unwrap();
+                        }
                     });
                     ui.separator();
                 }
