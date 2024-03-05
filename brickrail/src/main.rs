@@ -38,5 +38,7 @@ fn main() {
         .add_plugins(ble::BLEPlugin)
         .add_plugins(ble_train::BLETrainPlugin)
         .add_plugins(switch::SwitchPlugin)
+        .add_plugins(ble_switch::BLESwitchPlugin)
+        .add_plugins(layout_devices::LayoutDevicePlugin)
         .run();
 }

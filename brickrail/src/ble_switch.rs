@@ -2,7 +2,7 @@ use crate::{
     ble::BLEHub,
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
-    layout_devices::{select_device_id, LayoutDevice, SpawnLayoutDeviceEvent},
+    layout_devices::{select_device_id, DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
 };
 use bevy::prelude::*;
@@ -20,10 +20,8 @@ pub enum MotorPosition {
     Right,
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component)]
 struct SwitchMotor {
-    hub_id: Option<HubID>,
-    port: Option<HubPort>,
     #[serde(skip)]
     position: MotorPosition,
     #[serde(default)]
@@ -32,25 +30,42 @@ struct SwitchMotor {
     pulse_strength: f32,
 }
 
-impl SwitchMotor {
-    pub fn inspector(
-        &mut self,
-        ui: &mut Ui,
-        hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnHubEvent>,
-        entity_map: &mut ResMut<EntityMap>,
-        selection_state: &mut ResMut<SelectionState>,
-    ) {
-        BLEHub::select_port_ui(
-            ui,
-            &mut self.hub_id,
-            &mut self.port,
-            HubType::Layout,
-            hubs,
-            spawn_events,
-            entity_map,
-            selection_state,
-        )
+impl SwitchMotor {}
+
+impl DeviceComponent for SwitchMotor {
+    type SpawnEvent = SpawnSwitchMotorEvent;
+
+    fn new_id(entity_map: &mut EntityMap) -> LayoutDeviceID {
+        entity_map.new_layout_device_id(LayoutDeviceType::Switch)
+    }
+}
+
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Event)]
+struct SpawnSwitchMotorEvent {
+    device: LayoutDevice,
+    motor: SwitchMotor,
+}
+
+impl SpawnDeviceID for SpawnSwitchMotorEvent {
+    fn from_id(id: LayoutDeviceID) -> Self {
+        Self {
+            device: LayoutDevice::from_id(id),
+            motor: SwitchMotor::default(),
+        }
+    }
+}
+
+fn spawn_switch_motor(
+    mut events: EventReader<SpawnSwitchMotorEvent>,
+    mut commands: Commands,
+    mut entity_map: ResMut<EntityMap>,
+) {
+    for event in events.read() {
+        let entity = commands
+            .spawn((event.device.clone(), event.motor.clone()))
+            .id();
+        entity_map.layout_devices.insert(event.device.id, entity);
+        println!("Spawned switch motor with id {:?}", event.device.id);
     }
 }
 
@@ -80,8 +95,8 @@ impl BLESwitch {
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
             EventWriter<SpawnHubEvent>,
-            EventWriter<SpawnLayoutDeviceEvent>,
-            Query<&mut LayoutDevice>,
+            EventWriter<SpawnSwitchMotorEvent>,
+            Query<(&mut SwitchMotor, &mut LayoutDevice)>,
         )>::new(world);
         let (
             mut ble_switches,
@@ -102,15 +117,22 @@ impl BLESwitch {
                         select_device_id(
                             ui,
                             motor_id,
-                            LayoutDeviceType::Switch,
-                            &devices,
+                            &mut devices,
                             &mut spawn_devices,
                             &mut entity_map,
                         );
                         if let Some(motor_id) = motor_id {
-                            let motor = devices
-                                .get_mut(entity_map.layout_devices[motor_id])
-                                .unwrap();
+                            if let Some(entity) = entity_map.layout_devices.get(motor_id) {
+                                if let Ok((motor, mut device)) = devices.get_mut(*entity) {
+                                    device.inspector(
+                                        ui,
+                                        &hubs,
+                                        &mut spawn_events,
+                                        &mut entity_map,
+                                        &mut selection_state,
+                                    )
+                                }
+                            }
                         }
                     });
                     ui.separator();
@@ -126,10 +148,15 @@ impl Selectable for BLESwitch {
     }
 }
 
-struct BLESwitchPlugin;
+pub struct BLESwitchPlugin;
 
 impl Plugin for BLESwitchPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, BLESwitch>();
+        app.add_event::<SpawnSwitchMotorEvent>();
+        app.add_systems(
+            Update,
+            spawn_switch_motor.run_if(on_event::<SpawnSwitchMotorEvent>()),
+        );
     }
 }
