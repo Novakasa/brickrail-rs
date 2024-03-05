@@ -1,10 +1,11 @@
 use std::io::{Read, Write};
 
 use crate::ble::{BLEHub, HubState};
-use crate::ble_switch::BLESwitch;
+use crate::ble_switch::{BLESwitch, SpawnSwitchMotorEvent, SwitchMotor};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
 use crate::layout::{Connections, EntityMap, MarkerMap};
+use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
@@ -288,6 +289,8 @@ struct SerializableLayout {
     hubs: Vec<SpawnHubEvent>,
     #[serde(default)]
     switches: Vec<SpawnSwitchEvent>,
+    #[serde(default)]
+    switch_motors: Vec<SpawnSwitchMotorEvent>,
 }
 
 pub fn save_layout(
@@ -299,6 +302,7 @@ pub fn save_layout(
     q_tracks: Query<&Track>,
     q_connections: Query<&TrackConnection>,
     q_hubs: Query<&BLEHub>,
+    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::KeyS) {
@@ -325,6 +329,13 @@ pub fn save_layout(
             .iter()
             .map(|hub| SpawnHubEvent { hub: hub.clone() })
             .collect();
+        let switch_motors = q_switch_motors
+            .iter()
+            .map(|(motor, device)| SpawnSwitchMotorEvent {
+                motor: motor.clone(),
+                device: device.clone(),
+            })
+            .collect();
         let connections = q_connections
             .iter()
             .map(|c| SpawnConnectionEvent {
@@ -341,6 +352,7 @@ pub fn save_layout(
             trains,
             hubs,
             switches,
+            switch_motors,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -397,6 +409,11 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<Key
         for serialized_switch in layout_value.switches {
             commands.add(|world: &mut World| {
                 world.send_event(serialized_switch);
+            });
+        }
+        for serialized_switch_motor in layout_value.switch_motors {
+            commands.add(|world: &mut World| {
+                world.send_event(serialized_switch_motor);
             });
         }
         commands.insert_resource(marker_map);

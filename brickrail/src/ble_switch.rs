@@ -21,7 +21,7 @@ pub enum MotorPosition {
 }
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component)]
-struct SwitchMotor {
+pub struct SwitchMotor {
     #[serde(skip)]
     position: MotorPosition,
     #[serde(default)]
@@ -41,9 +41,9 @@ impl DeviceComponent for SwitchMotor {
 }
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Event)]
-struct SpawnSwitchMotorEvent {
-    device: LayoutDevice,
-    motor: SwitchMotor,
+pub struct SpawnSwitchMotorEvent {
+    pub device: LayoutDevice,
+    pub motor: SwitchMotor,
 }
 
 impl SpawnDeviceID for SpawnSwitchMotorEvent {
@@ -123,7 +123,7 @@ impl BLESwitch {
                         );
                         if let Some(motor_id) = motor_id {
                             if let Some(entity) = entity_map.layout_devices.get(motor_id) {
-                                if let Ok((motor, mut device)) = devices.get_mut(*entity) {
+                                if let Ok((_, mut device)) = devices.get_mut(*entity) {
                                     device.inspector(
                                         ui,
                                         &hubs,

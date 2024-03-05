@@ -88,5 +88,5 @@ pub fn select_device_id<T: DeviceComponent>(
 pub struct LayoutDevicePlugin;
 
 impl Plugin for LayoutDevicePlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, _app: &mut App) {}
 }
