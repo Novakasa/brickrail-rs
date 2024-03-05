@@ -5,10 +5,11 @@ use crate::{
     layout_devices::{select_device_id, DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 
+use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt as _;
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +31,11 @@ pub struct SwitchMotor {
     pulse_strength: f32,
 }
 
-impl SwitchMotor {}
+impl SwitchMotor {
+    fn inspector(&mut self, ui: &mut Ui, type_registry: &TypeRegistry) {
+        ui_for_value(self, ui, type_registry);
+    }
+}
 
 impl DeviceComponent for SwitchMotor {
     type SpawnEvent = SpawnSwitchMotorEvent;
@@ -102,7 +107,7 @@ impl BLESwitch {
             mut ble_switches,
             mut entity_map,
             mut selection_state,
-            _type_registry,
+            type_registry,
             hubs,
             mut spawn_events,
             mut spawn_devices,
@@ -123,14 +128,15 @@ impl BLESwitch {
                         );
                         if let Some(motor_id) = motor_id {
                             if let Some(entity) = entity_map.layout_devices.get(motor_id) {
-                                if let Ok((_, mut device)) = devices.get_mut(*entity) {
+                                if let Ok((mut motor, mut device)) = devices.get_mut(*entity) {
                                     device.inspector(
                                         ui,
                                         &hubs,
                                         &mut spawn_events,
                                         &mut entity_map,
                                         &mut selection_state,
-                                    )
+                                    );
+                                    motor.inspector(ui, &type_registry.read());
                                 }
                             }
                         }
