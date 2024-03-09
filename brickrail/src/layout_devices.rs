@@ -24,6 +24,21 @@ impl LayoutDevice {
         }
     }
 
+    pub fn ui_label(&self, q_hubs: &Query<&BLEHub>, entity_map: &ResMut<EntityMap>) -> String {
+        let hub = if let Some(id) = self.hub_id {
+            q_hubs.get(entity_map.hubs[&id]).ok()
+        } else {
+            None
+        };
+        format!(
+            "{:}: {:}-{:}",
+            self.id,
+            hub.map(|h| h.name.clone().unwrap_or(h.id.to_string()))
+                .unwrap_or("".to_string()),
+            self.port.map(|p| p.to_string()).unwrap_or("".to_string()),
+        )
+    }
+
     pub fn inspector(
         &mut self,
         ui: &mut Ui,
@@ -61,18 +76,29 @@ pub fn select_device_id<T: DeviceComponent>(
     devices: &mut Query<(&mut T, &mut LayoutDevice)>,
     spawn_events: &mut EventWriter<T::SpawnEvent>,
     entity_map: &mut ResMut<EntityMap>,
+    hubs: &Query<&BLEHub>,
 ) {
     ui.push_id("port", |ui| {
         ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+            let selected_dev = if let Some(id) = selected_id {
+                devices.get(entity_map.layout_devices[id]).ok()
+            } else {
+                None
+            };
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", selected_id))
+                .selected_text(format!(
+                    "{:}",
+                    selected_dev
+                        .map(|(_, dev)| dev.ui_label(hubs, entity_map))
+                        .unwrap_or("None".to_string())
+                ))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(selected_id, None, "None");
                     for (_, device) in devices.iter() {
                         ui.selectable_value(
                             selected_id,
                             Some(device.id),
-                            format!("{:?}", device.id),
+                            format!("{:}", device.ui_label(hubs, entity_map)),
                         );
                     }
                     if ui.button("New").clicked() {

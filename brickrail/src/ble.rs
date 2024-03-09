@@ -181,6 +181,7 @@ impl BLEHub {
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
+        ui.label("Hub");
         ui.push_id("motor", |ui| {
             Self::select_id_ui(
                 ui,
@@ -195,11 +196,17 @@ impl BLEHub {
         if selected_hub.is_none() && selected_port.is_some() {
             *selected_port = None;
         }
+        ui.label("Port");
         ui.add_enabled_ui(selected_hub.is_some(), |ui| {
             ui.push_id("port", |ui| {
                 ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
                     egui::ComboBox::from_label("")
-                        .selected_text(format!("{:?}", selected_port))
+                        .selected_text(format!(
+                            "{:}",
+                            selected_port
+                                .map(|h| h.to_string())
+                                .unwrap_or("None".to_string())
+                        ))
                         .show_ui(ui, |ui| {
                             for option in [
                                 None,
@@ -210,7 +217,14 @@ impl BLEHub {
                                 Some(HubPort::E),
                                 Some(HubPort::F),
                             ] {
-                                ui.selectable_value(selected_port, option, format!("{:?}", option));
+                                ui.selectable_value(
+                                    selected_port,
+                                    option,
+                                    format!(
+                                        "{:}",
+                                        option.map(|h| h.to_string()).unwrap_or("None".to_string())
+                                    ),
+                                );
                             }
                         });
                 });

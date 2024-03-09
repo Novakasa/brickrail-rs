@@ -125,6 +125,7 @@ impl BLESwitch {
                             &mut devices,
                             &mut spawn_devices,
                             &mut entity_map,
+                            &hubs,
                         );
                         if let Some(motor_id) = motor_id {
                             if let Some(entity) = entity_map.layout_devices.get(motor_id) {

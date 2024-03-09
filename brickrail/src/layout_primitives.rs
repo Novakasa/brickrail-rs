@@ -2,7 +2,7 @@ use core::fmt;
 use std::{f32::consts::PI, str::FromStr};
 
 use bevy::prelude::*;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter};
 
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -36,7 +36,18 @@ impl TrainID {
 }
 
 #[derive(
-    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Debug,
+    Display,
+    Reflect,
+    Serialize,
+    Deserialize,
 )]
 pub enum HubPort {
     A,
@@ -115,6 +126,12 @@ pub struct LayoutDeviceID {
 impl LayoutDeviceID {
     pub fn new(id: usize, kind: LayoutDeviceType) -> Self {
         Self { id, kind }
+    }
+}
+
+impl fmt::Display for LayoutDeviceID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}{}", self.kind, self.id)
     }
 }
 
