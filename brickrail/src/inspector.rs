@@ -7,8 +7,8 @@ use bevy_egui::{
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::{
-    ble::BLEHub, ble_switch::BLESwitch, ble_train::BLETrain, block::Block, editor::*,
-    marker::Marker, track::Track, train::Train,
+    ble::BLEHub, ble_train::BLETrain, block::Block, editor::*, marker::Marker, switch::Switch,
+    track::Track, train::Train,
 };
 
 fn inspector_system_world(world: &mut World) {
@@ -26,7 +26,7 @@ fn inspector_system_world(world: &mut World) {
                 Block::inspector(ui, world);
                 Track::inspector(ui, world);
                 Marker::inspector(ui, world);
-                BLESwitch::inspector(ui, world);
+                Switch::inspector(ui, world);
             };
         },
     );

@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 
 use crate::ble::{BLEHub, HubState};
-use crate::ble_switch::{BLESwitch, SpawnSwitchMotorEvent, SwitchMotor};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
 use crate::layout::{Connections, EntityMap, MarkerMap};
@@ -10,6 +9,7 @@ use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, Switch};
+use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, TrackConnection, LAYOUT_SCALE};
 use crate::train::Train;
 
@@ -296,7 +296,7 @@ struct SerializableLayout {
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
     q_trains: Query<(&Train, &BLETrain)>,
-    q_switches: Query<(&Switch, &BLESwitch)>,
+    q_switches: Query<&Switch>,
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
@@ -320,9 +320,8 @@ pub fn save_layout(
             .collect();
         let switches = q_switches
             .iter()
-            .map(|(switch, ble_switch)| SpawnSwitchEvent {
+            .map(|switch| SpawnSwitchEvent {
                 switch: switch.clone(),
-                ble_switch: ble_switch.clone(),
             })
             .collect();
         let hubs = q_hubs

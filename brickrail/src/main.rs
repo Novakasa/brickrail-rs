@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 mod bevy_tokio_tasks;
 mod ble;
-mod ble_switch;
 mod ble_train;
 mod block;
 mod editor;
@@ -16,6 +15,7 @@ mod marker;
 mod route;
 mod section;
 mod switch;
+mod switch_motor;
 mod track;
 mod train;
 mod utils;
@@ -38,7 +38,7 @@ fn main() {
         .add_plugins(ble::BLEPlugin)
         .add_plugins(ble_train::BLETrainPlugin)
         .add_plugins(switch::SwitchPlugin)
-        .add_plugins(ble_switch::BLESwitchPlugin)
+        .add_plugins(switch_motor::SwitchMotorPlugin)
         .add_plugins(layout_devices::LayoutDevicePlugin)
         .run();
 }

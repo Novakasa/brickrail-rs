@@ -1,12 +1,16 @@
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
+use bevy_egui::egui::Ui;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble_switch::BLESwitch,
-    editor::{GenericID, Selectable},
+    ble::BLEHub,
+    editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
+    layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
+    switch_motor::{SpawnSwitchMotorEvent, SwitchMotor},
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };
 
@@ -16,12 +20,83 @@ pub struct Switch {
     positions: Vec<SwitchPosition>,
     #[serde(skip)]
     pos_index: usize,
+    motors: Vec<Option<LayoutDeviceID>>,
 }
 
 impl Switch {
+    pub fn new(id: DirectedTrackID, positions: Vec<SwitchPosition>) -> Self {
+        let mut switch = Self {
+            id,
+            positions: Vec::new(),
+            pos_index: 0,
+            motors: Vec::new(),
+        };
+        switch.set_positions(positions);
+        switch
+    }
+
     pub fn set_positions(&mut self, positions: Vec<SwitchPosition>) {
-        self.positions = positions;
         self.pos_index = 0;
+        self.motors
+            .resize_with(positions.len() - 1, Default::default);
+
+        self.positions = positions;
+    }
+
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut Switch>,
+            ResMut<EntityMap>,
+            ResMut<SelectionState>,
+            Res<AppTypeRegistry>,
+            Query<&BLEHub>,
+            EventWriter<SpawnHubEvent>,
+            EventWriter<SpawnSwitchMotorEvent>,
+            Query<(&mut SwitchMotor, &mut LayoutDevice)>,
+        )>::new(world);
+        let (
+            mut switches,
+            mut entity_map,
+            mut selection_state,
+            type_registry,
+            hubs,
+            mut spawn_events,
+            mut spawn_devices,
+            mut devices,
+        ) = state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut switch) = switches.get_mut(entity) {
+                ui.label("BLE Switch");
+                for (i, motor_id) in &mut switch.motors.iter_mut().enumerate() {
+                    ui.push_id(i, |ui| {
+                        ui.label(format!("Motor {:}", i));
+                        select_device_id(
+                            ui,
+                            motor_id,
+                            &mut devices,
+                            &mut spawn_devices,
+                            &mut entity_map,
+                            &hubs,
+                        );
+                        if let Some(motor_id) = motor_id {
+                            if let Some(entity) = entity_map.layout_devices.get(motor_id) {
+                                if let Ok((mut motor, mut device)) = devices.get_mut(*entity) {
+                                    device.inspector(
+                                        ui,
+                                        &hubs,
+                                        &mut spawn_events,
+                                        &mut entity_map,
+                                        &mut selection_state,
+                                    );
+                                    motor.inspector(ui, &type_registry.read());
+                                }
+                            }
+                        }
+                    });
+                    ui.separator();
+                }
+            }
+        }
     }
 }
 
@@ -42,7 +117,6 @@ impl Selectable for Switch {
 #[derive(Serialize, Deserialize, Clone, Event)]
 pub struct SpawnSwitchEvent {
     pub switch: Switch,
-    pub ble_switch: BLESwitch,
 }
 
 #[derive(Debug, Event)]
@@ -59,12 +133,12 @@ pub struct SetSwitchPositionEvent {
 
 pub fn update_switch_position(
     mut events: EventReader<SetSwitchPositionEvent>,
-    mut switches: Query<(&mut Switch, &mut BLESwitch)>,
+    mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
 ) {
     for update in events.read() {
         if let Some(entity) = entity_map.switches.get(&update.id) {
-            let (mut switch, mut ble_switch) = switches.get_mut(*entity).unwrap();
+            let mut switch = switches.get_mut(*entity).unwrap();
         }
     }
 }
@@ -72,25 +146,17 @@ pub fn update_switch_position(
 pub fn update_switch_turns(
     mut events: EventReader<UpdateSwitchTurnsEvent>,
     mut switch_spawn_events: EventWriter<SpawnSwitchEvent>,
-    mut switches: Query<(&mut Switch, &mut BLESwitch)>,
+    mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
 ) {
     for update in events.read() {
         if update.positions.len() > 1 {
             if let Some(entity) = entity_map.switches.get(&update.id) {
-                let (mut switch, mut ble_switch) = switches.get_mut(*entity).unwrap();
+                let mut switch = switches.get_mut(*entity).unwrap();
                 switch.set_positions(update.positions.clone());
-                ble_switch.set_num_motors(update.positions.len() - 1);
             } else {
-                let mut ble_switch = BLESwitch::new(update.id);
-                ble_switch.set_num_motors(update.positions.len() - 1);
                 switch_spawn_events.send(SpawnSwitchEvent {
-                    switch: Switch {
-                        id: update.id,
-                        positions: update.positions.clone(),
-                        pos_index: 0,
-                    },
-                    ble_switch: ble_switch,
+                    switch: Switch::new(update.id, update.positions.clone()),
                 });
             }
         } else {
@@ -112,9 +178,7 @@ pub fn spawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for spawn_event in events.read() {
-        let entity = commands
-            .spawn((spawn_event.switch.clone(), spawn_event.ble_switch.clone()))
-            .id();
+        let entity = commands.spawn(spawn_event.switch.clone()).id();
         entity_map.add_switch(spawn_event.switch.id, entity);
     }
 }
