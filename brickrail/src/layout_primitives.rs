@@ -9,7 +9,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone)]
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SwitchPosition {
     Left,
     Center,
@@ -56,6 +56,19 @@ pub enum HubPort {
     D,
     E,
     F,
+}
+
+impl HubPort {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            HubPort::A => 0,
+            HubPort::B => 1,
+            HubPort::C => 2,
+            HubPort::D => 3,
+            HubPort::E => 4,
+            HubPort::F => 5,
+        }
+    }
 }
 
 #[derive(

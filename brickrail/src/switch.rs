@@ -5,12 +5,12 @@ use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::BLEHub,
+    ble::{BLEHub, HubCommandEvent},
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
-    switch_motor::{SpawnSwitchMotorEvent, SwitchMotor},
+    switch_motor::{MotorPosition, SpawnSwitchMotorEvent, SwitchMotor},
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };
 
@@ -41,6 +41,25 @@ impl Switch {
             .resize_with(positions.len() - 1, Default::default);
 
         self.positions = positions;
+        self.positions.sort();
+    }
+
+    pub fn switch(&mut self, position: &SwitchPosition) {
+        if let Some(index) = self.positions.iter().position(|p| p == position) {
+            self.pos_index = index;
+        }
+    }
+
+    pub fn iter_motor_positions(
+        &self,
+    ) -> impl Iterator<Item = (&Option<LayoutDeviceID>, MotorPosition)> {
+        self.motors.iter().enumerate().map(|(_index, motor_id)| {
+            let position = match self.pos_index {
+                0 => MotorPosition::Left,
+                _ => MotorPosition::Right,
+            };
+            (motor_id, position)
+        })
     }
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {
@@ -53,6 +72,7 @@ impl Switch {
             EventWriter<SpawnHubEvent>,
             EventWriter<SpawnSwitchMotorEvent>,
             Query<(&mut SwitchMotor, &mut LayoutDevice)>,
+            EventWriter<SetSwitchPositionEvent>,
         )>::new(world);
         let (
             mut switches,
@@ -63,10 +83,25 @@ impl Switch {
             mut spawn_events,
             mut spawn_devices,
             mut devices,
+            mut set_switch_position,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut switch) = switches.get_mut(entity) {
-                ui.label("BLE Switch");
+                ui.label("Switch");
+                let mut current_pos = switch.positions[switch.pos_index].clone();
+                for position in switch.positions.clone() {
+                    ui.radio_value(
+                        &mut current_pos,
+                        position.clone(),
+                        format!("{:?}", position),
+                    );
+                }
+                if current_pos != switch.positions[switch.pos_index] {
+                    set_switch_position.send(SetSwitchPositionEvent {
+                        id: switch.id,
+                        position: current_pos,
+                    });
+                }
                 for (i, motor_id) in &mut switch.motors.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
                         ui.label(format!("Motor {:}", i));
@@ -134,11 +169,24 @@ pub struct SetSwitchPositionEvent {
 pub fn update_switch_position(
     mut events: EventReader<SetSwitchPositionEvent>,
     mut switches: Query<&mut Switch>,
+    switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
+    mut hub_commands: EventWriter<HubCommandEvent>,
 ) {
     for update in events.read() {
         if let Some(entity) = entity_map.switches.get(&update.id) {
             let mut switch = switches.get_mut(*entity).unwrap();
+            switch.switch(&update.position);
+            for (motor_id, position) in switch.iter_motor_positions() {
+                if let Some(motor_id) = motor_id {
+                    let entity = entity_map.layout_devices.get(motor_id).unwrap();
+                    let (motor, device) = switch_motors.get(*entity).unwrap();
+                    if let Some(command) = motor.switch_command(device, &position) {
+                        println!("Sending switch command {:?}", command);
+                        hub_commands.send(command);
+                    }
+                }
+            }
         }
     }
 }
@@ -189,12 +237,14 @@ impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnSwitchEvent>();
         app.add_event::<UpdateSwitchTurnsEvent>();
+        app.add_event::<SetSwitchPositionEvent>();
         app.register_component_as::<dyn Selectable, Switch>();
         app.add_systems(
             Update,
             (
                 spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
                 update_switch_turns.run_if(on_event::<UpdateSwitchTurnsEvent>()),
+                update_switch_position.run_if(on_event::<SetSwitchPositionEvent>()),
                 draw_switches,
             ),
         );

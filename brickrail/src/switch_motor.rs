@@ -1,4 +1,5 @@
 use crate::{
+    ble::HubCommandEvent,
     layout::EntityMap,
     layout_devices::{DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
@@ -7,6 +8,7 @@ use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui::Ui;
 
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use pybricks_ble::io_hub::Input;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default)]
@@ -15,6 +17,16 @@ pub enum MotorPosition {
     Unknown,
     Left,
     Right,
+}
+
+impl MotorPosition {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Self::Unknown => 2,
+            Self::Left => 0,
+            Self::Right => 1,
+        }
+    }
 }
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component)]
@@ -30,6 +42,18 @@ pub struct SwitchMotor {
 impl SwitchMotor {
     pub fn inspector(&mut self, ui: &mut Ui, type_registry: &TypeRegistry) {
         ui_for_value(self, ui, type_registry);
+    }
+
+    pub fn switch_command(
+        &self,
+        device: &LayoutDevice,
+        position: &MotorPosition,
+    ) -> Option<HubCommandEvent> {
+        let input = Input::rpc(
+            "device_execute",
+            &vec![device.port?.to_u8(), position.to_u8()],
+        );
+        Some(HubCommandEvent::input(device.hub_id?, input))
     }
 }
 

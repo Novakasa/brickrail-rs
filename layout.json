@@ -4,38 +4,29 @@
     "enter_markers": {}
   },
   "tracks": [
-    "T(-6,0,0|EW|↔)",
-    "T(-5,0,0|EW|↔)",
-    "T(-4,0,0|EW|↔)",
-    "T(-3,0,0|EW|↔)",
-    "T(-2,0,0|EW|↔)",
-    "T(-1,0,0|EW|↔)",
     "T(0,0,0|EW|↔)",
     "T(1,0,0|EW|↔)",
     "T(2,0,0|EW|↔)",
     "T(3,0,0|EW|↔)",
     "T(4,0,0|EW|↔)",
-    "T(1,0,0|NW|⤢)",
-    "T(1,1,0|NS|↕)",
-    "T(1,2,0|NS|↕)",
-    "T(1,0,0|NE|⤡)"
+    "T(5,0,0|EW|↔)",
+    "T(6,0,0|NW|⤢)",
+    "T(6,1,0|NS|↕)",
+    "T(6,2,0|NS|↕)",
+    "T(6,0,0|EW|↔)",
+    "T(7,0,0|EW|↔)"
   ],
   "connections": [
-    "C(-6,0,0|WE><-5,0,0|EW)",
-    "C(-5,0,0|WE><-4,0,0|EW)",
-    "C(-4,0,0|WE><-3,0,0|EW)",
-    "C(-3,0,0|WE><-2,0,0|EW)",
-    "C(-2,0,0|WE><-1,0,0|EW)",
-    "C(-1,0,0|WE><0,0,0|EW)",
     "C(0,0,0|WE><1,0,0|EW)",
     "C(1,0,0|WE><2,0,0|EW)",
     "C(2,0,0|WE><3,0,0|EW)",
     "C(3,0,0|WE><4,0,0|EW)",
-    "C(0,0,0|WE><1,0,0|NW)",
-    "C(1,0,0|WN><1,1,0|NS)",
-    "C(1,1,0|SN><1,2,0|NS)",
-    "C(1,1,0|NS><1,0,0|EN)",
-    "C(1,0,0|NE><2,0,0|EW)"
+    "C(4,0,0|WE><5,0,0|EW)",
+    "C(5,0,0|WE><6,0,0|NW)",
+    "C(6,0,0|WN><6,1,0|NS)",
+    "C(6,1,0|SN><6,2,0|NS)",
+    "C(5,0,0|WE><6,0,0|EW)",
+    "C(6,0,0|WE><7,0,0|EW)"
   ],
   "blocks": [],
   "markers": [],
@@ -44,51 +35,21 @@
     {
       "hub": {
         "id": "Layout0",
-        "name": null
+        "name": "technic-blue"
       }
     }
   ],
   "switches": [
     {
       "switch": {
-        "id": "D(0,0,0|WE|→)",
+        "id": "D(5,0,0|WE|→)",
         "positions": [
-          "Center",
-          "Left"
+          "Left",
+          "Center"
         ],
         "motors": [
           {
             "id": 0,
-            "kind": "Switch"
-          }
-        ]
-      }
-    },
-    {
-      "switch": {
-        "id": "D(1,1,0|NS|↓)",
-        "positions": [
-          "Right",
-          "Left"
-        ],
-        "motors": [
-          {
-            "id": 1,
-            "kind": "Switch"
-          }
-        ]
-      }
-    },
-    {
-      "switch": {
-        "id": "D(2,0,0|EW|←)",
-        "positions": [
-          "Center",
-          "Right"
-        ],
-        "motors": [
-          {
-            "id": 2,
             "kind": "Switch"
           }
         ]
@@ -103,37 +64,7 @@
           "kind": "Switch"
         },
         "hub_id": "Layout0",
-        "port": "C"
-      },
-      "motor": {
-        "inverted": false,
-        "pulse_duration": 0.0,
-        "pulse_strength": 0.0
-      }
-    },
-    {
-      "device": {
-        "id": {
-          "id": 1,
-          "kind": "Switch"
-        },
-        "hub_id": "Layout0",
         "port": "A"
-      },
-      "motor": {
-        "inverted": false,
-        "pulse_duration": 0.0,
-        "pulse_strength": 0.0
-      }
-    },
-    {
-      "device": {
-        "id": {
-          "id": 2,
-          "kind": "Switch"
-        },
-        "hub_id": "Layout0",
-        "port": "B"
       },
       "motor": {
         "inverted": false,

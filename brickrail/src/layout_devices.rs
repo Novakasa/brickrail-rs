@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
 pub struct LayoutDevice {
     pub id: LayoutDeviceID,
-    hub_id: Option<HubID>,
-    port: Option<HubPort>,
+    pub hub_id: Option<HubID>,
+    pub port: Option<HubPort>,
 }
 
 impl LayoutDevice {

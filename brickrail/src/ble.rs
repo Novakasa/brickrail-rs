@@ -64,7 +64,7 @@ impl BLEHub {
         // print cwd:
         println!("{:?}", std::env::current_dir().unwrap());
         match self.id.kind {
-            HubType::Layout => Path::new("pybricks/programs/mpy/test_io.mpy"),
+            HubType::Layout => Path::new("pybricks/programs/mpy/layout_controller.mpy"),
             HubType::Train => Path::new("pybricks/programs/mpy/smart_train.mpy"),
         }
     }
