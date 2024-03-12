@@ -53,10 +53,15 @@ impl Switch {
     pub fn iter_motor_positions(
         &self,
     ) -> impl Iterator<Item = (&Option<LayoutDeviceID>, MotorPosition)> {
-        self.motors.iter().enumerate().map(|(_index, motor_id)| {
-            let position = match self.pos_index {
-                0 => MotorPosition::Left,
-                _ => MotorPosition::Right,
+        self.motors.iter().enumerate().map(|(index, motor_id)| {
+            let position = match (self.pos_index, index) {
+                (0, 0) => MotorPosition::Left,
+                (0, 1) => MotorPosition::Left,
+                (1, 0) => MotorPosition::Right,
+                (1, 1) => MotorPosition::Left,
+                (2, 0) => MotorPosition::Right,
+                (2, 1) => MotorPosition::Right,
+                _ => panic!("Invalid switch position"),
             };
             (motor_id, position)
         })
