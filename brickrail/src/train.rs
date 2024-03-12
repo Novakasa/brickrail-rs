@@ -303,15 +303,16 @@ fn exit_drag_train(
                     route.pretty_print();
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.position = Position::Route(route);
+
+                    train
+                        .get_route_mut()
+                        .update_intentions(track_locks.as_ref());
+                    // println!("state: {:?}", train.route.get_train_state());
                     train.get_route().update_locks(
                         &mut track_locks,
                         &entity_map,
                         &mut set_switch_position,
                     );
-                    train
-                        .get_route_mut()
-                        .update_intentions(track_locks.as_ref());
-                    // println!("state: {:?}", train.route.get_train_state());
 
                     if editor_state.get().ble_commands_enabled() {
                         let commands = ble_train.download_route(&train.get_route());
