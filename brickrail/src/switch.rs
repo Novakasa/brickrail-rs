@@ -174,7 +174,7 @@ pub struct SetSwitchPositionEvent {
 pub fn update_switch_position(
     mut events: EventReader<SetSwitchPositionEvent>,
     mut switches: Query<&mut Switch>,
-    switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    mut switch_motors: Query<(&mut SwitchMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: EventWriter<HubCommandEvent>,
 ) {
@@ -185,11 +185,15 @@ pub fn update_switch_position(
             for (motor_id, position) in switch.iter_motor_positions() {
                 if let Some(motor_id) = motor_id {
                     let entity = entity_map.layout_devices.get(motor_id).unwrap();
-                    let (motor, device) = switch_motors.get(*entity).unwrap();
+                    let (mut motor, device) = switch_motors.get_mut(*entity).unwrap();
+                    if motor.position == position {
+                        continue;
+                    }
                     if let Some(command) = motor.switch_command(device, &position) {
                         println!("Sending switch command {:?}", command);
                         hub_commands.send(command);
                     }
+                    motor.position = position;
                 }
             }
         }

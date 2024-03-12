@@ -7,11 +7,15 @@ use crate::{
 use bevy::{prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui::Ui;
 
-use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_inspector_egui::{
+    inspector_options::ReflectInspectorOptions, reflect_inspector::ui_for_value, InspectorOptions,
+};
 use pybricks_ble::io_hub::Input;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default)]
+#[derive(
+    Debug, Reflect, Serialize, Deserialize, Clone, Default, PartialEq, Eq, InspectorOptions,
+)]
 pub enum MotorPosition {
     #[default]
     Unknown,
@@ -29,14 +33,15 @@ impl MotorPosition {
     }
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component)]
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component, InspectorOptions)]
+#[reflect(InspectorOptions)]
 pub struct SwitchMotor {
     #[serde(skip)]
-    position: MotorPosition,
+    pub position: MotorPosition,
     #[serde(default)]
-    inverted: bool,
-    pulse_duration: f32,
-    pulse_strength: f32,
+    pub inverted: bool,
+    pub pulse_duration: f32,
+    pub pulse_strength: f32,
 }
 
 impl SwitchMotor {
