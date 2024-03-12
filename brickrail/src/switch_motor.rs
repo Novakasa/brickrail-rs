@@ -51,7 +51,7 @@ impl SwitchMotor {
     ) -> Option<HubCommandEvent> {
         let input = Input::rpc(
             "device_execute",
-            &vec![device.port?.to_u8(), position.to_u8()],
+            &vec![device.port?.to_u8(), 0, position.to_u8()],
         );
         Some(HubCommandEvent::input(device.hub_id?, input))
     }
