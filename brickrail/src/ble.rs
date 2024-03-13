@@ -551,6 +551,9 @@ fn handle_hub_events(
                     }
                 }
             }
+            IOEvent::DownloadProgress(progress) => {
+                info!("Download progress: {:?}", progress);
+            }
         }
     }
 }

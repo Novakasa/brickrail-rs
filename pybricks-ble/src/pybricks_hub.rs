@@ -42,6 +42,10 @@ bitflags::bitflags! {
     }
 }
 
+pub trait DownloadProgress {
+    fn from_normalized(percentage: f32) -> Self;
+}
+
 #[derive(Debug)]
 enum HubEvent {
     Status(HubStatus),
@@ -321,7 +325,11 @@ impl PybricksHub {
         self.pb_command(Command::WriteSTDIN, data).await
     }
 
-    pub async fn download_program(&self, path: &Path) -> Result<(), Box<dyn Error>> {
+    pub async fn download_program<T: DownloadProgress + std::fmt::Debug>(
+        &self,
+        path: &Path,
+        progress_sender: Option<broadcast::Sender<T>>,
+    ) -> Result<(), Box<dyn Error>> {
         info!("Downloading program to {:}", self);
 
         let data = std::fs::read(path)?;
@@ -336,9 +344,16 @@ impl PybricksHub {
         let payload_size = self.capabilities.as_ref().unwrap().max_write_size as usize - 5;
 
         for (i, chunk) in data.chunks(payload_size).enumerate() {
-            let mut data = pack_u32((i * payload_size) as u32);
-            data.extend_from_slice(chunk);
-            self.pb_command(Command::WriteUserRam, &data).await?;
+            let mut inner_data = pack_u32((i * payload_size) as u32);
+            inner_data.extend_from_slice(chunk);
+            self.pb_command(Command::WriteUserRam, &inner_data).await?;
+            if let Some(sender) = &progress_sender {
+                sender
+                    .send(T::from_normalized(
+                        i as f32 / ((data.len() / payload_size) as f32),
+                    ))
+                    .unwrap_or(0);
+            }
         }
 
         self.pb_command(Command::WriteUserProgramMeta, &pack_u32(data.len() as u32))

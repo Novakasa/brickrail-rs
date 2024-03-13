@@ -10,7 +10,7 @@ use tokio::{
 use tracing::{debug, error, info, trace};
 
 use crate::{
-    pybricks_hub::{BLEAdapter, HubStatus, PybricksHub},
+    pybricks_hub::{BLEAdapter, DownloadProgress, HubStatus, PybricksHub},
     unpack_u16_little,
 };
 use std::{error::Error, path::Path, sync::Arc, time::Duration};
@@ -234,13 +234,6 @@ pub enum IOMessage {
     Dump { id: u8, data: Vec<u8> },
 }
 
-#[derive(Debug, Clone)]
-pub enum IOEvent {
-    Message(IOMessage),
-    NameDiscovered(String),
-    Status(HubStatus),
-}
-
 impl IOMessage {
     fn from_output(output: Output) -> Self {
         match output.output_type {
@@ -258,6 +251,20 @@ impl IOMessage {
             },
             _ => panic!("Unexpected output type"),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum IOEvent {
+    Message(IOMessage),
+    NameDiscovered(String),
+    Status(HubStatus),
+    DownloadProgress(f32),
+}
+
+impl DownloadProgress for IOEvent {
+    fn from_normalized(percentage: f32) -> Self {
+        IOEvent::DownloadProgress(percentage)
     }
 }
 
@@ -667,7 +674,8 @@ impl IOHub {
 
     pub async fn download_program(&self, name: &Path) -> Result<(), Box<dyn Error>> {
         let hub = self.hub.lock().await;
-        hub.download_program(name).await?;
+        let sender = self.event_sender.clone();
+        hub.download_program(name, Some(sender)).await?;
         Ok(())
     }
 
