@@ -291,6 +291,9 @@ impl Route {
 
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
         for leg in self.legs.iter() {
+            if leg.get_leg_state() == LegState::Completed {
+                continue;
+            }
             for track in leg.section.tracks.iter() {
                 track
                     .dirtrack
