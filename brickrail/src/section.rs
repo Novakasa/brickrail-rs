@@ -176,6 +176,15 @@ impl DirectedSection {
             .unwrap()
     }
 
+    pub fn closest_track_index(&self, pos: Vec2) -> usize {
+        self.tracks
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| a.distance_to(pos).partial_cmp(&b.distance_to(pos)).unwrap())
+            .unwrap()
+            .0
+    }
+
     pub fn connection_iter(&self) -> impl Iterator<Item = DirectedTrackConnectionID> + '_ {
         self.tracks
             .iter()

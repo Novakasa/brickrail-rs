@@ -63,6 +63,15 @@ impl Block {
         self.section.distance_to(pos)
     }
 
+    pub fn hover_pos_to_direction(&self, pos: Vec2) -> BlockDirection {
+        let track_index = self.section.closest_track_index(pos);
+        if track_index >= self.section.len() / 2 {
+            BlockDirection::Aligned
+        } else {
+            BlockDirection::Opposite
+        }
+    }
+
     pub fn get_logical_section(&self, block_id: LogicalBlockID) -> LogicalSection {
         match block_id.direction {
             BlockDirection::Aligned => self.section.get_logical(block_id.facing),

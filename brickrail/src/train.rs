@@ -14,6 +14,7 @@ use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
@@ -331,6 +332,10 @@ fn exit_drag_train(
 fn update_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
+    mouse_pos: Res<MousePosWorld>,
+    hover_state: Res<HoverState>,
+    q_blocks: Query<&Block>,
+    entity_map: Res<EntityMap>,
 ) {
     if train_drag_state.train_id.is_none() {
         return;
@@ -338,6 +343,13 @@ fn update_drag_train(
     if mouse_buttons.just_pressed(MouseButton::Left) {
         train_drag_state.target_dir = train_drag_state.target_dir.opposite();
         println!("Target dir: {:?}", train_drag_state.target_dir)
+    }
+    if let Some(GenericID::Block(block_id)) = hover_state.hover {
+        let block = q_blocks
+            .get(entity_map.get_entity(&GenericID::Block(block_id)).unwrap())
+            .unwrap();
+        train_drag_state.target_dir =
+            block.hover_pos_to_direction(mouse_pos.truncate() / LAYOUT_SCALE);
     }
 }
 
