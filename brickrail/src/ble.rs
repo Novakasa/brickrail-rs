@@ -16,13 +16,13 @@ use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub enum HubState {
     #[default]
     Disconnected,
     Connecting,
     Connected,
-    Downloading,
+    Downloading(f32),
     StartingProgram,
     Running,
     StoppingProgram,
@@ -399,7 +399,7 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::DownloadProgram => {
-                hub.state = HubState::Downloading;
+                hub.state = HubState::Downloading(0.0);
                 let io_hub = hub.hub.clone();
                 let program = hub.get_program_path();
                 runtime.spawn_background_task(move |mut ctx| async move {
@@ -553,6 +553,7 @@ fn handle_hub_events(
             }
             IOEvent::DownloadProgress(progress) => {
                 info!("Download progress: {:?}", progress);
+                hub.state = HubState::Downloading(*progress);
             }
         }
     }

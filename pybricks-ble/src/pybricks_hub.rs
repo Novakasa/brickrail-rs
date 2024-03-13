@@ -348,11 +348,11 @@ impl PybricksHub {
             inner_data.extend_from_slice(chunk);
             self.pb_command(Command::WriteUserRam, &inner_data).await?;
             if let Some(sender) = &progress_sender {
-                sender
-                    .send(T::from_normalized(
-                        i as f32 / ((data.len() / payload_size) as f32),
-                    ))
-                    .unwrap_or(0);
+                if let Err(err) = sender.send(T::from_normalized(
+                    i as f32 / ((data.len() / payload_size) as f32),
+                )) {
+                    error!("Failed to send progress: {:?}", err);
+                }
             }
         }
 

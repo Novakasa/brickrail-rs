@@ -16,7 +16,7 @@ use crate::train::Train;
 
 use bevy::prelude::*;
 use bevy_egui::egui::panel::TopBottomSide;
-use bevy_egui::egui::Layout;
+use bevy_egui::egui::{Align2, Layout};
 use bevy_egui::{egui, EguiContexts, EguiMousePosition};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -145,6 +145,55 @@ pub fn top_panel(
 
     if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
         input_data.mouse_over_ui |= inner_response.response.rect.contains(mouse_pos.to_pos2());
+    }
+}
+
+pub fn status_panel(
+    mut egui_contexts: EguiContexts,
+    egui_mouse_pos: Res<EguiMousePosition>,
+    mut input_data: ResMut<InputData>,
+    q_hubs: Query<&BLEHub>,
+) {
+    let inner_response = egui::Window::new("Hub status")
+        .movable(false)
+        .collapsible(false)
+        .resizable(false)
+        .default_width(200.0)
+        .max_width(200.0)
+        .anchor(Align2::CENTER_CENTER, (0.0, 0.0))
+        .show(&egui_contexts.ctx_mut().clone(), |ui| {
+            ui.set_width(ui.available_width());
+            ui.heading("Preparing hubs...");
+            ui.separator();
+            for hub in q_hubs.iter() {
+                ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
+                match &hub.state {
+                    HubState::Downloading(progress) => {
+                        ui.label("Downloading...");
+                        ui.add(egui::ProgressBar::new(*progress));
+                    }
+                    HubState::Connecting => {
+                        ui.label("Connecting...");
+                        ui.add(egui::Spinner::default());
+                    }
+                    HubState::Running => {
+                        // display checkmark
+                        ui.label("Running!").highlight();
+                    }
+                    state => {
+                        ui.label(format!("{:?}", state));
+                    }
+                }
+                ui.separator();
+            }
+        });
+
+    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
+        input_data.mouse_over_ui |= inner_response
+            .unwrap()
+            .response
+            .rect
+            .contains(mouse_pos.to_pos2());
     }
 }
 
@@ -487,7 +536,15 @@ impl Plugin for EditorPlugin {
                 update_editor_state,
             ),
         );
-        app.add_systems(Update, (top_panel.after(inspector_system_world),));
+        app.add_systems(
+            Update,
+            (
+                top_panel.after(inspector_system_world),
+                status_panel
+                    .after(top_panel)
+                    .run_if(in_state(EditorState::PreparingDeviceControl)),
+            ),
+        );
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
             update_active_hubs,
