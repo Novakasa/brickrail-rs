@@ -128,12 +128,12 @@ pub fn top_panel(
     let inner_response = egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(
         &egui_contexts.ctx_mut().clone(),
         |ui| {
+            ui.label(format!("Mode: {:?}", editor_state.get()));
             ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-                ui.label(format!("Mode: {:?}", editor_state.get()));
                 if ui.button("Edit").clicked() {
                     next_editor_state.set(EditorState::Edit);
                 }
-                if ui.button("Control").clicked() {
+                if ui.button("Virtual control").clicked() {
                     next_editor_state.set(EditorState::VirtualControl);
                 }
                 if ui.button("Device control").clicked() {
@@ -487,7 +487,7 @@ impl Plugin for EditorPlugin {
                 update_editor_state,
             ),
         );
-        app.add_systems(PostUpdate, (top_panel.after(inspector_system_world),));
+        app.add_systems(Update, (top_panel.after(inspector_system_world),));
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
             update_active_hubs,
