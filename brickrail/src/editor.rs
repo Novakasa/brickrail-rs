@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::ble::{BLEHub, HubError, HubState};
+use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
 use crate::inspector::inspector_system_world;
@@ -189,10 +189,10 @@ pub fn status_window(
                         ui.label(format!("{:?}", state));
                     }
                 }
-                if hub.error != HubError::None {
-                    ui.label(format!("Error: {:?}", hub.error));
+                if let Some(err) = &hub.error {
+                    ui.label(format!("Error: {:?}", err));
                     if ui.button("Retry").clicked() {
-                        hub.error = HubError::None;
+                        hub.error = None;
                     }
                 }
                 ui.separator();

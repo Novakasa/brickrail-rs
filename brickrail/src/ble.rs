@@ -29,10 +29,8 @@ pub enum HubState {
     Disconnecting,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HubError {
-    #[default]
-    None,
     ConnectError,
     ProgramError,
 }
@@ -50,7 +48,7 @@ pub struct BLEHub {
     #[serde(skip)]
     pub state: HubState,
     #[serde(skip)]
-    pub error: HubError,
+    pub error: Option<HubError>,
     #[serde(skip)]
     downloaded: bool,
 }
@@ -64,7 +62,7 @@ impl BLEHub {
             name: None,
             active: false,
             state: HubState::Disconnected,
-            error: HubError::None,
+            error: None,
             downloaded: false,
         }
     }
@@ -395,7 +393,7 @@ fn execute_hub_commands(
                                 SystemState::new(ctx_main.world);
                             let mut query = system_state.get_mut(ctx_main.world);
                             let mut hub = query.0.get_mut(entity).unwrap();
-                            hub.error = HubError::ConnectError;
+                            hub.error = Some(HubError::ConnectError);
                             hub.state = HubState::Disconnected;
                         })
                         .await;
@@ -562,7 +560,7 @@ fn handle_hub_events(
                     match hub.state {
                         HubState::Running => {
                             hub.state = HubState::Connected;
-                            hub.error = HubError::ProgramError;
+                            hub.error = Some(HubError::ProgramError);
                         }
                         HubState::StoppingProgram | HubState::Connecting => {
                             hub.state = HubState::Connected;
@@ -596,7 +594,7 @@ pub fn prepare_hubs(
             continue;
         }
         if hub.active {
-            if hub.error != HubError::None {
+            if hub.error.is_some() {
                 return;
             }
             match hub.state {
