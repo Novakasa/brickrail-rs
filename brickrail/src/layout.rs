@@ -2,6 +2,7 @@ use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
+use crate::switch::SetSwitchPositionEvent;
 use crate::track::LAYOUT_SCALE;
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
@@ -44,11 +45,29 @@ impl TrackLocks {
         self.clean_trains.contains(train)
     }
 
-    pub fn lock(&mut self, train: &TrainID, section: &LogicalSection) {
+    pub fn lock(
+        &mut self,
+        train: &TrainID,
+        section: &LogicalSection,
+        entity_map: &EntityMap,
+        set_switches: &mut EventWriter<SetSwitchPositionEvent>,
+    ) {
         for track in section.tracks.iter() {
             self.locked_tracks.insert(track.track(), *train);
         }
         self.clean_trains = HashSet::new();
+        for directed_connection in section.directed_connection_iter() {
+            if entity_map
+                .switches
+                .contains_key(&directed_connection.from_track)
+            {
+                let position = directed_connection.to_track.get_switch_position();
+                set_switches.send(SetSwitchPositionEvent {
+                    id: directed_connection.from_track,
+                    position,
+                });
+            }
+        }
     }
 
     pub fn unlock_all(&mut self, train: &TrainID) {

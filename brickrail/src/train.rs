@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route, TrainState},
+    switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
 };
 use bevy::{input::keyboard, prelude::*};
@@ -272,6 +273,7 @@ fn exit_drag_train(
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     editor_state: Res<State<EditorState>>,
+    mut set_switches: EventWriter<SetSwitchPositionEvent>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
@@ -301,7 +303,11 @@ fn exit_drag_train(
                     route.pretty_print();
                     // route.get_current_leg_mut().intention = LegIntention::Stop;
                     train.position = Position::Route(route);
-                    train.get_route().update_locks(&mut track_locks);
+                    train.get_route().update_locks(
+                        &mut track_locks,
+                        &entity_map,
+                        &mut set_switches,
+                    );
                     train
                         .get_route_mut()
                         .update_intentions(track_locks.as_ref());
@@ -362,6 +368,7 @@ fn spawn_train(
     mut entity_map: ResMut<EntityMap>,
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
+    mut set_switches: EventWriter<SetSwitchPositionEvent>,
 ) {
     for spawn_train in train_events.read() {
         let serialized_train = spawn_train.clone();
@@ -391,7 +398,7 @@ fn spawn_train(
             &entity_map,
             &marker_map,
         );
-        route.update_locks(&mut track_locks);
+        route.update_locks(&mut track_locks, &entity_map, &mut set_switches);
         train.position = Position::Route(route);
         println!("train block: {:?}", train.get_logical_block_id());
         let train = TrainBundle::from_train(train);
@@ -414,6 +421,8 @@ fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
     mut track_locks: ResMut<TrackLocks>,
+    entity_map: Res<EntityMap>,
+    mut set_switches: EventWriter<SetSwitchPositionEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
         if !track_locks.is_clean(&train.id) {
@@ -425,7 +434,9 @@ fn update_virtual_trains(
         }
         let change_locks = train.traverse_route(time.delta_seconds());
         if change_locks {
-            train.get_route().update_locks(&mut track_locks);
+            train
+                .get_route()
+                .update_locks(&mut track_locks, &entity_map, &mut set_switches);
         }
     }
 }
@@ -435,6 +446,7 @@ fn handle_ble_sensor_advance(
     mut ble_sensor_advance_events: EventReader<BLESensorAdvanceEvent>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
+    mut set_switches: EventWriter<SetSwitchPositionEvent>,
 ) {
     for advance in ble_sensor_advance_events.read() {
         let mut train = q_trains
@@ -446,7 +458,7 @@ fn handle_ble_sensor_advance(
             .unwrap();
         let route = train.get_route_mut();
         route.advance_sensor();
-        route.update_locks(&mut track_locks);
+        route.update_locks(&mut track_locks, &entity_map, &mut set_switches);
 
         for mut train in q_trains.iter_mut() {
             if !track_locks.is_clean(&train.id) {

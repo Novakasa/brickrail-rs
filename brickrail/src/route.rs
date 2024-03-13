@@ -10,6 +10,7 @@ use crate::layout::TrackLocks;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
+use crate::switch::SetSwitchPositionEvent;
 use crate::track::LAYOUT_SCALE;
 
 #[derive(Debug, Clone)]
@@ -203,19 +204,39 @@ impl Route {
         }
     }
 
-    pub fn update_locks(&self, track_locks: &mut TrackLocks) {
+    pub fn update_locks(
+        &self,
+        track_locks: &mut TrackLocks,
+        entity_map: &EntityMap,
+        set_switches: &mut EventWriter<SetSwitchPositionEvent>,
+    ) {
         let current_leg = self.get_current_leg();
         track_locks.unlock_all(&self.train_id);
         if current_leg.get_leg_state() != LegState::Completed {
-            track_locks.lock(&self.train_id, &current_leg.section);
+            track_locks.lock(
+                &self.train_id,
+                &current_leg.section,
+                entity_map,
+                set_switches,
+            );
         }
-        track_locks.lock(&self.train_id, &current_leg.to_section);
+        track_locks.lock(
+            &self.train_id,
+            &current_leg.to_section,
+            entity_map,
+            set_switches,
+        );
         if let Some(next_leg) = self.get_next_leg() {
             if current_leg.get_leg_state() != LegState::None
                 && current_leg.intention == LegIntention::Pass
             {
-                track_locks.lock(&self.train_id, &next_leg.section);
-                track_locks.lock(&self.train_id, &next_leg.to_section);
+                track_locks.lock(&self.train_id, &next_leg.section, entity_map, set_switches);
+                track_locks.lock(
+                    &self.train_id,
+                    &next_leg.to_section,
+                    entity_map,
+                    set_switches,
+                );
             }
         }
     }

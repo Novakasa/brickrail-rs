@@ -188,7 +188,7 @@ fn create_block(
             for logical_id in block_id.logical_block_ids() {
                 let in_track = logical_id.default_in_marker_track();
                 if logical_id.facing == Facing::Forward {
-                    let marker = Marker::new(in_track.track(), MarkerColor::Green);
+                    let marker = Marker::new(in_track.track(), MarkerColor::Any);
                     marker_event_writer.send(MarkerSpawnEvent(marker));
                 }
                 marker_map.register_marker(in_track, MarkerKey::In, logical_id);
