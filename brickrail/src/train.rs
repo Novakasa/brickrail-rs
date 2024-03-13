@@ -9,7 +9,6 @@ use crate::{
     route::{build_route, Route, TrainState},
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
-    train,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
@@ -33,6 +32,7 @@ struct TrainDragState {
     train_id: Option<TrainID>,
     target: Option<LogicalBlockID>,
     target_facing: Facing,
+    route: Option<Route>,
 }
 
 #[derive(Component, Debug)]
@@ -268,65 +268,43 @@ fn exit_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     entity_map: Res<EntityMap>,
-    marker_map: Res<MarkerMap>,
-    connections: Res<Connections>,
     mut track_locks: ResMut<TrackLocks>,
     mut q_trains: Query<(&mut Train, &mut BLETrain)>,
     mut hub_commands: EventWriter<HubCommandEvent>,
-    q_blocks: Query<&Block>,
-    q_markers: Query<&Marker>,
     editor_state: Res<State<EditorState>>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            if let Some(target) = train_drag_state.target {
+            if let Some(route) = train_drag_state.route.clone() {
                 let (mut train, ble_train) = q_trains
                     .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                     .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
-                let start = train.get_logical_block_id();
-                // println!("Start: {:?}, Target: {:?}", start, target);
-                if let Some(logical_section) = connections.find_route_section(
-                    start,
-                    target,
-                    Some((&train_id, &track_locks)),
-                    train.settings.prefer_facing,
-                ) {
-                    // println!("Section: {:?}", section);
-                    let route = build_route(
-                        train_id,
-                        &logical_section,
-                        &q_markers,
-                        &q_blocks,
-                        &entity_map,
-                        &marker_map,
-                    );
-                    route.pretty_print();
-                    // route.get_current_leg_mut().intention = LegIntention::Stop;
-                    train.position = Position::Route(route);
+                route.pretty_print();
+                // route.get_current_leg_mut().intention = LegIntention::Stop;
+                train.position = Position::Route(route);
 
-                    train
-                        .get_route_mut()
-                        .update_intentions(track_locks.as_ref());
-                    // println!("state: {:?}", train.route.get_train_state());
-                    train.get_route().update_locks(
-                        &mut track_locks,
-                        &entity_map,
-                        &mut set_switch_position,
-                    );
+                train
+                    .get_route_mut()
+                    .update_intentions(track_locks.as_ref());
+                // println!("state: {:?}", train.route.get_train_state());
+                train.get_route().update_locks(
+                    &mut track_locks,
+                    &entity_map,
+                    &mut set_switch_position,
+                );
 
-                    if editor_state.get().ble_commands_enabled() {
-                        let commands = ble_train.download_route(&train.get_route());
-                        for input in commands.hub_events {
-                            info!("Sending {:?}", input);
-                            hub_commands.send(input);
-                        }
+                if editor_state.get().ble_commands_enabled() {
+                    let commands = ble_train.download_route(&train.get_route());
+                    for input in commands.hub_events {
+                        info!("Sending {:?}", input);
+                        hub_commands.send(input);
                     }
                 }
             }
-            train_drag_state.train_id = None;
         }
+        train_drag_state.train_id = None;
     }
 }
 
@@ -342,11 +320,11 @@ fn update_drag_train(
     q_trains: Query<&Train>,
     q_markers: Query<&Marker>,
     marker_map: Res<MarkerMap>,
-    mut gizmos: Gizmos,
 ) {
     if train_drag_state.train_id.is_none() {
         return;
     }
+    let old_target = train_drag_state.target.clone();
     if mouse_buttons.just_pressed(MouseButton::Left) {
         train_drag_state.target_facing = train_drag_state.target_facing.opposite();
         println!("Target facing: {:?}", train_drag_state.target_facing)
@@ -359,6 +337,11 @@ fn update_drag_train(
             block.hover_pos_to_direction(mouse_pos.truncate() / LAYOUT_SCALE),
             train_drag_state.target_facing,
         ));
+        if train_drag_state.target == old_target {
+            return;
+        }
+
+        // build route
         let train_id = train_drag_state.train_id.unwrap();
         let train = q_trains
             .get(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
@@ -379,10 +362,19 @@ fn update_drag_train(
                 &entity_map,
                 &marker_map,
             );
-            route.draw_with_gizmos(&mut gizmos);
+            train_drag_state.route = Some(route);
+        } else {
+            train_drag_state.route = None;
         }
     } else {
         train_drag_state.target = None;
+        train_drag_state.route = None;
+    }
+}
+
+fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
+    if let Some(route) = train_drag_state.route.clone() {
+        route.draw_with_gizmos(&mut gizmos);
     }
 }
 
@@ -554,6 +546,7 @@ impl Plugin for TrainPlugin {
                 draw_train,
                 draw_train_route,
                 draw_locked_tracks.after(draw_train_route),
+                draw_hover_route,
                 init_drag_train,
                 exit_drag_train,
                 update_drag_train,
