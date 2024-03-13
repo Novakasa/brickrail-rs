@@ -11,7 +11,7 @@ use crate::{
     track::Track, train::Train,
 };
 
-fn inspector_system_world(world: &mut World) {
+pub fn inspector_system_world(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
     let inner_response = egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(

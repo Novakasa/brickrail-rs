@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::{BLEHub, HubCommandEvent},
-    editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
+    editor::{EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
@@ -177,6 +177,7 @@ pub fn update_switch_position(
     mut switch_motors: Query<(&mut SwitchMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: EventWriter<HubCommandEvent>,
+    editor_state: Res<State<EditorState>>,
 ) {
     for update in events.read() {
         if let Some(entity) = entity_map.switches.get(&update.id) {
@@ -189,9 +190,12 @@ pub fn update_switch_position(
                     if motor.position == position {
                         continue;
                     }
-                    if let Some(command) = motor.switch_command(device, &position) {
-                        println!("Sending switch command {:?}", command);
-                        hub_commands.send(command);
+
+                    if editor_state.get().ble_commands_enabled() {
+                        if let Some(command) = motor.switch_command(device, &position) {
+                            println!("Sending switch command {:?}", command);
+                            hub_commands.send(command);
+                        }
                     }
                     motor.position = position;
                 }

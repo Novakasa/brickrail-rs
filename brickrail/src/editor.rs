@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
+use crate::inspector::inspector_system_world;
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
@@ -14,6 +15,9 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, TrackConnection
 use crate::train::Train;
 
 use bevy::prelude::*;
+use bevy_egui::egui::panel::TopBottomSide;
+use bevy_egui::egui::Layout;
+use bevy_egui::{egui, EguiContexts, EguiMousePosition};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -111,6 +115,36 @@ fn update_editor_state(
     }
     if keyboard_buttons.just_pressed(KeyCode::Digit2) {
         editor_state.set(EditorState::PreparingDeviceControl);
+    }
+}
+
+pub fn top_panel(
+    mut egui_contexts: EguiContexts,
+    egui_mouse_pos: Res<EguiMousePosition>,
+    mut input_data: ResMut<InputData>,
+    mut next_editor_state: ResMut<NextState<EditorState>>,
+    editor_state: Res<State<EditorState>>,
+) {
+    let inner_response = egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(
+        &egui_contexts.ctx_mut().clone(),
+        |ui| {
+            ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                ui.label(format!("Mode: {:?}", editor_state.get()));
+                if ui.button("Edit").clicked() {
+                    next_editor_state.set(EditorState::Edit);
+                }
+                if ui.button("Control").clicked() {
+                    next_editor_state.set(EditorState::VirtualControl);
+                }
+                if ui.button("Device control").clicked() {
+                    next_editor_state.set(EditorState::PreparingDeviceControl);
+                }
+            });
+        },
+    );
+
+    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
+        input_data.mouse_over_ui |= inner_response.response.rect.contains(mouse_pos.to_pos2());
     }
 }
 
@@ -453,6 +487,7 @@ impl Plugin for EditorPlugin {
                 update_editor_state,
             ),
         );
+        app.add_systems(PostUpdate, (top_panel.after(inspector_system_world),));
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
             update_active_hubs,
