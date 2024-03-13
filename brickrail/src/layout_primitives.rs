@@ -937,7 +937,7 @@ pub enum Facing {
 }
 
 impl Facing {
-    fn opposite(&self) -> Facing {
+    pub fn opposite(&self) -> Facing {
         match self {
             Facing::Forward => Facing::Backward,
             Facing::Backward => Facing::Forward,

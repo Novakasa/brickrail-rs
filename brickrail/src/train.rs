@@ -9,6 +9,7 @@ use crate::{
     route::{build_route, Route, TrainState},
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
+    train,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
@@ -30,7 +31,8 @@ const TRAIN_WIDTH: f32 = 0.1;
 #[derive(Resource, Default, Debug)]
 struct TrainDragState {
     train_id: Option<TrainID>,
-    target_dir: BlockDirection,
+    target: Option<LogicalBlockID>,
+    target_facing: Facing,
 }
 
 #[derive(Component, Debug)]
@@ -255,7 +257,8 @@ fn init_drag_train(
     if mouse_buttons.just_pressed(MouseButton::Right) {
         if let Some(GenericID::Train(train_id)) = hover_state.hover {
             train_drag_state.train_id = Some(train_id);
-            train_drag_state.target_dir = BlockDirection::Aligned;
+            train_drag_state.target = None;
+            train_drag_state.target_facing = Facing::Forward;
             println!("Dragging train {:?}", train_id)
         }
     }
@@ -264,7 +267,6 @@ fn init_drag_train(
 fn exit_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
-    hover_state: Res<HoverState>,
     entity_map: Res<EntityMap>,
     marker_map: Res<MarkerMap>,
     connections: Res<Connections>,
@@ -278,13 +280,12 @@ fn exit_drag_train(
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            if let Some(GenericID::Block(block_id)) = hover_state.hover {
+            if let Some(target) = train_drag_state.target {
                 let (mut train, ble_train) = q_trains
                     .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                     .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 let start = train.get_logical_block_id();
-                let target = block_id.to_logical(train_drag_state.target_dir, Facing::Forward);
                 // println!("Start: {:?}, Target: {:?}", start, target);
                 if let Some(logical_section) = connections.find_route_section(
                     start,
@@ -336,20 +337,52 @@ fn update_drag_train(
     hover_state: Res<HoverState>,
     q_blocks: Query<&Block>,
     entity_map: Res<EntityMap>,
+    connections: Res<Connections>,
+    track_locks: Res<TrackLocks>,
+    q_trains: Query<&Train>,
+    q_markers: Query<&Marker>,
+    marker_map: Res<MarkerMap>,
+    mut gizmos: Gizmos,
 ) {
     if train_drag_state.train_id.is_none() {
         return;
     }
     if mouse_buttons.just_pressed(MouseButton::Left) {
-        train_drag_state.target_dir = train_drag_state.target_dir.opposite();
-        println!("Target dir: {:?}", train_drag_state.target_dir)
+        train_drag_state.target_facing = train_drag_state.target_facing.opposite();
+        println!("Target facing: {:?}", train_drag_state.target_facing)
     }
     if let Some(GenericID::Block(block_id)) = hover_state.hover {
         let block = q_blocks
             .get(entity_map.get_entity(&GenericID::Block(block_id)).unwrap())
             .unwrap();
-        train_drag_state.target_dir =
-            block.hover_pos_to_direction(mouse_pos.truncate() / LAYOUT_SCALE);
+        train_drag_state.target = Some(block_id.to_logical(
+            block.hover_pos_to_direction(mouse_pos.truncate() / LAYOUT_SCALE),
+            train_drag_state.target_facing,
+        ));
+        let train_id = train_drag_state.train_id.unwrap();
+        let train = q_trains
+            .get(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
+            .unwrap();
+        let start = train.get_logical_block_id();
+        if let Some(logical_section) = connections.find_route_section(
+            start,
+            train_drag_state.target.unwrap(),
+            Some((&train_id, &track_locks)),
+            train.settings.prefer_facing,
+        ) {
+            // println!("Section: {:?}", section);
+            let route = build_route(
+                train_id,
+                &logical_section,
+                &q_markers,
+                &q_blocks,
+                &entity_map,
+                &marker_map,
+            );
+            route.draw_with_gizmos(&mut gizmos);
+        }
+    } else {
+        train_drag_state.target = None;
     }
 }
 
