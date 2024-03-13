@@ -148,7 +148,7 @@ pub fn top_panel(
     }
 }
 
-pub fn status_panel(
+pub fn status_window(
     mut egui_contexts: EguiContexts,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
@@ -174,6 +174,10 @@ pub fn status_panel(
                     }
                     HubState::Connecting => {
                         ui.label("Connecting...");
+                        ui.add(egui::Spinner::default());
+                    }
+                    HubState::StartingProgram => {
+                        ui.label("Starting program...");
                         ui.add(egui::Spinner::default());
                     }
                     HubState::Running => {
@@ -540,7 +544,7 @@ impl Plugin for EditorPlugin {
             Update,
             (
                 top_panel.after(inspector_system_world),
-                status_panel
+                status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),
             ),

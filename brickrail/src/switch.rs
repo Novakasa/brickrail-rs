@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::Ui;
+use bevy_egui::egui::{Align, Layout, Ui};
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
@@ -92,24 +92,28 @@ impl Switch {
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut switch) = switches.get_mut(entity) {
-                ui.label("Switch");
-                let mut current_pos = switch.positions[switch.pos_index].clone();
-                for position in switch.positions.clone() {
-                    ui.radio_value(
-                        &mut current_pos,
-                        position.clone(),
-                        format!("{:?}", position),
-                    );
-                }
-                if current_pos != switch.positions[switch.pos_index] {
-                    set_switch_position.send(SetSwitchPositionEvent {
-                        id: switch.id,
-                        position: current_pos,
-                    });
-                }
+                ui.heading("Switch");
+                ui.label("position");
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    let mut current_pos = switch.positions[switch.pos_index].clone();
+                    for position in switch.positions.clone() {
+                        ui.radio_value(
+                            &mut current_pos,
+                            position.clone(),
+                            format!("{:?}", position),
+                        );
+                    }
+                    if current_pos != switch.positions[switch.pos_index] {
+                        set_switch_position.send(SetSwitchPositionEvent {
+                            id: switch.id,
+                            position: current_pos,
+                        });
+                    }
+                });
+                ui.separator();
                 for (i, motor_id) in &mut switch.motors.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
-                        ui.label(format!("Motor {:}", i));
+                        ui.heading(format!("Motor {:}", i));
                         select_device_id(
                             ui,
                             motor_id,

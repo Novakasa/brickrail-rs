@@ -17,7 +17,7 @@ pub fn inspector_system_world(world: &mut World) {
     let inner_response = egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(
         &egui_contexts.ctx_mut().clone(),
         |ui| {
-            ui.label("Inspector");
+            ui.heading("Inspector");
             {
                 ui.separator();
                 Train::inspector(ui, world);
