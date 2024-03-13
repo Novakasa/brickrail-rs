@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::ble::{BLEHub, HubState};
+use crate::ble::{BLEHub, HubError, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
 use crate::inspector::inspector_system_world;
@@ -152,7 +152,8 @@ pub fn status_window(
     mut egui_contexts: EguiContexts,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
-    q_hubs: Query<&BLEHub>,
+    mut q_hubs: Query<&mut BLEHub>,
+    mut editor_state: ResMut<NextState<EditorState>>,
 ) {
     let inner_response = egui::Window::new("Hub status")
         .movable(false)
@@ -165,7 +166,7 @@ pub fn status_window(
             ui.set_width(ui.available_width());
             ui.heading("Preparing hubs...");
             ui.separator();
-            for hub in q_hubs.iter() {
+            for mut hub in q_hubs.iter_mut() {
                 ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
                 match &hub.state {
                     HubState::Downloading(progress) => {
@@ -188,7 +189,16 @@ pub fn status_window(
                         ui.label(format!("{:?}", state));
                     }
                 }
+                if hub.error != HubError::None {
+                    ui.label(format!("Error: {:?}", hub.error));
+                    if ui.button("Retry").clicked() {
+                        hub.error = HubError::None;
+                    }
+                }
                 ui.separator();
+            }
+            if ui.button("Cancel").clicked() {
+                editor_state.set(EditorState::Edit);
             }
         });
 
@@ -205,13 +215,6 @@ pub fn status_window(
 fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
     for mut hub in hubs.iter_mut() {
         hub.active = true;
-
-        if hub.state == HubState::ProgramError {
-            hub.state = HubState::Connected;
-        }
-        if hub.state == HubState::ConnectError {
-            hub.state = HubState::Disconnected;
-        }
     }
 }
 

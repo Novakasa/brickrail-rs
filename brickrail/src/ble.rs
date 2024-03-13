@@ -27,8 +27,14 @@ pub enum HubState {
     Running,
     StoppingProgram,
     Disconnecting,
-    ProgramError,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub enum HubError {
+    #[default]
+    None,
     ConnectError,
+    ProgramError,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -44,6 +50,8 @@ pub struct BLEHub {
     #[serde(skip)]
     pub state: HubState,
     #[serde(skip)]
+    pub error: HubError,
+    #[serde(skip)]
     downloaded: bool,
 }
 
@@ -56,6 +64,7 @@ impl BLEHub {
             name: None,
             active: false,
             state: HubState::Disconnected,
+            error: HubError::None,
             downloaded: false,
         }
     }
@@ -379,8 +388,18 @@ fn execute_hub_commands(
                 hub.state = HubState::Connecting;
                 let io_hub = hub.hub.clone();
                 let name = hub.name.as_ref().unwrap().clone();
-                runtime.spawn_background_task(move |_| async move {
-                    io_hub.lock().await.connect(&name).await.unwrap();
+                runtime.spawn_background_task(move |mut ctx| async move {
+                    if io_hub.lock().await.connect(&name).await.is_err() {
+                        ctx.run_on_main_thread(move |ctx_main| {
+                            let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                                SystemState::new(ctx_main.world);
+                            let mut query = system_state.get_mut(ctx_main.world);
+                            let mut hub = query.0.get_mut(entity).unwrap();
+                            hub.error = HubError::ConnectError;
+                            hub.state = HubState::Disconnected;
+                        })
+                        .await;
+                    }
                 });
             }
             HubCommand::Disconnect => {
@@ -542,7 +561,8 @@ fn handle_hub_events(
                 } else {
                     match hub.state {
                         HubState::Running => {
-                            hub.state = HubState::ProgramError;
+                            hub.state = HubState::Connected;
+                            hub.error = HubError::ProgramError;
                         }
                         HubState::StoppingProgram | HubState::Connecting => {
                             hub.state = HubState::Connected;
@@ -576,6 +596,9 @@ pub fn prepare_hubs(
             continue;
         }
         if hub.active {
+            if hub.error != HubError::None {
+                return;
+            }
             match hub.state {
                 HubState::Disconnected => {
                     prepared = false;
@@ -599,14 +622,11 @@ pub fn prepare_hubs(
                     }
                 }
                 HubState::Running => {}
-                HubState::ConnectError | HubState::ProgramError => {
-                    prepared = false;
-                    editor_state.set(EditorState::Edit);
-                }
                 _ => {
                     prepared = false;
                 }
             }
+
             if !prepared {
                 // don't parallelize ble stuff, because downloading is slow otherwise
                 // this only makes sense if the query iteration order is deterministic, which it honestly might not be i dunno
