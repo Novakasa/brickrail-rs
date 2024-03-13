@@ -196,8 +196,8 @@ pub fn update_switch_position(
                             println!("Sending switch command {:?}", command);
                             hub_commands.send(command);
                         }
+                        motor.position = position;
                     }
-                    motor.position = position;
                 }
             }
         }
