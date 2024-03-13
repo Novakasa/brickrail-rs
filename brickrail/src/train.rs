@@ -305,6 +305,7 @@ fn exit_drag_train(
             }
         }
         train_drag_state.train_id = None;
+        train_drag_state.route = None;
     }
 }
 
@@ -544,7 +545,7 @@ impl Plugin for TrainPlugin {
             (
                 create_train,
                 draw_train,
-                draw_train_route,
+                draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
                 draw_hover_route,
                 init_drag_train,
