@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::{Align, Layout, Ui};
+use bevy_egui::egui::{self, Align, Layout, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
@@ -65,6 +65,18 @@ pub struct BLETrain {
     pub master_hub: Option<HubID>,
     puppets: Vec<Option<HubID>>,
     train_id: TrainID,
+    #[serde(default)]
+    slow_speed: u16,
+    #[serde(default)]
+    cruise_speed: u16,
+    #[serde(default)]
+    fast_speed: u16,
+    #[serde(default)]
+    acceleration: u16,
+    #[serde(default)]
+    deceleration: u16,
+    #[serde(default)]
+    chroma_threshold: u16,
 }
 
 impl BLETrain {
@@ -73,6 +85,12 @@ impl BLETrain {
             master_hub: None,
             puppets: Vec::new(),
             train_id,
+            slow_speed: 40,
+            cruise_speed: 70,
+            fast_speed: 100,
+            acceleration: 40,
+            deceleration: 90,
+            chroma_threshold: 3500,
         }
     }
 
@@ -140,6 +158,17 @@ impl BLETrain {
         command
     }
 
+    pub fn configure_hubs_command(&self) -> HubCommands {
+        let mut commands = HubCommands::new();
+        commands.merge(self.all_command(IOInput::store_uint(4, self.slow_speed as u32)));
+        commands.merge(self.all_command(IOInput::store_uint(5, self.cruise_speed as u32)));
+        commands.merge(self.all_command(IOInput::store_uint(3, self.fast_speed as u32)));
+        commands.merge(self.all_command(IOInput::store_uint(1, self.acceleration as u32)));
+        commands.merge(self.all_command(IOInput::store_uint(2, self.deceleration as u32)));
+        commands.merge(self.all_command(IOInput::store_uint(0, self.chroma_threshold as u32)));
+        commands
+    }
+
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
             Query<&mut BLETrain>,
@@ -197,6 +226,31 @@ impl BLETrain {
                     ble_train.puppets.push(None);
                 }
                 ui.separator();
+                ui.label("Speeds");
+                ui.horizontal(|ui| {
+                    ui.label("Slow");
+                    ui.add(egui::Slider::new(&mut ble_train.slow_speed, 0..=100));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Cruise");
+                    ui.add(egui::Slider::new(&mut ble_train.cruise_speed, 0..=100));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Fast");
+                    ui.add(egui::Slider::new(&mut ble_train.fast_speed, 0..=100));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Acceleration");
+                    ui.add(egui::DragValue::new(&mut ble_train.acceleration));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Deceleration");
+                    ui.add(egui::DragValue::new(&mut ble_train.deceleration));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Chroma Threshold");
+                    ui.add(egui::DragValue::new(&mut ble_train.chroma_threshold));
+                });
             }
         }
     }

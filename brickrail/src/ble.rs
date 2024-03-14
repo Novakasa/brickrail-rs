@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
-    ble_train::TrainData,
+    ble_train::{BLETrain, TrainData},
     editor::{EditorState, GenericID, Selectable, Selection, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_devices::LayoutDevice,
@@ -648,18 +648,18 @@ fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
 }
 
 fn configure_devices(
-    q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_ble_trains: Query<&BLETrain>,
     mut command_events: EventWriter<HubCommandEvent>,
 ) {
     for (motor, device) in q_switch_motors.iter() {
-        for hub in q_hubs.iter() {
-            if hub.active {
-                for command in motor.configure_commands(device) {
-                    println!("Sending command: {:?}", command);
-                    command_events.send(command);
-                }
-            }
+        for command in motor.configure_commands(device) {
+            command_events.send(command);
+        }
+    }
+    for ble_train in q_ble_trains.iter() {
+        for command in ble_train.configure_hubs_command().hub_events {
+            command_events.send(command);
         }
     }
 }
