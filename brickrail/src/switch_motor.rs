@@ -33,15 +33,26 @@ impl MotorPosition {
     }
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Default, Component, InspectorOptions)]
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Component, InspectorOptions)]
 #[reflect(InspectorOptions)]
 pub struct SwitchMotor {
     #[serde(skip)]
     pub position: MotorPosition,
     #[serde(default)]
     pub inverted: bool,
-    pub pulse_duration: f32,
-    pub pulse_strength: f32,
+    pub pulse_duration: u16,
+    pub pulse_strength: u16,
+}
+
+impl Default for SwitchMotor {
+    fn default() -> Self {
+        Self {
+            position: MotorPosition::Unknown,
+            inverted: false,
+            pulse_duration: 500,
+            pulse_strength: 100,
+        }
+    }
 }
 
 impl SwitchMotor {
@@ -59,6 +70,26 @@ impl SwitchMotor {
             &vec![device.port?.to_u8(), 0, position.to_u8()],
         );
         Some(HubCommandEvent::input(device.hub_id?, input))
+    }
+
+    pub fn configure_commands(&self, device: &LayoutDevice) -> Vec<HubCommandEvent> {
+        let mut commands = vec![];
+        let hub = device.hub_id.unwrap();
+        let address_offset = 8 + device.port.unwrap().to_u8() * 16;
+        commands.push(HubCommandEvent::input(
+            hub,
+            Input::store_uint(address_offset + 0, self.pulse_strength as u32),
+        ));
+        commands.push(HubCommandEvent::input(
+            hub,
+            Input::store_uint(address_offset + 1, self.pulse_duration as u32),
+        ));
+        commands.push(HubCommandEvent::input(
+            hub,
+            Input::store_uint(address_offset + 2, self.inverted as u32),
+        ));
+
+        commands
     }
 }
 

@@ -177,6 +177,19 @@ impl Input {
         }
     }
 
+    pub fn store_uint(address: u8, mut value: u32) -> Self {
+        let mut data = vec![address, 0];
+        while value > 0 {
+            data.insert(2, (value & 0xFF) as u8);
+            value >>= 8;
+        }
+        Input {
+            input_type: InputType::Store,
+            data: data,
+            simulated_error: SimulatedError::None,
+        }
+    }
+
     pub fn with_error(mut self, error: SimulatedError) -> Self {
         self.simulated_error = error;
         self

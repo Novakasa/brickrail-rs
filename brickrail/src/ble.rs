@@ -5,7 +5,9 @@ use crate::{
     ble_train::TrainData,
     editor::{EditorState, GenericID, Selectable, Selection, SelectionState, SpawnHubEvent},
     layout::EntityMap,
+    layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
+    switch_motor::SwitchMotor,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_ecs::system::SystemState;
@@ -638,6 +640,30 @@ pub fn prepare_hubs(
     }
 }
 
+// runs on enter prepare_control state
+fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
+    for mut hub in hubs.iter_mut() {
+        hub.active = true;
+    }
+}
+
+fn configure_devices(
+    q_hubs: Query<&BLEHub>,
+    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    mut command_events: EventWriter<HubCommandEvent>,
+) {
+    for (motor, device) in q_switch_motors.iter() {
+        for hub in q_hubs.iter() {
+            if hub.active {
+                for command in motor.configure_commands(device) {
+                    println!("Sending command: {:?}", command);
+                    command_events.send(command);
+                }
+            }
+        }
+    }
+}
+
 fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<EditorState>>) {
     for hub in q_hubs.iter() {
         if hub.active {
@@ -669,6 +695,11 @@ impl Plugin for BLEPlugin {
                 prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                 monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
             ),
+        );
+        app.add_systems(OnEnter(EditorState::DeviceControl), configure_devices);
+        app.add_systems(
+            OnEnter(EditorState::PreparingDeviceControl),
+            update_active_hubs,
         );
     }
 }

@@ -16,7 +16,7 @@ use crate::train::Train;
 
 use bevy::prelude::*;
 use bevy_egui::egui::panel::TopBottomSide;
-use bevy_egui::egui::{Align2, Layout};
+use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts, EguiMousePosition};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -148,7 +148,7 @@ pub fn top_panel(
     }
 }
 
-pub fn status_window(
+pub fn hub_status_window(
     mut egui_contexts: EguiContexts,
     egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
@@ -167,7 +167,17 @@ pub fn status_window(
             ui.heading("Preparing hubs...");
             ui.separator();
             for mut hub in q_hubs.iter_mut() {
-                ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
+                    if hub.state == HubState::Running {
+                        // ui.heading("✔".to_string());
+                        ui.label(
+                            egui::RichText::new("✔".to_string())
+                                .heading()
+                                .color(egui::Color32::GREEN),
+                        );
+                    }
+                });
                 match &hub.state {
                     HubState::Downloading(progress) => {
                         ui.label("Downloading...");
@@ -181,10 +191,7 @@ pub fn status_window(
                         ui.label("Starting program...");
                         ui.add(egui::Spinner::default());
                     }
-                    HubState::Running => {
-                        // display checkmark
-                        ui.label("Running!").highlight();
-                    }
+                    HubState::Running => {}
                     state => {
                         ui.label(format!("{:?}", state));
                     }
@@ -208,13 +215,6 @@ pub fn status_window(
             .response
             .rect
             .contains(mouse_pos.to_pos2());
-    }
-}
-
-// runs on enter prepare_control state
-fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
-    for mut hub in hubs.iter_mut() {
-        hub.active = true;
     }
 }
 
@@ -547,14 +547,10 @@ impl Plugin for EditorPlugin {
             Update,
             (
                 top_panel.after(inspector_system_world),
-                status_window
+                hub_status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),
             ),
-        );
-        app.add_systems(
-            OnEnter(EditorState::PreparingDeviceControl),
-            update_active_hubs,
         );
     }
 }

@@ -3,7 +3,6 @@ from micropython import const
 from usys import stdout, stdin
 from ustruct import pack
 import uselect
-import urandom
 
 
 from pybricks.hubs import ThisHub
@@ -206,6 +205,7 @@ class IOHub:
             value = 0
             for i, byte in enumerate(data):
                 value += byte << 8 * (len(data) - 1 - i)
+            print("storing:", address, value)
             self.storage[address] = value
             return
 
