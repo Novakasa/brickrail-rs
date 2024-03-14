@@ -170,17 +170,8 @@ impl BLETrain {
         commands.merge(self.all_command(IOInput::store_uint(1, self.acceleration as u32)));
         commands.merge(self.all_command(IOInput::store_uint(2, self.deceleration as u32)));
         commands.merge(self.all_command(IOInput::store_uint(0, self.chroma_threshold as u32)));
-        for port in [
-            HubPort::A,
-            HubPort::B,
-            HubPort::C,
-            HubPort::D,
-            HubPort::E,
-            HubPort::F,
-        ]
-        .iter()
-        {
-            let inverted = self.inverted_ports.contains(port) as u32;
+        for port in HubPort::iter() {
+            let inverted = self.inverted_ports.contains(&port) as u32;
             commands.merge(self.all_command(IOInput::store_uint(6 + port.to_u8(), inverted)));
         }
         commands

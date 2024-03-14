@@ -217,22 +217,12 @@ impl BLEHub {
                                 .unwrap_or("None".to_string())
                         ))
                         .show_ui(ui, |ui| {
-                            for option in [
-                                None,
-                                Some(HubPort::A),
-                                Some(HubPort::B),
-                                Some(HubPort::C),
-                                Some(HubPort::D),
-                                Some(HubPort::E),
-                                Some(HubPort::F),
-                            ] {
+                            ui.selectable_value(selected_port, None, "None");
+                            for option in HubPort::iter() {
                                 ui.selectable_value(
                                     selected_port,
-                                    option,
-                                    format!(
-                                        "{:}",
-                                        option.map(|h| h.to_string()).unwrap_or("None".to_string())
-                                    ),
+                                    Some(option),
+                                    option.to_string(),
                                 );
                             }
                         });

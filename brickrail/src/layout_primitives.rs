@@ -69,6 +69,19 @@ impl HubPort {
             HubPort::F => 5,
         }
     }
+
+    pub fn iter() -> impl Iterator<Item = HubPort> {
+        [
+            HubPort::A,
+            HubPort::B,
+            HubPort::C,
+            HubPort::D,
+            HubPort::E,
+            HubPort::F,
+        ]
+        .iter()
+        .copied()
+    }
 }
 
 #[derive(
