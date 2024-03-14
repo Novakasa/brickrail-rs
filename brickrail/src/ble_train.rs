@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::{self, Align, Layout, Ui};
+use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandEvent, HubMessageEvent},
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
-    layout_primitives::{Facing, HubID, HubType, TrainID},
+    layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
     route::{LegIntention, Route},
     train::Train,
@@ -77,6 +78,8 @@ pub struct BLETrain {
     deceleration: u16,
     #[serde(default)]
     chroma_threshold: u16,
+    #[serde(default)]
+    inverted_ports: Vec<HubPort>,
 }
 
 impl BLETrain {
@@ -91,6 +94,7 @@ impl BLETrain {
             acceleration: 40,
             deceleration: 90,
             chroma_threshold: 3500,
+            inverted_ports: Vec::new(),
         }
     }
 
@@ -166,6 +170,19 @@ impl BLETrain {
         commands.merge(self.all_command(IOInput::store_uint(1, self.acceleration as u32)));
         commands.merge(self.all_command(IOInput::store_uint(2, self.deceleration as u32)));
         commands.merge(self.all_command(IOInput::store_uint(0, self.chroma_threshold as u32)));
+        for port in [
+            HubPort::A,
+            HubPort::B,
+            HubPort::C,
+            HubPort::D,
+            HubPort::E,
+            HubPort::F,
+        ]
+        .iter()
+        {
+            let inverted = self.inverted_ports.contains(port) as u32;
+            commands.merge(self.all_command(IOInput::store_uint(6 + port.to_u8(), inverted)));
+        }
         commands
     }
 
@@ -182,7 +199,7 @@ impl BLETrain {
             mut ble_trains,
             mut entity_map,
             mut selection_state,
-            _type_registry,
+            type_registry,
             hubs,
             mut spawn_events,
         ) = state.get_mut(world);
@@ -251,6 +268,26 @@ impl BLETrain {
                     ui.label("Chroma Threshold");
                     ui.add(egui::DragValue::new(&mut ble_train.chroma_threshold));
                 });
+                ui.separator();
+                ui.label("Inverted Ports");
+                let mut remove_index = None;
+                for (i, port) in ble_train.inverted_ports.iter_mut().enumerate() {
+                    ui.push_id(i, |ui| {
+                        ui.horizontal(|ui| {
+                            ui_for_value(port, ui, &type_registry.read());
+                            if ui.button("Remove").clicked() {
+                                remove_index = Some(i);
+                                println!("Remove {}", i);
+                            }
+                        });
+                    });
+                }
+                if let Some(i) = remove_index {
+                    ble_train.inverted_ports.remove(i);
+                }
+                if ui.button("Add").clicked() {
+                    ble_train.inverted_ports.push(HubPort::A);
+                }
             }
         }
     }

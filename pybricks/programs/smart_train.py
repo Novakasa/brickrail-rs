@@ -47,6 +47,21 @@ _CONFIG_MOTOR_INVERTED = const(6)  # and the following 5 adresses are also reser
 _DUMP_TYPE_COLORS = const(1)
 
 
+def port_index(port):
+    try:  # Primehub
+        return [Port.A, Port.B, Port.C, Port.D, Port.E, Port.F].index(port)
+    except AttributeError:
+        pass
+
+    try:  # Technichub
+        return [Port.A, Port.B, Port.C, Port.D].index(port)
+    except AttributeError:
+        pass
+
+    # Cityhub
+    return [Port.A, Port.B].index(port)
+
+
 class TrainSensor:
     def __init__(self, marker_exit_callback):
         for port in ["A", "B", "C", "D", "E", "F"]:
@@ -132,6 +147,7 @@ class TrainMotor:
         self.speed = 0
         self.target_speed = 0
         self.motors = []
+        self.motor_ports = []
         for port in ["A", "B", "C", "D", "E", "F"]:
             try:
                 port = getattr(Port, port)
@@ -139,9 +155,11 @@ class TrainMotor:
                 break
             try:
                 self.motors.append(DCMotor(port))
+                self.motor_ports.append(port_index(port))
             except OSError:
                 try:
                     self.motors.append(Motor(port))
+                    self.motor_ports.append(port_index(port))
                 except OSError:
                     continue
         self.facing = 1
@@ -178,7 +196,9 @@ class TrainMotor:
             self.speed += delta * io_hub.storage[_CONFIG_MOTOR_DEC] * self.facing
 
         for i, motor in enumerate(self.motors):
-            polarity = (io_hub.storage[_CONFIG_MOTOR_INVERTED + i] * -2) + 1
+            polarity = (
+                io_hub.storage[_CONFIG_MOTOR_INVERTED + self.motor_ports[i]] * -2
+            ) + 1
             motor.dc(self.speed * polarity)
 
 
