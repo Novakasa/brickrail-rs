@@ -185,16 +185,22 @@ pub fn hub_status_window(
                 }
                 match &hub.state {
                     HubState::Downloading(progress) => {
-                        ui.label("Downloading...");
-                        ui.add(egui::ProgressBar::new(*progress));
+                        ui.horizontal(|ui| {
+                            ui.label("Downloading...");
+                            ui.add(egui::ProgressBar::new(*progress));
+                        });
                     }
                     HubState::Connecting => {
-                        ui.label("Connecting...");
-                        ui.add(egui::Spinner::default());
+                        ui.horizontal(|ui| {
+                            ui.label("Connecting...");
+                            ui.add(egui::Spinner::default());
+                        });
                     }
                     HubState::StartingProgram => {
-                        ui.label("Starting program...");
-                        ui.add(egui::Spinner::default());
+                        ui.horizontal(|ui| {
+                            ui.label("Starting program...");
+                            ui.add(egui::Spinner::default());
+                        });
                     }
                     HubState::Running => {}
                     state => {
