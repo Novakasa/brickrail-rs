@@ -169,7 +169,7 @@ pub fn hub_status_window(
             for mut hub in q_hubs.iter_mut() {
                 ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                     ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
-                    if hub.state == HubState::Running {
+                    if hub.state == HubState::Running || !hub.active {
                         // ui.heading("✔".to_string());
                         ui.label(
                             egui::RichText::new("✔".to_string())
@@ -178,6 +178,11 @@ pub fn hub_status_window(
                         );
                     }
                 });
+                if hub.active {
+                    ui.label("Active");
+                } else {
+                    ui.label("Inactive");
+                }
                 match &hub.state {
                     HubState::Downloading(progress) => {
                         ui.label("Downloading...");

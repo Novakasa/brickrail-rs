@@ -74,7 +74,9 @@ impl SwitchMotor {
 
     pub fn configure_commands(&self, device: &LayoutDevice) -> Vec<HubCommandEvent> {
         let mut commands = vec![];
-        let hub = device.hub_id.unwrap();
+        let Some(hub) = device.hub_id else {
+            return commands;
+        };
         let address_offset = 8 + device.port.unwrap().to_u8() * 16;
         commands.push(HubCommandEvent::input(
             hub,

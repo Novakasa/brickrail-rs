@@ -7,6 +7,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
+    switch::Switch,
     switch_motor::SwitchMotor,
 };
 use bevy::{input::keyboard, prelude::*};
@@ -631,9 +632,37 @@ pub fn prepare_hubs(
 }
 
 // runs on enter prepare_control state
-fn update_active_hubs(mut hubs: Query<&mut BLEHub>) {
+fn update_active_hubs(
+    mut hubs: Query<&mut BLEHub>,
+    q_ble_trains: Query<&BLETrain>,
+    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_switches: Query<&Switch>,
+    entity_map: Res<EntityMap>,
+) {
+    let mut active_hub_ids = Vec::new();
+    for ble_train in q_ble_trains.iter() {
+        if let Some(hub_id) = ble_train.master_hub.clone() {
+            active_hub_ids.push(hub_id);
+        }
+        for hub_id in ble_train.iter_puppets().cloned() {
+            active_hub_ids.push(hub_id);
+        }
+    }
+
+    for switch in q_switches.iter() {
+        for motor_id_option in switch.motors.iter() {
+            if let Some(motor_id) = motor_id_option {
+                let entity = entity_map.layout_devices.get(motor_id).unwrap();
+                if let Ok((motor, device)) = q_switch_motors.get(*entity) {
+                    if let Some(hub_id) = device.hub_id {
+                        active_hub_ids.push(hub_id);
+                    }
+                }
+            }
+        }
+    }
     for mut hub in hubs.iter_mut() {
-        hub.active = true;
+        hub.active = active_hub_ids.contains(&hub.id);
     }
 }
 

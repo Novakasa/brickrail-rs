@@ -152,10 +152,9 @@ impl BLETrain {
 
     fn all_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        command.push(HubCommandEvent::input(
-            self.master_hub.unwrap(),
-            input.clone(),
-        ));
+        if let Some(hub_id) = self.master_hub {
+            command.push(HubCommandEvent::input(hub_id, input.clone()));
+        }
         for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
             command.push(HubCommandEvent::input(*hub_id, input.clone()));
         }

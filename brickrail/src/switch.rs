@@ -20,7 +20,7 @@ pub struct Switch {
     positions: Vec<SwitchPosition>,
     #[serde(skip)]
     pos_index: usize,
-    motors: Vec<Option<LayoutDeviceID>>,
+    pub motors: Vec<Option<LayoutDeviceID>>,
 }
 
 impl Switch {
