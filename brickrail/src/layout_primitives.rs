@@ -1010,6 +1010,13 @@ impl LogicalTrackID {
         self.dirtrack.track
     }
 
+    pub fn discriminator(&self) -> LogicalDiscriminator {
+        LogicalDiscriminator {
+            direction: self.dirtrack.direction,
+            facing: self.facing,
+        }
+    }
+
     pub fn get_name(&self) -> String {
         format!("{}{}", self.dirtrack.get_name(), self.facing.get_name())
     }

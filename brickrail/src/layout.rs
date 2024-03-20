@@ -275,23 +275,56 @@ impl<'a> Iterator for ConnectionIterator<'a> {
 #[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Connections {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
+    connection_graph: DiGraphMap<TrackID, TrackConnectionID>,
 }
 
 impl Connections {
     pub fn has_track(&self, track: TrackID) -> bool {
-        for logical_track in track.logical_tracks() {
-            if self.logical_graph.contains_node(logical_track) {
-                return true;
-            }
-        }
-        return false;
+        self.connection_graph.contains_node(track)
     }
 
-    pub fn add_track(&mut self, track: TrackID) {
+    pub fn add_track(
+        &mut self,
+        track: TrackID,
+        logical_filter: &HashMap<LogicalDiscriminator, bool>,
+    ) {
+        self.connection_graph.add_node(track);
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
-                self.logical_graph.add_node(logical_track);
+                if logical_filter
+                    .get(&logical_track.discriminator())
+                    .copied()
+                    .unwrap_or(true)
+                {
+                    self.logical_graph.add_node(logical_track);
+                }
             }
+        }
+    }
+
+    pub fn apply_filter(
+        &mut self,
+        track: TrackID,
+        logical_filter: &HashMap<LogicalDiscriminator, bool>,
+    ) {
+        for dirtrack in track.dirtracks() {
+            for logical_track in dirtrack.logical_tracks() {
+                if logical_filter
+                    .get(&logical_track.discriminator())
+                    .copied()
+                    .unwrap_or(true)
+                {
+                    self.logical_graph.add_node(logical_track);
+                } else {
+                    self.logical_graph.remove_node(logical_track);
+                    // this should automatically remove logical connections as well
+                }
+            }
+        }
+
+        // Add potential logical connections to logical_graph if they exist in connection_graph:
+        for (track_a, track_b, connection) in self.connection_graph.edges(track) {
+            for logical_connection in connection.logical_connections() {}
         }
     }
 
@@ -365,12 +398,20 @@ impl Connections {
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
         for logical in connection.logical_connections() {
-            self.logical_graph
-                .add_edge(logical.from_track, logical.to_track, ());
+            if self.logical_graph.contains_node(logical.from_track)
+                && self.logical_graph.contains_node(logical.to_track)
+            {
+                self.logical_graph
+                    .add_edge(logical.from_track, logical.to_track, ());
+            }
         }
     }
 
     pub fn connect_tracks(&mut self, track_a: &LogicalTrackID, track_b: &LogicalTrackID) {
+        assert!(
+            self.logical_graph.contains_node(track_a.clone())
+                && self.logical_graph.contains_node(track_b.clone())
+        );
         self.logical_graph
             .add_edge(track_a.clone(), track_b.clone(), ());
     }

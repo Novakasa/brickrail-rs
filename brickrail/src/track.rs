@@ -86,7 +86,7 @@ pub fn spawn_track(
     for request in event_reader.read() {
         let track = request.0.clone();
         let track_id = track.id;
-        connections.add_track(track_id);
+        connections.add_track(track_id, &track.logical_filters);
         let entity = commands.spawn(TrackBundle::from_track(track)).id();
         entity_map.add_track(track_id, entity);
     }
