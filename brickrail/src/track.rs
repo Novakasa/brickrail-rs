@@ -6,7 +6,7 @@ use crate::{
     switch::UpdateSwitchTurnsEvent,
     utils::bresenham_line,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
@@ -58,7 +58,7 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.send(SpawnTrackEvent(Track { id: track_id }));
+                    track_event_writer.send(SpawnTrackEvent(Track::from_id(track_id)));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
@@ -245,6 +245,7 @@ impl TrackBaseShape {
 #[derive(Component, Clone, Debug)]
 pub struct Track {
     pub id: TrackID,
+    pub logical_filters: HashMap<LogicalDiscriminator, bool>,
 }
 
 impl Serialize for Track {
@@ -261,13 +262,24 @@ impl<'de> Deserialize<'de> for Track {
     where
         D: Deserializer<'de>,
     {
-        Ok(Self {
-            id: TrackID::deserialize(deserializer)?,
-        })
+        Ok(Self::from_id(TrackID::deserialize(deserializer)?))
     }
 }
 
 impl Track {
+    pub fn from_id(id: TrackID) -> Self {
+        let mut logical_filters = HashMap::new();
+        for facing in [Facing::Forward, Facing::Backward] {
+            for direction in [TrackDirection::First, TrackDirection::Last] {
+                logical_filters.insert(LogicalDiscriminator { direction, facing }, true);
+            }
+        }
+        Self {
+            id,
+            logical_filters,
+        }
+    }
+
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
             Query<&mut Track>,
@@ -279,7 +291,7 @@ impl Track {
         let (mut tracks, entity_map, selection_state, _type_registry, mut marker_spawner) =
             state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok(track) = tracks.get_mut(entity) {
+            if let Ok(mut track) = tracks.get_mut(entity) {
                 ui.label("Inspectable track lol");
                 if !entity_map.markers.contains_key(&track.id) {
                     if ui.button("Add Marker").clicked() {
@@ -288,6 +300,17 @@ impl Track {
                         let marker = Marker::new(id, MarkerColor::Red);
                         marker_spawner.send(MarkerSpawnEvent(marker));
                     }
+                }
+                ui.separator();
+                ui.heading("Logical filters");
+                let track_id = track.id;
+                for (logical, value) in track.logical_filters.iter_mut() {
+                    let logical_track = track_id
+                        .get_directed(logical.direction)
+                        .get_logical(logical.facing);
+                    ui.push_id(logical, |ui| {
+                        ui.checkbox(value, format!("{}", logical_track.get_dirstring()));
+                    });
                 }
                 ui.separator();
             }
@@ -318,7 +341,7 @@ pub struct TrackBundle {
 impl TrackBundle {
     pub fn new(track_id: TrackID) -> Self {
         Self {
-            track: Track { id: track_id },
+            track: Track::from_id(track_id),
             name: Name::new(format!("{:?}", track_id)),
         }
     }

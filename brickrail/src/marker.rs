@@ -166,7 +166,7 @@ impl Marker {
                 ui.label("Logical data");
                 for (logical, data) in marker.logical_data.iter_mut() {
                     ui.push_id(logical, |ui| {
-                        ui.label(&format!("{:?}", logical));
+                        ui.label(logical.get_dirstring());
                         ui_for_value(data, ui, &type_registry.read());
                     });
                 }

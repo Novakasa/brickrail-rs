@@ -9,6 +9,12 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
+pub struct LogicalDiscriminator {
+    pub direction: TrackDirection,
+    pub facing: Facing,
+}
+
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SwitchPosition {
     Left,
@@ -1019,6 +1025,21 @@ impl LogicalTrackID {
     pub fn is_default(&self) -> bool {
         self.facing == Facing::Forward && self.dirtrack.direction == TrackDirection::First
     }
+
+    pub fn get_dirstring(&self) -> String {
+        let dirname = match self.dirtrack.dir_index() {
+            0 => "E",
+            1 => "SE",
+            2 => "S",
+            3 => "SW",
+            4 => "W",
+            5 => "NW",
+            6 => "N",
+            7 => "NE",
+            _ => panic!("invalid dir index"),
+        };
+        format!("{:?}s towards {}", self.facing, dirname)
+    }
 }
 
 impl fmt::Debug for LogicalTrackID {
@@ -1113,6 +1134,16 @@ impl DirectedTrackID {
 
     pub fn distance_to(&self, pos: Vec2) -> f32 {
         self.track.distance_to(pos)
+    }
+
+    pub fn to_cardinal(&self) -> Cardinal {
+        self.track.orientation.get_cardinal(self.direction)
+    }
+
+    pub fn from_cardinal(&self) -> Cardinal {
+        self.track
+            .orientation
+            .get_cardinal(self.direction.opposite())
     }
 
     pub fn to_slot(&self) -> Slot {
