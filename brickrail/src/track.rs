@@ -41,9 +41,6 @@ fn build_connection_path(connection: TrackConnectionID) -> Path {
     path_builder.build()
 }
 
-#[derive(Debug, Clone, Event)]
-pub struct SpawnTrackEvent(pub Track);
-
 impl TrackBuildState {
     fn build(
         &mut self,
@@ -86,7 +83,7 @@ pub fn spawn_track(
     for request in event_reader.read() {
         let track = request.0.clone();
         let track_id = track.id;
-        connections.add_filtered_track(track_id, &track.logical_filters);
+        connections.add_filtered_track(track_id, &track.logical_filter);
         let entity = commands.spawn(TrackBundle::from_track(track)).id();
         entity_map.add_track(track_id, entity);
     }
@@ -242,41 +239,98 @@ impl TrackBaseShape {
     }
 }
 
-#[derive(Component, Clone, Debug)]
-pub struct Track {
-    pub id: TrackID,
-    pub logical_filters: HashMap<LogicalDiscriminator, bool>,
+#[derive(Debug, Clone)]
+pub struct TrackLogicalFilter {
+    pub filters: HashMap<LogicalDiscriminator, bool>,
 }
 
-impl Serialize for Track {
+impl TrackLogicalFilter {
+    pub fn default() -> Self {
+        let mut filters = HashMap::new();
+        for facing in [Facing::Forward, Facing::Backward] {
+            for direction in [TrackDirection::First, TrackDirection::Last] {
+                filters.insert(LogicalDiscriminator { direction, facing }, true);
+            }
+        }
+        Self { filters }
+    }
+
+    pub fn is_default(&self) -> bool {
+        // false if any entry is false
+        self.filters.iter().all(|(_, value)| *value)
+    }
+}
+
+impl Serialize for TrackLogicalFilter {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        self.id.serialize(serializer)
+        let filtered_keys: Vec<LogicalDiscriminator> = self
+            .filters
+            .iter()
+            .filter(|(_, value)| !**value)
+            .map(|(key, _)| key.clone())
+            .collect();
+        filtered_keys.serialize(serializer)
     }
 }
 
-impl<'de> Deserialize<'de> for Track {
+impl<'de> Deserialize<'de> for TrackLogicalFilter {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(Self::from_id(TrackID::deserialize(deserializer)?))
+        let mut filter = Self::default();
+        let filtered_keys: Vec<LogicalDiscriminator> = Vec::deserialize(deserializer)?;
+        for key in filtered_keys {
+            filter.filters.insert(key, false);
+        }
+        Ok(filter)
     }
+}
+
+#[derive(Debug, Clone, Event)]
+pub struct SpawnTrackEvent(pub Track);
+
+impl Serialize for SpawnTrackEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.0.logical_filter.is_default() {
+            self.0.id.serialize(serializer)
+        } else {
+            self.0.serialize(serializer)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SpawnTrackEvent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let track = match serde_json::from_value::<TrackID>(value.clone()) {
+            Ok(id) => Track::from_id(id),
+            Err(err) => serde_json::from_value::<Track>(value).unwrap(),
+        };
+        Ok(SpawnTrackEvent(track))
+    }
+}
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Track {
+    pub id: TrackID,
+    pub logical_filter: TrackLogicalFilter,
 }
 
 impl Track {
     pub fn from_id(id: TrackID) -> Self {
-        let mut logical_filters = HashMap::new();
-        for facing in [Facing::Forward, Facing::Backward] {
-            for direction in [TrackDirection::First, TrackDirection::Last] {
-                logical_filters.insert(LogicalDiscriminator { direction, facing }, true);
-            }
-        }
         Self {
             id,
-            logical_filters,
+            logical_filter: TrackLogicalFilter::default(),
         }
     }
 
@@ -312,7 +366,7 @@ impl Track {
                 ui.heading("Logical filters");
                 let track_id = track.id;
                 let mut changed = false;
-                for (logical, value) in track.logical_filters.iter_mut() {
+                for (logical, value) in track.logical_filter.filters.iter_mut() {
                     let logical_track = track_id
                         .get_directed(logical.direction)
                         .get_logical(logical.facing);
@@ -324,7 +378,7 @@ impl Track {
                 }
                 if changed {
                     println!("Changed logical filters");
-                    connections.add_filtered_track(track_id, &track.logical_filters)
+                    connections.add_filtered_track(track_id, &track.logical_filter)
                 }
                 ui.separator();
             }

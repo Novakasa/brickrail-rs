@@ -3,7 +3,7 @@ use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionEvent;
-use crate::track::LAYOUT_SCALE;
+use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
@@ -283,11 +283,7 @@ impl Connections {
         self.connection_graph.contains_node(track)
     }
 
-    pub fn add_filtered_track(
-        &mut self,
-        track: TrackID,
-        logical_filter: &HashMap<LogicalDiscriminator, bool>,
-    ) {
+    pub fn add_filtered_track(&mut self, track: TrackID, logical_filter: &TrackLogicalFilter) {
         self.connection_graph.add_node(track);
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
@@ -314,6 +310,7 @@ impl Connections {
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
                 if !logical_filter
+                    .filters
                     .get(&logical_track.discriminator())
                     .copied()
                     .unwrap_or(true)

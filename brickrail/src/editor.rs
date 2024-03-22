@@ -380,7 +380,7 @@ pub struct SpawnHubEvent {
 #[derive(Serialize, Deserialize, Clone)]
 struct SerializableLayout {
     marker_map: MarkerMap,
-    tracks: Vec<Track>,
+    tracks: Vec<SpawnTrackEvent>,
     connections: Vec<SpawnConnectionEvent>,
     blocks: Vec<Block>,
     markers: Vec<Marker>,
@@ -411,7 +411,10 @@ pub fn save_layout(
         let mut file = std::fs::File::create("layout.json").unwrap();
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
-        let tracks = q_tracks.iter().map(|t| t.clone()).collect();
+        let tracks = q_tracks
+            .iter()
+            .map(|t| SpawnTrackEvent(t.clone()))
+            .collect();
         let trains = q_trains
             .iter()
             .map(|(train, ble_train)| SpawnTrainEvent {
@@ -478,7 +481,7 @@ pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<Key
         // commands.insert_resource(connections);
         for track in layout_value.tracks {
             commands.add(|world: &mut World| {
-                world.send_event(SpawnTrackEvent(track));
+                world.send_event(track);
             });
         }
         for connection in layout_value.connections {
