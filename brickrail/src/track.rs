@@ -315,7 +315,7 @@ impl<'de> Deserialize<'de> for SpawnTrackEvent {
         let value = serde_json::Value::deserialize(deserializer)?;
         let track = match serde_json::from_value::<TrackID>(value.clone()) {
             Ok(id) => Track::from_id(id),
-            Err(err) => serde_json::from_value::<Track>(value).unwrap(),
+            Err(_) => serde_json::from_value::<Track>(value).unwrap(),
         };
         Ok(SpawnTrackEvent(track))
     }
@@ -395,9 +395,6 @@ impl Track {
                         }
                     }
                     Some(entrance) => {
-                        if ui.button("Clear portal entrance").clicked() {
-                            track_build_state.portal_entrance = None;
-                        }
                         if let Some(directed) = connections.get_unconnected_dirtrack(track_id) {
                             if directed != entrance {
                                 if ui.button("Set as portal exit").clicked() {
@@ -408,7 +405,12 @@ impl Track {
                                         update_switches: true,
                                     });
                                 }
+                            } else {
+                                ui.label("Select exit track to create portal");
                             }
+                        }
+                        if ui.button("Clear portal entrance").clicked() {
+                            track_build_state.portal_entrance = None;
                         }
                     }
                 }
