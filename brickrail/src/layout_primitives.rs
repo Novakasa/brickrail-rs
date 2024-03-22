@@ -1214,8 +1214,8 @@ impl DirectedTrackID {
 
     pub fn dir_index(&self) -> i32 {
         match self.direction {
-            TrackDirection::First => self.track.orientation.turn_index(),
-            TrackDirection::Last => (self.track.orientation.turn_index() + 4) % 8,
+            TrackDirection::Last => self.track.orientation.turn_index(),
+            TrackDirection::First => (self.track.orientation.turn_index() + 4) % 8,
         }
     }
 

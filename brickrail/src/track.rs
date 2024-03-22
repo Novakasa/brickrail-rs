@@ -86,7 +86,7 @@ pub fn spawn_track(
     for request in event_reader.read() {
         let track = request.0.clone();
         let track_id = track.id;
-        connections.add_track(track_id, &track.logical_filters);
+        connections.add_filtered_track(track_id, &track.logical_filters);
         let entity = commands.spawn(TrackBundle::from_track(track)).id();
         entity_map.add_track(track_id, entity);
     }
@@ -287,9 +287,16 @@ impl Track {
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             EventWriter<MarkerSpawnEvent>,
+            ResMut<Connections>,
         )>::new(world);
-        let (mut tracks, entity_map, selection_state, _type_registry, mut marker_spawner) =
-            state.get_mut(world);
+        let (
+            mut tracks,
+            entity_map,
+            selection_state,
+            _type_registry,
+            mut marker_spawner,
+            mut connections,
+        ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut track) = tracks.get_mut(entity) {
                 ui.label("Inspectable track lol");
@@ -304,13 +311,20 @@ impl Track {
                 ui.separator();
                 ui.heading("Logical filters");
                 let track_id = track.id;
+                let mut changed = false;
                 for (logical, value) in track.logical_filters.iter_mut() {
                     let logical_track = track_id
                         .get_directed(logical.direction)
                         .get_logical(logical.facing);
                     ui.push_id(logical, |ui| {
-                        ui.checkbox(value, format!("{}", logical_track.get_dirstring()));
+                        changed |= ui
+                            .checkbox(value, format!("{}", logical_track.get_dirstring()))
+                            .changed();
                     });
+                }
+                if changed {
+                    println!("Changed logical filters");
+                    connections.add_filtered_track(track_id, &track.logical_filters)
                 }
                 ui.separator();
             }

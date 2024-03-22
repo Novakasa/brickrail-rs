@@ -6,7 +6,7 @@ use crate::switch::SetSwitchPositionEvent;
 use crate::track::LAYOUT_SCALE;
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
-use petgraph::graphmap::DiGraphMap;
+use petgraph::graphmap::{DiGraphMap, UnGraphMap};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
@@ -275,7 +275,7 @@ impl<'a> Iterator for ConnectionIterator<'a> {
 #[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Connections {
     logical_graph: DiGraphMap<LogicalTrackID, ()>,
-    connection_graph: DiGraphMap<TrackID, TrackConnectionID>,
+    connection_graph: UnGraphMap<TrackID, TrackConnectionID>,
 }
 
 impl Connections {
@@ -283,7 +283,7 @@ impl Connections {
         self.connection_graph.contains_node(track)
     }
 
-    pub fn add_track(
+    pub fn add_filtered_track(
         &mut self,
         track: TrackID,
         logical_filter: &HashMap<LogicalDiscriminator, bool>,
@@ -291,40 +291,38 @@ impl Connections {
         self.connection_graph.add_node(track);
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
-                if logical_filter
-                    .get(&logical_track.discriminator())
-                    .copied()
-                    .unwrap_or(true)
-                {
+                if !self.logical_graph.contains_node(logical_track) {
                     self.logical_graph.add_node(logical_track);
                 }
             }
         }
-    }
 
-    pub fn apply_filter(
-        &mut self,
-        track: TrackID,
-        logical_filter: &HashMap<LogicalDiscriminator, bool>,
-    ) {
+        let connections = self
+            .connection_graph
+            .edges(track)
+            .map(|(_, _, c)| c)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        // this just makes sure all possible logical connections are present
+        // the ones not matching the filter will be removed below
+        for connection in connections {
+            println!("Reconnecting {:?}", connection);
+            self.connect_tracks_simple(&connection);
+        }
+
         for dirtrack in track.dirtracks() {
             for logical_track in dirtrack.logical_tracks() {
-                if logical_filter
+                if !logical_filter
                     .get(&logical_track.discriminator())
                     .copied()
                     .unwrap_or(true)
                 {
-                    self.logical_graph.add_node(logical_track);
-                } else {
-                    self.logical_graph.remove_node(logical_track);
                     // this should automatically remove logical connections as well
+                    println!("Removing track {:?}", logical_track);
+                    self.logical_graph.remove_node(logical_track);
                 }
             }
-        }
-
-        // Add potential logical connections to logical_graph if they exist in connection_graph:
-        for (track_a, track_b, connection) in self.connection_graph.edges(track) {
-            for logical_connection in connection.logical_connections() {}
         }
     }
 
@@ -397,12 +395,22 @@ impl Connections {
     }
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
+        self.connection_graph.add_edge(
+            connection.track_a().track,
+            connection.track_b().track,
+            connection.clone(),
+        );
         for logical in connection.logical_connections() {
             if self.logical_graph.contains_node(logical.from_track)
                 && self.logical_graph.contains_node(logical.to_track)
             {
-                self.logical_graph
-                    .add_edge(logical.from_track, logical.to_track, ());
+                if !self
+                    .logical_graph
+                    .contains_edge(logical.from_track, logical.to_track)
+                {
+                    self.logical_graph
+                        .add_edge(logical.from_track, logical.to_track, ());
+                }
             }
         }
     }
