@@ -22,6 +22,7 @@ pub const LAYOUT_SCALE: f32 = 40.0;
 struct TrackBuildState {
     hover_cells: Vec<CellID>,
     hover_track: Option<TrackID>,
+    portal_entrance: Option<DirectedTrackID>,
 }
 
 fn build_connection_path(connection: TrackConnectionID) -> Path {
@@ -342,6 +343,8 @@ impl Track {
             Res<AppTypeRegistry>,
             EventWriter<MarkerSpawnEvent>,
             ResMut<Connections>,
+            ResMut<TrackBuildState>,
+            EventWriter<SpawnConnectionEvent>,
         )>::new(world);
         let (
             mut tracks,
@@ -350,6 +353,8 @@ impl Track {
             _type_registry,
             mut marker_spawner,
             mut connections,
+            mut track_build_state,
+            mut connection_spawner,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut track) = tracks.get_mut(entity) {
@@ -379,6 +384,33 @@ impl Track {
                 if changed {
                     println!("Changed logical filters");
                     connections.add_filtered_track(track_id, &track.logical_filter)
+                }
+                ui.separator();
+                match track_build_state.portal_entrance {
+                    None => {
+                        if let Some(directed) = connections.get_unconnected_dirtrack(track_id) {
+                            if ui.button("Set as portal entrance").clicked() {
+                                track_build_state.portal_entrance = Some(directed);
+                            }
+                        }
+                    }
+                    Some(entrance) => {
+                        if ui.button("Clear portal entrance").clicked() {
+                            track_build_state.portal_entrance = None;
+                        }
+                        if let Some(directed) = connections.get_unconnected_dirtrack(track_id) {
+                            if directed != entrance {
+                                if ui.button("Set as portal exit").clicked() {
+                                    let connection_id = TrackConnectionID::new(entrance, directed);
+                                    track_build_state.portal_entrance = None;
+                                    connection_spawner.send(SpawnConnectionEvent {
+                                        id: connection_id,
+                                        update_switches: true,
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
                 ui.separator();
             }

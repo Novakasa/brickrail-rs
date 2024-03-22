@@ -283,6 +283,22 @@ impl Connections {
         self.connection_graph.contains_node(track)
     }
 
+    pub fn get_unconnected_dirtrack(&self, track: TrackID) -> Option<DirectedTrackID> {
+        let mut unconnected = track.dirtracks().to_vec();
+        for (_, _, connection) in self.connection_graph.edges(track) {
+            let dirtrack = if connection.track_a().track == track {
+                connection.track_a
+            } else {
+                connection.track_b
+            };
+            unconnected.retain(|dir| *dir != dirtrack);
+        }
+        if unconnected.len() == 1 {
+            return Some(unconnected[0]);
+        }
+        return None;
+    }
+
     pub fn add_filtered_track(&mut self, track: TrackID, logical_filter: &TrackLogicalFilter) {
         self.connection_graph.add_node(track);
         for dirtrack in track.dirtracks() {
@@ -392,6 +408,7 @@ impl Connections {
     }
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
+        println!("Connecting {:?}", connection);
         self.connection_graph.add_edge(
             connection.track_a().track,
             connection.track_b().track,
