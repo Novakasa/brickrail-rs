@@ -824,6 +824,9 @@ impl DirectedTrackConnectionID {
     }
 
     pub fn curve_index(&self) -> i32 {
+        if !self.is_continuous() {
+            return 0;
+        }
         ((self.to_track.dir_index() - self.from_track.dir_index() + 12) % 8) - 4
     }
 
@@ -868,6 +871,9 @@ impl DirectedTrackConnectionID {
     }
 
     pub fn connection_length(&self) -> f32 {
+        if !self.is_continuous() {
+            return 0.8;
+        }
         self.from_track.straight_length()
             + self.curve_length()
             + self.to_track.straight_length()
@@ -875,6 +881,15 @@ impl DirectedTrackConnectionID {
     }
 
     pub fn interpolate_pos(&self, dist: f32) -> Vec2 {
+        if !self.is_continuous() {
+            if dist < self.connection_length() * 0.5 {
+                return self.from_track.interpolate_pos(dist);
+            }
+            return self
+                .to_track
+                .opposite()
+                .interpolate_pos(self.connection_length() - dist);
+        }
         if dist < self.from_track.straight_length() {
             return self.from_track.interpolate_pos(dist);
         }
