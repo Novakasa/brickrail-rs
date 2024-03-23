@@ -653,7 +653,7 @@ fn update_active_hubs(
         for motor_id_option in switch.motors.iter() {
             if let Some(motor_id) = motor_id_option {
                 let entity = entity_map.layout_devices.get(motor_id).unwrap();
-                if let Ok((motor, device)) = q_switch_motors.get(*entity) {
+                if let Ok((_motor, device)) = q_switch_motors.get(*entity) {
                     if let Some(hub_id) = device.hub_id {
                         active_hub_ids.push(hub_id);
                     }

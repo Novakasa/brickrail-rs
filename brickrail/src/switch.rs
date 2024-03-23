@@ -11,7 +11,7 @@ use crate::{
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
     switch_motor::{MotorPosition, SpawnSwitchMotorEvent, SwitchMotor},
-    track::{LAYOUT_SCALE, TRACK_WIDTH},
+    track::{spawn_connection, LAYOUT_SCALE, TRACK_WIDTH},
 };
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
@@ -260,7 +260,9 @@ impl Plugin for SwitchPlugin {
             Update,
             (
                 spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
-                update_switch_turns.run_if(on_event::<UpdateSwitchTurnsEvent>()),
+                update_switch_turns
+                    .after(spawn_connection)
+                    .run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 update_switch_position.run_if(on_event::<SetSwitchPositionEvent>()),
                 draw_switches,
             ),

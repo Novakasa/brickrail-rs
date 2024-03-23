@@ -406,6 +406,12 @@ impl Connections {
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
         println!("Connecting {:?}", connection);
+        assert!(self
+            .connection_graph
+            .contains_node(connection.track_a().track));
+        assert!(self
+            .connection_graph
+            .contains_node(connection.track_b().track));
         self.connection_graph.add_edge(
             connection.track_a().track,
             connection.track_b().track,

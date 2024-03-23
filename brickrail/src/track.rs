@@ -116,7 +116,7 @@ impl<'de> Deserialize<'de> for SpawnConnectionEvent {
     }
 }
 
-fn spawn_connection(
+pub fn spawn_connection(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
@@ -565,7 +565,9 @@ impl Plugin for TrackPlugin {
             PostUpdate,
             (
                 spawn_track.run_if(on_event::<SpawnTrackEvent>()),
-                spawn_connection.run_if(on_event::<SpawnConnectionEvent>()),
+                spawn_connection
+                    .run_if(on_event::<SpawnConnectionEvent>())
+                    .after(spawn_track),
             ),
         );
     }
