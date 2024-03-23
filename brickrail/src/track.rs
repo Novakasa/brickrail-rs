@@ -25,14 +25,13 @@ struct TrackBuildState {
     portal_entrance: Option<DirectedTrackID>,
 }
 
-fn build_connection_path(connection: TrackConnectionID) -> Path {
-    let dirconnection = connection.to_directed(ConnectionDirection::Aligned);
+fn build_connection_path(dirconnection: DirectedTrackConnectionID) -> Path {
     let mut path_builder = PathBuilder::new();
-    let length = dirconnection.connection_length();
+    let length = dirconnection.connection_length() * 0.49;
     path_builder.move_to(dirconnection.interpolate_pos(0.0) * LAYOUT_SCALE);
     let num_segments = match dirconnection.curve_index() {
         0 => 1,
-        _ => 10,
+        _ => 5,
     };
     for i in 1..(num_segments + 1) {
         let dist = i as f32 * length / num_segments as f32;
@@ -126,15 +125,16 @@ fn spawn_connection(
 ) {
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
-        let entity = commands.spawn(TrackConnection::new(connection_id)).id();
-        let outer_entity = commands
-            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Outer))
-            .id();
-        let inner_entity = commands
-            .spawn(TrackBaseShape::new(connection_id, TrackShapeType::Inner))
-            .id();
-        connections.connect_tracks_simple(&connection_id);
-        entity_map.add_connection(connection_id, entity, outer_entity, inner_entity);
+        for directed in connection_id.directed_connections() {
+            let outer_entity = commands
+                .spawn(TrackBaseShape::new(directed, TrackShapeType::Outer))
+                .id();
+            let inner_entity = commands
+                .spawn(TrackBaseShape::new(directed, TrackShapeType::Inner))
+                .id();
+            connections.connect_tracks_simple(&connection_id);
+            entity_map.add_connection(directed, outer_entity, inner_entity);
+        }
 
         if spawn_connection.update_switches {
             for track_id in connection_id.tracks() {
@@ -159,47 +159,10 @@ pub enum TrackShapeType {
     Inner,
 }
 
-#[derive(Component, Clone)]
-pub struct TrackConnection {
-    pub id: TrackConnectionID,
-}
-
-impl TrackConnection {
-    pub fn new(id: TrackConnectionID) -> Self {
-        Self { id: id }
-    }
-}
-
-impl Selectable for TrackConnection {
-    fn get_id(&self) -> GenericID {
-        GenericID::TrackConnection(self.id)
-    }
-}
-
-impl Serialize for TrackConnection {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.id.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for TrackConnection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(Self {
-            id: TrackConnectionID::deserialize(deserializer)?,
-        })
-    }
-}
-
 #[derive(Component)]
 pub struct TrackConnectionShape {
-    id: TrackConnectionID,
-    shape_type: TrackShapeType,
+    pub id: DirectedTrackConnectionID,
+    pub shape_type: TrackShapeType,
 }
 
 #[derive(Bundle)]
@@ -210,7 +173,7 @@ pub struct TrackBaseShape {
 }
 
 impl TrackBaseShape {
-    pub fn new(id: TrackConnectionID, shape_type: TrackShapeType) -> Self {
+    pub fn new(id: DirectedTrackConnectionID, shape_type: TrackShapeType) -> Self {
         let (color, width, z) = match &shape_type {
             TrackShapeType::Inner => (Color::BLACK, TRACK_INNER_WIDTH, 10.0),
             TrackShapeType::Outer => (Color::WHITE, TRACK_WIDTH, 5.0),
@@ -553,18 +516,14 @@ fn update_track_color(
         if connection.shape_type == TrackShapeType::Outer {
             continue;
         }
-        if hover_state.hover == Some(GenericID::Track(connection.id.track_a().track))
-            || hover_state.hover == Some(GenericID::Track(connection.id.track_b().track))
-        {
+        if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
             stroke.color = Color::RED;
             transform.translation = Vec3::new(0.0, 0.0, 20.0);
             continue;
         }
 
         if selection_state.selection
-            == Selection::Single(GenericID::Track(connection.id.track_a().track))
-            || selection_state.selection
-                == Selection::Single(GenericID::Track(connection.id.track_b().track))
+            == Selection::Single(GenericID::Track(connection.id.from_track.track))
         {
             stroke.color = Color::BLUE;
             transform.translation = Vec3::new(0.0, 0.0, 15.0);
@@ -572,7 +531,7 @@ fn update_track_color(
         }
 
         if let Selection::Section(section) = &selection_state.selection {
-            if section.has_connection(&connection.id) {
+            if section.has_track(&connection.id.from_track.track) {
                 stroke.color = Color::BLUE;
                 transform.translation = Vec3::new(0.0, 0.0, 15.0);
                 continue;
@@ -590,7 +549,6 @@ impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
         app.register_component_as::<dyn Selectable, Track>();
-        app.register_component_as::<dyn Selectable, TrackConnection>();
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_systems(

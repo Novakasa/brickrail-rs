@@ -11,7 +11,7 @@ use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
-use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, TrackConnection, LAYOUT_SCALE};
+use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
@@ -401,9 +401,9 @@ pub fn save_layout(
     q_blocks: Query<&Block>,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
-    q_connections: Query<&TrackConnection>,
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    connections: Res<Connections>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::KeyS) {
@@ -439,10 +439,11 @@ pub fn save_layout(
                 device: device.clone(),
             })
             .collect();
-        let connections = q_connections
-            .iter()
-            .map(|c| SpawnConnectionEvent {
-                id: c.id,
+        let connections = connections
+            .connection_graph
+            .all_edges()
+            .map(|(_, _, c)| SpawnConnectionEvent {
+                id: c.clone(),
                 update_switches: false,
             })
             .collect();

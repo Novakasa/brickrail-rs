@@ -151,6 +151,15 @@ impl DirectedSection {
         return false;
     }
 
+    pub fn has_track(&self, track: &TrackID) -> bool {
+        for dirtrack in track.dirtracks() {
+            if self.tracks.contains(&dirtrack) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn has_connection(&self, connection: &TrackConnectionID) -> bool {
         for direction in [ConnectionDirection::Aligned, ConnectionDirection::Opposite].iter() {
             if self.has_directed_connection(&connection.to_directed(*direction)) {
