@@ -561,6 +561,16 @@ fn update_track_color(
             continue;
         }
 
+        if selection_state.selection
+            == Selection::Single(GenericID::Track(connection.id.track_a().track))
+            || selection_state.selection
+                == Selection::Single(GenericID::Track(connection.id.track_b().track))
+        {
+            stroke.color = Color::BLUE;
+            transform.translation = Vec3::new(0.0, 0.0, 15.0);
+            continue;
+        }
+
         if let Selection::Section(section) = &selection_state.selection {
             if section.has_connection(&connection.id) {
                 stroke.color = Color::BLUE;
