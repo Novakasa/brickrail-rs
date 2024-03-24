@@ -309,8 +309,11 @@ impl Route {
             if self.get_current_leg().get_leg_state() != leg_state {
                 change_locks = true;
             }
-            if let Some(_) = remainder {
+            if let Some(dist) = remainder {
                 self.next_leg();
+                if self.get_current_leg().is_flip() {
+                    remainder = Some(-dist);
+                }
                 change_locks = true;
                 if self.legs.len() == 0 {
                     break;
@@ -448,7 +451,7 @@ impl RouteLeg {
         }
     }
 
-    fn get_final_facing(&self) -> Facing {
+    pub fn get_final_facing(&self) -> Facing {
         self.travel_section.tracks.last().unwrap().facing
     }
 
@@ -480,6 +483,7 @@ impl RouteLeg {
     pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
         if self.get_leg_state() == LegState::Completed {
             if self.intention == LegIntention::Stop {
+                self.section_position += distance;
                 return None;
             }
             return Some(distance);
