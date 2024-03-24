@@ -231,13 +231,10 @@ fn draw_train(
             color = Color::BLUE;
         }
 
-        for offset in [0.0, -0.5, -1.0, -1.5].iter() {
-            let pos = train.get_route().interpolate_offset(*offset);
-            gizmos.circle_2d(
-                pos * LAYOUT_SCALE + Vec2::Y * *offset,
-                0.1 * LAYOUT_SCALE,
-                color,
-            );
+        for wagon_index in 0..train.settings.num_wagons {
+            let offset = -0.5 * (wagon_index as f32);
+            let pos = train.get_route().interpolate_offset(offset);
+            gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color);
         }
         let pos = train.get_route().get_current_leg().get_current_pos();
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);

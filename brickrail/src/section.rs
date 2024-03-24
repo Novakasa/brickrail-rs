@@ -23,6 +23,14 @@ impl LogicalSection {
         self.tracks.len()
     }
 
+    pub fn extend_merge(&mut self, other: &LogicalSection) {
+        for track in other.tracks.iter() {
+            if !self.tracks.contains(track) {
+                self.tracks.push(track.clone());
+            }
+        }
+    }
+
     pub fn split_by_tracks_with_overlap(
         &self,
         tracks: Vec<&LogicalTrackID>,
@@ -60,15 +68,19 @@ impl LogicalSection {
             .sum()
     }
 
-    pub fn length_to(&self, track: &LogicalTrackID) -> f32 {
+    pub fn length_to(&self, track: &LogicalTrackID) -> Result<f32, ()> {
+        println!("length_to {:?}", track);
         let mut length = 0.0;
+        if track == self.tracks.first().ok_or(())? {
+            return Ok(0.0);
+        }
         for connection in self.directed_connection_iter() {
             length += connection.connection_length();
             if connection.to_track == track.dirtrack {
-                return length;
+                return Ok(length);
             }
         }
-        return length;
+        return Err(());
     }
 
     pub fn interpolate_pos(&self, mut pos: f32) -> Vec2 {

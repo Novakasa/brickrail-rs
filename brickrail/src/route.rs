@@ -58,16 +58,16 @@ pub fn build_route(
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
     assert!(split.len() > 0);
 
-    for (section, in_track) in split {
+    for (critical_path, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
         println!(
             "in_track: {:?}, first: {:?}",
             in_track,
-            section.tracks.first().unwrap()
+            critical_path.tracks.first().unwrap()
         );
         let from_id = marker_map
             .in_markers
-            .get(section.tracks.first().unwrap())
+            .get(critical_path.tracks.first().unwrap())
             .unwrap();
         let mut leg_markers = Vec::new();
         let target_block = q_blocks
@@ -79,23 +79,38 @@ pub fn build_route(
         let to_section = target_block.get_logical_section(target_id.clone());
         let from_section = from_block.get_logical_section(from_id.clone());
 
-        for logical in section.tracks.iter() {
+        let mut travel_section = LogicalSection::new();
+        println!("critical path: {:?}", critical_path);
+        if critical_path.tracks.first().unwrap().facing
+            == critical_path.tracks.last().unwrap().facing
+        {
+            travel_section.extend_merge(&from_section);
+            travel_section.extend_merge(&critical_path);
+        }
+        travel_section.extend_merge(&to_section);
+        println!("travel section: {:?}", travel_section);
+
+        for logical in critical_path.tracks.iter() {
             debug!("looking for marker at {:?}", logical);
             if let Some(entity) = entity_map.markers.get(&logical.track()) {
                 debug!("found marker at {:?}", logical);
                 let marker = q_markers.get(*entity).unwrap();
+                let position = travel_section
+                    .length_to(&logical)
+                    .unwrap_or_else(|_| travel_section.length_to(&logical.reversed()).unwrap());
                 let route_marker = RouteMarkerData {
                     track: logical.clone(),
                     color: marker.color,
                     speed: marker.logical_data.get(logical).unwrap().speed,
                     key: marker_map.get_marker_key(logical, target_id),
-                    position: section.length_to(&logical),
+                    position: position,
                 };
                 leg_markers.push(route_marker);
             }
         }
-        let leg = RouteLeg {
-            section: section,
+
+        let mut leg = RouteLeg {
+            travel_section,
             markers: leg_markers,
             index: 0,
             intention: LegIntention::Stop,
@@ -106,6 +121,7 @@ pub fn build_route(
             from_section,
             intention_synced: false,
         };
+        leg.reset_pos_to_prev_marker();
         route.push_leg(leg);
     }
     route.get_current_leg_mut().set_completed();
@@ -196,7 +212,7 @@ impl Route {
     pub fn update_intentions(&mut self, track_locks: &TrackLocks) {
         let mut free_until = 0;
         for (i, leg) in self.iter_legs_remaining().enumerate() {
-            if track_locks.can_lock(&self.train_id, &leg.section)
+            if track_locks.can_lock(&self.train_id, &leg.travel_section)
                 && track_locks.can_lock(&self.train_id, &leg.to_section)
             {
                 free_until = i + self.leg_index;
@@ -230,7 +246,7 @@ impl Route {
         if current_leg.get_leg_state() != LegState::Completed {
             track_locks.lock(
                 &self.train_id,
-                &current_leg.section,
+                &current_leg.travel_section,
                 entity_map,
                 set_switch_position,
             );
@@ -247,7 +263,7 @@ impl Route {
             {
                 track_locks.lock(
                     &self.train_id,
-                    &next_leg.section,
+                    &next_leg.travel_section,
                     entity_map,
                     set_switch_position,
                 );
@@ -313,7 +329,7 @@ impl Route {
             if leg.get_leg_state() == LegState::Completed {
                 continue;
             }
-            for track in leg.section.tracks.iter() {
+            for track in leg.travel_section.tracks.iter() {
                 track
                     .dirtrack
                     .draw_with_gizmos(gizmos, LAYOUT_SCALE, Color::GREEN);
@@ -361,7 +377,7 @@ pub enum LegState {
 pub struct RouteLeg {
     to_section: LogicalSection,
     from_section: LogicalSection,
-    section: LogicalSection,
+    travel_section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     index: usize,
     pub intention: LegIntention,
@@ -433,11 +449,11 @@ impl RouteLeg {
     }
 
     fn get_final_facing(&self) -> Facing {
-        self.section.tracks.last().unwrap().facing
+        self.travel_section.tracks.last().unwrap().facing
     }
 
     fn is_flip(&self) -> bool {
-        self.section.tracks[0].facing != self.get_final_facing()
+        self.from_section.tracks[0].facing != self.get_final_facing()
     }
 
     fn set_completed(&mut self) {
@@ -446,7 +462,7 @@ impl RouteLeg {
     }
 
     pub fn get_current_pos(&self) -> Vec2 {
-        self.section.interpolate_pos(self.section_position)
+        self.travel_section.interpolate_pos(self.section_position)
     }
 
     pub fn get_target_block_id(&self) -> LogicalBlockID {
@@ -488,7 +504,8 @@ impl RouteLeg {
         if self.get_final_facing() == Facing::Backward {
             offset = -offset;
         }
-        self.section.interpolate_pos(self.section_position + offset)
+        self.travel_section
+            .interpolate_pos(self.section_position + offset)
     }
 
     pub fn reset_pos_to_prev_marker(&mut self) {
