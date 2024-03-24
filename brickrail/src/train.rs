@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, Route, TrainState},
+    section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
 };
@@ -230,6 +231,14 @@ fn draw_train(
             color = Color::BLUE;
         }
 
+        for offset in [0.0, -0.5, -1.0, -1.5].iter() {
+            let pos = train.get_route().interpolate_offset(*offset);
+            gizmos.circle_2d(
+                pos * LAYOUT_SCALE + Vec2::Y * *offset,
+                0.1 * LAYOUT_SCALE,
+                color,
+            );
+        }
         let pos = train.get_route().get_current_leg().get_current_pos();
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
     }
@@ -420,18 +429,12 @@ fn spawn_train(
             Position::Route(_) => panic!("Can't spawn train with route"),
         };
         println!("spawning at block {:?}", block_id);
-        let block = q_blocks
-            .get(
-                entity_map
-                    .get_entity(&GenericID::Block(block_id.block))
-                    .unwrap(),
-            )
-            .unwrap();
-        let block_section = block.get_logical_section(block_id);
+        let mut section = LogicalSection::new();
+        section.tracks.push(block_id.default_in_marker_track());
         let train_id = TrainID::new(entity_map.trains.len());
         let route = build_route(
             train_id,
-            &block_section,
+            &section,
             &q_markers,
             &q_blocks,
             &entity_map,

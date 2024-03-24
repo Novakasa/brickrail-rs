@@ -60,11 +60,24 @@ pub fn build_route(
 
     for (section, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
+        println!(
+            "in_track: {:?}, first: {:?}",
+            in_track,
+            section.tracks.first().unwrap()
+        );
+        let from_id = marker_map
+            .in_markers
+            .get(section.tracks.first().unwrap())
+            .unwrap();
         let mut leg_markers = Vec::new();
         let target_block = q_blocks
             .get(entity_map.blocks.get(&target_id.block).unwrap().clone())
             .unwrap();
-        let target_section = target_block.get_logical_section(target_id.clone());
+        let from_block = q_blocks
+            .get(entity_map.blocks.get(&from_id.block).unwrap().clone())
+            .unwrap();
+        let to_section = target_block.get_logical_section(target_id.clone());
+        let from_section = from_block.get_logical_section(from_id.clone());
 
         for logical in section.tracks.iter() {
             debug!("looking for marker at {:?}", logical);
@@ -88,7 +101,9 @@ pub fn build_route(
             intention: LegIntention::Stop,
             section_position: 0.0,
             target_block: target_id.clone(),
-            to_section: target_section,
+            from_block: from_id.clone(),
+            to_section,
+            from_section,
             intention_synced: false,
         };
         route.push_leg(leg);
@@ -289,6 +304,10 @@ impl Route {
         return change_locks;
     }
 
+    pub fn interpolate_offset(&self, offset: f32) -> Vec2 {
+        self.get_current_leg().interpolate_offset(offset)
+    }
+
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
         for leg in self.legs.iter() {
             if leg.get_leg_state() == LegState::Completed {
@@ -341,12 +360,14 @@ pub enum LegState {
 #[derive(Debug, Clone)]
 pub struct RouteLeg {
     to_section: LogicalSection,
+    from_section: LogicalSection,
     section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     index: usize,
     pub intention: LegIntention,
     pub section_position: f32,
     target_block: LogicalBlockID,
+    from_block: LogicalBlockID,
     pub intention_synced: bool,
 }
 
@@ -461,6 +482,13 @@ impl RouteLeg {
         }
         self.section_position += remainder;
         None
+    }
+
+    pub fn interpolate_offset(&self, mut offset: f32) -> Vec2 {
+        if self.get_final_facing() == Facing::Backward {
+            offset = -offset;
+        }
+        self.section.interpolate_pos(self.section_position + offset)
     }
 
     pub fn reset_pos_to_prev_marker(&mut self) {
