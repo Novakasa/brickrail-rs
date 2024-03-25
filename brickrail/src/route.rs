@@ -147,7 +147,7 @@ impl TrainState {
     pub fn get_speed(&self) -> f32 {
         match self {
             TrainState::Stop => 0.0,
-            TrainState::Run { speed, .. } => speed.get_speed(),
+            TrainState::Run { speed, facing } => facing.get_sign() * speed.get_speed(),
         }
     }
 }
@@ -194,7 +194,10 @@ impl Route {
 
     pub fn next_leg(&mut self) {
         assert_ne!(self.legs.len(), self.leg_index + 1, "No next leg!");
+        let last_pos = self.get_current_leg().get_signed_pos_from_last();
         self.leg_index += 1;
+        self.get_current_leg_mut()
+            .set_signed_pos_from_first(last_pos);
     }
 
     pub fn get_current_leg(&self) -> &RouteLeg {
@@ -304,11 +307,8 @@ impl Route {
             if self.get_current_leg().get_leg_state() != leg_state {
                 change_locks = true;
             }
-            if let Some(dist) = remainder {
+            if let Some(_) = remainder {
                 self.next_leg();
-                if self.get_current_leg().is_flip() {
-                    remainder = Some(-dist);
-                }
                 change_locks = true;
                 if self.legs.len() == 0 {
                     break;
@@ -475,24 +475,34 @@ impl RouteLeg {
         self.markers[self.index].position
     }
 
+    pub fn get_first_marker_pos(&self) -> f32 {
+        self.markers[0].position
+    }
+
+    pub fn get_last_marker_pos(&self) -> f32 {
+        self.markers.last().unwrap().position
+    }
+
     pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
+        let facing_sign = self.get_final_facing().get_sign();
         if self.get_leg_state() == LegState::Completed {
             if self.intention == LegIntention::Stop {
-                self.section_position += distance;
+                self.section_position += distance * facing_sign;
                 return None;
             }
             return Some(distance);
         }
-        let mut remainder = distance;
+        let mut remainder = distance * facing_sign;
         while self.section_position + remainder > self.get_next_marker_pos() {
             remainder -= self.get_next_marker_pos() - self.section_position;
             self.advance_marker();
             self.reset_pos_to_prev_marker();
             if self.get_leg_state() == LegState::Completed {
                 if self.intention == LegIntention::Stop {
+                    self.section_position += remainder;
                     return None;
                 }
-                return Some(remainder);
+                return Some(remainder * facing_sign);
             }
         }
         self.section_position += remainder;
@@ -509,6 +519,15 @@ impl RouteLeg {
 
     pub fn reset_pos_to_prev_marker(&mut self) {
         self.section_position = self.get_previous_marker_pos();
+    }
+
+    pub fn set_signed_pos_from_first(&mut self, dist: f32) {
+        self.section_position =
+            self.get_previous_marker_pos() + dist * self.get_final_facing().get_sign();
+    }
+
+    pub fn get_signed_pos_from_last(&self) -> f32 {
+        (self.section_position - self.get_last_marker_pos()) * self.get_final_facing().get_sign()
     }
 
     pub fn as_train_data(&self) -> Vec<u8> {

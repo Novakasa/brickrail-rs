@@ -971,6 +971,12 @@ pub enum Facing {
 }
 
 impl Facing {
+    pub fn get_sign(&self) -> f32 {
+        match self {
+            Facing::Forward => 1.0,
+            Facing::Backward => -1.0,
+        }
+    }
     pub fn opposite(&self) -> Facing {
         match self {
             Facing::Forward => Facing::Backward,

@@ -164,12 +164,7 @@ impl Train {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
         let dist = delta * self.speed;
-        let prev_facing = self.get_route().get_current_leg().get_final_facing();
         let change_locks = self.get_route_mut().advance_distance(dist);
-        let new_facing = self.get_route().get_current_leg().get_final_facing();
-        if prev_facing != new_facing {
-            self.speed *= -1.0;
-        }
         self.state = self.get_route().get_train_state();
         // self.speed = self.state.get_speed();
         return change_locks;
