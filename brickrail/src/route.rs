@@ -319,7 +319,45 @@ impl Route {
     }
 
     pub fn interpolate_offset(&self, offset: f32) -> Vec2 {
-        self.get_current_leg().interpolate_offset(offset)
+        let mut index = self.leg_index;
+        let mut leg = self.get_current_leg();
+        let mut signed_dist = leg.get_signed_pos_from_first() + offset;
+        let mut in_range = leg.signed_pos_in_section(signed_dist);
+        let mut visited = Vec::new();
+
+        while in_range != LegDistInRange::InRange {
+            leg = match in_range {
+                LegDistInRange::Before => {
+                    if index == 0 {
+                        break;
+                    }
+                    index -= 1;
+                    let Some(leg) = self.legs.get(index) else {
+                        break;
+                    };
+                    signed_dist += leg.get_signed_first_to_last();
+                    leg
+                }
+                LegDistInRange::After => {
+                    index += 1;
+                    signed_dist -= leg.get_signed_first_to_last();
+                    let Some(leg) = self.legs.get(index) else {
+                        break;
+                    };
+                    leg
+                }
+                _ => panic!("Invalid leg dist range {:?}", in_range),
+            };
+
+            if visited.contains(&index) {
+                break;
+            }
+
+            in_range = leg.signed_pos_in_section(signed_dist);
+            visited.push(index);
+        }
+
+        leg.interpolate_signed_pos(signed_dist)
     }
 
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos) {
@@ -369,6 +407,13 @@ pub enum LegState {
     None,
     Entered,
     Completed,
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub enum LegDistInRange {
+    Before,
+    InRange,
+    After,
 }
 
 #[derive(Debug, Clone)]
@@ -509,12 +554,23 @@ impl RouteLeg {
         None
     }
 
-    pub fn interpolate_offset(&self, mut offset: f32) -> Vec2 {
+    pub fn interpolate_signed_pos(&self, mut offset: f32) -> Vec2 {
         if self.get_final_facing() == Facing::Backward {
             offset = -offset;
         }
         self.travel_section
-            .interpolate_pos(self.section_position + offset)
+            .interpolate_pos(self.get_first_marker_pos() + offset)
+    }
+
+    pub fn signed_pos_in_section(&self, dist: f32) -> LegDistInRange {
+        let section_pos = dist * self.get_final_facing().get_sign() + self.get_first_marker_pos();
+        if section_pos < self.get_first_marker_pos() {
+            return LegDistInRange::Before;
+        }
+        if section_pos > self.get_last_marker_pos() {
+            return LegDistInRange::After;
+        }
+        return LegDistInRange::InRange;
     }
 
     pub fn reset_pos_to_prev_marker(&mut self) {
@@ -523,11 +579,20 @@ impl RouteLeg {
 
     pub fn set_signed_pos_from_first(&mut self, dist: f32) {
         self.section_position =
-            self.get_previous_marker_pos() + dist * self.get_final_facing().get_sign();
+            self.get_first_marker_pos() + dist * self.get_final_facing().get_sign();
+    }
+
+    pub fn get_signed_pos_from_first(&self) -> f32 {
+        (self.section_position - self.get_first_marker_pos()) * self.get_final_facing().get_sign()
     }
 
     pub fn get_signed_pos_from_last(&self) -> f32 {
         (self.section_position - self.get_last_marker_pos()) * self.get_final_facing().get_sign()
+    }
+
+    pub fn get_signed_first_to_last(&self) -> f32 {
+        (self.get_last_marker_pos() - self.get_first_marker_pos())
+            * self.get_final_facing().get_sign()
     }
 
     pub fn as_train_data(&self) -> Vec<u8> {
