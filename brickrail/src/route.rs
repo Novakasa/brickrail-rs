@@ -250,13 +250,14 @@ impl Route {
                 entity_map,
                 set_switch_position,
             );
+        } else {
+            track_locks.lock(
+                &self.train_id,
+                &current_leg.to_section,
+                entity_map,
+                set_switch_position,
+            );
         }
-        track_locks.lock(
-            &self.train_id,
-            &current_leg.to_section,
-            entity_map,
-            set_switch_position,
-        );
         if let Some(next_leg) = self.get_next_leg() {
             if current_leg.get_leg_state() != LegState::None
                 && current_leg.intention == LegIntention::Pass
@@ -264,12 +265,6 @@ impl Route {
                 track_locks.lock(
                     &self.train_id,
                     &next_leg.travel_section,
-                    entity_map,
-                    set_switch_position,
-                );
-                track_locks.lock(
-                    &self.train_id,
-                    &next_leg.to_section,
                     entity_map,
                     set_switch_position,
                 );
