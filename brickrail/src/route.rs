@@ -602,9 +602,10 @@ impl RouteLeg {
             * self.get_final_facing().get_sign()
     }
 
-    pub fn get_prev_marker_signed_from_first(&self) -> f32 {
+    pub fn get_prev_marker_signed_from_first(&self, offset: f32) -> f32 {
         (self.get_previous_marker_pos() - self.get_first_marker_pos())
             * self.get_final_facing().get_sign()
+            + self.markers[self.index].track.facing.get_sign() * offset
     }
 
     pub fn as_train_data(&self) -> Vec<u8> {

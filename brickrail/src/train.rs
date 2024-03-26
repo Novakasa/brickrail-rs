@@ -6,7 +6,7 @@ use crate::{
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, LegState, Route, TrainState},
+    route::{build_route, LegIntention, LegState, Route, TrainState},
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -175,8 +175,9 @@ impl Train {
     fn traverse_route_passive(&mut self, delta: f32) {
         let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
-        let target_pos = route.get_current_leg().get_prev_marker_signed_from_first()
-            + 0.2 * route.get_current_leg().get_final_facing().get_sign();
+        let target_pos = route
+            .get_current_leg()
+            .get_prev_marker_signed_from_first(0.2);
 
         self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 5.0) * delta;
         let new_pos = current_pos + self.speed * delta;
@@ -542,13 +543,17 @@ fn manual_sensor_advance(
                 .unwrap();
             let route = train.get_route_mut();
             if route.get_current_leg().get_leg_state() == LegState::Completed {
-                match route.next_leg() {
-                    Ok(_) => {
-                        println!("Advancing train leg");
+                if route.get_current_leg().intention == LegIntention::Pass {
+                    match route.next_leg() {
+                        Ok(_) => {
+                            println!("Advancing train leg");
+                        }
+                        Err(_) => {
+                            println!("End of route, doing nothing");
+                        }
                     }
-                    Err(_) => {
-                        println!("End of route, doing nothing");
-                    }
+                } else {
+                    println!("Not passing, doing nothing")
                 }
             } else {
                 println!("Advancing marker");
