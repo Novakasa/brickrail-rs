@@ -332,19 +332,19 @@ impl Route {
                         break;
                     }
                     index -= 1;
-                    let Some(leg) = self.legs.get(index) else {
+                    let Some(next_leg) = self.legs.get(index) else {
                         break;
                     };
-                    signed_dist += leg.get_signed_first_to_last();
-                    leg
+                    signed_dist += next_leg.get_signed_first_to_last();
+                    next_leg
                 }
                 LegDistInRange::After => {
                     index += 1;
-                    signed_dist -= leg.get_signed_first_to_last();
-                    let Some(leg) = self.legs.get(index) else {
+                    let Some(next_leg) = self.legs.get(index) else {
                         break;
                     };
-                    leg
+                    signed_dist -= leg.get_signed_first_to_last();
+                    next_leg
                 }
                 _ => panic!("Invalid leg dist range {:?}", in_range),
             };
