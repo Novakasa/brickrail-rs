@@ -275,47 +275,15 @@ fn init_drag_train(
 fn exit_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
-    entity_map: Res<EntityMap>,
-    mut track_locks: ResMut<TrackLocks>,
-    mut q_trains: Query<(&mut Train, &mut BLETrain)>,
-    mut hub_commands: EventWriter<HubCommandEvent>,
-    editor_state: Res<State<EditorState>>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut set_train_route: EventWriter<SetTrainRouteEvent>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            if let Some(mut route) = train_drag_state.route.clone() {
-                let (mut train, ble_train) = q_trains
-                    .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
-                    .unwrap();
-                // println!("Dropping train {:?} on block {:?}", train_id, block_id);
-                route.pretty_print();
-                route.get_current_leg_mut().set_signed_pos_from_last(
-                    train
-                        .get_route()
-                        .get_current_leg()
-                        .get_signed_pos_from_last(),
-                );
-                // route.get_current_leg_mut().intention = LegIntention::Stop;
-                train.position = Position::Route(route);
-
-                train
-                    .get_route_mut()
-                    .update_intentions(track_locks.as_ref());
-                // println!("state: {:?}", train.route.get_train_state());
-                train.get_route().update_locks(
-                    &mut track_locks,
-                    &entity_map,
-                    &mut set_switch_position,
-                );
-
-                if editor_state.get().ble_commands_enabled() {
-                    let commands = ble_train.download_route(&train.get_route());
-                    for input in commands.hub_events {
-                        info!("Sending {:?}", input);
-                        hub_commands.send(input);
-                    }
-                }
+            if let Some(route) = train_drag_state.route.clone() {
+                set_train_route.send(SetTrainRouteEvent {
+                    train_id,
+                    route: route,
+                });
             }
         }
         train_drag_state.train_id = None;
@@ -390,6 +358,59 @@ fn update_drag_train(
 fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
     if let Some(route) = train_drag_state.route.clone() {
         route.draw_with_gizmos(&mut gizmos);
+    }
+}
+
+#[derive(Debug, Event)]
+struct SetTrainRouteEvent {
+    train_id: TrainID,
+    route: Route,
+}
+
+fn set_train_route(
+    mut q_trains: Query<'_, '_, (&mut Train, &mut BLETrain)>,
+    entity_map: Res<'_, EntityMap>,
+    mut route_events: EventReader<SetTrainRouteEvent>,
+    mut track_locks: ResMut<'_, TrackLocks>,
+    mut set_switch_position: EventWriter<'_, SetSwitchPositionEvent>,
+    editor_state: Res<'_, State<EditorState>>,
+    mut hub_commands: EventWriter<'_, HubCommandEvent>,
+) {
+    for event in route_events.read() {
+        let mut route = event.route.clone();
+        let (mut train, ble_train) = q_trains
+            .get_mut(
+                entity_map
+                    .get_entity(&GenericID::Train(event.train_id))
+                    .unwrap(),
+            )
+            .unwrap();
+        // println!("Dropping train {:?} on block {:?}", train_id, block_id);
+        route.pretty_print();
+        route.get_current_leg_mut().set_signed_pos_from_last(
+            train
+                .get_route()
+                .get_current_leg()
+                .get_signed_pos_from_last(),
+        );
+        // route.get_current_leg_mut().intention = LegIntention::Stop;
+        train.position = Position::Route(route);
+
+        train
+            .get_route_mut()
+            .update_intentions(track_locks.as_ref());
+        // println!("state: {:?}", train.route.get_train_state());
+        train
+            .get_route()
+            .update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
+
+        if editor_state.get().ble_commands_enabled() {
+            let commands = ble_train.download_route(&train.get_route());
+            for input in commands.hub_events {
+                info!("Sending {:?}", input);
+                hub_commands.send(input);
+            }
+        }
     }
 }
 
@@ -548,6 +569,7 @@ impl Plugin for TrainPlugin {
         app.register_component_as::<dyn Selectable, Train>();
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
+        app.add_event::<SetTrainRouteEvent>();
         app.add_systems(
             Update,
             (
@@ -558,6 +580,7 @@ impl Plugin for TrainPlugin {
                 draw_hover_route,
                 init_drag_train,
                 exit_drag_train,
+                set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train,
                 update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
                 handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
