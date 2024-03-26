@@ -175,7 +175,8 @@ impl Train {
     fn traverse_route_passive(&mut self, delta: f32) {
         let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
-        let target_pos = route.get_current_leg().get_prev_marker_signed_from_first();
+        let target_pos = route.get_current_leg().get_prev_marker_signed_from_first()
+            + 0.2 * route.get_current_leg().get_final_facing().get_sign();
 
         self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 5.0) * delta;
         let new_pos = current_pos + self.speed * delta;
