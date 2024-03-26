@@ -286,7 +286,6 @@ impl Route {
         );
         let current_leg = self.get_current_leg_mut();
         current_leg.advance_marker();
-        current_leg.reset_pos_to_prev_marker();
     }
 
     pub fn get_train_state(&self) -> TrainState {
@@ -600,6 +599,11 @@ impl RouteLeg {
 
     pub fn get_signed_first_to_last(&self) -> f32 {
         (self.get_last_marker_pos() - self.get_first_marker_pos())
+            * self.get_final_facing().get_sign()
+    }
+
+    pub fn get_prev_marker_signed_from_first(&self) -> f32 {
+        (self.get_previous_marker_pos() - self.get_first_marker_pos())
             * self.get_final_facing().get_sign()
     }
 

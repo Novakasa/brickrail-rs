@@ -172,6 +172,18 @@ impl Train {
         // println!("Route: {:?}", self.route.get_current_leg().section_position);
     }
 
+    fn traverse_route_passive(&mut self, delta: f32) {
+        let route = self.get_route_mut();
+        let current_pos = route.get_current_leg().get_signed_pos_from_first();
+        let target_pos = route.get_current_leg().get_prev_marker_signed_from_first();
+
+        self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 5.0) * delta;
+        let new_pos = current_pos + self.speed * delta;
+        self.get_route_mut()
+            .get_current_leg_mut()
+            .set_signed_pos_from_first(new_pos);
+    }
+
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
             Query<&mut Train>,
@@ -509,6 +521,12 @@ fn update_virtual_trains(
     }
 }
 
+fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
+    for mut train in q_trains.iter_mut() {
+        train.traverse_route_passive(time.delta_seconds());
+    }
+}
+
 fn manual_sensor_advance(
     mut events: EventWriter<BLESensorAdvanceEvent>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
@@ -616,6 +634,7 @@ impl Plugin for TrainPlugin {
                 set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train,
                 update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
+                update_virtual_trains_passive.run_if(in_state(EditorState::DeviceControl)),
                 handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
                 sync_intentions.run_if(in_state(EditorState::DeviceControl)),
                 manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
