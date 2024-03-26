@@ -6,7 +6,7 @@ use crate::{
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, Route, TrainState},
+    route::{build_route, LegState, Route, TrainState},
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -414,7 +414,7 @@ fn set_train_route(
     }
 }
 
-fn create_train(
+fn create_train_shortcut(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     mut train_events: EventWriter<SpawnTrainEvent>,
     entity_map: Res<EntityMap>,
@@ -509,6 +509,39 @@ fn update_virtual_trains(
     }
 }
 
+fn manual_sensor_advance(
+    mut events: EventWriter<BLESensorAdvanceEvent>,
+    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
+    selection_state: Res<SelectionState>,
+    mut trains: Query<&mut Train>,
+    entity_map: Res<EntityMap>,
+) {
+    if keyboard_input.just_pressed(keyboard::KeyCode::KeyN) {
+        if let Selection::Single(GenericID::Train(train_id)) = selection_state.selection {
+            let mut train = trains
+                .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
+                .unwrap();
+            let route = train.get_route_mut();
+            if route.get_current_leg().get_leg_state() == LegState::Completed {
+                match route.next_leg() {
+                    Ok(_) => {
+                        println!("Advancing train leg");
+                    }
+                    Err(_) => {
+                        println!("End of route, doing nothing");
+                    }
+                }
+            } else {
+                println!("Advancing marker");
+                events.send(BLESensorAdvanceEvent {
+                    id: train_id,
+                    index: 0,
+                });
+            }
+        }
+    }
+}
+
 fn handle_ble_sensor_advance(
     mut q_trains: Query<&mut Train, With<BLETrain>>,
     mut ble_sensor_advance_events: EventReader<BLESensorAdvanceEvent>,
@@ -573,7 +606,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             Update,
             (
-                create_train,
+                create_train_shortcut,
                 draw_train,
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
@@ -585,6 +618,7 @@ impl Plugin for TrainPlugin {
                 update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
                 handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
                 sync_intentions.run_if(in_state(EditorState::DeviceControl)),
+                manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
         app.add_systems(

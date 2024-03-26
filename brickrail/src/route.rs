@@ -192,12 +192,15 @@ impl Route {
         self.legs.push(leg);
     }
 
-    pub fn next_leg(&mut self) {
-        assert_ne!(self.legs.len(), self.leg_index + 1, "No next leg!");
+    pub fn next_leg(&mut self) -> Result<(), ()> {
+        if self.leg_index == self.legs.len() - 1 {
+            return Err(());
+        }
         let last_pos = self.get_current_leg().get_signed_pos_from_last();
         self.leg_index += 1;
         self.get_current_leg_mut()
             .set_signed_pos_from_first(last_pos);
+        return Ok(());
     }
 
     pub fn get_current_leg(&self) -> &RouteLeg {
@@ -308,7 +311,7 @@ impl Route {
                 change_locks = true;
             }
             if let Some(_) = remainder {
-                self.next_leg();
+                self.next_leg().unwrap();
                 change_locks = true;
                 if self.legs.len() == 0 {
                     break;

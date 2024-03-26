@@ -335,7 +335,7 @@ fn handle_messages(
                     }
                     TrainData::LegAdvance(index) => {
                         info!("Train master hub {:?} leg advance: {}", event.id, index);
-                        train.get_route_mut().next_leg();
+                        train.get_route_mut().next_leg().unwrap();
                     }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
