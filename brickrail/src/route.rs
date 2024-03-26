@@ -57,6 +57,7 @@ pub fn build_route(
     let in_tracks = marker_map.in_markers.keys().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
     assert!(split.len() > 0);
+    let mut leg_index = 0;
 
     for (critical_path, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
@@ -113,6 +114,7 @@ pub fn build_route(
             travel_section,
             markers: leg_markers,
             index: 0,
+            leg_index: leg_index,
             intention: LegIntention::Stop,
             section_position: 0.0,
             target_block: target_id.clone(),
@@ -123,6 +125,7 @@ pub fn build_route(
         };
         leg.reset_pos_to_prev_marker();
         route.push_leg(leg);
+        leg_index += 1;
     }
     route.get_current_leg_mut().set_completed();
     debug!(
@@ -286,6 +289,16 @@ impl Route {
         );
         let current_leg = self.get_current_leg_mut();
         current_leg.advance_marker();
+        if current_leg.get_leg_state() == LegState::Completed
+            && current_leg.intention == LegIntention::Pass
+        {
+            match self.next_leg() {
+                Ok(_) => {}
+                Err(_) => {
+                    info!("Route completed!");
+                }
+            }
+        }
     }
 
     pub fn get_train_state(&self) -> TrainState {
@@ -321,19 +334,24 @@ impl Route {
     }
 
     pub fn interpolate_offset(&self, offset: f32) -> Vec2 {
-        let mut index = self.leg_index;
         let mut leg = self.get_current_leg();
+        let mut index = leg.leg_index;
         let mut signed_dist = leg.get_signed_pos_from_first() + offset;
         let mut in_range = leg.signed_pos_in_section(signed_dist);
         let mut visited = Vec::new();
+        println!("starting index: {:?}", leg.leg_index);
 
         while in_range != LegDistInRange::InRange {
+            println!("index: {:?}", index);
             leg = match in_range {
                 LegDistInRange::Before => {
                     if index == 0 {
                         break;
                     }
                     index -= 1;
+                    if visited.contains(&index) {
+                        break;
+                    }
                     let Some(next_leg) = self.legs.get(index) else {
                         break;
                     };
@@ -342,6 +360,9 @@ impl Route {
                 }
                 LegDistInRange::After => {
                     index += 1;
+                    if visited.contains(&index) {
+                        break;
+                    }
                     let Some(next_leg) = self.legs.get(index) else {
                         break;
                     };
@@ -351,13 +372,11 @@ impl Route {
                 _ => panic!("Invalid leg dist range {:?}", in_range),
             };
 
-            if visited.contains(&index) {
-                break;
-            }
-
             in_range = leg.signed_pos_in_section(signed_dist);
             visited.push(index);
         }
+
+        println!("final index: {:?}", leg.leg_index);
 
         leg.interpolate_signed_pos(signed_dist)
     }
@@ -425,6 +444,7 @@ pub struct RouteLeg {
     travel_section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     index: usize,
+    leg_index: usize,
     pub intention: LegIntention,
     pub section_position: f32,
     target_block: LogicalBlockID,
@@ -570,6 +590,10 @@ impl RouteLeg {
             return LegDistInRange::Before;
         }
         if section_pos > self.get_last_marker_pos() {
+            if self.is_flip() {
+                // basically both are valid, we choose before because it's more likely
+                return LegDistInRange::Before;
+            }
             return LegDistInRange::After;
         }
         return LegDistInRange::InRange;

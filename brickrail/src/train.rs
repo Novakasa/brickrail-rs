@@ -179,7 +179,7 @@ impl Train {
             .get_current_leg()
             .get_prev_marker_signed_from_first(0.2);
 
-        self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 5.0) * delta;
+        self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 10.0) * delta;
         let new_pos = current_pos + self.speed * delta;
         self.get_route_mut()
             .get_current_leg_mut()
@@ -542,20 +542,7 @@ fn manual_sensor_advance(
                 .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                 .unwrap();
             let route = train.get_route_mut();
-            if route.get_current_leg().get_leg_state() == LegState::Completed {
-                if route.get_current_leg().intention == LegIntention::Pass {
-                    match route.next_leg() {
-                        Ok(_) => {
-                            println!("Advancing train leg");
-                        }
-                        Err(_) => {
-                            println!("End of route, doing nothing");
-                        }
-                    }
-                } else {
-                    println!("Not passing, doing nothing")
-                }
-            } else {
+            if route.get_current_leg().get_leg_state() != LegState::Completed {
                 println!("Advancing marker");
                 events.send(BLESensorAdvanceEvent {
                     id: train_id,
@@ -614,6 +601,16 @@ fn sync_intentions(
             leg.intention_synced = true;
             for input in commands.hub_events {
                 hub_commands.send(input);
+            }
+        }
+        if route.get_current_leg().intention == LegIntention::Pass
+            && route.get_current_leg().get_leg_state() == LegState::Completed
+        {
+            match route.next_leg() {
+                Ok(_) => {
+                    println!("[sync intentions] Advancing train leg");
+                }
+                Err(_) => {}
             }
         }
     }
