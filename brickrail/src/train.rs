@@ -284,12 +284,18 @@ fn exit_drag_train(
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
-            if let Some(route) = train_drag_state.route.clone() {
+            if let Some(mut route) = train_drag_state.route.clone() {
                 let (mut train, ble_train) = q_trains
                     .get_mut(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
                     .unwrap();
                 // println!("Dropping train {:?} on block {:?}", train_id, block_id);
                 route.pretty_print();
+                route.get_current_leg_mut().set_signed_pos_from_last(
+                    train
+                        .get_route()
+                        .get_current_leg()
+                        .get_signed_pos_from_last(),
+                );
                 // route.get_current_leg_mut().intention = LegIntention::Stop;
                 train.position = Position::Route(route);
 

@@ -582,6 +582,11 @@ impl RouteLeg {
             self.get_first_marker_pos() + dist * self.get_final_facing().get_sign();
     }
 
+    pub fn set_signed_pos_from_last(&mut self, dist: f32) {
+        self.section_position =
+            self.get_last_marker_pos() + dist * self.get_final_facing().get_sign();
+    }
+
     pub fn get_signed_pos_from_first(&self) -> f32 {
         (self.section_position - self.get_first_marker_pos()) * self.get_final_facing().get_sign()
     }
