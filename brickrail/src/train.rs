@@ -368,13 +368,13 @@ struct SetTrainRouteEvent {
 }
 
 fn set_train_route(
-    mut q_trains: Query<'_, '_, (&mut Train, &mut BLETrain)>,
-    entity_map: Res<'_, EntityMap>,
+    mut q_trains: Query<(&mut Train, &mut BLETrain)>,
+    entity_map: Res<EntityMap>,
     mut route_events: EventReader<SetTrainRouteEvent>,
-    mut track_locks: ResMut<'_, TrackLocks>,
-    mut set_switch_position: EventWriter<'_, SetSwitchPositionEvent>,
-    editor_state: Res<'_, State<EditorState>>,
-    mut hub_commands: EventWriter<'_, HubCommandEvent>,
+    mut track_locks: ResMut<TrackLocks>,
+    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    editor_state: Res<State<EditorState>>,
+    mut hub_commands: EventWriter<HubCommandEvent>,
 ) {
     for event in route_events.read() {
         let mut route = event.route.clone();
