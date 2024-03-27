@@ -221,9 +221,7 @@ impl Route {
     pub fn update_intentions(&mut self, track_locks: &TrackLocks) {
         let mut free_until = 0;
         for (i, leg) in self.iter_legs_remaining().enumerate() {
-            if track_locks.can_lock(&self.train_id, &leg.travel_section)
-                && track_locks.can_lock(&self.train_id, &leg.to_section)
-            {
+            if track_locks.can_lock(&self.train_id, &leg.travel_section) {
                 free_until = i + self.leg_index;
             } else {
                 break;
@@ -241,6 +239,11 @@ impl Route {
                 }
                 leg.intention = LegIntention::Stop;
             }
+        }
+        if self.get_current_leg().intention == LegIntention::Pass
+            && self.get_current_leg().get_leg_state() == LegState::Completed
+        {
+            self.next_leg().unwrap();
         }
     }
 
@@ -339,10 +342,10 @@ impl Route {
         let mut signed_dist = leg.get_signed_pos_from_first() + offset;
         let mut in_range = leg.signed_pos_in_section(signed_dist);
         let mut visited = Vec::new();
-        println!("starting index: {:?}", leg.leg_index);
+        // println!("starting index: {:?}", leg.leg_index);
 
         while in_range != LegDistInRange::InRange {
-            println!("index: {:?}", index);
+            // println!("not in range: {}", leg.essential_string());
             leg = match in_range {
                 LegDistInRange::Before => {
                     if index == 0 {
@@ -376,7 +379,7 @@ impl Route {
             visited.push(index);
         }
 
-        println!("final index: {:?}", leg.leg_index);
+        // println!("final choice: {}", leg.essential_string());
 
         leg.interpolate_signed_pos(signed_dist)
     }
@@ -639,6 +642,15 @@ impl RouteLeg {
         }
         data.push(self.intention.as_train_flag() | self.get_final_facing().as_train_flag());
         data
+    }
+
+    pub fn essential_string(&self) -> String {
+        format!(
+            "Leg: {:?}, {} -> {}",
+            self.leg_index,
+            self.markers.first().unwrap().track,
+            self.markers.last().unwrap().track
+        )
     }
 }
 

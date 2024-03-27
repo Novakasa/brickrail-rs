@@ -252,7 +252,7 @@ fn draw_train(
             let pos = train.get_route().interpolate_offset(offset);
             gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color);
         }
-        let pos = train.get_route().get_current_leg().get_current_pos();
+        let pos = train.get_route().interpolate_offset(0.0);
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
     }
 }
@@ -601,16 +601,6 @@ fn sync_intentions(
             leg.intention_synced = true;
             for input in commands.hub_events {
                 hub_commands.send(input);
-            }
-        }
-        if route.get_current_leg().intention == LegIntention::Pass
-            && route.get_current_leg().get_leg_state() == LegState::Completed
-        {
-            match route.next_leg() {
-                Ok(_) => {
-                    println!("[sync intentions] Advancing train leg");
-                }
-                Err(_) => {}
             }
         }
     }
