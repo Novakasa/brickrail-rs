@@ -504,6 +504,21 @@ fn spawn_train(
     }
 }
 
+fn despawn_train(
+    mut commands: Commands,
+    mut entity_map: ResMut<EntityMap>,
+    mut despawn_events: EventReader<DespawnEvent<Train>>,
+    mut track_locks: ResMut<TrackLocks>,
+) {
+    for event in despawn_events.read() {
+        let train_id = event.0.id;
+        let entity = entity_map.trains.get(&train_id).unwrap();
+        track_locks.unlock_all(&train_id);
+        commands.entity(*entity).despawn();
+        entity_map.remove_train(train_id);
+    }
+}
+
 fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
@@ -613,10 +628,13 @@ impl Plugin for TrainPlugin {
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
+        app.add_event::<DespawnEvent<Train>>();
         app.add_systems(
             Update,
             (
                 create_train_shortcut,
+                delete_selection_shortcut::<Train>,
+                despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
                 draw_train,
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),

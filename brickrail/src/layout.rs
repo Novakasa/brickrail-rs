@@ -152,6 +152,10 @@ impl EntityMap {
         self.switches.remove(&switch);
     }
 
+    pub fn remove_train(&mut self, train: TrainID) {
+        self.trains.remove(&train);
+    }
+
     pub fn add_connection(
         &mut self,
         connection: DirectedTrackConnectionID,
