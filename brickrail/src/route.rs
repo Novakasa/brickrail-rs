@@ -12,6 +12,7 @@ use crate::marker::*;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionEvent;
 use crate::track::LAYOUT_SCALE;
+use crate::train::MarkerAdvanceEvent;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {
@@ -314,26 +315,17 @@ impl Route {
         self.get_current_leg().get_train_state(will_turn)
     }
 
-    pub fn advance_distance(&mut self, distance: f32) -> bool {
-        let mut change_locks = false;
-        let mut remainder = Some(distance);
-        while remainder.is_some() {
-            let leg_state = self.get_current_leg().get_leg_state();
-            remainder = self
-                .get_current_leg_mut()
-                .advance_distance(remainder.unwrap());
-            if self.get_current_leg().get_leg_state() != leg_state {
-                change_locks = true;
-            }
-            if let Some(_) = remainder {
-                self.next_leg().unwrap();
-                change_locks = true;
-                if self.legs.len() == 0 {
-                    break;
-                }
-            }
+    pub fn advance_distance(
+        &mut self,
+        distance: f32,
+        advance_events: &mut EventWriter<MarkerAdvanceEvent>,
+    ) {
+        if let Some(marker_index) = self.get_current_leg_mut().advance_distance(distance) {
+            advance_events.send(MarkerAdvanceEvent {
+                id: self.train_id.clone(),
+                index: marker_index as u8,
+            });
         }
-        return change_locks;
     }
 
     pub fn interpolate_offset(&self, offset: f32) -> Vec2 {
@@ -537,8 +529,8 @@ impl RouteLeg {
         self.target_block.clone()
     }
 
-    pub fn get_next_marker_pos(&self) -> f32 {
-        self.markers[self.index + 1].position
+    pub fn get_next_marker_pos(&self) -> Option<f32> {
+        Some(self.markers.get(self.index + 1)?.position)
     }
 
     pub fn get_previous_marker_pos(&self) -> f32 {
@@ -553,30 +545,13 @@ impl RouteLeg {
         self.markers.last().unwrap().position
     }
 
-    pub fn advance_distance(&mut self, distance: f32) -> Option<f32> {
+    pub fn advance_distance(&mut self, distance: f32) -> Option<usize> {
         let facing_sign = self.get_final_facing().get_sign();
-        if self.get_leg_state() == LegState::Completed {
-            if self.intention == LegIntention::Stop {
-                self.section_position += distance * facing_sign;
-                return None;
-            }
-            return Some(distance);
+        self.section_position += distance * facing_sign;
+        if self.section_position > self.get_next_marker_pos()? {
+            return Some(self.index + 1);
         }
-        let mut remainder = distance * facing_sign;
-        while self.section_position + remainder > self.get_next_marker_pos() {
-            remainder -= self.get_next_marker_pos() - self.section_position;
-            self.advance_marker();
-            self.reset_pos_to_prev_marker();
-            if self.get_leg_state() == LegState::Completed {
-                if self.intention == LegIntention::Stop {
-                    self.section_position += remainder;
-                    return None;
-                }
-                return Some(remainder * facing_sign);
-            }
-        }
-        self.section_position += remainder;
-        None
+        return None;
     }
 
     pub fn interpolate_signed_pos(&self, mut offset: f32) -> Vec2 {

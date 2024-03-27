@@ -13,7 +13,7 @@ use crate::{
     layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
     route::{LegIntention, Route},
-    train::Train,
+    train::{MarkerAdvanceEvent, Train},
 };
 
 #[derive(Debug)]
@@ -309,16 +309,10 @@ impl HubCommands {
     }
 }
 
-#[derive(Event)]
-pub struct BLESensorAdvanceEvent {
-    pub id: TrainID,
-    pub index: u8,
-}
-
 fn handle_messages(
     mut hub_message_events: EventReader<HubMessageEvent<TrainData>>,
     mut ble_trains: Query<(&BLETrain, &mut Train)>,
-    mut advance_events: EventWriter<BLESensorAdvanceEvent>,
+    mut advance_events: EventWriter<MarkerAdvanceEvent>,
     mut ble_commands: EventWriter<HubCommandEvent>,
 ) {
     for event in hub_message_events.read() {
@@ -339,7 +333,7 @@ fn handle_messages(
                     }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
-                        advance_events.send(BLESensorAdvanceEvent {
+                        advance_events.send(MarkerAdvanceEvent {
                             id: ble_train.train_id,
                             index,
                         });
@@ -379,7 +373,7 @@ impl Plugin for BLETrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, BLETrain>();
         app.add_event::<HubMessageEvent<TrainData>>();
-        app.add_event::<BLESensorAdvanceEvent>();
+        app.add_event::<MarkerAdvanceEvent>();
         app.add_systems(
             Update,
             handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>()),

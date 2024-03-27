@@ -1,12 +1,12 @@
 use crate::{
     ble::HubCommandEvent,
-    ble_train::{BLESensorAdvanceEvent, BLETrain},
+    ble_train::BLETrain,
     block::{spawn_block, Block},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, LegIntention, LegState, Route, TrainState},
+    route::{build_route, LegState, Route, TrainState},
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -160,14 +160,13 @@ impl Train {
         }
     }
 
-    fn traverse_route(&mut self, delta: f32) -> bool {
+    fn traverse_route(&mut self, delta: f32, advance_events: &mut EventWriter<MarkerAdvanceEvent>) {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
         let dist = delta * self.speed;
-        let change_locks = self.get_route_mut().advance_distance(dist);
+        self.get_route_mut().advance_distance(dist, advance_events);
         self.state = self.get_route().get_train_state();
         // self.speed = self.state.get_speed();
-        return change_locks;
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
         // println!("Route: {:?}", self.route.get_current_leg().section_position);
     }
@@ -375,6 +374,12 @@ fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
     }
 }
 
+#[derive(Event)]
+pub struct MarkerAdvanceEvent {
+    pub id: TrainID,
+    pub index: u8,
+}
+
 #[derive(Debug, Event)]
 struct SetTrainRouteEvent {
     train_id: TrainID,
@@ -503,8 +508,7 @@ fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
     mut track_locks: ResMut<TrackLocks>,
-    entity_map: Res<EntityMap>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut advance_events: EventWriter<MarkerAdvanceEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
         if !track_locks.is_clean(&train.id) {
@@ -514,12 +518,7 @@ fn update_virtual_trains(
                 .update_intentions(track_locks.as_ref());
             track_locks.mark_clean(&train.id);
         }
-        let change_locks = train.traverse_route(time.delta_seconds());
-        if change_locks {
-            train
-                .get_route()
-                .update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
-        }
+        train.traverse_route(time.delta_seconds(), &mut advance_events);
     }
 }
 
@@ -530,7 +529,7 @@ fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time
 }
 
 fn manual_sensor_advance(
-    mut events: EventWriter<BLESensorAdvanceEvent>,
+    mut events: EventWriter<MarkerAdvanceEvent>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
     mut trains: Query<&mut Train>,
@@ -544,7 +543,7 @@ fn manual_sensor_advance(
             let route = train.get_route_mut();
             if route.get_current_leg().get_leg_state() != LegState::Completed {
                 println!("Advancing marker");
-                events.send(BLESensorAdvanceEvent {
+                events.send(MarkerAdvanceEvent {
                     id: train_id,
                     index: 0,
                 });
@@ -555,7 +554,7 @@ fn manual_sensor_advance(
 
 fn handle_ble_sensor_advance(
     mut q_trains: Query<&mut Train, With<BLETrain>>,
-    mut ble_sensor_advance_events: EventReader<BLESensorAdvanceEvent>,
+    mut ble_sensor_advance_events: EventReader<MarkerAdvanceEvent>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
@@ -628,7 +627,7 @@ impl Plugin for TrainPlugin {
                 update_drag_train,
                 update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
                 update_virtual_trains_passive.run_if(in_state(EditorState::DeviceControl)),
-                handle_ble_sensor_advance.run_if(on_event::<BLESensorAdvanceEvent>()),
+                handle_ble_sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
                 sync_intentions.run_if(in_state(EditorState::DeviceControl)),
                 manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
             ),
