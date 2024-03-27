@@ -377,7 +377,7 @@ fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
 #[derive(Event)]
 pub struct MarkerAdvanceEvent {
     pub id: TrainID,
-    pub index: u8,
+    pub index: usize,
 }
 
 #[derive(Debug, Event)]

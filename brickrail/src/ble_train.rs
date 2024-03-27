@@ -335,7 +335,7 @@ fn handle_messages(
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
                         advance_events.send(MarkerAdvanceEvent {
                             id: ble_train.train_id,
-                            index,
+                            index: index as usize,
                         });
                         for input in ble_train.advance_sensor().hub_events {
                             ble_commands.send(input);
