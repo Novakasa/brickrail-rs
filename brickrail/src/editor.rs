@@ -1,4 +1,5 @@
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
@@ -21,6 +22,7 @@ use bevy_egui::{egui, EguiContexts, EguiMousePosition};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
+use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Debug, Default)]
@@ -124,21 +126,44 @@ pub fn top_panel(
     mut input_data: ResMut<InputData>,
     mut next_editor_state: ResMut<NextState<EditorState>>,
     editor_state: Res<State<EditorState>>,
+    mut load_events: EventWriter<LoadLayoutEvent>,
+    mut save_events: EventWriter<SaveLayoutEvent>,
 ) {
     let inner_response = egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(
         &egui_contexts.ctx_mut().clone(),
         |ui| {
-            ui.label(format!("Mode: {:?}", editor_state.get()));
-            ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-                if ui.button("Edit").clicked() {
-                    next_editor_state.set(EditorState::Edit);
+            ui.horizontal(|ui| {
+                if ui.button("Load").clicked() {
+                    if let Some(path) = FileDialog::new()
+                        .add_filter("brickrail layouts", &["json"])
+                        .pick_file()
+                    {
+                        load_events.send(LoadLayoutEvent { path: path });
+                    }
                 }
-                if ui.button("Virtual control").clicked() {
-                    next_editor_state.set(EditorState::VirtualControl);
+                if ui.button("Save").clicked() {
+                    if let Some(path) = FileDialog::new()
+                        .add_filter("brickrail layouts", &["json"])
+                        .save_file()
+                    {
+                        save_events.send(SaveLayoutEvent { path: path });
+                    }
                 }
-                if ui.button("Device control").clicked() {
-                    next_editor_state.set(EditorState::PreparingDeviceControl);
-                }
+                ui.separator();
+                ui.vertical(|ui| {
+                    ui.label(format!("Mode: {:?}", editor_state.get()));
+                    ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                        if ui.button("Edit").clicked() {
+                            next_editor_state.set(EditorState::Edit);
+                        }
+                        if ui.button("Virtual control").clicked() {
+                            next_editor_state.set(EditorState::VirtualControl);
+                        }
+                        if ui.button("Device control").clicked() {
+                            next_editor_state.set(EditorState::PreparingDeviceControl);
+                        }
+                    });
+                });
             });
         },
     );
@@ -405,11 +430,11 @@ pub fn save_layout(
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
     connections: Res<Connections>,
-    keyboard_buttons: Res<ButtonInput<KeyCode>>,
+    mut save_events: EventReader<SaveLayoutEvent>,
 ) {
-    if keyboard_buttons.just_pressed(KeyCode::KeyS) {
+    for event in save_events.read() {
         println!("Saving layout");
-        let mut file = std::fs::File::create("layout.json").unwrap();
+        let mut file = std::fs::File::create(event.path.clone()).unwrap();
         let blocks = q_blocks.iter().map(|b| b.clone()).collect();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
         let tracks = q_tracks
@@ -467,14 +492,24 @@ pub fn save_layout(
 #[derive(Event)]
 pub struct DespawnEvent<T>(pub T);
 
-pub fn load_layout(mut commands: Commands, keyboard_buttons: Res<ButtonInput<KeyCode>>) {
-    if keyboard_buttons.just_pressed(KeyCode::KeyL) {
+#[derive(Event)]
+pub struct LoadLayoutEvent {
+    path: PathBuf,
+}
+
+#[derive(Event)]
+pub struct SaveLayoutEvent {
+    path: PathBuf,
+}
+
+pub fn load_layout(mut commands: Commands, mut load_events: EventReader<LoadLayoutEvent>) {
+    for event in load_events.read() {
         commands.remove_resource::<Connections>();
         commands.remove_resource::<EntityMap>();
         commands.remove_resource::<MarkerMap>();
         commands.insert_resource(EntityMap::default());
         commands.insert_resource(Connections::default());
-        let mut file = std::fs::File::open("layout.json").unwrap();
+        let mut file = std::fs::File::open(event.path.clone()).unwrap();
         let mut json = String::new();
         file.read_to_string(&mut json).unwrap();
         let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
@@ -542,6 +577,8 @@ impl Plugin for EditorPlugin {
         app.init_state::<EditorState>();
         app.add_event::<SpawnTrainEvent>();
         app.add_event::<SpawnHubEvent>();
+        app.add_event::<LoadLayoutEvent>();
+        app.add_event::<SaveLayoutEvent>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
