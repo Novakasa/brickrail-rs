@@ -1,6 +1,6 @@
 use crate::editor::{
-    delete_selection, DespawnEvent, GenericID, HoverState, Selectable, Selection, SelectionState,
-    SpawnTrainEvent,
+    delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
+    SelectionState, SpawnTrainEvent,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
@@ -284,7 +284,11 @@ impl Plugin for BlockPlugin {
         app.add_event::<DespawnEvent<Block>>();
         app.add_systems(
             Update,
-            (create_block, update_block_color, delete_selection::<Block>),
+            (
+                create_block,
+                update_block_color,
+                delete_selection_shortcut::<Block>,
+            ),
         );
         app.add_systems(
             PostUpdate,

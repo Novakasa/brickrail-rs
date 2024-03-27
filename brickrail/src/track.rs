@@ -1,5 +1,8 @@
 use crate::{
-    editor::{GenericID, HoverState, Selectable, Selection, SelectionState},
+    editor::{
+        delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
+        SelectionState,
+    },
     layout::{Connections, EntityMap},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
@@ -543,6 +546,53 @@ fn update_track_color(
     }
 }
 
+fn despawn_track(
+    mut commands: Commands,
+    mut connections: ResMut<Connections>,
+    mut entity_map: ResMut<EntityMap>,
+    mut event_reader: EventReader<DespawnEvent<Track>>,
+    mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
+) {
+    for despawn_event in event_reader.read() {
+        let track_id = despawn_event.0.id;
+
+        let mut other_dirtracks = vec![];
+
+        for (_, _, connection) in connections.connection_graph.edges(track_id) {
+            for directed in connection.directed_connections() {
+                let outer = entity_map.connections_outer.get(&directed).unwrap().clone();
+                commands.entity(outer).despawn_recursive();
+                let inner = entity_map.connections_inner.get(&directed).unwrap().clone();
+                commands.entity(inner).despawn_recursive();
+                entity_map.remove_connection(directed);
+                for other in connection.tracks() {
+                    if other.track != track_id {
+                        other_dirtracks.push(other);
+                    }
+                }
+            }
+        }
+
+        let entity = entity_map.tracks.get(&track_id).unwrap().clone();
+        commands.entity(entity).despawn_recursive();
+        connections.remove_track(track_id);
+        entity_map.remove_track(track_id);
+
+        for directed in other_dirtracks {
+            let existing_connections = connections.get_directed_connections_from(directed);
+            let event = UpdateSwitchTurnsEvent {
+                id: directed,
+                positions: existing_connections
+                    .iter()
+                    .map(|c| c.get_switch_position())
+                    .collect::<Vec<SwitchPosition>>(),
+            };
+            println!("{:?}", event);
+            switch_update_events.send(event);
+        }
+    }
+}
+
 pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
@@ -551,6 +601,7 @@ impl Plugin for TrackPlugin {
         app.register_component_as::<dyn Selectable, Track>();
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
+        app.add_event::<DespawnEvent<Track>>();
         app.add_systems(
             Update,
             (
@@ -559,6 +610,8 @@ impl Plugin for TrackPlugin {
                 update_draw_track,
                 update_track_color,
                 draw_build_cells,
+                delete_selection_shortcut::<Track>,
+                despawn_track,
             ),
         );
         app.add_systems(

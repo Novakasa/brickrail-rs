@@ -218,9 +218,8 @@ pub fn spawn_marker(
     for event in marker_events.read() {
         let marker = event.0.clone();
         let track_id = marker.track;
-        let track_entity = entity_map.tracks.get(&marker.track).unwrap().clone();
-        commands.entity(track_entity.clone()).insert(marker);
-        entity_map.add_marker(track_id, track_entity);
+        let entity = commands.spawn(marker).id();
+        entity_map.add_marker(track_id, entity);
     }
 }
 
@@ -233,8 +232,8 @@ pub fn despawn_marker(
     for event in marker_events.read() {
         let marker = event.0.clone();
         let track_id = marker.track;
-        let track_entity = entity_map.tracks.get(&marker.track).unwrap().clone();
-        commands.entity(track_entity.clone()).remove::<Marker>();
+        let entity = entity_map.markers.get(&marker.track).unwrap().clone();
+        commands.entity(entity.clone()).remove::<Marker>();
         entity_map.remove_marker(track_id);
         marker_map.remove_marker(track_id);
     }
@@ -247,7 +246,7 @@ impl Plugin for MarkerPlugin {
         app.add_event::<MarkerSpawnEvent>();
         app.add_event::<DespawnEvent<Marker>>();
         app.register_component_as::<dyn Selectable, Marker>();
-        app.add_systems(Update, (create_marker, delete_selection::<Marker>));
+        app.add_systems(Update, (create_marker, delete_selection_shortcut::<Marker>));
         app.add_systems(
             PostUpdate,
             (

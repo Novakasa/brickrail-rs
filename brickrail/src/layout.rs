@@ -131,12 +131,25 @@ impl EntityMap {
         self.hubs.try_insert(hub, entity).unwrap();
     }
 
+    pub fn remove_track(&mut self, track: TrackID) {
+        self.tracks.remove(&track);
+    }
+
+    pub fn remove_connection(&mut self, connection: DirectedTrackConnectionID) {
+        self.connections_outer.remove(&connection);
+        self.connections_inner.remove(&connection);
+    }
+
     pub fn remove_marker(&mut self, track: TrackID) {
         self.markers.remove(&track);
     }
 
     pub fn remove_block(&mut self, block: BlockID) {
         self.blocks.remove(&block);
+    }
+
+    pub fn remove_switch(&mut self, switch: DirectedTrackID) {
+        self.switches.remove(&switch);
     }
 
     pub fn add_connection(
@@ -332,6 +345,15 @@ impl Connections {
                     println!("Removing track {:?}", logical_track);
                     self.logical_graph.remove_node(logical_track);
                 }
+            }
+        }
+    }
+
+    pub fn remove_track(&mut self, track: TrackID) {
+        self.connection_graph.remove_node(track);
+        for dirtrack in track.dirtracks() {
+            for logical_track in dirtrack.logical_tracks() {
+                self.logical_graph.remove_node(logical_track);
             }
         }
     }

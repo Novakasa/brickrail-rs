@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::{BLEHub, HubCommandEvent},
-    editor::{EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
+    editor::{DespawnEvent, EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
@@ -211,6 +211,7 @@ pub fn update_switch_position(
 pub fn update_switch_turns(
     mut events: EventReader<UpdateSwitchTurnsEvent>,
     mut switch_spawn_events: EventWriter<SpawnSwitchEvent>,
+    mut despawn_switch_events: EventWriter<DespawnEvent<Switch>>,
     mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
 ) {
@@ -225,7 +226,10 @@ pub fn update_switch_turns(
                 });
             }
         } else {
-            //todo!("Remove switches")
+            if let Some(entity) = entity_map.switches.get(&update.id) {
+                let switch = switches.get(entity.clone()).unwrap();
+                despawn_switch_events.send(DespawnEvent(switch.clone()));
+            }
         }
     }
 }
@@ -248,6 +252,19 @@ pub fn spawn_switch(
     }
 }
 
+pub fn despawn_switch(
+    mut commands: Commands,
+    mut events: EventReader<DespawnEvent<Switch>>,
+    mut entity_map: ResMut<EntityMap>,
+) {
+    for despawn_event in events.read() {
+        if let Some(entity) = entity_map.switches.get(&despawn_event.0.id) {
+            commands.entity(*entity).despawn_recursive();
+            entity_map.remove_switch(despawn_event.0.id);
+        }
+    }
+}
+
 pub struct SwitchPlugin;
 
 impl Plugin for SwitchPlugin {
@@ -255,6 +272,7 @@ impl Plugin for SwitchPlugin {
         app.add_event::<SpawnSwitchEvent>();
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.add_event::<SetSwitchPositionEvent>();
+        app.add_event::<DespawnEvent<Switch>>();
         app.register_component_as::<dyn Selectable, Switch>();
         app.add_systems(
             Update,
@@ -265,6 +283,7 @@ impl Plugin for SwitchPlugin {
                     .run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 update_switch_position.run_if(on_event::<SetSwitchPositionEvent>()),
                 draw_switches,
+                despawn_switch.run_if(on_event::<DespawnEvent<Switch>>()),
             ),
         );
     }

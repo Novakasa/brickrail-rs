@@ -292,9 +292,9 @@ fn init_select(
     }
 }
 
-pub fn delete_selection<T: Selectable + Component + Clone>(
+pub fn delete_selection_shortcut<T: Selectable + Component + Clone>(
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
-    selection_state: Res<SelectionState>,
+    mut selection_state: ResMut<SelectionState>,
     mut q_selectable: Query<&mut T>,
     mut despawn_events: EventWriter<DespawnEvent<T>>,
     entity_map: Res<EntityMap>,
@@ -305,6 +305,7 @@ pub fn delete_selection<T: Selectable + Component + Clone>(
                 let entity = entity_map.get_entity(id).unwrap();
                 if let Ok(component) = q_selectable.get_mut(entity) {
                     despawn_events.send(DespawnEvent(component.clone()));
+                    selection_state.selection = Selection::None;
                 }
             }
             _ => {}
