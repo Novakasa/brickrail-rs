@@ -99,7 +99,7 @@ impl DeviceComponent for SwitchMotor {
     type SpawnEvent = SpawnSwitchMotorEvent;
 
     fn new_id(entity_map: &mut EntityMap) -> LayoutDeviceID {
-        entity_map.new_layout_device_id(LayoutDeviceType::Switch)
+        entity_map.new_layout_device_id(LayoutDeviceType::SwitchMotor)
     }
 }
 

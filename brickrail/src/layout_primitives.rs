@@ -144,8 +144,9 @@ impl FromStr for HubID {
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
 pub enum LayoutDeviceType {
-    Switch,
-    Crossing,
+    #[serde(alias = "Switch")]
+    SwitchMotor,
+    CrossingMotor,
     Signal,
 }
 
@@ -1254,14 +1255,14 @@ impl DirectedTrackID {
 
     pub fn get_unicode_arrow(&self) -> &'static str {
         match self.dir_index() {
-            2 => "↑",
-            3 => "↗",
-            4 => "→",
-            5 => "↘",
-            6 => "↓",
-            7 => "↙",
-            0 => "←",
-            1 => "↖",
+            6 => "↑",
+            7 => "↗",
+            0 => "→",
+            1 => "↘",
+            2 => "↓",
+            3 => "↙",
+            4 => "←",
+            5 => "↖",
             _ => "X",
         }
     }
