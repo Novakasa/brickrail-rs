@@ -1,6 +1,6 @@
 use crate::{
     ble::BLEHub,
-    editor::{SelectionState, SpawnHubEvent},
+    editor::{DespawnEvent, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::*,
 };
@@ -75,6 +75,7 @@ pub fn select_device_id<T: DeviceComponent>(
     selected_id: &mut Option<LayoutDeviceID>,
     devices: &mut Query<(&mut T, &mut LayoutDevice)>,
     spawn_events: &mut EventWriter<T::SpawnEvent>,
+    despawn_events: &mut EventWriter<DespawnEvent<LayoutDevice>>,
     entity_map: &mut ResMut<EntityMap>,
     hubs: &Query<&BLEHub>,
 ) {
@@ -85,34 +86,64 @@ pub fn select_device_id<T: DeviceComponent>(
             } else {
                 None
             };
-            egui::ComboBox::from_label("")
-                .selected_text(format!(
-                    "{:}",
-                    selected_dev
-                        .map(|(_, dev)| dev.ui_label(hubs, entity_map))
-                        .unwrap_or("None".to_string())
-                ))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(selected_id, None, "None");
-                    for (_, device) in devices.iter() {
-                        ui.selectable_value(
-                            selected_id,
-                            Some(device.id),
-                            format!("{:}", device.ui_label(hubs, entity_map)),
-                        );
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_label("")
+                    .selected_text(format!(
+                        "{:}",
+                        selected_dev
+                            .map(|(_, dev)| dev.ui_label(hubs, entity_map))
+                            .unwrap_or("None".to_string())
+                    ))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(selected_id, None, "None");
+                        for (_, device) in devices.iter() {
+                            ui.selectable_value(
+                                selected_id,
+                                Some(device.id),
+                                format!("{:}", device.ui_label(hubs, entity_map)),
+                            );
+                        }
+                        if ui.button("New").clicked() {
+                            let id = T::new_id(entity_map);
+                            spawn_events.send(T::SpawnEvent::from_id(id));
+                            *selected_id = Some(id);
+                        }
+                    });
+                if selected_id.is_some() {
+                    if ui.button("Remove").clicked() {
+                        if let Some(id) = selected_id.take() {
+                            let entity = entity_map.layout_devices[&id];
+                            let (_, device) = devices.get(entity).unwrap();
+                            despawn_events.send(DespawnEvent(device.clone()));
+                        }
                     }
-                    if ui.button("New").clicked() {
-                        let id = T::new_id(entity_map);
-                        spawn_events.send(T::SpawnEvent::from_id(id));
-                        *selected_id = Some(id);
-                    }
-                });
+                }
+            });
         });
     });
+}
+
+fn despawn_layout_device(
+    mut events: EventReader<DespawnEvent<LayoutDevice>>,
+    mut entity_map: ResMut<EntityMap>,
+    mut commands: Commands,
+) {
+    for event in events.read() {
+        if let Some(entity) = entity_map.layout_devices.remove(&event.0.id) {
+            commands.entity(entity).despawn_recursive();
+        }
+        entity_map.remove_layout_device(event.0.id);
+    }
 }
 
 pub struct LayoutDevicePlugin;
 
 impl Plugin for LayoutDevicePlugin {
-    fn build(&self, _app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.add_event::<DespawnEvent<LayoutDevice>>();
+        app.add_systems(
+            Update,
+            despawn_layout_device.run_if(on_event::<DespawnEvent<LayoutDevice>>()),
+        );
+    }
 }

@@ -160,6 +160,10 @@ impl EntityMap {
         self.hubs.remove(&hub);
     }
 
+    pub fn remove_layout_device(&mut self, device: LayoutDeviceID) {
+        self.layout_devices.remove(&device);
+    }
+
     pub fn add_connection(
         &mut self,
         connection: DirectedTrackConnectionID,

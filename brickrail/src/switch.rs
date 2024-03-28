@@ -76,6 +76,7 @@ impl Switch {
             Query<&BLEHub>,
             EventWriter<SpawnHubEvent>,
             EventWriter<SpawnSwitchMotorEvent>,
+            EventWriter<DespawnEvent<LayoutDevice>>,
             Query<(&mut SwitchMotor, &mut LayoutDevice)>,
             EventWriter<SetSwitchPositionEvent>,
         )>::new(world);
@@ -87,6 +88,7 @@ impl Switch {
             hubs,
             mut spawn_events,
             mut spawn_devices,
+            mut despawn_devices,
             mut devices,
             mut set_switch_position,
         ) = state.get_mut(world);
@@ -119,6 +121,7 @@ impl Switch {
                             motor_id,
                             &mut devices,
                             &mut spawn_devices,
+                            &mut despawn_devices,
                             &mut entity_map,
                             &hubs,
                         );
