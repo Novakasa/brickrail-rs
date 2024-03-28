@@ -16,7 +16,7 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
-use bevy_ecs::system::SystemState;
+use bevy_ecs::system::{RunSystemOnce, SystemState};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts, EguiMousePosition};
@@ -511,62 +511,70 @@ pub struct SaveLayoutEvent {
 #[derive(Event)]
 pub struct NewLayoutEvent {}
 
-pub fn load_layout(mut commands: Commands, mut load_events: EventReader<LoadLayoutEvent>) {
-    for event in load_events.read() {
-        commands.remove_resource::<Connections>();
-        commands.remove_resource::<EntityMap>();
-        commands.remove_resource::<MarkerMap>();
-        commands.insert_resource(EntityMap::default());
-        commands.insert_resource(Connections::default());
-        let mut file = std::fs::File::open(event.path.clone()).unwrap();
-        let mut json = String::new();
-        file.read_to_string(&mut json).unwrap();
-        let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
-        let marker_map = layout_value.marker_map.clone();
-        println!("Sending spawn events");
-        // commands.insert_resource(connections);
-        for track in layout_value.tracks {
-            commands.add(|world: &mut World| {
-                world.send_event(track);
-            });
+pub fn load_layout(
+    world: &mut World,
+    params: &mut SystemState<(Commands, EventReader<LoadLayoutEvent>)>,
+) {
+    world.run_system_once(new_layout);
+    {
+        let (mut commands, mut load_events) = params.get_mut(world);
+        for event in load_events.read() {
+            commands.remove_resource::<Connections>();
+            commands.remove_resource::<EntityMap>();
+            commands.remove_resource::<MarkerMap>();
+            commands.insert_resource(EntityMap::default());
+            commands.insert_resource(Connections::default());
+            let mut file = std::fs::File::open(event.path.clone()).unwrap();
+            let mut json = String::new();
+            file.read_to_string(&mut json).unwrap();
+            let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
+            let marker_map = layout_value.marker_map.clone();
+            println!("Sending spawn events");
+            // commands.insert_resource(connections);
+            for track in layout_value.tracks {
+                commands.add(|world: &mut World| {
+                    world.send_event(track);
+                });
+            }
+            for connection in layout_value.connections {
+                commands.add(|world: &mut World| {
+                    world.send_event(connection);
+                });
+            }
+            for block in layout_value.blocks {
+                commands.add(|world: &mut World| {
+                    world.send_event(BlockSpawnEvent(block));
+                });
+            }
+            for marker in layout_value.markers {
+                commands.add(|world: &mut World| {
+                    world.send_event(MarkerSpawnEvent(marker));
+                });
+            }
+            for serialized_train in layout_value.trains {
+                commands.add(|world: &mut World| {
+                    world.send_event(serialized_train);
+                });
+            }
+            for serialized_hub in layout_value.hubs {
+                commands.add(|world: &mut World| {
+                    world.send_event(serialized_hub);
+                });
+            }
+            for serialized_switch in layout_value.switches {
+                commands.add(|world: &mut World| {
+                    world.send_event(serialized_switch);
+                });
+            }
+            for serialized_switch_motor in layout_value.switch_motors {
+                commands.add(|world: &mut World| {
+                    world.send_event(serialized_switch_motor);
+                });
+            }
+            commands.insert_resource(marker_map);
         }
-        for connection in layout_value.connections {
-            commands.add(|world: &mut World| {
-                world.send_event(connection);
-            });
-        }
-        for block in layout_value.blocks {
-            commands.add(|world: &mut World| {
-                world.send_event(BlockSpawnEvent(block));
-            });
-        }
-        for marker in layout_value.markers {
-            commands.add(|world: &mut World| {
-                world.send_event(MarkerSpawnEvent(marker));
-            });
-        }
-        for serialized_train in layout_value.trains {
-            commands.add(|world: &mut World| {
-                world.send_event(serialized_train);
-            });
-        }
-        for serialized_hub in layout_value.hubs {
-            commands.add(|world: &mut World| {
-                world.send_event(serialized_hub);
-            });
-        }
-        for serialized_switch in layout_value.switches {
-            commands.add(|world: &mut World| {
-                world.send_event(serialized_switch);
-            });
-        }
-        for serialized_switch_motor in layout_value.switch_motors {
-            commands.add(|world: &mut World| {
-                world.send_event(serialized_switch_motor);
-            });
-        }
-        commands.insert_resource(marker_map);
     }
+    params.apply(world);
 }
 
 fn draw_markers(q_markers: Query<&Marker>, mut gizmos: Gizmos) {
