@@ -64,8 +64,8 @@ impl FromIOMessage for TrainData {
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLETrain {
     pub master_hub: Option<HubID>,
-    puppets: Vec<Option<HubID>>,
-    train_id: TrainID,
+    pub puppets: Vec<Option<HubID>>,
+    pub train_id: TrainID,
     #[serde(default)]
     slow_speed: u16,
     #[serde(default)]

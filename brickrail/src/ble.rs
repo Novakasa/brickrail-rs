@@ -3,7 +3,10 @@ use std::{path::Path, sync::Arc};
 use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     ble_train::{BLETrain, TrainData},
-    editor::{EditorState, GenericID, Selectable, Selection, SelectionState, SpawnHubEvent},
+    editor::{
+        delete_selection_shortcut, DespawnEvent, EditorState, GenericID, Selectable, Selection,
+        SelectionState, SpawnHubEvent,
+    },
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
@@ -330,6 +333,40 @@ fn spawn_hub(
                 .await;
             }
         });
+    }
+}
+
+fn despawn_hub(
+    mut hub_event_reader: EventReader<DespawnEvent<BLEHub>>,
+    mut commands: Commands,
+    mut entity_map: ResMut<EntityMap>,
+    mut q_ble_trains: Query<&mut BLETrain>,
+    mut q_layout_devices: Query<&mut LayoutDevice>,
+) {
+    for event in hub_event_reader.read() {
+        for mut ble_train in q_ble_trains.iter_mut() {
+            if let Some(master_hub) = ble_train.master_hub.clone() {
+                if master_hub == event.0.id {
+                    ble_train.master_hub = None;
+                }
+                ble_train
+                    .puppets
+                    .retain(|hub_id| hub_id != &Some(event.0.id));
+            }
+        }
+
+        for mut layout_device in q_layout_devices.iter_mut() {
+            if let Some(hub_id) = layout_device.hub_id {
+                if hub_id == event.0.id {
+                    layout_device.hub_id = None;
+                }
+            }
+        }
+
+        if let Some(entity) = entity_map.hubs.remove(&event.0.id) {
+            commands.entity(entity).despawn_recursive();
+        }
+        entity_map.remove_hub(event.0.id);
     }
 }
 
@@ -704,10 +741,13 @@ impl Plugin for BLEPlugin {
         app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
         app.add_event::<HubCommandEvent>();
+        app.add_event::<DespawnEvent<BLEHub>>();
         app.add_systems(
             Update,
             (
                 spawn_hub.run_if(on_event::<SpawnHubEvent>()),
+                despawn_hub.run_if(on_event::<DespawnEvent<BLEHub>>()),
+                delete_selection_shortcut::<BLEHub>,
                 handle_hub_events.run_if(on_event::<HubEvent>()),
                 execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
                 create_hub,
