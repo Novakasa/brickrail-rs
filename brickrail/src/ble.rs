@@ -349,10 +349,10 @@ fn despawn_hub(
                 if master_hub == event.0.id {
                     ble_train.master_hub = None;
                 }
-                ble_train
-                    .puppets
-                    .retain(|hub_id| hub_id != &Some(event.0.id));
             }
+            ble_train
+                .puppets
+                .retain(|hub_id| hub_id != &Some(event.0.id));
         }
 
         for mut layout_device in q_layout_devices.iter_mut() {
