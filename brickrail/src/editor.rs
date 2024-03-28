@@ -5,7 +5,7 @@ use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
 use crate::inspector::inspector_system_world;
-use crate::layout::{Connections, EntityMap, MarkerMap};
+use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
@@ -16,6 +16,7 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
+use bevy_ecs::system::SystemState;
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts, EguiMousePosition};
@@ -128,11 +129,16 @@ pub fn top_panel(
     editor_state: Res<State<EditorState>>,
     mut load_events: EventWriter<LoadLayoutEvent>,
     mut save_events: EventWriter<SaveLayoutEvent>,
+    mut new_events: EventWriter<NewLayoutEvent>,
 ) {
     let inner_response = egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(
         &egui_contexts.ctx_mut().clone(),
         |ui| {
             ui.horizontal(|ui| {
+                if ui.button("New").clicked() {
+                    new_events.send(NewLayoutEvent {});
+                }
+
                 if ui.button("Load").clicked() {
                     if let Some(path) = FileDialog::new()
                         .add_filter("brickrail layouts", &["json"])
@@ -502,6 +508,9 @@ pub struct SaveLayoutEvent {
     path: PathBuf,
 }
 
+#[derive(Event)]
+pub struct NewLayoutEvent {}
+
 pub fn load_layout(mut commands: Commands, mut load_events: EventReader<LoadLayoutEvent>) {
     for event in load_events.read() {
         commands.remove_resource::<Connections>();
@@ -566,6 +575,28 @@ fn draw_markers(q_markers: Query<&Marker>, mut gizmos: Gizmos) {
     }
 }
 
+fn new_layout(
+    world: &mut World,
+    params: &mut SystemState<(Res<EntityMap>, Commands, EventReader<NewLayoutEvent>)>,
+) {
+    {
+        let (entity_map, mut commands, mut events) = params.get_mut(world);
+        events.clear();
+        for entity in entity_map.iter_all_entities() {
+            commands.entity(*entity).despawn();
+        }
+    }
+    params.apply(world);
+    world.remove_resource::<Connections>();
+    world.remove_resource::<EntityMap>();
+    world.remove_resource::<MarkerMap>();
+    world.remove_resource::<TrackLocks>();
+    world.insert_resource(EntityMap::default());
+    world.insert_resource(Connections::default());
+    world.insert_resource(MarkerMap::default());
+    world.insert_resource(TrackLocks::default());
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -579,6 +610,7 @@ impl Plugin for EditorPlugin {
         app.add_event::<SpawnHubEvent>();
         app.add_event::<LoadLayoutEvent>();
         app.add_event::<SaveLayoutEvent>();
+        app.add_event::<NewLayoutEvent>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
@@ -590,8 +622,9 @@ impl Plugin for EditorPlugin {
                 update_hover,
                 draw_selection,
                 extend_selection,
-                save_layout,
-                load_layout,
+                save_layout.run_if(on_event::<SaveLayoutEvent>()),
+                load_layout.run_if(on_event::<LoadLayoutEvent>()),
+                new_layout.run_if(on_event::<NewLayoutEvent>()),
                 draw_markers,
                 update_editor_state,
             ),

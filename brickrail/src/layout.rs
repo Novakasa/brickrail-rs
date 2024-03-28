@@ -94,6 +94,20 @@ pub struct EntityMap {
 }
 
 impl EntityMap {
+    pub fn iter_all_entities(&self) -> impl Iterator<Item = &Entity> + '_ {
+        self.tracks
+            .values()
+            .chain(self.switches.values())
+            .chain(self.blocks.values())
+            .chain(self.trains.values())
+            .chain(self.markers.values())
+            .chain(self.hubs.values())
+            .chain(self.layout_devices.values())
+            .chain(self.connections_outer.values())
+            .chain(self.connections_inner.values())
+            .chain(self.wagons.values())
+    }
+
     pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
         match id {
             GenericID::Track(track_id) => self.tracks.get(track_id).copied(),
