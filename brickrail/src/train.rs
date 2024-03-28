@@ -583,7 +583,7 @@ fn handle_ble_sensor_advance(
             )
             .unwrap();
         let route = train.get_route_mut();
-        route.advance_sensor();
+        route.advance_sensor().expect("Failed to advance sensor");
         route.update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
 
         for mut train in q_trains.iter_mut() {

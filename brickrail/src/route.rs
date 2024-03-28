@@ -285,14 +285,14 @@ impl Route {
         }
     }
 
-    pub fn advance_sensor(&mut self) {
+    pub fn advance_sensor(&mut self) -> Result<(), ()> {
         info!(
             "Manually advancing sensor, leg index: {}, old marker index: {}",
             self.leg_index,
             self.get_current_leg().index
         );
         let current_leg = self.get_current_leg_mut();
-        current_leg.advance_marker();
+        current_leg.advance_marker()?;
         if current_leg.get_leg_state() == LegState::Completed
             && current_leg.intention == LegIntention::Pass
         {
@@ -303,6 +303,7 @@ impl Route {
                 }
             }
         }
+        Ok(())
     }
 
     pub fn get_train_state(&self) -> TrainState {
@@ -460,11 +461,12 @@ impl RouteLeg {
         return self.markers.len() - 2;
     }
 
-    fn advance_marker(&mut self) {
+    fn advance_marker(&mut self) -> Result<(), ()> {
         if self.index < self.markers.len() - 1 {
             self.index += 1;
+            return Ok(());
         } else {
-            panic!("Can't advance completed leg {:?}!", self.index);
+            return Err(());
         }
     }
 
