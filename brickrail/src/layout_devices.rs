@@ -3,6 +3,7 @@ use crate::{
     editor::{DespawnEvent, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::*,
+    switch::Switch,
 };
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Layout, Ui};
@@ -127,12 +128,20 @@ fn despawn_layout_device(
     mut events: EventReader<DespawnEvent<LayoutDevice>>,
     mut entity_map: ResMut<EntityMap>,
     mut commands: Commands,
+    mut q_switches: Query<&mut Switch>,
 ) {
     for event in events.read() {
-        if let Some(entity) = entity_map.layout_devices.remove(&event.0.id) {
-            commands.entity(entity).despawn_recursive();
+        for mut switch in q_switches.iter_mut() {
+            for motor in switch.motors.iter_mut() {
+                if motor == &Some(event.0.id) {
+                    motor.take();
+                }
+            }
+            if let Some(entity) = entity_map.layout_devices.remove(&event.0.id) {
+                commands.entity(entity).despawn_recursive();
+            }
+            entity_map.remove_layout_device(event.0.id);
         }
-        entity_map.remove_layout_device(event.0.id);
     }
 }
 
