@@ -59,6 +59,24 @@ enum OutputType {
     Dump,
 }
 
+pub enum SysCode {
+    Stop,
+    Ready,
+    Alive,
+    Version,
+}
+
+impl SysCode {
+    fn to_u8(&self) -> u8 {
+        match self {
+            SysCode::Stop => SYS_CODE_STOP,
+            SysCode::Ready => SYS_CODE_READY,
+            SysCode::Alive => SYS_CODE_ALIVE,
+            SysCode::Version => SYS_CODE_VERSION,
+        }
+    }
+}
+
 impl OutputType {
     fn from_byte(byte: u8) -> Result<Self, Box<dyn Error>> {
         match byte {
@@ -186,6 +204,16 @@ impl Input {
         Input {
             input_type: InputType::Store,
             data: data,
+            simulated_error: SimulatedError::None,
+        }
+    }
+
+    pub fn sys(code: SysCode, args: &[u8]) -> Self {
+        let mut data = vec![code.to_u8()];
+        data.extend_from_slice(args);
+        Input {
+            input_type: InputType::Sys,
+            data,
             simulated_error: SimulatedError::None,
         }
     }

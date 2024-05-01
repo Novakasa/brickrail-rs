@@ -100,6 +100,9 @@ class Switch:
         self.switching = False
         self.device_type = _DEVICE_SWITCH
 
+    def ready(self):
+        pass
+
     def get_storage_val(self, i):
         return io_hub.storage.get(8 + self.port * 16 + i, 100)
 

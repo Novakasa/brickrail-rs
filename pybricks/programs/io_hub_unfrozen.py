@@ -58,6 +58,7 @@ def mod_checksum(data):
 class IOHub:
     def __init__(self, device=None):
         self.running = False
+        self.ready = False
         self.input_buffer = bytearray()
         self.next_input_id = 0
         self.msg_len = None
@@ -184,6 +185,11 @@ class IOHub:
             code = msg[0]
             if code == _SYS_CODE_STOP:
                 self.running = False
+            if code == _SYS_CODE_READY:
+                self.ready = True
+                self.device.ready()
+                self.hub.light.on(Color.GREEN)
+                self.emit_sys_code(_SYS_CODE_READY)
             return
 
         if in_id == _IN_ID_RPC:
@@ -234,11 +240,10 @@ class IOHub:
         self.alive_watch.resume()
         last_time = loop_watch.time()
         self.running = True
+        self.ready = False
         alive_data = bytes([_OUT_ID_SYS, _SYS_CODE_ALIVE])
         self.emit_sys_code(_SYS_CODE_VERSION, VERSION)
         self.send_alive_data()
-
-        self.hub.light.on(Color.GREEN)
 
         while self.running:
             if self.poll.poll(int(1000 * max_delta)):
@@ -262,4 +267,5 @@ class IOHub:
             t = loop_watch.time()
             delta = (t - last_time) / 1000
             last_time = t
-            self.device.update(delta)
+            if self.ready:
+                self.device.update(delta)

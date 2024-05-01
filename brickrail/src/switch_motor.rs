@@ -1,10 +1,10 @@
 use crate::{
-    ble::HubCommandEvent,
+    ble::{HubCommandEvent, HubConfiguration},
     layout::EntityMap,
     layout_devices::{DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
 };
-use bevy::{prelude::*, reflect::TypeRegistry};
+use bevy::{prelude::*, reflect::TypeRegistry, utils::hashbrown::HashMap};
 use bevy_egui::egui::Ui;
 
 use bevy_inspector_egui::{
@@ -72,26 +72,20 @@ impl SwitchMotor {
         Some(HubCommandEvent::input(device.hub_id?, input))
     }
 
-    pub fn configure_commands(&self, device: &LayoutDevice) -> Vec<HubCommandEvent> {
-        let mut commands = vec![];
-        let Some(hub) = device.hub_id else {
-            return commands;
-        };
-        let address_offset = 8 + device.port.unwrap().to_u8() * 16;
-        commands.push(HubCommandEvent::input(
-            hub,
-            Input::store_uint(address_offset + 0, self.pulse_strength as u32),
-        ));
-        commands.push(HubCommandEvent::input(
-            hub,
-            Input::store_uint(address_offset + 1, self.pulse_duration as u32),
-        ));
-        commands.push(HubCommandEvent::input(
-            hub,
-            Input::store_uint(address_offset + 2, self.inverted as u32),
-        ));
+    pub fn hub_configuration(&self, device: &LayoutDevice) -> HashMap<HubID, HubConfiguration> {
+        if device.hub_id.is_none() {
+            return HashMap::new();
+        }
 
-        commands
+        let address_offset = 8 + device.port.unwrap().to_u8() * 16;
+        let mut config = HubConfiguration::default();
+        config.add_value(address_offset + 0, self.pulse_strength as u32);
+        config.add_value(address_offset + 1, self.pulse_duration as u32);
+        config.add_value(address_offset + 2, self.inverted as u32);
+
+        let mut map = HashMap::new();
+        map.insert(device.hub_id.unwrap(), config);
+        map
     }
 }
 

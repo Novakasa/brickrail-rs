@@ -316,6 +316,9 @@ class Train:
         except AttributeError:
             self.sensor = None
 
+    def ready(self):
+        self.report_devices()
+
     def report_devices(self):
         io_hub.emit_data(
             bytes(
@@ -421,14 +424,6 @@ class Train:
 assert VERSION != b"1.0.0"
 train = Train()
 io_hub = IOHub(train)
-train.report_devices()
-
-io_hub.storage[_CONFIG_CHROMA_THRESHOLD] = 3500
-io_hub.storage[_CONFIG_MOTOR_ACC] = 40
-io_hub.storage[_CONFIG_MOTOR_DEC] = 90
-io_hub.storage[_CONFIG_MOTOR_SLOW_SPEED] = 40
-io_hub.storage[_CONFIG_MOTOR_CRUISE_SPEED] = 75
-io_hub.storage[_CONFIG_MOTOR_FAST_SPEED] = 100
 for i in range(6):
     io_hub.storage[_CONFIG_MOTOR_INVERTED + i] = 0
 

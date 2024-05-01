@@ -200,7 +200,7 @@ pub fn hub_status_window(
             for mut hub in q_hubs.iter_mut() {
                 ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                     ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
-                    if hub.state == HubState::Running || !hub.active {
+                    if hub.state == HubState::Ready || !hub.active {
                         // ui.heading("✔".to_string());
                         ui.label(
                             egui::RichText::new("✔".to_string())
@@ -233,7 +233,13 @@ pub fn hub_status_window(
                             ui.add(egui::Spinner::default());
                         });
                     }
-                    HubState::Running => {}
+                    HubState::Configuring => {
+                        ui.horizontal(|ui| {
+                            ui.label("Configuring...");
+                            ui.add(egui::Spinner::default());
+                        });
+                    }
+                    HubState::Ready => {}
                     state => {
                         ui.label(format!("{:?}", state));
                     }

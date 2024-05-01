@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::{self, Align, Layout, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
@@ -7,7 +7,7 @@ use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::{BLEHub, FromIOMessage, HubCommandEvent, HubMessageEvent},
+    ble::{BLEHub, FromIOMessage, HubCommandEvent, HubConfiguration, HubMessageEvent},
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
@@ -102,6 +102,10 @@ impl BLETrain {
         self.puppets.iter().filter_map(|id| id.as_ref())
     }
 
+    pub fn iter_all_hubs(&self) -> impl Iterator<Item = &HubID> {
+        self.master_hub.iter().chain(self.iter_puppets())
+    }
+
     pub fn run_command(&self, facing: Facing, speed: MarkerSpeed) -> HubCommands {
         let arg: u8 = (facing.as_train_flag()) << 4 | speed.as_train_u8();
         let input = IOInput::rpc("run", &vec![arg]);
@@ -161,21 +165,25 @@ impl BLETrain {
         command
     }
 
-    pub fn configure_hubs_command(&self) -> HubCommands {
-        let mut commands = HubCommands::new();
-        commands.merge(self.all_command(IOInput::store_uint(4, self.slow_speed as u32)));
-        commands.merge(self.all_command(IOInput::store_uint(5, self.cruise_speed as u32)));
-        commands.merge(self.all_command(IOInput::store_uint(3, self.fast_speed as u32)));
-        commands.merge(self.all_command(IOInput::store_uint(1, self.acceleration as u32)));
-        commands.merge(self.all_command(IOInput::store_uint(2, self.deceleration as u32)));
-        commands.merge(self.all_command(IOInput::store_uint(0, self.chroma_threshold as u32)));
-        for port in HubPort::iter() {
-            let inverted = self.inverted_ports.contains(&port) as u32;
-            if inverted != 0 {
-                commands.merge(self.all_command(IOInput::store_uint(6 + port.to_u8(), inverted)));
+    pub fn hubs_configuration(&self) -> HashMap<HubID, HubConfiguration> {
+        let mut configs = HashMap::default();
+        for hub_id in self.iter_all_hubs() {
+            let mut config = HubConfiguration::default();
+            config.add_value(4, self.slow_speed as u32);
+            config.add_value(5, self.cruise_speed as u32);
+            config.add_value(3, self.fast_speed as u32);
+            config.add_value(1, self.acceleration as u32);
+            config.add_value(2, self.deceleration as u32);
+            config.add_value(0, self.chroma_threshold as u32);
+            for port in HubPort::iter() {
+                let inverted = self.inverted_ports.contains(&port) as u32;
+                if inverted != 0 {
+                    config.add_value(6 + port.to_u8(), inverted);
+                }
             }
+            configs.insert(*hub_id, config);
         }
-        commands
+        configs
     }
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {

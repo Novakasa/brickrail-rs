@@ -13,11 +13,11 @@ use crate::{
     switch::Switch,
     switch_motor::SwitchMotor,
 };
-use bevy::{input::keyboard, prelude::*};
+use bevy::{input::keyboard, prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::{self, widgets::Button, Layout, Ui};
 use bevy_trait_query::RegisterExt;
-use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput};
+use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -31,6 +31,8 @@ pub enum HubState {
     Downloading(f32),
     StartingProgram,
     Running,
+    Configuring,
+    Ready,
     StoppingProgram,
     Disconnecting,
 }
@@ -57,6 +59,8 @@ pub struct BLEHub {
     pub error: Option<HubError>,
     #[serde(skip)]
     downloaded: bool,
+    #[serde(skip)]
+    config: HubConfiguration,
 }
 
 impl BLEHub {
@@ -70,6 +74,7 @@ impl BLEHub {
             state: HubState::Disconnected,
             error: None,
             downloaded: false,
+            config: HubConfiguration::default(),
         }
     }
 
@@ -370,6 +375,23 @@ fn despawn_hub(
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct HubConfiguration {
+    data: HashMap<u8, u32>,
+}
+
+impl HubConfiguration {
+    pub fn add_value(&mut self, port: u8, value: u32) {
+        self.data.insert(port, value);
+    }
+
+    pub fn merge(&mut self, other: &Self) {
+        for (port, value) in other.data.iter() {
+            self.data.insert(*port, *value);
+        }
+    }
+}
+
 #[derive(Event, Debug, Clone)]
 pub enum HubCommand {
     DiscoverName,
@@ -379,6 +401,7 @@ pub enum HubCommand {
     StartProgram,
     StopProgram,
     QueueInput(IOInput),
+    Configure,
 }
 
 #[derive(Event, Debug)]
@@ -490,6 +513,15 @@ fn execute_hub_commands(
             HubCommand::QueueInput(input) => {
                 hub.input_sender.as_ref().unwrap().send(input).unwrap();
             }
+            HubCommand::Configure => {
+                hub.state = HubState::Configuring;
+                let config = hub.config.clone();
+                let sender = hub.input_sender.as_ref().unwrap();
+                for (adress, value) in config.data.iter() {
+                    sender.send(IOInput::store_uint(*adress, *value)).unwrap();
+                }
+                sender.send(IOInput::sys(SysCode::Ready, &[])).unwrap();
+            }
         }
     }
 }
@@ -561,6 +593,12 @@ fn handle_hub_events(
                             .to_string(),
                         );
                         info!("Received SysData: {:?}", data);
+                        match data {
+                            SysData::Ready => {
+                                hub.state = HubState::Ready;
+                            }
+                            _ => {}
+                        }
                     }
                     _ => match hub.id.kind {
                         HubType::Train => {
@@ -588,7 +626,7 @@ fn handle_hub_events(
                     }
                 } else {
                     match hub.state {
-                        HubState::Running => {
+                        HubState::Running | HubState::Configuring | HubState::Ready => {
                             hub.state = HubState::Connected;
                             hub.error = Some(HubError::ProgramError);
                         }
@@ -649,7 +687,14 @@ pub fn prepare_hubs(
                         });
                     }
                 }
-                HubState::Running => {}
+                HubState::Running => {
+                    prepared = false;
+                    command_events.send(HubCommandEvent {
+                        hub_id: hub.id,
+                        command: HubCommand::Configure,
+                    });
+                }
+                HubState::Ready => {}
                 _ => {
                     prepared = false;
                 }
@@ -703,19 +748,24 @@ fn update_active_hubs(
     }
 }
 
-fn configure_devices(
+fn get_hub_configs(
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
     q_ble_trains: Query<&BLETrain>,
-    mut command_events: EventWriter<HubCommandEvent>,
+    mut q_hubs: Query<&mut BLEHub>,
+    entity_map: Res<EntityMap>,
 ) {
     for (motor, device) in q_switch_motors.iter() {
-        for command in motor.configure_commands(device) {
-            command_events.send(command);
+        for (id, config) in motor.hub_configuration(device) {
+            let entity = entity_map.hubs[&id];
+            let mut hub = q_hubs.get_mut(entity).unwrap();
+            hub.config.merge(&config);
         }
     }
     for ble_train in q_ble_trains.iter() {
-        for command in ble_train.configure_hubs_command().hub_events {
-            command_events.send(command);
+        for (id, config) in ble_train.hubs_configuration() {
+            let entity = entity_map.hubs[&id];
+            let mut hub = q_hubs.get_mut(entity).unwrap();
+            hub.config.merge(&config);
         }
     }
 }
@@ -724,7 +774,7 @@ fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<
     for hub in q_hubs.iter() {
         if hub.active {
             match hub.state {
-                HubState::Running => {}
+                HubState::Ready => {}
                 _ => {
                     warn!("Hub {:?} not ready", hub.id);
                     editor_state.set(EditorState::VirtualControl);
@@ -755,7 +805,10 @@ impl Plugin for BLEPlugin {
                 monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
-        app.add_systems(OnEnter(EditorState::DeviceControl), configure_devices);
+        app.add_systems(
+            OnEnter(EditorState::PreparingDeviceControl),
+            get_hub_configs,
+        );
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
             update_active_hubs,
