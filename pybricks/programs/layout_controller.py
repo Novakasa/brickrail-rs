@@ -100,9 +100,6 @@ class Switch:
         self.switching = False
         self.device_type = _DEVICE_SWITCH
 
-    def ready(self):
-        pass
-
     def get_storage_val(self, i):
         return io_hub.storage.get(8 + self.port * 16 + i, 100)
 
@@ -136,6 +133,9 @@ class Controller:
 
     def __init__(self):
         self.devices = {}
+
+    def ready(self):
+        pass
 
     def ensure_device(self, port, device_type):
         if port in self.devices and self.devices[port].device_type == device_type:
