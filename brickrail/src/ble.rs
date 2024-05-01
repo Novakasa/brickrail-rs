@@ -350,14 +350,16 @@ fn despawn_hub(
 ) {
     for event in hub_event_reader.read() {
         for mut ble_train in q_ble_trains.iter_mut() {
-            if let Some(master_hub) = ble_train.master_hub.clone() {
+            if let Some(master_hub) = ble_train.master_hub.hub_id.clone() {
                 if master_hub == event.0.id {
-                    ble_train.master_hub = None;
+                    ble_train.master_hub.hub_id = None;
                 }
             }
-            ble_train
-                .puppets
-                .retain(|hub_id| hub_id != &Some(event.0.id));
+            for puppet in ble_train.puppets.iter_mut() {
+                if Some(event.0.id) == puppet.hub_id {
+                    puppet.hub_id = None;
+                }
+            }
         }
 
         for mut layout_device in q_layout_devices.iter_mut() {
@@ -723,7 +725,7 @@ fn update_active_hubs(
 ) {
     let mut active_hub_ids = Vec::new();
     for ble_train in q_ble_trains.iter() {
-        if let Some(hub_id) = ble_train.master_hub.clone() {
+        if let Some(hub_id) = ble_train.master_hub.hub_id.clone() {
             active_hub_ids.push(hub_id);
         }
         for hub_id in ble_train.iter_puppets().cloned() {
@@ -759,6 +761,9 @@ fn get_hub_configs(
             let entity = entity_map.hubs[&id];
             let mut hub = q_hubs.get_mut(entity).unwrap();
             hub.config.merge(&config);
+            if hub.state == HubState::Ready {
+                hub.state = HubState::Running;
+            }
         }
     }
     for ble_train in q_ble_trains.iter() {
@@ -766,6 +771,9 @@ fn get_hub_configs(
             let entity = entity_map.hubs[&id];
             let mut hub = q_hubs.get_mut(entity).unwrap();
             hub.config.merge(&config);
+            if hub.state == HubState::Ready {
+                hub.state = HubState::Running;
+            }
         }
     }
 }

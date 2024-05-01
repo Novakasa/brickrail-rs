@@ -1,8 +1,11 @@
+use std::iter;
+
 use bevy::{prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::{self, Align, Layout, Ui};
+use bevy_egui::egui::{self, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
+use itertools::Itertools;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
@@ -61,10 +64,58 @@ impl FromIOMessage for TrainData {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct TrainHub {
+    pub hub_id: Option<HubID>,
+    #[serde(default)]
+    inverted_ports: Vec<HubPort>,
+}
+
+impl TrainHub {
+    pub fn inspector_ui(
+        &mut self,
+        ui: &mut Ui,
+        hubs: &Query<&BLEHub>,
+        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        entity_map: &mut ResMut<EntityMap>,
+        selection_state: &mut ResMut<SelectionState>,
+        type_registry: &Res<AppTypeRegistry>,
+    ) {
+        BLEHub::select_id_ui(
+            ui,
+            &mut self.hub_id,
+            HubType::Train,
+            &hubs,
+            spawn_events,
+            entity_map,
+            selection_state,
+        );
+        ui.label("Inverted Ports");
+        let mut remove_index = None;
+        for (i, port) in self.inverted_ports.iter_mut().enumerate() {
+            ui.push_id(i, |ui| {
+                ui.horizontal(|ui| {
+                    ui_for_value(port, ui, &type_registry.read());
+                    if ui.button("Remove").clicked() {
+                        remove_index = Some(i);
+                        println!("Remove {}", i);
+                    }
+                });
+            });
+        }
+        if let Some(i) = remove_index {
+            self.inverted_ports.remove(i);
+        }
+        if ui.button("Add").clicked() {
+            self.inverted_ports.push(HubPort::A);
+        }
+    }
+}
+
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLETrain {
-    pub master_hub: Option<HubID>,
-    pub puppets: Vec<Option<HubID>>,
+    pub master_hub: TrainHub,
+    pub puppets: Vec<TrainHub>,
     pub train_id: TrainID,
     #[serde(default)]
     slow_speed: u16,
@@ -78,14 +129,12 @@ pub struct BLETrain {
     deceleration: u16,
     #[serde(default)]
     chroma_threshold: u16,
-    #[serde(default)]
-    inverted_ports: Vec<HubPort>,
 }
 
 impl BLETrain {
     pub fn new(train_id: TrainID) -> Self {
         Self {
-            master_hub: None,
+            master_hub: TrainHub::default(),
             puppets: Vec::new(),
             train_id,
             slow_speed: 40,
@@ -94,16 +143,15 @@ impl BLETrain {
             acceleration: 40,
             deceleration: 90,
             chroma_threshold: 3500,
-            inverted_ports: Vec::new(),
         }
     }
 
     pub fn iter_puppets(&self) -> impl Iterator<Item = &HubID> {
-        self.puppets.iter().filter_map(|id| id.as_ref())
+        self.puppets.iter().filter_map(|id| id.hub_id.as_ref())
     }
 
     pub fn iter_all_hubs(&self) -> impl Iterator<Item = &HubID> {
-        self.master_hub.iter().chain(self.iter_puppets())
+        self.master_hub.hub_id.iter().chain(self.iter_puppets())
     }
 
     pub fn run_command(&self, facing: Facing, speed: MarkerSpeed) -> HubCommands {
@@ -119,7 +167,10 @@ impl BLETrain {
 
     fn master_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        command.push(HubCommandEvent::input(self.master_hub.unwrap(), input));
+        command.push(HubCommandEvent::input(
+            self.master_hub.hub_id.unwrap(),
+            input,
+        ));
         command
     }
 
@@ -148,26 +199,26 @@ impl BLETrain {
 
     fn puppet_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        for hub_id in self.iter_puppets() {
-            command.push(HubCommandEvent::input(*hub_id, input.clone()));
+        for hub in self.iter_puppets() {
+            command.push(HubCommandEvent::input(*hub, input.clone()));
         }
         command
     }
 
     fn all_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        if let Some(hub_id) = self.master_hub {
+        if let Some(hub_id) = self.master_hub.hub_id {
             command.push(HubCommandEvent::input(hub_id, input.clone()));
         }
-        for hub_id in self.puppets.iter().filter_map(|id| id.as_ref()) {
-            command.push(HubCommandEvent::input(*hub_id, input.clone()));
+        for hub in self.puppets.iter().filter_map(|id| id.hub_id.as_ref()) {
+            command.push(HubCommandEvent::input(*hub, input.clone()));
         }
         command
     }
 
     pub fn hubs_configuration(&self) -> HashMap<HubID, HubConfiguration> {
         let mut configs = HashMap::default();
-        for hub_id in self.iter_all_hubs() {
+        for hub in iter::once(&self.master_hub).chain(self.puppets.iter()) {
             let mut config = HubConfiguration::default();
             config.add_value(4, self.slow_speed as u32);
             config.add_value(5, self.cruise_speed as u32);
@@ -176,12 +227,14 @@ impl BLETrain {
             config.add_value(2, self.deceleration as u32);
             config.add_value(0, self.chroma_threshold as u32);
             for port in HubPort::iter() {
-                let inverted = self.inverted_ports.contains(&port) as u32;
+                let inverted = hub.inverted_ports.contains(&port) as u32;
                 if inverted != 0 {
                     config.add_value(6 + port.to_u8(), inverted);
                 }
             }
-            configs.insert(*hub_id, config);
+            if let Some(hub_id) = hub.hub_id {
+                configs.insert(hub_id, config);
+            }
         }
         configs
     }
@@ -205,42 +258,46 @@ impl BLETrain {
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut ble_train) = ble_trains.get_mut(entity) {
-                ui.label("BLE Train");
-                ui.label("Master Hub");
-                BLEHub::select_id_ui(
+                ui.heading("Master Hub");
+                ui.separator();
+                ble_train.master_hub.inspector_ui(
                     ui,
-                    &mut ble_train.master_hub,
-                    HubType::Train,
                     &hubs,
                     &mut spawn_events,
                     &mut entity_map,
                     &mut selection_state,
+                    &type_registry,
                 );
-                ui.label("Puppets");
+                ui.separator();
+                ui.heading("Puppets");
+                ui.separator();
                 let mut remove_index = None;
-                for (i, hub_id) in ble_train.puppets.iter_mut().enumerate() {
+                for (i, hub) in ble_train.puppets.iter_mut().enumerate() {
                     ui.push_id(i, |ui| {
-                        ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                            BLEHub::select_id_ui(
-                                ui,
-                                hub_id,
-                                HubType::Train,
-                                &hubs,
-                                &mut spawn_events,
-                                &mut entity_map,
-                                &mut selection_state,
-                            );
+                        ui.horizontal(|ui| {
+                            ui.label(format!("Puppet {:?}", i));
                             if ui.button("Remove").clicked() {
                                 remove_index = Some(i);
                             }
                         });
+
+                        hub.inspector_ui(
+                            ui,
+                            &hubs,
+                            &mut spawn_events,
+                            &mut entity_map,
+                            &mut selection_state,
+                            &type_registry,
+                        );
+
+                        ui.separator();
                     });
                 }
                 if let Some(i) = remove_index {
                     ble_train.puppets.remove(i);
                 }
                 if ui.button("Add Puppet").clicked() {
-                    ble_train.puppets.push(None);
+                    ble_train.puppets.push(TrainHub::default());
                 }
                 ui.separator();
                 ui.label("Speeds");
@@ -268,26 +325,6 @@ impl BLETrain {
                     ui.label("Chroma Threshold");
                     ui.add(egui::DragValue::new(&mut ble_train.chroma_threshold));
                 });
-                ui.separator();
-                ui.label("Inverted Ports");
-                let mut remove_index = None;
-                for (i, port) in ble_train.inverted_ports.iter_mut().enumerate() {
-                    ui.push_id(i, |ui| {
-                        ui.horizontal(|ui| {
-                            ui_for_value(port, ui, &type_registry.read());
-                            if ui.button("Remove").clicked() {
-                                remove_index = Some(i);
-                                println!("Remove {}", i);
-                            }
-                        });
-                    });
-                }
-                if let Some(i) = remove_index {
-                    ble_train.inverted_ports.remove(i);
-                }
-                if ui.button("Add").clicked() {
-                    ble_train.inverted_ports.push(HubPort::A);
-                }
             }
         }
     }
@@ -327,7 +364,7 @@ fn handle_messages(
 ) {
     for event in hub_message_events.read() {
         for (ble_train, _train) in ble_trains.iter_mut() {
-            if ble_train.master_hub == Some(event.id) {
+            if ble_train.master_hub.hub_id == Some(event.id) {
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,
@@ -354,7 +391,13 @@ fn handle_messages(
                     _ => warn!("Unhandled TrainData: {:?}", event.data),
                 }
             }
-            if ble_train.puppets.contains(&Some(event.id)) {
+            if ble_train
+                .puppets
+                .iter()
+                .map(|hub| hub.hub_id)
+                .collect_vec()
+                .contains(&Some(event.id))
+            {
                 match event.data {
                     TrainData::ReportDevices {
                         has_sensor,

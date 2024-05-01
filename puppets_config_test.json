@@ -1,0 +1,212 @@
+{
+  "marker_map": {
+    "in_markers": {
+      "\"L(-3,1,0|WE<|→)\"": "LB[(-3,1,0|WE)<(-1,1,0|WE)]",
+      "\"L(4,1,0|EW<|←)\"": "LB[(4,1,0|EW)<(2,1,0|EW)]",
+      "\"L(-1,1,0|EW<|←)\"": "LB[(-1,1,0|EW)<(-3,1,0|EW)]",
+      "\"L(4,1,0|WE>|→)\"": "LB[(2,1,0|WE)>(4,1,0|WE)]",
+      "\"L(-3,1,0|EW>|←)\"": "LB[(-1,1,0|EW)>(-3,1,0|EW)]",
+      "\"L(-1,1,0|WE>|→)\"": "LB[(-3,1,0|WE)>(-1,1,0|WE)]",
+      "\"L(2,1,0|WE<|→)\"": "LB[(2,1,0|WE)<(4,1,0|WE)]",
+      "\"L(2,1,0|EW>|←)\"": "LB[(4,1,0|EW)>(2,1,0|EW)]"
+    },
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(-8,1,0|EW|↔)",
+    "T(-7,1,0|EW|↔)",
+    "T(-6,1,0|EW|↔)",
+    "T(-5,1,0|EW|↔)",
+    "T(-4,1,0|EW|↔)",
+    "T(-3,1,0|EW|↔)",
+    "T(-2,1,0|EW|↔)",
+    "T(-1,1,0|EW|↔)",
+    "T(0,1,0|EW|↔)",
+    "T(1,1,0|EW|↔)",
+    "T(2,1,0|EW|↔)",
+    "T(3,1,0|EW|↔)",
+    "T(4,1,0|EW|↔)",
+    "T(5,1,0|EW|↔)",
+    "T(6,1,0|EW|↔)",
+    "T(7,1,0|EW|↔)",
+    "T(8,1,0|EW|↔)",
+    "T(9,1,0|EW|↔)"
+  ],
+  "connections": [
+    "C(-8,1,0|WE><-7,1,0|EW)",
+    "C(-7,1,0|WE><-6,1,0|EW)",
+    "C(-6,1,0|WE><-5,1,0|EW)",
+    "C(-5,1,0|WE><-4,1,0|EW)",
+    "C(-4,1,0|WE><-3,1,0|EW)",
+    "C(-3,1,0|WE><-2,1,0|EW)",
+    "C(-2,1,0|WE><-1,1,0|EW)",
+    "C(-1,1,0|WE><0,1,0|EW)",
+    "C(0,1,0|WE><1,1,0|EW)",
+    "C(1,1,0|WE><2,1,0|EW)",
+    "C(2,1,0|WE><3,1,0|EW)",
+    "C(3,1,0|WE><4,1,0|EW)",
+    "C(4,1,0|WE><5,1,0|EW)",
+    "C(5,1,0|WE><6,1,0|EW)",
+    "C(6,1,0|WE><7,1,0|EW)",
+    "C(7,1,0|WE><8,1,0|EW)",
+    "C(8,1,0|WE><9,1,0|EW)"
+  ],
+  "blocks": [
+    {
+      "id": "B[(-3,1,0|WE)-(-1,1,0|EW)]",
+      "section": {
+        "tracks": [
+          "D(-3,1,0|WE|→)",
+          "D(-2,1,0|WE|→)",
+          "D(-1,1,0|WE|→)"
+        ]
+      },
+      "settings": {
+        "name": ""
+      }
+    },
+    {
+      "id": "B[(2,1,0|WE)-(4,1,0|EW)]",
+      "section": {
+        "tracks": [
+          "D(2,1,0|WE|→)",
+          "D(3,1,0|WE|→)",
+          "D(4,1,0|WE|→)"
+        ]
+      },
+      "settings": {
+        "name": ""
+      }
+    }
+  ],
+  "markers": [
+    {
+      "track": "T(-1,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-1,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-1,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-1,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-1,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-3,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-3,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(4,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(4,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    }
+  ],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(-3,1,0|WE)>(-1,1,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": "Train0",
+          "inverted_ports": [
+            "A"
+          ]
+        },
+        "puppets": [
+          {
+            "hub_id": "Train1",
+            "inverted_ports": []
+          }
+        ],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      }
+    }
+  ],
+  "hubs": [
+    {
+      "hub": {
+        "id": "Train0",
+        "name": "city_hub"
+      }
+    },
+    {
+      "hub": {
+        "id": "Train1",
+        "name": "technic-blue"
+      }
+    }
+  ],
+  "switches": [],
+  "switch_motors": []
+}
