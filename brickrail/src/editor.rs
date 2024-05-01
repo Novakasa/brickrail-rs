@@ -31,6 +31,13 @@ pub struct InputData {
     pub mouse_over_ui: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DisconnectAction {
+    NewLayout,
+    LoadLayout(PathBuf),
+    Exit,
+}
+
 #[derive(Debug, States, Default, Hash, PartialEq, Eq, Clone)]
 pub enum EditorState {
     #[default]
@@ -38,6 +45,7 @@ pub enum EditorState {
     PreparingDeviceControl,
     DeviceControl,
     VirtualControl,
+    Disconnecting,
 }
 
 impl EditorState {
@@ -167,6 +175,9 @@ pub fn top_panel(
                         }
                         if ui.button("Device control").clicked() {
                             next_editor_state.set(EditorState::PreparingDeviceControl);
+                        }
+                        if ui.button("Disconnect").clicked() {
+                            next_editor_state.set(EditorState::Disconnecting);
                         }
                     });
                 });

@@ -44,6 +44,25 @@ impl HubState {
             _ => false,
         }
     }
+
+    pub fn is_connected(&self) -> bool {
+        match self {
+            HubState::Disconnected | HubState::Connecting => false,
+            _ => true,
+        }
+    }
+
+    pub fn is_busy(&self) -> bool {
+        match self {
+            HubState::Connecting
+            | HubState::Downloading(_)
+            | HubState::StartingProgram
+            | HubState::Configuring
+            | HubState::StoppingProgram
+            | HubState::Disconnecting => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -773,9 +792,6 @@ fn get_hub_configs(
             let entity = entity_map.hubs[&id];
             let mut hub = q_hubs.get_mut(entity).unwrap();
             hub.config.merge(&config);
-            if hub.state == HubState::Ready {
-                hub.state = HubState::Running;
-            }
         }
     }
     for ble_train in q_ble_trains.iter() {
@@ -783,9 +799,6 @@ fn get_hub_configs(
             let entity = entity_map.hubs[&id];
             let mut hub = q_hubs.get_mut(entity).unwrap();
             hub.config.merge(&config);
-            if hub.state == HubState::Ready {
-                hub.state = HubState::Running;
-            }
         }
     }
 }
@@ -817,6 +830,36 @@ fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<Hub
     }
 }
 
+pub fn disconnect_hubs(
+    q_hubs: Query<&BLEHub>,
+    mut command_events: EventWriter<HubCommandEvent>,
+    editor_state: Res<State<EditorState>>,
+    mut next_state: ResMut<NextState<EditorState>>,
+) {
+    let mut done = true;
+    for hub in q_hubs.iter() {
+        if hub.state.is_connected() {
+            done = false;
+            if !hub.state.is_busy() {
+                if hub.state.is_running() {
+                    command_events.send(HubCommandEvent {
+                        hub_id: hub.id,
+                        command: HubCommand::StopProgram,
+                    });
+                } else {
+                    command_events.send(HubCommandEvent {
+                        hub_id: hub.id,
+                        command: HubCommand::Disconnect,
+                    });
+                }
+            }
+        }
+    }
+    if done {
+        next_state.set(EditorState::Edit);
+    }
+}
+
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
@@ -836,6 +879,7 @@ impl Plugin for BLEPlugin {
                 create_hub,
                 prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                 monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
+                disconnect_hubs.run_if(in_state(EditorState::Disconnecting)),
             ),
         );
         app.add_systems(
