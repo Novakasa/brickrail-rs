@@ -37,6 +37,15 @@ pub enum HubState {
     Disconnecting,
 }
 
+impl HubState {
+    pub fn is_running(&self) -> bool {
+        match self {
+            HubState::Running | HubState::Configuring | HubState::Ready => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum HubError {
     ConnectError,
@@ -756,6 +765,9 @@ fn get_hub_configs(
     mut q_hubs: Query<&mut BLEHub>,
     entity_map: Res<EntityMap>,
 ) {
+    for mut hub in q_hubs.iter_mut() {
+        hub.config = HubConfiguration::default();
+    }
     for (motor, device) in q_switch_motors.iter() {
         for (id, config) in motor.hub_configuration(device) {
             let entity = entity_map.hubs[&id];
@@ -792,6 +804,19 @@ fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<
     }
 }
 
+fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<HubCommandEvent>) {
+    for hub in q_hubs.iter() {
+        if hub.active {
+            if hub.state.is_running() {
+                command_events.send(HubCommandEvent {
+                    hub_id: hub.id,
+                    command: HubCommand::StopProgram,
+                });
+            }
+        }
+    }
+}
+
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
@@ -821,5 +846,6 @@ impl Plugin for BLEPlugin {
             OnEnter(EditorState::PreparingDeviceControl),
             update_active_hubs,
         );
+        app.add_systems(OnExit(EditorState::DeviceControl), stop_hub_programs);
     }
 }

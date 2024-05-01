@@ -171,9 +171,7 @@
       "ble_train": {
         "master_hub": {
           "hub_id": "Train0",
-          "inverted_ports": [
-            "A"
-          ]
+          "inverted_ports": []
         },
         "puppets": [
           {
