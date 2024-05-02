@@ -20,7 +20,7 @@ use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub enum HubState {
@@ -77,7 +77,7 @@ pub struct BLEHub {
     #[serde(skip)]
     hub: Arc<Mutex<IOHub>>,
     #[serde(skip)]
-    input_sender: Option<tokio::sync::mpsc::UnboundedSender<IOInput>>,
+    input_sender: Option<UnboundedSender<IOInput>>,
     pub name: Option<String>,
     #[serde(skip)]
     pub active: bool,
@@ -833,7 +833,6 @@ fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<Hub
 pub fn disconnect_hubs(
     q_hubs: Query<&BLEHub>,
     mut command_events: EventWriter<HubCommandEvent>,
-    editor_state: Res<State<EditorState>>,
     mut next_state: ResMut<NextState<EditorState>>,
 ) {
     let mut done = true;
