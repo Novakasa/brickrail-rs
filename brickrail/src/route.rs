@@ -612,6 +612,14 @@ impl RouteLeg {
             + self.markers[self.index].track.facing.get_sign() * offset
     }
 
+    pub fn get_next_marker_signed_from_first(&self, offset: f32) -> Option<f32> {
+        Some(
+            (self.get_next_marker_pos()? - self.get_first_marker_pos())
+                * self.get_final_facing().get_sign()
+                + self.markers[self.index + 1].track.facing.get_sign() * offset,
+        )
+    }
+
     pub fn as_train_data(&self) -> Vec<u8> {
         let mut data = Vec::new();
         for (i, marker) in self.markers.iter().enumerate() {

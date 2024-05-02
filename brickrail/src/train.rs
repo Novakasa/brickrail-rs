@@ -123,6 +123,8 @@ pub struct Train {
     state: TrainState,
     #[serde(skip)]
     speed: f32,
+    #[serde(skip)]
+    in_place_cycle: f32,
     settings: TrainSettings,
 }
 
@@ -133,6 +135,7 @@ impl Train {
             position: Position::Block(logical_block_id),
             state: TrainState::Stop,
             speed: 0.0,
+            in_place_cycle: 0.0,
             settings: TrainSettings {
                 num_wagons: 3,
                 home: None,
@@ -172,13 +175,21 @@ impl Train {
     }
 
     fn traverse_route_passive(&mut self, delta: f32) {
+        let target_speed = self.get_route().get_train_state().get_speed();
+        self.in_place_cycle += delta * target_speed * 0.5 / 0.5;
+        self.in_place_cycle = self.in_place_cycle.rem_euclid(1.0);
         let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
-        let target_pos = route
+        let prev_marker_pos = route
             .get_current_leg()
             .get_prev_marker_signed_from_first(0.2);
+        let next_marker_pos = route
+            .get_current_leg()
+            .get_next_marker_signed_from_first(-0.2);
 
-        self.speed += ((target_pos - current_pos) * 40.0 - self.speed * 10.0) * delta;
+        self.speed += ((next_marker_pos.unwrap_or(prev_marker_pos) - current_pos) * 40.0
+            - self.speed * 10.0)
+            * delta;
         let new_pos = current_pos + self.speed * delta;
         self.get_route_mut()
             .get_current_leg_mut()
@@ -247,9 +258,19 @@ fn draw_train(
         }
 
         for wagon_index in 0..train.settings.num_wagons {
+            // println!("offset {:?}", train.in_place_cycle);
             let offset = -0.5 * (wagon_index as f32);
-            let pos = train.get_route().interpolate_offset(offset);
-            gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color);
+            let pos = train
+                .get_route()
+                .interpolate_offset(offset + train.in_place_cycle * 0.5);
+            let mut alpha = 1.0;
+            if wagon_index == 0 {
+                alpha = 1.0 - train.in_place_cycle;
+            }
+            if wagon_index == train.settings.num_wagons - 1 {
+                alpha = train.in_place_cycle;
+            }
+            gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color.with_a(alpha));
         }
         let pos = train.get_route().interpolate_offset(0.0);
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
