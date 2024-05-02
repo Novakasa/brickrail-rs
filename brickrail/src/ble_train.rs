@@ -2,7 +2,7 @@ use std::iter;
 
 use bevy::{prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::{self, Ui};
+use bevy_egui::egui::{self, Grid, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
 use itertools::Itertools;
@@ -81,15 +81,18 @@ impl TrainHub {
         selection_state: &mut ResMut<SelectionState>,
         type_registry: &Res<AppTypeRegistry>,
     ) {
-        BLEHub::select_id_ui(
-            ui,
-            &mut self.hub_id,
-            HubType::Train,
-            &hubs,
-            spawn_events,
-            entity_map,
-            selection_state,
-        );
+        ui.horizontal(|ui| {
+            ui.label("Hub");
+            BLEHub::select_id_ui(
+                ui,
+                &mut self.hub_id,
+                HubType::Train,
+                &hubs,
+                spawn_events,
+                entity_map,
+                selection_state,
+            );
+        });
         ui.label("Inverted Ports");
         let mut remove_index = None;
         for (i, port) in self.inverted_ports.iter_mut().enumerate() {
@@ -269,7 +272,12 @@ impl BLETrain {
                     &type_registry,
                 );
                 ui.separator();
-                ui.heading("Puppets");
+                ui.horizontal(|ui| {
+                    ui.heading("Puppet hubs");
+                    if ui.button("Add hub").clicked() {
+                        ble_train.puppets.push(TrainHub::default());
+                    }
+                });
                 ui.separator();
                 let mut remove_index = None;
                 for (i, hub) in ble_train.puppets.iter_mut().enumerate() {
@@ -296,34 +304,27 @@ impl BLETrain {
                 if let Some(i) = remove_index {
                     ble_train.puppets.remove(i);
                 }
-                if ui.button("Add Puppet").clicked() {
-                    ble_train.puppets.push(TrainHub::default());
-                }
-                ui.separator();
-                ui.label("Speeds");
-                ui.horizontal(|ui| {
+
+                ui.heading("Speeds");
+                Grid::new("speeds").show(ui, |ui| {
                     ui.label("Slow");
                     ui.add(egui::Slider::new(&mut ble_train.slow_speed, 0..=100));
-                });
-                ui.horizontal(|ui| {
+                    ui.end_row();
                     ui.label("Cruise");
                     ui.add(egui::Slider::new(&mut ble_train.cruise_speed, 0..=100));
-                });
-                ui.horizontal(|ui| {
+                    ui.end_row();
                     ui.label("Fast");
                     ui.add(egui::Slider::new(&mut ble_train.fast_speed, 0..=100));
-                });
-                ui.horizontal(|ui| {
+                    ui.end_row();
                     ui.label("Acceleration");
                     ui.add(egui::DragValue::new(&mut ble_train.acceleration));
-                });
-                ui.horizontal(|ui| {
+                    ui.end_row();
                     ui.label("Deceleration");
                     ui.add(egui::DragValue::new(&mut ble_train.deceleration));
-                });
-                ui.horizontal(|ui| {
+                    ui.end_row();
                     ui.label("Chroma Threshold");
                     ui.add(egui::DragValue::new(&mut ble_train.chroma_threshold));
+                    ui.end_row();
                 });
             }
         }

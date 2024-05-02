@@ -15,7 +15,7 @@ use crate::{
 };
 use bevy::{input::keyboard, prelude::*, utils::HashMap};
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::{self, widgets::Button, Layout, Ui};
+use bevy_egui::egui::{self, widgets::Button, Grid, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
@@ -227,42 +227,45 @@ impl BLEHub {
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
-        ui.label("Hub");
-        ui.push_id("motor", |ui| {
-            Self::select_id_ui(
-                ui,
-                selected_hub,
-                kind,
-                hubs,
-                spawn_events,
-                entity_map,
-                selection_state,
-            );
-        });
-        if selected_hub.is_none() && selected_port.is_some() {
-            *selected_port = None;
-        }
-        ui.label("Port");
-        ui.add_enabled_ui(selected_hub.is_some(), |ui| {
-            ui.push_id("port", |ui| {
-                ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-                    egui::ComboBox::from_label("")
-                        .selected_text(format!(
-                            "{:}",
-                            selected_port
-                                .map(|h| h.to_string())
-                                .unwrap_or("None".to_string())
-                        ))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(selected_port, None, "None");
-                            for option in HubPort::iter() {
-                                ui.selectable_value(
-                                    selected_port,
-                                    Some(option),
-                                    option.to_string(),
-                                );
-                            }
-                        });
+        Grid::new("port select").show(ui, |ui| {
+            ui.label("Hub");
+            ui.push_id("motor", |ui| {
+                Self::select_id_ui(
+                    ui,
+                    selected_hub,
+                    kind,
+                    hubs,
+                    spawn_events,
+                    entity_map,
+                    selection_state,
+                );
+            });
+            if selected_hub.is_none() && selected_port.is_some() {
+                *selected_port = None;
+            }
+            ui.end_row();
+            ui.label("Port");
+            ui.add_enabled_ui(selected_hub.is_some(), |ui| {
+                ui.push_id("port", |ui| {
+                    ui.horizontal(|ui| {
+                        egui::ComboBox::from_label("")
+                            .selected_text(format!(
+                                "{:}",
+                                selected_port
+                                    .map(|h| h.to_string())
+                                    .unwrap_or("None".to_string())
+                            ))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(selected_port, None, "None");
+                                for option in HubPort::iter() {
+                                    ui.selectable_value(
+                                        selected_port,
+                                        Some(option),
+                                        option.to_string(),
+                                    );
+                                }
+                            });
+                    });
                 });
             });
         });
@@ -277,7 +280,7 @@ impl BLEHub {
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
-        ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+        ui.horizontal(|ui| {
             egui::ComboBox::from_label("")
                 .selected_text(match selected {
                     Some(id) => get_hub_label(hubs, id),
