@@ -57,8 +57,8 @@ impl MarkerSpeed {
     pub fn get_speed(&self) -> f32 {
         match self {
             MarkerSpeed::Slow => 2.0,
-            MarkerSpeed::Cruise => 6.0,
-            MarkerSpeed::Fast => 10.0,
+            MarkerSpeed::Cruise => 3.0,
+            MarkerSpeed::Fast => 6.0,
         }
     }
 

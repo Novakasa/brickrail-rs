@@ -124,6 +124,8 @@ pub struct Train {
     #[serde(skip)]
     speed: f32,
     #[serde(skip)]
+    seek_speed: f32,
+    #[serde(skip)]
     in_place_cycle: f32,
     settings: TrainSettings,
 }
@@ -136,6 +138,7 @@ impl Train {
             state: TrainState::Stop,
             speed: 0.0,
             in_place_cycle: 0.0,
+            seek_speed: 0.0,
             settings: TrainSettings {
                 num_wagons: 3,
                 home: None,
@@ -176,8 +179,8 @@ impl Train {
 
     fn traverse_route_passive(&mut self, delta: f32) {
         let target_speed = self.get_route().get_train_state().get_speed();
-        self.in_place_cycle += delta * target_speed * 0.5 / 0.5;
-        self.in_place_cycle = self.in_place_cycle.rem_euclid(1.0);
+        self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
+
         let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
         let prev_marker_pos = route
@@ -187,10 +190,20 @@ impl Train {
             .get_current_leg()
             .get_next_marker_signed_from_first(-0.2);
 
-        self.speed += ((next_marker_pos.unwrap_or(prev_marker_pos) - current_pos) * 40.0
-            - self.speed * 10.0)
-            * delta;
-        let new_pos = current_pos + self.speed * delta;
+        let seek_target = next_marker_pos.unwrap_or(prev_marker_pos);
+        self.seek_speed += ((seek_target - current_pos) * 40.0 - self.seek_speed * 10.0) * delta;
+
+        let t_ahead_of_prev = ((-prev_marker_pos + current_pos) * target_speed.signum()) / 0.5;
+        let t_before_next =
+            ((next_marker_pos.unwrap_or(current_pos) - current_pos) * -target_speed.signum()) / 0.5;
+        let move_speed = self
+            .seek_speed
+            .lerp(self.speed, t_ahead_of_prev.clamp(0.0, 1.0))
+            .lerp(0.0, t_before_next.clamp(0.0, 1.0));
+
+        self.in_place_cycle += delta * (self.speed - move_speed) / 0.5;
+        self.in_place_cycle = self.in_place_cycle.rem_euclid(1.0);
+        let new_pos = current_pos + move_speed * delta;
         self.get_route_mut()
             .get_current_leg_mut()
             .set_signed_pos_from_first(new_pos);
@@ -257,7 +270,7 @@ fn draw_train(
             color = Color::BLUE;
         }
 
-        for wagon_index in 0..train.settings.num_wagons {
+        for wagon_index in 0..train.settings.num_wagons + 1 {
             // println!("offset {:?}", train.in_place_cycle);
             let offset = -0.5 * (wagon_index as f32);
             let pos = train
@@ -267,7 +280,7 @@ fn draw_train(
             if wagon_index == 0 {
                 alpha = 1.0 - train.in_place_cycle;
             }
-            if wagon_index == train.settings.num_wagons - 1 {
+            if wagon_index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
             gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color.with_a(alpha));
