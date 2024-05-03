@@ -27,6 +27,7 @@ use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 const TRAIN_WIDTH: f32 = 0.1;
+const WAGON_DIST: f32 = 0.5;
 
 #[derive(Resource, Default, Debug)]
 struct TrainDragState {
@@ -222,11 +223,12 @@ impl Train {
         }
 
         self.seek_speed += (self.seek_pos * 40.0 - self.seek_speed * 10.0) * delta;
+        let move_speed = self.speed * move_mod + self.seek_speed;
 
-        self.in_place_cycle += delta * (self.speed * (1.0 - move_mod) - self.seek_speed) / 0.5;
+        self.in_place_cycle += delta * (self.speed - move_speed) / WAGON_DIST;
         self.in_place_cycle = self.in_place_cycle.rem_euclid(1.0);
         self.seek_pos -= self.seek_speed * delta;
-        let new_pos = current_pos + (self.seek_speed + self.speed * move_mod) * delta;
+        let new_pos = current_pos + move_speed * delta;
         self.get_route_mut()
             .get_current_leg_mut()
             .set_signed_pos_from_first(new_pos);
@@ -298,7 +300,7 @@ fn draw_train(
             let offset = -0.5 * (wagon_index as f32);
             let pos = train
                 .get_route()
-                .interpolate_offset(offset + train.in_place_cycle * 0.5);
+                .interpolate_offset(offset + train.in_place_cycle * WAGON_DIST);
             let mut alpha = 1.0;
             if wagon_index == 0 {
                 alpha = 1.0 - train.in_place_cycle;
