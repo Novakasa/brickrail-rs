@@ -126,6 +126,8 @@ pub struct Train {
     #[serde(skip)]
     seek_speed: f32,
     #[serde(skip)]
+    seek_pos: f32,
+    #[serde(skip)]
     in_place_cycle: f32,
     settings: TrainSettings,
 }
@@ -139,6 +141,7 @@ impl Train {
             speed: 0.0,
             in_place_cycle: 0.0,
             seek_speed: 0.0,
+            seek_pos: 0.0,
             settings: TrainSettings {
                 num_wagons: 3,
                 home: None,
@@ -166,6 +169,25 @@ impl Train {
         }
     }
 
+    pub fn advance_sensor(
+        &mut self,
+        track_locks: &mut ResMut<TrackLocks>,
+        entity_map: &Res<EntityMap>,
+        set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+    ) {
+        let route = self.get_route_mut();
+        route.advance_sensor().expect("Failed to advance sensor");
+        route.update_locks(track_locks, entity_map, set_switch_position);
+
+        let route = self.get_route_mut();
+        let current_pos = route.get_current_leg().get_signed_pos_from_first();
+        let prev_marker_pos = route
+            .get_current_leg()
+            .get_prev_marker_signed_from_first(0.2);
+
+        self.seek_pos = prev_marker_pos - current_pos;
+    }
+
     fn traverse_route(&mut self, delta: f32, advance_events: &mut EventWriter<MarkerAdvanceEvent>) {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
@@ -183,27 +205,28 @@ impl Train {
 
         let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
+        let mut move_mod = 1.0;
+
+        let travel_sign = target_speed.signum();
         let prev_marker_pos = route
             .get_current_leg()
             .get_prev_marker_signed_from_first(0.2);
-        let next_marker_pos = route
+        if let Some(next_marker_pos) = route
             .get_current_leg()
-            .get_next_marker_signed_from_first(-0.2);
+            .get_next_marker_signed_from_first(-0.2)
+        {
+            let dist = (next_marker_pos - current_pos) * travel_sign;
+            move_mod = dist.clamp(0.0, 0.5) / 0.5;
+        } else {
+            self.seek_pos = prev_marker_pos - current_pos;
+        }
 
-        let seek_target = next_marker_pos.unwrap_or(prev_marker_pos);
-        self.seek_speed += ((seek_target - current_pos) * 40.0 - self.seek_speed * 10.0) * delta;
+        self.seek_speed += (self.seek_pos * 40.0 - self.seek_speed * 10.0) * delta;
 
-        let t_ahead_of_prev = ((-prev_marker_pos + current_pos) * target_speed.signum()) / 0.5;
-        let t_before_next =
-            ((next_marker_pos.unwrap_or(current_pos) - current_pos) * -target_speed.signum()) / 0.5;
-        let move_speed = self
-            .seek_speed
-            .lerp(self.speed, t_ahead_of_prev.clamp(0.0, 1.0))
-            .lerp(0.0, t_before_next.clamp(0.0, 1.0));
-
-        self.in_place_cycle += delta * (self.speed - move_speed) / 0.5;
+        self.in_place_cycle += delta * (self.speed * (1.0 - move_mod) - self.seek_speed) / 0.5;
         self.in_place_cycle = self.in_place_cycle.rem_euclid(1.0);
-        let new_pos = current_pos + move_speed * delta;
+        self.seek_pos -= self.seek_speed * delta;
+        let new_pos = current_pos + (self.seek_speed + self.speed * move_mod) * delta;
         self.get_route_mut()
             .get_current_leg_mut()
             .set_signed_pos_from_first(new_pos);
@@ -616,9 +639,7 @@ fn handle_ble_sensor_advance(
                     .unwrap(),
             )
             .unwrap();
-        let route = train.get_route_mut();
-        route.advance_sensor().expect("Failed to advance sensor");
-        route.update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
+        train.advance_sensor(&mut track_locks, &entity_map, &mut set_switch_position);
 
         for mut train in q_trains.iter_mut() {
             if !track_locks.is_clean(&train.id) {
