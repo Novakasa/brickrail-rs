@@ -24,8 +24,8 @@ pub enum SwitchPosition {
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct WagonID {
-    train: TrainID,
-    index: usize,
+    pub train: TrainID,
+    pub index: usize,
 }
 
 #[derive(

@@ -38,8 +38,8 @@ struct TrainDragState {
 }
 
 #[derive(Component, Debug)]
-struct TrainWagon {
-    id: WagonID,
+pub struct TrainWagon {
+    pub id: WagonID,
 }
 
 #[derive(Bundle)]
@@ -52,12 +52,15 @@ struct TrainWagonBundle {
 impl TrainWagonBundle {
     fn new(id: WagonID) -> Self {
         let path = ShapePath::new()
-            .add(&Line(Vec2::ZERO, Vec2::X * 0.5 * LAYOUT_SCALE))
+            .add(&Line(
+                -Vec2::X * 0.3 * WAGON_DIST * LAYOUT_SCALE,
+                Vec2::X * 0.3 * WAGON_DIST * LAYOUT_SCALE,
+            ))
             .build();
         let stroke = Stroke {
             color: Color::YELLOW,
             options: StrokeOptions::default()
-                .with_line_width(TRAIN_WIDTH)
+                .with_line_width(TRAIN_WIDTH * LAYOUT_SCALE)
                 .with_line_cap(LineCap::Round),
         };
         let shape = ShapeBundle {
@@ -131,6 +134,8 @@ pub struct Train {
     #[serde(skip)]
     in_place_cycle: f32,
     settings: TrainSettings,
+    #[serde(skip)]
+    wagons: Vec<WagonID>,
 }
 
 impl Train {
@@ -148,6 +153,7 @@ impl Train {
                 home: None,
                 prefer_facing: None,
             },
+            wagons: vec![],
         };
         train
     }
@@ -180,7 +186,6 @@ impl Train {
         route.advance_sensor().expect("Failed to advance sensor");
         route.update_locks(track_locks, entity_map, set_switch_position);
 
-        let route = self.get_route_mut();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
         let prev_marker_pos = route
             .get_current_leg()
@@ -249,6 +254,23 @@ impl Train {
             }
         }
     }
+
+    pub fn update_wagon_entities(
+        &mut self,
+        commands: &mut Commands,
+        entity_map: &mut ResMut<EntityMap>,
+    ) {
+        while self.wagons.len() < self.settings.num_wagons + 1 {
+            let wagon_id = WagonID {
+                train: self.id,
+                index: self.wagons.len(),
+            };
+            let wagon = TrainWagonBundle::new(wagon_id);
+            let entity = commands.spawn(wagon).id();
+            entity_map.add_wagon(wagon_id, entity);
+            self.wagons.push(wagon_id);
+        }
+    }
 }
 
 impl Selectable for Train {
@@ -280,6 +302,44 @@ impl TrainBundle {
     }
 }
 
+fn update_wagons(
+    q_trains: Query<&Train>,
+    mut q_wagons: Query<(&mut Transform, &mut Stroke)>,
+    entity_map: Res<EntityMap>,
+    hover_state: Res<HoverState>,
+    selection_state: Res<SelectionState>,
+) {
+    for train in q_trains.iter() {
+        let mut color = Color::YELLOW;
+        if hover_state.hover == Some(GenericID::Train(train.id)) {
+            color = Color::RED;
+        }
+        if Selection::Single(GenericID::Train(train.id)) == selection_state.selection {
+            color = Color::ORANGE;
+        }
+        for wagon_id in &train.wagons {
+            let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
+            let (mut transform, mut stroke) = q_wagons.get_mut(*wagon_entity).unwrap();
+            let offset = -0.5 * (wagon_id.index as f32);
+            let offset2 = offset + train.in_place_cycle * WAGON_DIST;
+            let pos = train.get_route().interpolate_offset(offset2);
+            let pos2 = train.get_route().interpolate_offset(offset2 + 0.01);
+            let angle = -(pos2 - pos).angle_between(Vec2::X);
+            transform.translation = pos.extend(20.0) * LAYOUT_SCALE;
+            transform.rotation = Quat::from_rotation_z(angle);
+
+            let mut alpha = 1.0;
+            if wagon_id.index == 0 {
+                alpha = 1.0 - train.in_place_cycle;
+            }
+            if wagon_id.index == train.settings.num_wagons {
+                alpha = train.in_place_cycle;
+            }
+            stroke.color = color.with_a(alpha);
+        }
+    }
+}
+
 fn draw_train(
     mut gizmos: Gizmos,
     q_trains: Query<&Train>,
@@ -295,21 +355,6 @@ fn draw_train(
             color = Color::BLUE;
         }
 
-        for wagon_index in 0..train.settings.num_wagons + 1 {
-            // println!("offset {:?}", train.in_place_cycle);
-            let offset = -0.5 * (wagon_index as f32);
-            let pos = train
-                .get_route()
-                .interpolate_offset(offset + train.in_place_cycle * WAGON_DIST);
-            let mut alpha = 1.0;
-            if wagon_index == 0 {
-                alpha = 1.0 - train.in_place_cycle;
-            }
-            if wagon_index == train.settings.num_wagons {
-                alpha = train.in_place_cycle;
-            }
-            gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, color.with_a(alpha));
-        }
         let pos = train.get_route().interpolate_offset(0.0);
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
     }
@@ -547,7 +592,10 @@ fn spawn_train(
         route.update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
         train.position = Position::Route(route);
         println!("train block: {:?}", train.get_logical_block_id());
-        let train = TrainBundle::from_train(train);
+        let mut train = TrainBundle::from_train(train);
+        train
+            .train
+            .update_wagon_entities(&mut commands, &mut entity_map);
         let train_id = train.train.id;
         // println!("Section: {:?}", block_section);
         // println!("Layout markers: {:?}", entity_map.markers);
@@ -693,6 +741,7 @@ impl Plugin for TrainPlugin {
                 delete_selection_shortcut::<Train>,
                 despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
                 draw_train,
+                update_wagons,
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
                 draw_hover_route,

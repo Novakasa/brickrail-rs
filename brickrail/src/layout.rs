@@ -136,6 +136,10 @@ impl EntityMap {
         self.trains.try_insert(train, entity).unwrap();
     }
 
+    pub fn add_wagon(&mut self, wagon: WagonID, entity: Entity) {
+        self.wagons.try_insert(wagon, entity).unwrap();
+    }
+
     pub fn add_marker(&mut self, track: TrackID, entity: Entity) {
         // println!("Adding marker {:?} to {:?}", track, entity);
         self.markers.try_insert(track, entity).unwrap();
