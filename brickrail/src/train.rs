@@ -186,12 +186,19 @@ impl Train {
         route.advance_sensor().expect("Failed to advance sensor");
         route.update_locks(track_locks, entity_map, set_switch_position);
 
+        self.set_seek_target();
+    }
+
+    fn set_seek_target(&mut self) {
+        let route = self.get_route();
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
         let prev_marker_pos = route
             .get_current_leg()
             .get_prev_marker_signed_from_first(0.2);
 
         self.seek_pos = prev_marker_pos - current_pos;
+        self.seek_pos -= (self.seek_pos + (1.0 - self.in_place_cycle) * WAGON_DIST) % WAGON_DIST;
+        println!("Seek pos: {:?}", self.seek_pos);
     }
 
     fn traverse_route(&mut self, delta: f32, advance_events: &mut EventWriter<MarkerAdvanceEvent>) {
@@ -224,7 +231,6 @@ impl Train {
             let dist = (next_marker_pos - current_pos) * travel_sign;
             move_mod = dist.clamp(0.0, 0.5) / 0.5;
         } else {
-            self.seek_pos = prev_marker_pos - current_pos;
         }
 
         self.seek_speed += (self.seek_pos * 40.0 - self.seek_speed * 10.0) * delta;
@@ -345,7 +351,7 @@ fn update_wagons(
             if wagon_id.index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
-            stroke.color = color.with_a(alpha);
+            stroke.color = color.with_a(alpha.powi(2));
         }
     }
 }
@@ -536,6 +542,7 @@ fn set_train_route(
         train
             .get_route()
             .update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
+        train.set_seek_target();
 
         if editor_state.get().ble_commands_enabled() {
             let commands = ble_train.download_route(&train.get_route());
