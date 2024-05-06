@@ -195,7 +195,7 @@ impl Train {
         let current_pos = route.get_current_leg().get_signed_pos_from_first();
         let prev_marker_pos = route
             .get_current_leg()
-            .get_prev_marker_signed_from_first(0.2);
+            .get_prev_marker_signed_from_first(WAGON_DIST);
 
         self.seek_pos = prev_marker_pos - current_pos;
         self.seek_pos -= (self.seek_pos + (1.0 - self.in_place_cycle) * WAGON_DIST) % WAGON_DIST;
@@ -227,7 +227,7 @@ impl Train {
             .get_next_marker_signed_from_first(-0.2)
         {
             let dist = (next_marker_pos - current_pos) * travel_sign;
-            move_mod = dist.clamp(0.0, 0.5) / 0.5;
+            move_mod = dist.clamp(0.0, WAGON_DIST) / WAGON_DIST;
         }
 
         self.seek_speed += (self.seek_pos * 40.0 - self.seek_speed * 10.0) * delta;
@@ -348,7 +348,7 @@ fn update_wagons(
             if wagon_id.index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
-            stroke.color = color.with_a(alpha.powi(2));
+            stroke.color = color.with_a(alpha.powi(1));
         }
     }
 }
