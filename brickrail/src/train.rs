@@ -242,17 +242,22 @@ impl Train {
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
             Query<&mut Train>,
-            Res<EntityMap>,
+            ResMut<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
+            Commands,
         )>::new(world);
-        let (mut trains, entity_map, selection_state, type_registry) = state.get_mut(world);
+        let (mut trains, mut entity_map, selection_state, type_registry, mut commands) =
+            state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut train) = trains.get_mut(entity) {
-                ui_for_value(&mut train.settings, ui, &type_registry.read());
+                if ui_for_value(&mut train.settings, ui, &type_registry.read()) {
+                    train.update_wagon_entities(&mut commands, &mut entity_map);
+                }
                 ui.separator();
             }
         }
+        state.apply(world);
     }
 
     pub fn update_wagon_entities(
@@ -269,6 +274,11 @@ impl Train {
             let entity = commands.spawn(wagon).id();
             entity_map.add_wagon(wagon_id, entity);
             self.wagons.push(wagon_id);
+        }
+        while self.wagons.len() > self.settings.num_wagons + 1 {
+            let wagon_id = self.wagons.pop().unwrap();
+            let entity = entity_map.wagons.remove(&wagon_id).unwrap();
+            commands.entity(entity).despawn();
         }
     }
 }
