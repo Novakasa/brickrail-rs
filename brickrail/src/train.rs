@@ -26,8 +26,9 @@ use bevy_prototype_lyon::{
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
-const TRAIN_WIDTH: f32 = 0.1;
-const WAGON_DIST: f32 = 0.5;
+const TRAIN_WIDTH: f32 = 0.3;
+const WAGON_DIST: f32 = 0.7;
+const WAGON_LENGTH: f32 = 0.6;
 
 #[derive(Resource, Default, Debug)]
 struct TrainDragState {
@@ -53,8 +54,8 @@ impl TrainWagonBundle {
     fn new(id: WagonID) -> Self {
         let path = ShapePath::new()
             .add(&Line(
-                -Vec2::X * 0.3 * WAGON_DIST * LAYOUT_SCALE,
-                Vec2::X * 0.3 * WAGON_DIST * LAYOUT_SCALE,
+                -Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE,
+                Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE,
             ))
             .build();
         let stroke = Stroke {
@@ -221,16 +222,12 @@ impl Train {
         let mut move_mod = 1.0;
 
         let travel_sign = target_speed.signum();
-        let prev_marker_pos = route
-            .get_current_leg()
-            .get_prev_marker_signed_from_first(0.2);
         if let Some(next_marker_pos) = route
             .get_current_leg()
             .get_next_marker_signed_from_first(-0.2)
         {
             let dist = (next_marker_pos - current_pos) * travel_sign;
             move_mod = dist.clamp(0.0, 0.5) / 0.5;
-        } else {
         }
 
         self.seek_speed += (self.seek_pos * 40.0 - self.seek_speed * 10.0) * delta;
@@ -336,7 +333,7 @@ fn update_wagons(
         for wagon_id in &train.wagons {
             let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
             let (mut transform, mut stroke) = q_wagons.get_mut(*wagon_entity).unwrap();
-            let offset = -0.5 * (wagon_id.index as f32);
+            let offset = -WAGON_DIST * (wagon_id.index as f32);
             let offset2 = offset + train.in_place_cycle * WAGON_DIST;
             let pos = train.get_route().interpolate_offset(offset2);
             let pos2 = train.get_route().interpolate_offset(offset2 + 0.01);
