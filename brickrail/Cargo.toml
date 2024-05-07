@@ -8,9 +8,9 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize"] }
-bevy-inspector-egui = "0.23.0"
-bevy-trait-query = { git = "https://github.com/RobWalt/bevy-trait-query.git", branch = "bevy-0.13" }
-bevy_egui = "0.25.0"
+bevy-inspector-egui = "0.24.0"
+bevy-trait-query = "0.5.0"
+bevy_egui = "0.27.0"
 bevy_framepace = "0.15.0"
 bevy_mouse_tracking_plugin = { git = "https://github.com/iiiii7d/bevy-mouse-tracking.git", branch = "main" }
 bevy_pancam = "0.11.0"

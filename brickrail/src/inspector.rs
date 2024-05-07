@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
-use bevy_egui::{
-    egui::{self},
-    EguiContexts, EguiMousePosition,
-};
+use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::{
@@ -14,9 +11,8 @@ use crate::{
 pub fn inspector_system_world(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
-    let inner_response = egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(
-        &egui_contexts.ctx_mut().clone(),
-        |ui| {
+    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+        egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(ctx, |ui| {
             ui.heading("Inspector");
             {
                 ui.separator();
@@ -28,13 +24,11 @@ pub fn inspector_system_world(world: &mut World) {
                 Marker::inspector(ui, world);
                 Switch::inspector(ui, world);
             };
-        },
-    );
+        });
 
-    let mut state = SystemState::<(Res<EguiMousePosition>, ResMut<InputData>)>::new(world);
-    let (egui_mouse_pos, mut input_data) = state.get_mut(world);
-    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
-        input_data.mouse_over_ui = inner_response.response.rect.contains(mouse_pos.to_pos2());
+        let mut state = SystemState::<ResMut<InputData>>::new(world);
+        let mut input_data = state.get_mut(world);
+        input_data.mouse_over_ui = ctx.wants_pointer_input() || ctx.is_pointer_over_area();
     }
 }
 

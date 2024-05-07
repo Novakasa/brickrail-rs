@@ -19,7 +19,7 @@ use bevy::prelude::*;
 use bevy_ecs::system::{RunSystemOnce, SystemState};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
-use bevy_egui::{egui, EguiContexts, EguiMousePosition};
+use bevy_egui::{egui, EguiContexts};
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -131,7 +131,6 @@ fn update_editor_state(
 
 pub fn top_panel(
     mut egui_contexts: EguiContexts,
-    egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
     mut next_editor_state: ResMut<NextState<EditorState>>,
     editor_state: Res<State<EditorState>>,
@@ -139,9 +138,8 @@ pub fn top_panel(
     mut save_events: EventWriter<SaveLayoutEvent>,
     mut new_events: EventWriter<NewLayoutEvent>,
 ) {
-    let inner_response = egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(
-        &egui_contexts.ctx_mut().clone(),
-        |ui| {
+    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+        egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("New").clicked() {
                     new_events.send(NewLayoutEvent {});
@@ -182,98 +180,91 @@ pub fn top_panel(
                     });
                 });
             });
-        },
-    );
+        });
 
-    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
-        input_data.mouse_over_ui |= inner_response.response.rect.contains(mouse_pos.to_pos2());
+        input_data.mouse_over_ui |= ctx.wants_pointer_input() || ctx.is_pointer_over_area();
     }
 }
 
 pub fn hub_status_window(
     mut egui_contexts: EguiContexts,
-    egui_mouse_pos: Res<EguiMousePosition>,
     mut input_data: ResMut<InputData>,
     mut q_hubs: Query<&mut BLEHub>,
     mut editor_state: ResMut<NextState<EditorState>>,
 ) {
-    let inner_response = egui::Window::new("Hub status")
-        .movable(false)
-        .collapsible(false)
-        .resizable(false)
-        .default_width(200.0)
-        .max_width(200.0)
-        .anchor(Align2::CENTER_CENTER, (0.0, 0.0))
-        .show(&egui_contexts.ctx_mut().clone(), |ui| {
-            ui.set_width(ui.available_width());
-            ui.heading("Preparing hubs...");
-            ui.separator();
-            for mut hub in q_hubs.iter_mut() {
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                    ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
-                    if hub.state == HubState::Ready || !hub.active {
-                        // ui.heading("✔".to_string());
-                        ui.label(
-                            egui::RichText::new("✔".to_string())
-                                .heading()
-                                .color(egui::Color32::GREEN),
-                        );
-                    }
-                });
-                if hub.active {
-                    ui.label("Active");
-                } else {
-                    ui.label("Inactive");
-                }
-                match &hub.state {
-                    HubState::Downloading(progress) => {
-                        ui.horizontal(|ui| {
-                            ui.label("Downloading...");
-                            ui.add(egui::ProgressBar::new(*progress));
-                        });
-                    }
-                    HubState::Connecting => {
-                        ui.horizontal(|ui| {
-                            ui.label("Connecting...");
-                            ui.add(egui::Spinner::default());
-                        });
-                    }
-                    HubState::StartingProgram => {
-                        ui.horizontal(|ui| {
-                            ui.label("Starting program...");
-                            ui.add(egui::Spinner::default());
-                        });
-                    }
-                    HubState::Configuring => {
-                        ui.horizontal(|ui| {
-                            ui.label("Configuring...");
-                            ui.add(egui::Spinner::default());
-                        });
-                    }
-                    HubState::Ready => {}
-                    state => {
-                        ui.label(format!("{:?}", state));
-                    }
-                }
-                if let Some(err) = &hub.error {
-                    ui.label(format!("Error: {:?}", err));
-                    if ui.button("Retry").clicked() {
-                        hub.error = None;
-                    }
-                }
+    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+        egui::Window::new("Hub status")
+            .movable(false)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(200.0)
+            .max_width(200.0)
+            .anchor(Align2::CENTER_CENTER, (0.0, 0.0))
+            .show(ctx, |ui| {
+                ui.set_width(ui.available_width());
+                ui.heading("Preparing hubs...");
                 ui.separator();
-            }
-            if ui.button("Cancel").clicked() {
-                editor_state.set(EditorState::Edit);
-            }
-        });
+                for mut hub in q_hubs.iter_mut() {
+                    ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                        ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
+                        if hub.state == HubState::Ready || !hub.active {
+                            // ui.heading("✔".to_string());
+                            ui.label(
+                                egui::RichText::new("✔".to_string())
+                                    .heading()
+                                    .color(egui::Color32::GREEN),
+                            );
+                        }
+                    });
+                    if hub.active {
+                        ui.label("Active");
+                    } else {
+                        ui.label("Inactive");
+                    }
+                    match &hub.state {
+                        HubState::Downloading(progress) => {
+                            ui.horizontal(|ui| {
+                                ui.label("Downloading...");
+                                ui.add(egui::ProgressBar::new(*progress));
+                            });
+                        }
+                        HubState::Connecting => {
+                            ui.horizontal(|ui| {
+                                ui.label("Connecting...");
+                                ui.add(egui::Spinner::default());
+                            });
+                        }
+                        HubState::StartingProgram => {
+                            ui.horizontal(|ui| {
+                                ui.label("Starting program...");
+                                ui.add(egui::Spinner::default());
+                            });
+                        }
+                        HubState::Configuring => {
+                            ui.horizontal(|ui| {
+                                ui.label("Configuring...");
+                                ui.add(egui::Spinner::default());
+                            });
+                        }
+                        HubState::Ready => {}
+                        state => {
+                            ui.label(format!("{:?}", state));
+                        }
+                    }
+                    if let Some(err) = &hub.error {
+                        ui.label(format!("Error: {:?}", err));
+                        if ui.button("Retry").clicked() {
+                            hub.error = None;
+                        }
+                    }
+                    ui.separator();
+                }
+                if ui.button("Cancel").clicked() {
+                    editor_state.set(EditorState::Edit);
+                }
+            });
 
-    if let Some((_, mouse_pos)) = egui_mouse_pos.0 {
-        input_data.mouse_over_ui |= inner_response
-            .unwrap()
-            .response
-            .rect
-            .contains(mouse_pos.to_pos2());
+        input_data.mouse_over_ui |= ctx.is_pointer_over_area() || ctx.wants_pointer_input();
     }
 }
 

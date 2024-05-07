@@ -198,8 +198,9 @@ impl Train {
             .get_prev_marker_signed_from_first(WAGON_DIST);
 
         self.seek_pos = prev_marker_pos - current_pos;
+        // shift by how much the train will be out of phase after seeking
+        // so seeking basically undoes the phase shift
         self.seek_pos -= (self.seek_pos + (1.0 - self.in_place_cycle) * WAGON_DIST) % WAGON_DIST;
-        println!("Seek pos: {:?}", self.seek_pos);
     }
 
     fn traverse_route(&mut self, delta: f32, advance_events: &mut EventWriter<MarkerAdvanceEvent>) {
