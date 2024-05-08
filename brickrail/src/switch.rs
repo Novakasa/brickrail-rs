@@ -156,7 +156,7 @@ impl Selectable for Switch {
         1.5
     }
 
-    fn get_distance(&self, pos: Vec2) -> f32 {
+    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
         self.id.to_slot().get_vec2().distance(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }

@@ -395,7 +395,7 @@ impl Selectable for Track {
         GenericID::Track(self.id)
     }
 
-    fn get_distance(&self, pos: Vec2) -> f32 {
+    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
         self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }

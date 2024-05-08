@@ -185,7 +185,7 @@ impl Selectable for Marker {
         2.0
     }
 
-    fn get_distance(&self, pos: Vec2) -> f32 {
+    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
         self.track
             .get_directed(TrackDirection::First)
             .get_center_vec2()

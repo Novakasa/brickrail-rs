@@ -43,6 +43,20 @@ pub struct TrainWagon {
     pub id: WagonID,
 }
 
+impl Selectable for TrainWagon {
+    fn get_id(&self) -> GenericID {
+        GenericID::Train(self.id.train)
+    }
+
+    fn get_depth(&self) -> f32 {
+        3.0
+    }
+
+    fn get_distance(&self, pos: Vec2, transform: Option<&Transform>) -> f32 {
+        (transform.unwrap().translation.truncate() / LAYOUT_SCALE).distance(pos) - 0.2
+    }
+}
+
 #[derive(Bundle)]
 struct TrainWagonBundle {
     wagon: TrainWagon,
@@ -295,14 +309,6 @@ impl Selectable for Train {
     fn get_depth(&self) -> f32 {
         3.0
     }
-
-    fn get_distance(&self, pos: Vec2) -> f32 {
-        self.get_route()
-            .get_current_leg()
-            .get_current_pos()
-            .distance(pos)
-            - 0.2
-    }
 }
 
 #[derive(Bundle)]
@@ -354,23 +360,10 @@ fn update_wagons(
     }
 }
 
-fn draw_train(
-    mut gizmos: Gizmos,
-    q_trains: Query<&Train>,
-    selection_state: Res<SelectionState>,
-    hover_state: Res<HoverState>,
-) {
+fn draw_train(mut gizmos: Gizmos, q_trains: Query<&Train>) {
     for train in q_trains.iter() {
-        let mut color = Color::YELLOW;
-        if hover_state.hover == Some(GenericID::Train(train.id)) {
-            color = Color::RED;
-        }
-        if Selection::Single(GenericID::Train(train.id)) == selection_state.selection {
-            color = Color::BLUE;
-        }
-
         let pos = train.get_route().interpolate_offset(0.0);
-        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.2 * LAYOUT_SCALE, color);
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.03 * LAYOUT_SCALE, Color::BLACK);
     }
 }
 
@@ -745,6 +738,7 @@ pub struct TrainPlugin;
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.register_component_as::<dyn Selectable, Train>();
+        app.register_component_as::<dyn Selectable, TrainWagon>();
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
