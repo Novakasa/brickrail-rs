@@ -87,7 +87,12 @@ pub trait Selectable {
         -100.0
     }
 
-    fn get_distance(&self, _pos: Vec2, transform: Option<&Transform>) -> f32 {
+    fn get_distance(
+        &self,
+        _pos: Vec2,
+        _transform: Option<&Transform>,
+        _stroke: Option<&Stroke>,
+    ) -> f32 {
         100.0
     }
 }
@@ -281,19 +286,22 @@ fn spawn_camera(mut commands: Commands) {
 
 fn update_hover(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<(&mut dyn Selectable, Option<&Transform>)>,
+    q_selectable: Query<(&mut dyn Selectable, Option<&Transform>, Option<&Stroke>)>,
     mut hover_state: ResMut<HoverState>,
 ) {
     let mut hover_candidate = None;
     let mut min_dist = f32::INFINITY;
     let mut hover_depth = f32::NEG_INFINITY;
-    for (entity, transform) in q_selectable.iter() {
+    for (entity, transform, stroke) in q_selectable.iter() {
         for selectable in entity.iter() {
             if selectable.get_depth() < hover_depth {
                 continue;
             }
-            let dist =
-                selectable.get_distance(mouse_world_pos.truncate() / LAYOUT_SCALE, transform);
+            let dist = selectable.get_distance(
+                mouse_world_pos.truncate() / LAYOUT_SCALE,
+                transform,
+                stroke,
+            );
             if dist > 0.0 {
                 continue;
             }

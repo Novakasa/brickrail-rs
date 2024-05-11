@@ -4,6 +4,7 @@ use bevy::{
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
+use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
@@ -185,7 +186,12 @@ impl Selectable for Marker {
         2.0
     }
 
-    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
+    fn get_distance(
+        &self,
+        pos: Vec2,
+        _transform: Option<&Transform>,
+        _stroke: Option<&Stroke>,
+    ) -> f32 {
         self.track
             .get_directed(TrackDirection::First)
             .get_center_vec2()

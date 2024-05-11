@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::{Align, Layout, Ui};
+use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
@@ -156,7 +157,12 @@ impl Selectable for Switch {
         1.5
     }
 
-    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
+    fn get_distance(
+        &self,
+        pos: Vec2,
+        _transform: Option<&Transform>,
+        _stroke: Option<&Stroke>,
+    ) -> f32 {
         self.id.to_slot().get_vec2().distance(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }

@@ -52,8 +52,26 @@ impl Selectable for TrainWagon {
         3.0
     }
 
-    fn get_distance(&self, pos: Vec2, transform: Option<&Transform>) -> f32 {
-        (transform.unwrap().translation.truncate() / LAYOUT_SCALE).distance(pos) - 0.2
+    fn get_distance(
+        &self,
+        pos: Vec2,
+        transform: Option<&Transform>,
+        stroke: Option<&Stroke>,
+    ) -> f32 {
+        let transform = transform.unwrap();
+        let pos_local = transform
+            .compute_affine()
+            .inverse()
+            .transform_point(pos.extend(0.0) * LAYOUT_SCALE)
+            .truncate()
+            / LAYOUT_SCALE;
+
+        let b = Vec2::new(WAGON_DIST * 0.6, TRAIN_WIDTH * 0.5);
+        let d = pos_local.abs() - b;
+        if stroke.unwrap().color.a() < 0.2 {
+            return 30.0;
+        }
+        d.max(Vec2::ZERO).length() + d.x.max(d.y).min(0.0)
     }
 }
 

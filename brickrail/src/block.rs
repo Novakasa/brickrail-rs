@@ -120,7 +120,12 @@ impl Selectable for Block {
         GenericID::Block(self.id)
     }
 
-    fn get_distance(&self, pos: Vec2, _transform: Option<&Transform>) -> f32 {
+    fn get_distance(
+        &self,
+        pos: Vec2,
+        _transform: Option<&Transform>,
+        _stroke: Option<&Stroke>,
+    ) -> f32 {
         let block_dist = self.distance_to(pos) - BLOCK_WIDTH / LAYOUT_SCALE;
         block_dist
     }
