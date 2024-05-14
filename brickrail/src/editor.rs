@@ -154,16 +154,16 @@ pub fn top_panel(
     mut input_data: ResMut<InputData>,
     mut next_editor_state: ResMut<NextState<EditorState>>,
     editor_state: Res<State<EditorState>>,
-    mut load_events: EventWriter<LoadLayoutEvent>,
-    mut save_events: EventWriter<SaveLayoutEvent>,
-    mut new_events: EventWriter<NewLayoutEvent>,
     mut editor_info: ResMut<EditorInfo>,
+
+    mut save_events: EventWriter<SaveLayoutEvent>,
 ) {
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
         egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("New").clicked() {
-                    new_events.send(NewLayoutEvent {});
+                    next_editor_state.set(EditorState::Disconnecting);
+                    editor_info.disconnect_action = DisconnectAction::NewLayout;
                 }
 
                 if ui.button("Load").clicked() {
@@ -171,7 +171,8 @@ pub fn top_panel(
                         .add_filter("brickrail layouts", &["json"])
                         .pick_file()
                     {
-                        load_events.send(LoadLayoutEvent { path: path });
+                        next_editor_state.set(EditorState::Disconnecting);
+                        editor_info.disconnect_action = DisconnectAction::LoadLayout(path);
                     }
                 }
                 if ui.button("Save").clicked() {
@@ -654,13 +655,22 @@ pub fn disconnect_finish(
     mut editor_info: ResMut<EditorInfo>,
     mut commands: Commands,
     primary_window: Query<Entity, With<PrimaryWindow>>,
+    mut load_events: EventWriter<LoadLayoutEvent>,
+    mut new_events: EventWriter<NewLayoutEvent>,
 ) {
-    println!("Disconnect finish");
-    if editor_info.disconnect_action == DisconnectAction::Exit {
-        commands.entity(primary_window.single()).despawn();
+    match &editor_info.disconnect_action {
+        DisconnectAction::Exit => {
+            commands.entity(primary_window.single()).despawn();
+        }
+        DisconnectAction::NewLayout => {
+            new_events.send(NewLayoutEvent {});
+        }
+        DisconnectAction::LoadLayout(path) => {
+            load_events.send(LoadLayoutEvent { path: path.clone() });
+        }
+        DisconnectAction::Nothing => {}
     }
     editor_info.disconnect_action = DisconnectAction::Nothing;
-    println!("Disconnect finish done");
 }
 
 pub struct EditorPlugin;
@@ -705,6 +715,9 @@ impl Plugin for EditorPlugin {
                 hub_status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),
+                hub_status_window
+                    .after(top_panel)
+                    .run_if(in_state(EditorState::Disconnecting)),
             ),
         );
     }
