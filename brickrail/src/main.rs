@@ -32,6 +32,7 @@ fn main() {
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins(editor::EditorPlugin)
+        .add_plugins(settings::SettingsPlugin)
         .add_plugins(layout::LayoutPlugin)
         .add_plugins(block::BlockPlugin)
         .add_plugins(track::TrackPlugin)

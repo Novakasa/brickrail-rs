@@ -1,28 +1,45 @@
-use std::path::PathBuf;
-
 use bevy::{prelude::*, utils::HashMap};
+use serde::{Deserialize, Serialize};
 
-use crate::layout_primitives::HubID;
-
-#[derive(Resource, Debug)]
-pub struct Settings {}
+#[derive(Resource, Debug, Serialize, Deserialize)]
+pub struct Settings {
+    pub program_hashes: HashMap<String, String>,
+}
 
 impl Default for Settings {
     fn default() -> Self {
-        Self {}
+        Self {
+            program_hashes: HashMap::default(),
+        }
     }
 }
 
-#[derive(Component, Debug)]
-pub struct LayoutCache {
-    pub path: PathBuf,
-    pub hub_programs: HashMap<HubID, Option<String>>,
+impl Settings {
+    fn new() -> Self {
+        // check if settings.json exists, otherwise return default
+        let settings = std::fs::read_to_string("settings.json");
+        match settings {
+            Ok(settings) => {
+                let settings: Settings = serde_json::from_str(&settings).unwrap();
+                settings
+            }
+            Err(_) => Settings::default(),
+        }
+    }
+}
+
+impl Drop for Settings {
+    fn drop(&mut self) {
+        // save settings to settings.json
+        let settings = serde_json::to_string_pretty(self).unwrap();
+        std::fs::write("settings.json", settings).unwrap();
+    }
 }
 
 pub struct SettingsPlugin;
 
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Settings::default());
+        app.insert_resource(Settings::new());
     }
 }

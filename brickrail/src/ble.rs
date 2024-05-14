@@ -10,6 +10,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
+    settings::Settings,
     switch::Switch,
     switch_motor::SwitchMotor,
 };
@@ -112,6 +113,30 @@ impl BLEHub {
         match self.id.kind {
             HubType::Layout => Path::new("pybricks/programs/mpy/layout_controller.mpy"),
             HubType::Train => Path::new("pybricks/programs/mpy/smart_train.mpy"),
+        }
+    }
+
+    pub fn get_program_hash(&self) -> String {
+        let path = self.get_program_path();
+        crate::utils::get_file_hash(path)
+    }
+
+    pub fn set_downloaded_from_settings(&mut self, settings: &Res<Settings>) {
+        self.downloaded = if let Some(name) = self.name.as_ref() {
+            let hash = self.get_program_hash();
+            match settings.program_hashes.get(name) {
+                Some(h) => h == &hash,
+                None => false,
+            }
+        } else {
+            false
+        };
+    }
+
+    pub fn sync_settings_hash(&mut self, settings: &mut ResMut<Settings>) {
+        if let Some(name) = self.name.as_ref() {
+            let hash = self.get_program_hash();
+            settings.program_hashes.insert(name.clone(), hash);
         }
     }
 }
@@ -343,9 +368,13 @@ fn spawn_hub(
     mut spawn_event_reader: EventReader<SpawnHubEvent>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
+    settings: Res<Settings>,
 ) {
     for event in spawn_event_reader.read() {
-        let hub = event.hub.clone();
+        let mut hub = event.hub.clone();
+        hub.set_downloaded_from_settings(&settings);
+        println!("name: {:?}", hub.name);
+        println!("downloaded: {:?}", hub.downloaded);
         let hub_id = hub.id;
         if let Some(name) = &hub.name {
             entity_map
@@ -508,12 +537,13 @@ fn execute_hub_commands(
                 runtime.spawn_background_task(move |mut ctx| async move {
                     io_hub.lock().await.download_program(program).await.unwrap();
                     ctx.run_on_main_thread(move |ctx_main| {
-                        let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                        let mut system_state: SystemState<(Query<&mut BLEHub>, ResMut<Settings>)> =
                             SystemState::new(ctx_main.world);
-                        let mut query = system_state.get_mut(ctx_main.world);
-                        let mut hub = query.0.get_mut(entity).unwrap();
+                        let (mut query, mut settings) = system_state.get_mut(ctx_main.world);
+                        let mut hub = query.get_mut(entity).unwrap();
                         hub.downloaded = true;
                         hub.state = HubState::Connected;
+                        hub.sync_settings_hash(&mut settings);
                     })
                     .await;
                 });
@@ -603,12 +633,14 @@ fn handle_hub_events(
     mut train_sender: EventWriter<HubMessageEvent<TrainData>>,
     mut q_hubs: Query<&mut BLEHub>,
     mut entity_map: ResMut<EntityMap>,
+    settings: Res<Settings>,
 ) {
     for event in hub_event_reader.read() {
         let mut hub = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
         match &event.event {
             IOEvent::NameDiscovered(name) => {
                 hub.name = Some(name.clone());
+                hub.set_downloaded_from_settings(&settings);
                 entity_map
                     .names
                     .insert(GenericID::Hub(hub.id), name.clone());
