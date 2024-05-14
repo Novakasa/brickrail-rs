@@ -14,6 +14,7 @@ mod layout_primitives;
 mod marker;
 mod route;
 mod section;
+mod settings;
 mod switch;
 mod switch_motor;
 mod track;
