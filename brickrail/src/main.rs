@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::Path};
 
 use bevy::prelude::*;
 
@@ -21,6 +21,9 @@ mod train;
 mod utils;
 
 fn main() {
+    let file = Path::new("pybricks/programs/mpy/layout_controller.mpy");
+    let hash = utils::get_file_hash(file);
+    println!("Hash: {}", hash);
     env::set_var("RUST_BACKTRACE", "1");
     env::set_var("RUST_LOG", "pybricks_ble=info,brickrail=info");
     App::new()
