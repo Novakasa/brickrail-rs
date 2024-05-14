@@ -58,6 +58,9 @@ impl Selectable for TrainWagon {
         transform: Option<&Transform>,
         stroke: Option<&Stroke>,
     ) -> f32 {
+        if stroke.unwrap().color.a() < 0.2 {
+            return 30.0;
+        }
         let transform = transform.unwrap();
         let pos_local = transform
             .compute_affine()
@@ -66,12 +69,14 @@ impl Selectable for TrainWagon {
             .truncate()
             / LAYOUT_SCALE;
 
-        let b = Vec2::new(WAGON_DIST * 0.6, TRAIN_WIDTH * 0.5);
-        let d = pos_local.abs() - b;
-        if stroke.unwrap().color.a() < 0.2 {
-            return 30.0;
-        }
-        d.max(Vec2::ZERO).length() + d.x.max(d.y).min(0.0)
+        let extent = Vec2::new(WAGON_DIST * 0.6, TRAIN_WIDTH * 0.5);
+        let vec_to_closest_corner = pos_local.abs() - extent;
+
+        vec_to_closest_corner.max(Vec2::ZERO).length()
+            + vec_to_closest_corner
+                .x
+                .max(vec_to_closest_corner.y)
+                .min(0.0)
     }
 }
 
