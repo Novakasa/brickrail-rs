@@ -16,6 +16,7 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
 use bevy::prelude::*;
+use bevy::window::{PrimaryWindow, WindowCloseRequested};
 use bevy_ecs::system::{RunSystemOnce, SystemState};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
@@ -36,6 +37,20 @@ pub enum DisconnectAction {
     NewLayout,
     LoadLayout(PathBuf),
     Exit,
+    Nothing,
+}
+
+#[derive(Resource, Debug)]
+pub struct EditorInfo {
+    pub disconnect_action: DisconnectAction,
+}
+
+impl Default for EditorInfo {
+    fn default() -> Self {
+        Self {
+            disconnect_action: DisconnectAction::Nothing,
+        }
+    }
 }
 
 #[derive(Debug, States, Default, Hash, PartialEq, Eq, Clone)]
@@ -142,6 +157,7 @@ pub fn top_panel(
     mut load_events: EventWriter<LoadLayoutEvent>,
     mut save_events: EventWriter<SaveLayoutEvent>,
     mut new_events: EventWriter<NewLayoutEvent>,
+    mut editor_info: ResMut<EditorInfo>,
 ) {
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
         egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
@@ -181,6 +197,7 @@ pub fn top_panel(
                         }
                         if ui.button("Disconnect").clicked() {
                             next_editor_state.set(EditorState::Disconnecting);
+                            editor_info.disconnect_action = DisconnectAction::Nothing;
                         }
                     });
                 });
@@ -622,6 +639,30 @@ fn new_layout(
     world.insert_resource(TrackLocks::default());
 }
 
+pub fn close_event(
+    mut state: ResMut<NextState<EditorState>>,
+    mut closed: EventReader<WindowCloseRequested>,
+    mut editor_info: ResMut<EditorInfo>,
+) {
+    for _event in closed.read() {
+        state.set(EditorState::Disconnecting);
+        editor_info.disconnect_action = DisconnectAction::Exit;
+    }
+}
+
+pub fn disconnect_finish(
+    mut editor_info: ResMut<EditorInfo>,
+    mut commands: Commands,
+    primary_window: Query<Entity, With<PrimaryWindow>>,
+) {
+    println!("Disconnect finish");
+    if editor_info.disconnect_action == DisconnectAction::Exit {
+        commands.entity(primary_window.single()).despawn();
+    }
+    editor_info.disconnect_action = DisconnectAction::Nothing;
+    println!("Disconnect finish done");
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -639,7 +680,9 @@ impl Plugin for EditorPlugin {
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
+        app.insert_resource(EditorInfo::default());
         app.add_systems(Startup, spawn_camera);
+        app.add_systems(OnExit(EditorState::Disconnecting), disconnect_finish);
         app.add_systems(
             Update,
             (
@@ -652,6 +695,7 @@ impl Plugin for EditorPlugin {
                 new_layout.run_if(on_event::<NewLayoutEvent>()),
                 draw_markers,
                 update_editor_state,
+                close_event.run_if(on_event::<WindowCloseRequested>()),
             ),
         );
         app.add_systems(

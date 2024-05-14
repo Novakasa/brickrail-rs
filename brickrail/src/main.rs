@@ -28,7 +28,11 @@ fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     env::set_var("RUST_LOG", "pybricks_ble=info,brickrail=info");
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window::default()),
+            close_when_requested: false,
+            ..Default::default()
+        }))
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins(editor::EditorPlugin)
