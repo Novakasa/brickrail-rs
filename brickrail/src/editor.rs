@@ -127,9 +127,27 @@ impl SelectionState {
     }
 }
 
+#[derive(Debug, Default)]
+pub enum HoverFilter {
+    #[default]
+    All,
+    Blocks,
+}
+
+impl HoverFilter {
+    pub fn matches(&self, id: &GenericID) -> bool {
+        match (self, id) {
+            (HoverFilter::Blocks, GenericID::Block(_)) => true,
+            (HoverFilter::All, _) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct HoverState {
     pub hover: Option<GenericID>,
+    pub filter: HoverFilter,
 }
 
 pub struct ControlState {
@@ -312,6 +330,9 @@ fn update_hover(
     let mut hover_depth = f32::NEG_INFINITY;
     for (entity, transform, stroke) in q_selectable.iter() {
         for selectable in entity.iter() {
+            if !hover_state.filter.matches(&selectable.get_id()) {
+                continue;
+            }
             if selectable.get_depth() < hover_depth {
                 continue;
             }

@@ -407,14 +407,14 @@ fn draw_locked_tracks(mut gizmos: Gizmos, track_locks: Res<TrackLocks>) {
 fn init_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
-    hover_state: Res<HoverState>,
+    mut hover_state: ResMut<HoverState>,
 ) {
     if mouse_buttons.just_pressed(MouseButton::Right) {
-        if let Some(GenericID::Train(train_id)) = hover_state.hover {
-            train_drag_state.train_id = Some(train_id);
+        if let Some(GenericID::Train(train_id)) = &hover_state.hover {
+            train_drag_state.train_id = Some(*train_id);
             train_drag_state.target = None;
             train_drag_state.target_facing = Facing::Forward;
-            println!("Dragging train {:?}", train_id)
+            hover_state.filter = HoverFilter::Blocks;
         }
     }
 }
@@ -423,6 +423,7 @@ fn exit_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
+    mut hover_state: ResMut<HoverState>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
@@ -435,6 +436,7 @@ fn exit_drag_train(
         }
         train_drag_state.train_id = None;
         train_drag_state.route = None;
+        hover_state.filter = HoverFilter::All;
     }
 }
 
