@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
-use bevy_egui::egui::{Align, Layout, Ui};
+use bevy_egui::egui::Ui;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
@@ -97,7 +97,7 @@ impl Switch {
             if let Ok(mut switch) = switches.get_mut(entity) {
                 ui.heading("Switch");
                 ui.label("position");
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                ui.horizontal(|ui| {
                     let mut current_pos = switch.positions[switch.pos_index].clone();
                     for position in switch.positions.clone() {
                         ui.radio_value(

@@ -574,13 +574,6 @@ fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Re
     }
 }
 
-fn print_sizes() {
-    println!("{:?}", std::mem::size_of::<CellID>());
-    println!("{:?}", std::mem::size_of::<TrackID>());
-    println!("{:?}", std::mem::size_of::<DirectedTrackID>());
-    println!("{:?}", std::mem::size_of::<DirectedTrackConnectionID>());
-}
-
 pub struct LayoutPlugin;
 
 impl Plugin for LayoutPlugin {
@@ -589,7 +582,6 @@ impl Plugin for LayoutPlugin {
         app.insert_resource(TrackLocks::default());
         app.insert_resource(Connections::default());
         app.insert_resource(MarkerMap::default());
-        app.add_systems(Startup, print_sizes);
         // app.add_systems(Update, draw_layout_graph);
     }
 }
