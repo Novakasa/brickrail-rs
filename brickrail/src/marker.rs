@@ -159,9 +159,10 @@ impl Marker {
             .get_directed(TrackDirection::First)
             .get_center_vec2()
             * LAYOUT_SCALE;
+        gizmos.circle_2d(position, 0.05 * LAYOUT_SCALE, Color::WHITE);
         gizmos.circle_2d(
             position,
-            0.05 * LAYOUT_SCALE,
+            0.02 * LAYOUT_SCALE,
             self.color.get_display_color(),
         );
     }
