@@ -107,6 +107,16 @@ impl MarkerColor {
         };
         Some(color)
     }
+
+    pub fn get_display_color(&self) -> Color {
+        match self {
+            MarkerColor::Any => Color::WHITE,
+            MarkerColor::Red => Color::RED,
+            MarkerColor::Blue => Color::BLUE,
+            MarkerColor::Yellow => Color::YELLOW,
+            MarkerColor::Green => Color::GREEN,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
@@ -149,7 +159,11 @@ impl Marker {
             .get_directed(TrackDirection::First)
             .get_center_vec2()
             * LAYOUT_SCALE;
-        gizmos.circle_2d(position, 0.05 * LAYOUT_SCALE, Color::WHITE);
+        gizmos.circle_2d(
+            position,
+            0.05 * LAYOUT_SCALE,
+            self.color.get_display_color(),
+        );
     }
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {
