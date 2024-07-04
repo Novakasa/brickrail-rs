@@ -7,7 +7,6 @@ use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEve
 use crate::section::LogicalSection;
 use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
-use bevy::input::keyboard;
 use bevy::prelude::*;
 use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
@@ -187,26 +186,25 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
 #[derive(Debug, Event, Clone, Serialize, Deserialize)]
 pub struct BlockSpawnEvent(pub Block);
 
+#[derive(Debug, Event, Clone, Serialize, Deserialize)]
+pub struct BlockCreateEvent(pub Block);
+
 fn create_block(
-    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    selection_state: Res<SelectionState>,
+    mut create_events: EventReader<BlockCreateEvent>,
     mut block_event_writer: EventWriter<BlockSpawnEvent>,
     mut marker_event_writer: EventWriter<MarkerSpawnEvent>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
-    if let Selection::Section(section) = &selection_state.selection {
-        if keyboard_input.just_pressed(keyboard::KeyCode::KeyB) {
-            let block = Block::new(section.clone());
-            let block_id = block.id;
-            block_event_writer.send(BlockSpawnEvent(block));
-            for logical_id in block_id.logical_block_ids() {
-                let in_track = logical_id.default_in_marker_track();
-                if logical_id.facing == Facing::Forward {
-                    let marker = Marker::new(in_track.track(), MarkerColor::Any);
-                    marker_event_writer.send(MarkerSpawnEvent(marker));
-                }
-                marker_map.register_marker(in_track, MarkerKey::In, logical_id);
+    for BlockCreateEvent(block) in create_events.read() {
+        let block_id = block.id;
+        block_event_writer.send(BlockSpawnEvent(block.clone()));
+        for logical_id in block_id.logical_block_ids() {
+            let in_track = logical_id.default_in_marker_track();
+            if logical_id.facing == Facing::Forward {
+                let marker = Marker::new(in_track.track(), MarkerColor::Any);
+                marker_event_writer.send(MarkerSpawnEvent(marker));
             }
+            marker_map.register_marker(in_track, MarkerKey::In, logical_id);
         }
     }
 }
@@ -287,10 +285,11 @@ impl Plugin for BlockPlugin {
         app.register_component_as::<dyn Selectable, Block>();
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();
+        app.add_event::<BlockCreateEvent>();
         app.add_systems(
             Update,
             (
-                create_block,
+                create_block.run_if(on_event::<BlockCreateEvent>()),
                 update_block_color,
                 delete_selection_shortcut::<Block>,
             ),

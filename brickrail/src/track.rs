@@ -1,4 +1,5 @@
 use crate::{
+    block::{Block, BlockCreateEvent},
     editor::{
         delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
         SelectionState,
@@ -74,6 +75,27 @@ impl TrackBuildState {
             }
             self.hover_cells.remove(0);
         }
+    }
+}
+
+pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
+    let mut state = SystemState::<(
+        Res<EntityMap>,
+        Res<SelectionState>,
+        Res<AppTypeRegistry>,
+        EventWriter<BlockCreateEvent>,
+    )>::new(world);
+    let (_entity_map, selection_state, _type_registry, mut spawn_events) = state.get_mut(world);
+    if let Selection::Section(section) = &selection_state.selection {
+        ui.label("Section inspector");
+        ui.separator();
+        ui.label(format!("Tracks: {}", section.len()));
+        ui.separator();
+        if ui.button("Create block").clicked() {
+            let block = Block::new(section.clone());
+            spawn_events.send(BlockCreateEvent(block));
+        }
+        ui.separator();
     }
 }
 

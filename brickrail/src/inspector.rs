@@ -4,8 +4,14 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::{
-    ble::BLEHub, ble_train::BLETrain, block::Block, editor::*, marker::Marker, switch::Switch,
-    track::Track, train::Train,
+    ble::BLEHub,
+    ble_train::BLETrain,
+    block::Block,
+    editor::*,
+    marker::Marker,
+    switch::Switch,
+    track::{track_section_inspector, Track},
+    train::Train,
 };
 
 pub fn inspector_system_world(world: &mut World) {
@@ -23,6 +29,7 @@ pub fn inspector_system_world(world: &mut World) {
                 Track::inspector(ui, world);
                 Marker::inspector(ui, world);
                 Switch::inspector(ui, world);
+                track_section_inspector(ui, world);
             };
         });
 
