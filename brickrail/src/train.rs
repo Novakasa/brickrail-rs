@@ -700,7 +700,7 @@ fn manual_sensor_advance(
                 println!("Advancing marker");
                 events.send(MarkerAdvanceEvent {
                     id: train_id,
-                    index: 0,
+                    index: route.get_current_leg().index + 1,
                 });
             }
         }
@@ -722,6 +722,7 @@ fn handle_ble_sensor_advance(
                     .unwrap(),
             )
             .unwrap();
+        assert_eq!(advance.index, train.get_route().get_current_leg().index + 1);
         train.advance_sensor(&mut track_locks, &entity_map, &mut set_switch_position);
 
         for mut train in q_trains.iter_mut() {

@@ -439,7 +439,7 @@ pub struct RouteLeg {
     from_section: LogicalSection,
     travel_section: LogicalSection,
     markers: Vec<RouteMarkerData>,
-    index: usize,
+    pub index: usize,
     leg_index: usize,
     pub intention: LegIntention,
     pub section_position: f32,
