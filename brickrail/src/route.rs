@@ -1,5 +1,6 @@
 use core::fmt;
 
+use bevy::color::palettes::css::GREEN;
 use bevy::prelude::*;
 use itertools::Itertools;
 
@@ -385,7 +386,7 @@ impl Route {
             for track in leg.travel_section.tracks.iter() {
                 track
                     .dirtrack
-                    .draw_with_gizmos(gizmos, LAYOUT_SCALE, Color::GREEN);
+                    .draw_with_gizmos(gizmos, LAYOUT_SCALE, Color::from(GREEN));
             }
         }
     }

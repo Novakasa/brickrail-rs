@@ -7,6 +7,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Layout, Ui};
+use bevy_inspector_egui::bevy_egui;
 use serde::{Deserialize, Serialize};
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]

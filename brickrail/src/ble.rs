@@ -16,7 +16,7 @@ use crate::{
 };
 use bevy::ecs::system::SystemState;
 use bevy::{input::keyboard, prelude::*, utils::HashMap};
-use bevy_egui::egui::{self, widgets::Button, Grid, Ui};
+use bevy_inspector_egui::bevy_egui::egui::{self, widgets::Button, Grid, Ui};
 use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;

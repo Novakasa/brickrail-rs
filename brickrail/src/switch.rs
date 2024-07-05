@@ -1,6 +1,7 @@
-use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
+use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
@@ -246,7 +247,7 @@ pub fn update_switch_turns(
 pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
     for switch in switches.iter() {
         let pos = switch.id.to_slot().get_vec2();
-        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, Color::RED);
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, Color::from(RED));
     }
 }
 

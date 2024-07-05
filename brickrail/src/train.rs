@@ -11,9 +11,13 @@ use crate::{
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
 };
-use bevy::ecs::system::SystemState;
+use bevy::{
+    color::palettes::css::{ORANGE, RED, YELLOW},
+    ecs::system::SystemState,
+};
 use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::{
@@ -58,7 +62,7 @@ impl Selectable for TrainWagon {
         transform: Option<&Transform>,
         stroke: Option<&Stroke>,
     ) -> f32 {
-        if stroke.unwrap().color.a() < 0.2 {
+        if stroke.unwrap().color.alpha() < 0.2 {
             return 30.0;
         }
         let transform = transform.unwrap();
@@ -96,7 +100,7 @@ impl TrainWagonBundle {
             ))
             .build();
         let stroke = Stroke {
-            color: Color::YELLOW,
+            color: Color::from(YELLOW),
             options: StrokeOptions::default()
                 .with_line_width(TRAIN_WIDTH * LAYOUT_SCALE)
                 .with_line_cap(LineCap::Round),
@@ -353,12 +357,12 @@ fn update_wagons(
     selection_state: Res<SelectionState>,
 ) {
     for train in q_trains.iter() {
-        let mut color = Color::YELLOW;
+        let mut color = Color::from(YELLOW);
         if hover_state.hover == Some(GenericID::Train(train.id)) {
-            color = Color::RED;
+            color = Color::from(RED);
         }
         if Selection::Single(GenericID::Train(train.id)) == selection_state.selection {
-            color = Color::ORANGE;
+            color = Color::from(ORANGE);
         }
         for wagon_id in &train.wagons {
             let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
@@ -378,7 +382,7 @@ fn update_wagons(
             if wagon_id.index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
-            stroke.color = color.with_a(alpha.powi(1));
+            stroke.color = color.with_alpha(alpha.powi(1));
         }
     }
 }
@@ -399,7 +403,7 @@ fn draw_train_route(mut gizmos: Gizmos, q_trains: Query<&Train>) {
 fn draw_locked_tracks(mut gizmos: Gizmos, track_locks: Res<TrackLocks>) {
     for (track, _) in track_locks.locked_tracks.iter() {
         for dirtrack in track.dirtracks() {
-            dirtrack.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::RED);
+            dirtrack.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::from(RED));
         }
     }
 }

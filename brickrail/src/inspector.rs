@@ -1,6 +1,7 @@
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
+use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::{

@@ -1,8 +1,8 @@
+use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
-use bevy::{
-    gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
-};
+use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
 use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;
@@ -111,10 +111,10 @@ impl MarkerColor {
     pub fn get_display_color(&self) -> Color {
         match self {
             MarkerColor::Any => Color::WHITE,
-            MarkerColor::Red => Color::RED,
-            MarkerColor::Blue => Color::BLUE,
-            MarkerColor::Yellow => Color::YELLOW,
-            MarkerColor::Green => Color::GREEN,
+            MarkerColor::Red => Color::from(RED),
+            MarkerColor::Blue => Color::from(BLUE),
+            MarkerColor::Yellow => Color::from(YELLOW),
+            MarkerColor::Green => Color::from(GREEN),
         }
     }
 }

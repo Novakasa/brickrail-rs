@@ -4,6 +4,8 @@ resolver = "2"
 default-members = ["brickrail"]
 members = ["brickrail", "pybricks-ble", "test-pybricks"]
 
+[patch.crates-io]
+bevy_egui = { git = "https://github.com/Friz64/bevy_egui", branch = "bevy-0.14" }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

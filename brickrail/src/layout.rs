@@ -4,6 +4,7 @@ use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionEvent;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
+use bevy::color::palettes::css::{GOLD, GREEN};
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
@@ -559,7 +560,7 @@ fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Re
     for track in connections.logical_graph.nodes() {
         track
             .dirtrack
-            .draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::GOLD);
+            .draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::from(GOLD));
     }
 
     for (from_track, to_track, _) in connections.logical_graph.all_edges() {
@@ -568,9 +569,9 @@ fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Re
             to_track,
         }
         .to_directed();
-        connection.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::GOLD);
+        connection.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::from(GOLD));
         let pos = connection.interpolate_pos(dist * connection.connection_length());
-        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.05 * LAYOUT_SCALE, Color::GREEN);
+        gizmos.circle_2d(pos * LAYOUT_SCALE, 0.05 * LAYOUT_SCALE, Color::from(GREEN));
     }
 }
 

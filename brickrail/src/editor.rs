@@ -15,12 +15,14 @@ use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
+use bevy::color::palettes::css::BLUE;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts};
+use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
@@ -399,7 +401,7 @@ fn draw_selection(mut gizmos: Gizmos, selection_state: Res<SelectionState>) {
     match &selection_state.selection {
         Selection::Section(section) => {
             for track in section.tracks.iter() {
-                track.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::BLUE);
+                track.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::from(BLUE));
             }
         }
         _ => {}

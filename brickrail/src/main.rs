@@ -1,6 +1,7 @@
 use std::{env, path::Path};
 
 use bevy::prelude::*;
+use bevy_inspector_egui::bevy_egui;
 
 mod bevy_tokio_tasks;
 mod ble;

@@ -10,9 +10,13 @@ use crate::{
     switch::UpdateSwitchTurnsEvent,
     utils::bresenham_line,
 };
-use bevy::ecs::system::SystemState;
+use bevy::{
+    color::palettes::css::{BLUE, GRAY, RED},
+    ecs::system::SystemState,
+};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use bevy_trait_query::RegisterExt;
@@ -515,21 +519,21 @@ fn draw_build_cells(
         gizmos.circle_2d(
             cell.get_vec2() * LAYOUT_SCALE,
             LAYOUT_SCALE * 0.25,
-            Color::GRAY,
+            Color::from(GRAY),
         );
     }
     let cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
     gizmos.circle_2d(
         cell.get_vec2() * LAYOUT_SCALE,
         LAYOUT_SCALE * 0.25,
-        Color::RED,
+        Color::from(RED),
     );
 
     let scale = LAYOUT_SCALE;
 
     if let Some(track) = track_build_state.hover_track {
         for dirtrack in track.dirtracks() {
-            dirtrack.draw_with_gizmos(&mut gizmos, scale, Color::RED)
+            dirtrack.draw_with_gizmos(&mut gizmos, scale, Color::from(RED))
         }
     }
 }
@@ -547,7 +551,7 @@ fn update_track_color(
             continue;
         }
         if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
-            stroke.color = Color::RED;
+            stroke.color = Color::from(RED);
             transform.translation = Vec3::new(0.0, 0.0, 20.0);
             continue;
         }
@@ -555,14 +559,14 @@ fn update_track_color(
         if selection_state.selection
             == Selection::Single(GenericID::Track(connection.id.from_track.track))
         {
-            stroke.color = Color::BLUE;
+            stroke.color = Color::from(BLUE);
             transform.translation = Vec3::new(0.0, 0.0, 15.0);
             continue;
         }
 
         if let Selection::Section(section) = &selection_state.selection {
             if section.has_track(&connection.id.from_track.track) {
-                stroke.color = Color::BLUE;
+                stroke.color = Color::from(BLUE);
                 transform.translation = Vec3::new(0.0, 0.0, 15.0);
                 continue;
             }

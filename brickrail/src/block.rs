@@ -7,9 +7,10 @@ use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEve
 use crate::section::LogicalSection;
 use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
+use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
@@ -146,7 +147,7 @@ impl BlockBundle {
         let shape = generate_block_shape(&block.section);
         let stroke = {
             let stroke = Stroke {
-                color: Color::GREEN,
+                color: Color::from(GREEN),
                 options: StrokeOptions::default()
                     .with_line_width(BLOCK_WIDTH)
                     .with_line_cap(LineCap::Round),
@@ -263,17 +264,17 @@ fn update_block_color(
     for (block, mut stroke) in q_strokes.iter_mut() {
         if let Some(GenericID::Block(block_id)) = &hover_state.hover {
             if block.id == *block_id {
-                stroke.color = Color::RED;
+                stroke.color = Color::from(RED);
                 continue;
             }
         }
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             if block.id == *block_id {
-                stroke.color = Color::BLUE;
+                stroke.color = Color::from(BLUE);
                 continue;
             }
         }
-        stroke.color = Color::GREEN;
+        stroke.color = Color::from(GREEN);
     }
 }
 

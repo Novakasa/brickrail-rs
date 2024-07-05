@@ -6,6 +6,7 @@ use crate::{
 };
 use bevy::{prelude::*, reflect::TypeRegistry, utils::hashbrown::HashMap};
 use bevy_egui::egui::Ui;
+use bevy_inspector_egui::bevy_egui;
 
 use bevy_inspector_egui::{
     inspector_options::ReflectInspectorOptions, reflect_inspector::ui_for_value, InspectorOptions,

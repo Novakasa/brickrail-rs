@@ -2,7 +2,7 @@ use std::iter;
 
 use bevy::ecs::system::SystemState;
 use bevy::{prelude::*, utils::HashMap};
-use bevy_egui::egui::{self, Grid, Ui};
+use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_trait_query::RegisterExt;
 use itertools::Itertools;
