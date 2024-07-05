@@ -1,7 +1,7 @@
+use bevy::ecs::system::SystemState;
 use bevy::{
     gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, render::color::Color, utils::HashMap,
 };
-use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::draw::Stroke;

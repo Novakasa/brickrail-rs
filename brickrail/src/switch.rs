@@ -1,5 +1,5 @@
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_trait_query::RegisterExt;

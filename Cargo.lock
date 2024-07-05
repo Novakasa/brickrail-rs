@@ -1526,8 +1526,6 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy-trait-query",
- "bevy_app",
- "bevy_ecs",
  "bevy_egui",
  "bevy_framepace",
  "bevy_mouse_tracking_plugin",

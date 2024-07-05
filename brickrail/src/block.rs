@@ -7,8 +7,8 @@ use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEve
 use crate::section::LogicalSection;
 use crate::train::Train;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{

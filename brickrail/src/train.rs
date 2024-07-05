@@ -11,8 +11,8 @@ use crate::{
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
 };
+use bevy::ecs::system::SystemState;
 use bevy::{input::keyboard, prelude::*};
-use bevy_ecs::system::SystemState;
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_mouse_tracking_plugin::MousePosWorld;

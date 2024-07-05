@@ -24,8 +24,6 @@ serde_with = "3.4.0"
 strum = "0.25.0"
 strum_macros = "0.25.3"
 pybricks-ble = { path = "../pybricks-ble" }
-bevy_ecs = "0.13.0"
-bevy_app = "0.13.0"
 test-log = "0.2.14"
 bitflags = "2.4.2"
 rfd = "0.14.1"

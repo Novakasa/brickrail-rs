@@ -5,6 +5,8 @@ use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use bevy::app as bevy_app;
+use bevy::ecs as bevy_ecs;
 use bevy_app::{App, Plugin, Update};
 use bevy_ecs::{prelude::World, system::Resource};
 

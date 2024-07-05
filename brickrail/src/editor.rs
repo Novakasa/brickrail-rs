@@ -15,9 +15,9 @@ use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::Train;
 
+use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
-use bevy_ecs::system::{RunSystemOnce, SystemState};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts};
@@ -148,11 +148,6 @@ impl HoverFilter {
 pub struct HoverState {
     pub hover: Option<GenericID>,
     pub filter: HoverFilter,
-}
-
-pub struct ControlState {
-    pub random_targets: bool,
-    pub control_devices: bool,
 }
 
 fn update_editor_state(
