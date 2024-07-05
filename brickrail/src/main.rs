@@ -13,6 +13,7 @@ mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod route;
+mod schedule;
 mod section;
 mod settings;
 mod switch;
