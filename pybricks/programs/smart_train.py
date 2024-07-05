@@ -359,7 +359,10 @@ class Train:
         pack_into(">HBB", self.sensor.color_buf, self.sensor.buf_index, 361, 0, color)
         self.sensor.buf_index = (self.sensor.buf_index + 4) % 1000
 
-        io_hub.emit_data(bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index)))
+        io_hub.emit_data(
+            bytes((_DATA_SENSOR_ADVANCE, self.route.current_leg().index + 1))
+        )
+
         self.advance_sensor()
 
     def advance_sensor(self):

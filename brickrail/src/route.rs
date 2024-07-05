@@ -288,7 +288,7 @@ impl Route {
 
     pub fn advance_sensor(&mut self) -> Result<(), ()> {
         info!(
-            "Manually advancing sensor, leg index: {}, old marker index: {}",
+            "Advancing sensor, leg index: {}, old marker index: {}",
             self.leg_index,
             self.get_current_leg().index
         );
