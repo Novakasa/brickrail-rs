@@ -27,14 +27,6 @@ pub struct Schedule {
     pub cycle_offset: f32,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, States)]
-pub enum ControlState {
-    #[default]
-    Manual,
-    Random,
-    Schedule,
-}
-
 #[derive(Resource, Default)]
 struct ControlInfo {
     cycle: f32,

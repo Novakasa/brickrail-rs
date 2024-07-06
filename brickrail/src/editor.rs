@@ -1,3 +1,4 @@
+use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
@@ -23,11 +24,13 @@ use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::egui::ComboBox;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
 #[derive(Resource, Debug, Default)]
 pub struct InputData {
@@ -53,6 +56,29 @@ impl Default for EditorInfo {
             disconnect_action: DisconnectAction::Nothing,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ControlState;
+
+impl ComputedStates for ControlState {
+    type SourceStates = EditorState;
+    fn compute(sources: EditorState) -> Option<ControlState> {
+        match sources {
+            EditorState::VirtualControl => Some(ControlState),
+            EditorState::DeviceControl => Some(ControlState),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates, Display)]
+#[source(ControlState = ControlState)]
+pub enum ControlStateMode {
+    #[default]
+    Manual,
+    Random,
+    Schedule,
 }
 
 #[derive(Debug, States, Default, Hash, PartialEq, Eq, Clone)]
@@ -169,6 +195,9 @@ pub fn top_panel(
     mut input_data: ResMut<InputData>,
     mut next_editor_state: ResMut<NextState<EditorState>>,
     editor_state: Res<State<EditorState>>,
+    control_state: Option<Res<State<ControlState>>>,
+    control_mode: Option<Res<State<ControlStateMode>>>,
+    mut next_mode: ResMut<NextState<ControlStateMode>>,
     mut editor_info: ResMut<EditorInfo>,
 
     mut save_events: EventWriter<SaveLayoutEvent>,
@@ -200,21 +229,64 @@ pub fn top_panel(
                 }
                 ui.separator();
                 ui.vertical(|ui| {
-                    ui.label(format!("Mode: {:?}", editor_state.get()));
+                    ui.label(format!("Layout mode: {:?}", editor_state.get()));
                     ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-                        if ui.button("Edit").clicked() {
-                            next_editor_state.set(EditorState::Edit);
-                        }
-                        if ui.button("Virtual control").clicked() {
-                            next_editor_state.set(EditorState::VirtualControl);
-                        }
-                        if ui.button("Device control").clicked() {
-                            next_editor_state.set(EditorState::PreparingDeviceControl);
-                        }
+                        ui.add_enabled_ui(editor_state.get() != &EditorState::Edit, |ui| {
+                            if ui.button("Edit").clicked() {
+                                next_editor_state.set(EditorState::Edit);
+                            }
+                        });
+                        ui.add_enabled_ui(
+                            editor_state.get() != &EditorState::VirtualControl,
+                            |ui| {
+                                if ui.button("Virtual control").clicked() {
+                                    next_editor_state.set(EditorState::VirtualControl);
+                                }
+                            },
+                        );
+                        ui.add_enabled_ui(
+                            editor_state.get() != &EditorState::DeviceControl
+                                && editor_state.get() != &EditorState::PreparingDeviceControl,
+                            |ui| {
+                                if ui.button("Device control").clicked() {
+                                    next_editor_state.set(EditorState::PreparingDeviceControl);
+                                }
+                            },
+                        );
+                        ui.separator();
                         if ui.button("Disconnect").clicked() {
                             next_editor_state.set(EditorState::Disconnecting);
                             editor_info.disconnect_action = DisconnectAction::Nothing;
                         }
+                        ui.separator();
+                        ui.add_enabled_ui(control_state.is_some(), |ui| {
+                            let mode =
+                                control_mode.map_or(ControlStateMode::Manual, |v| v.get().clone());
+                            let mut editable_mode = mode.clone();
+                            ComboBox::from_label("")
+                                .selected_text(format!("{:}", editable_mode))
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut editable_mode,
+                                        ControlStateMode::Manual,
+                                        "Manual",
+                                    );
+                                    ui.selectable_value(
+                                        &mut editable_mode,
+                                        ControlStateMode::Random,
+                                        "Random",
+                                    );
+                                    ui.selectable_value(
+                                        &mut editable_mode,
+                                        ControlStateMode::Schedule,
+                                        "Schedule",
+                                    );
+                                });
+
+                            if editable_mode != mode {
+                                next_mode.set(editable_mode);
+                            }
+                        });
                     });
                 });
             });
@@ -700,6 +772,8 @@ impl Plugin for EditorPlugin {
         app.add_plugins(MousePosPlugin);
         app.add_plugins(ShapePlugin);
         app.init_state::<EditorState>();
+        app.add_computed_state::<ControlState>();
+        app.add_sub_state::<ControlStateMode>();
         app.add_event::<SpawnTrainEvent>();
         app.add_event::<SpawnHubEvent>();
         app.add_event::<LoadLayoutEvent>();
