@@ -7,6 +7,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, LegState, Route, TrainState},
+    schedule::Destination,
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -518,6 +519,16 @@ fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
 pub struct MarkerAdvanceEvent {
     pub id: TrainID,
     pub index: usize,
+}
+
+#[derive(Debug, Component)]
+struct WaitTime {
+    time: f32,
+}
+
+#[derive(Debug, Component)]
+struct QueuedDestination {
+    dest: Destination,
 }
 
 #[derive(Debug, Event)]

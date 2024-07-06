@@ -9,6 +9,11 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+pub struct DestinationID {
+    pub id: usize,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
 pub struct LogicalDiscriminator {
     pub direction: TrackDirection,

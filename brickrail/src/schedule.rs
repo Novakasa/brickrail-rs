@@ -3,9 +3,29 @@ use bevy::prelude::*;
 use crate::{
     block::Block,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
+    layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
     marker::Marker,
     train::Train,
 };
+
+#[derive(Debug, Clone, Component)]
+pub struct Destination {
+    pub id: DestinationID,
+    pub blocks: Vec<(BlockID, Option<BlockDirection>, Option<Facing>)>,
+}
+
+pub struct ScheduleEntry {
+    pub dest: Destination,
+    pub depart_time: f32,
+    pub max_wait: Option<f32>,
+}
+
+pub struct Schedule {
+    pub entries: Vec<ScheduleEntry>,
+    pub current: usize,
+    pub cycle_length: f32,
+    pub cycle_offset: f32,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, States)]
 pub enum ControlState {
