@@ -11,6 +11,7 @@ use crate::{
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
+    train,
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -526,15 +527,38 @@ struct WaitTime {
     time: f32,
 }
 
+impl WaitTime {
+    pub fn new() -> WaitTime {
+        WaitTime { time: 0.0 }
+    }
+}
+
+#[derive(Debug)]
+pub enum TargetChoiceStrategy {
+    Random,
+    Closest,
+}
+
 #[derive(Debug, Component)]
 struct QueuedDestination {
     dest: Destination,
+    strategy: TargetChoiceStrategy,
+    allow_locked: bool,
 }
 
 #[derive(Debug, Event)]
 struct SetTrainRouteEvent {
     train_id: TrainID,
     route: Route,
+}
+
+fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
+    for mut wait_time in q_times.iter_mut() {
+        wait_time.time += time.delta_seconds();
+        if (wait_time.time - time.delta_seconds()) % 1.0 > wait_time.time % 1.0 {
+            println!("Wait time: {:1.0}s", wait_time.time);
+        }
+    }
 }
 
 fn set_train_route(
@@ -545,16 +569,14 @@ fn set_train_route(
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
     editor_state: Res<State<EditorState>>,
     mut hub_commands: EventWriter<HubCommandEvent>,
+    mut commands: Commands,
 ) {
     for event in route_events.read() {
         let mut route = event.route.clone();
-        let (mut train, ble_train) = q_trains
-            .get_mut(
-                entity_map
-                    .get_entity(&GenericID::Train(event.train_id))
-                    .unwrap(),
-            )
+        let train_entity = entity_map
+            .get_entity(&GenericID::Train(event.train_id))
             .unwrap();
+        let (mut train, ble_train) = q_trains.get_mut(train_entity).unwrap();
         // println!("Dropping train {:?} on block {:?}", train_id, block_id);
         route.pretty_print();
         route.get_current_leg_mut().set_signed_pos_from_last(
@@ -582,6 +604,7 @@ fn set_train_route(
                 hub_commands.send(input);
             }
         }
+        commands.entity(train_entity).remove::<WaitTime>();
     }
 }
 
@@ -654,7 +677,7 @@ fn spawn_train(
         let ble_train = serialized_train
             .ble_train
             .unwrap_or(BLETrain::new(train_id));
-        let entity = commands.spawn((train, ble_train)).id();
+        let entity = commands.spawn((train, ble_train, WaitTime::new())).id();
         entity_map.add_train(train_id, entity);
     }
 }
@@ -698,7 +721,7 @@ fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time
     }
 }
 
-fn manual_sensor_advance(
+fn trigger_manual_sensor_advance(
     mut events: EventWriter<MarkerAdvanceEvent>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
@@ -722,23 +745,26 @@ fn manual_sensor_advance(
     }
 }
 
-fn handle_ble_sensor_advance(
+fn sensor_advance(
     mut q_trains: Query<&mut Train, With<BLETrain>>,
     mut ble_sensor_advance_events: EventReader<MarkerAdvanceEvent>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut commands: Commands,
 ) {
     for advance in ble_sensor_advance_events.read() {
-        let mut train = q_trains
-            .get_mut(
-                entity_map
-                    .get_entity(&GenericID::Train(advance.id))
-                    .unwrap(),
-            )
+        let train_entity = entity_map
+            .get_entity(&GenericID::Train(advance.id))
             .unwrap();
+        let mut train = q_trains.get_mut(train_entity).unwrap();
         assert_eq!(advance.index, train.get_route().get_current_leg().index + 1);
         train.advance_sensor(&mut track_locks, &entity_map, &mut set_switch_position);
+
+        if train.get_route().is_completed() {
+            println!("Train {:?} completed route", train.id);
+            commands.entity(train_entity).insert(WaitTime::new());
+        }
 
         for mut train in q_trains.iter_mut() {
             if !track_locks.is_clean(&train.id) {
@@ -797,13 +823,14 @@ impl Plugin for TrainPlugin {
                 draw_hover_route,
                 init_drag_train,
                 exit_drag_train,
+                tick_wait_time.run_if(in_state(ControlState)),
                 set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train,
                 update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
                 update_virtual_trains_passive.run_if(in_state(EditorState::DeviceControl)),
-                handle_ble_sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
+                sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
                 sync_intentions.run_if(in_state(EditorState::DeviceControl)),
-                manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
+                trigger_manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
         app.add_systems(
