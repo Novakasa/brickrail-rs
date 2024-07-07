@@ -1,12 +1,10 @@
-use bevy::{prelude::*, transform::commands};
+use bevy::prelude::*;
 
 use crate::{
     block::Block,
-    editor::{ControlState, ControlStateMode},
-    layout::{Connections, EntityMap, MarkerMap, TrackLocks},
+    editor::ControlStateMode,
     layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
-    marker::Marker,
-    train::{QueuedDestination, TargetChoiceStrategy, Train, WaitTime},
+    train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
 
 #[derive(Debug, Clone, Component)]

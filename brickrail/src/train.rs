@@ -1,7 +1,7 @@
 use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
-    block::{self, spawn_block, Block},
+    block::{spawn_block, Block},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
