@@ -173,6 +173,13 @@ impl Route {
         }
     }
 
+    pub fn total_length(&self) -> usize {
+        self.legs
+            .iter()
+            .map(|leg| leg.travel_section.tracks.len())
+            .sum()
+    }
+
     pub fn num_legs(&self) -> usize {
         self.legs.len()
     }

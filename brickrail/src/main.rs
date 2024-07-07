@@ -51,5 +51,6 @@ fn main() {
         .add_plugins(switch::SwitchPlugin)
         .add_plugins(switch_motor::SwitchMotorPlugin)
         .add_plugins(layout_devices::LayoutDevicePlugin)
+        .add_plugins(schedule::SchedulePlugin)
         .run();
 }

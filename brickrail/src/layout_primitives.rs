@@ -14,6 +14,12 @@ pub struct DestinationID {
     pub id: usize,
 }
 
+impl DestinationID {
+    pub fn new(id: usize) -> Self {
+        Self { id }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
 pub struct LogicalDiscriminator {
     pub direction: TrackDirection,

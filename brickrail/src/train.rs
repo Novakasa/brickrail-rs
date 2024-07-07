@@ -1,7 +1,7 @@
 use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
-    block::{spawn_block, Block},
+    block::{self, spawn_block, Block},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
@@ -11,7 +11,6 @@ use crate::{
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
-    train,
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -30,6 +29,7 @@ use bevy_prototype_lyon::{
     shapes::Line,
 };
 use bevy_trait_query::RegisterExt;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 const TRAIN_WIDTH: f32 = 0.3;
@@ -446,6 +446,72 @@ fn exit_drag_train(
     }
 }
 
+fn process_destination_queue(
+    q_blocks: Query<&Block>,
+    entity_map: Res<EntityMap>,
+    connections: Res<Connections>,
+    track_locks: Res<TrackLocks>,
+    q_trains: Query<(&Train, &QueuedDestination)>,
+    q_markers: Query<&Marker>,
+    marker_map: Res<MarkerMap>,
+    mut commands: Commands,
+    mut set_train_route: EventWriter<SetTrainRouteEvent>,
+) {
+    for (train, queue) in q_trains.iter() {
+        let train_id = train.id;
+        let start = train.get_logical_block_id();
+        let train_entity = entity_map.get_entity(&GenericID::Train(train_id)).unwrap();
+        let mut routes = vec![];
+        for (block_id, dir, _) in queue.dest.blocks.iter() {
+            let directions = if let Some(dir) = dir {
+                vec![*dir]
+            } else {
+                vec![BlockDirection::Aligned, BlockDirection::Opposite]
+            };
+            for direction in directions.iter() {
+                let target = block_id.to_logical(*direction, Facing::Forward);
+                if target == start {
+                    continue;
+                }
+                if let Some(logical_section) = connections.find_route_section(
+                    start,
+                    target,
+                    Some((&train_id, &track_locks)),
+                    train.settings.prefer_facing,
+                ) {
+                    let route = build_route(
+                        train_id,
+                        &logical_section,
+                        &q_markers,
+                        &q_blocks,
+                        &entity_map,
+                        &marker_map,
+                    );
+                    routes.push(route);
+                }
+            }
+        }
+        match queue.strategy {
+            TargetChoiceStrategy::Closest => {
+                routes.sort_by_key(|route| route.total_length());
+            }
+            TargetChoiceStrategy::Random => {
+                routes.shuffle(&mut rand::thread_rng());
+            }
+        }
+
+        if let Some(route) = routes.pop() {
+            set_train_route.send(SetTrainRouteEvent {
+                train_id,
+                route: route,
+            });
+        } else {
+            println!("No route found for train {:?}", train_id);
+        }
+        commands.entity(train_entity).remove::<QueuedDestination>();
+    }
+}
+
 fn update_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
@@ -523,8 +589,8 @@ pub struct MarkerAdvanceEvent {
 }
 
 #[derive(Debug, Component)]
-struct WaitTime {
-    time: f32,
+pub struct WaitTime {
+    pub time: f32,
 }
 
 impl WaitTime {
@@ -533,17 +599,17 @@ impl WaitTime {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TargetChoiceStrategy {
     Random,
     Closest,
 }
 
 #[derive(Debug, Component)]
-struct QueuedDestination {
-    dest: Destination,
-    strategy: TargetChoiceStrategy,
-    allow_locked: bool,
+pub struct QueuedDestination {
+    pub dest: Destination,
+    pub strategy: TargetChoiceStrategy,
+    pub allow_locked: bool,
 }
 
 #[derive(Debug, Event)]
@@ -823,6 +889,7 @@ impl Plugin for TrainPlugin {
                 draw_hover_route,
                 init_drag_train,
                 exit_drag_train,
+                process_destination_queue.run_if(in_state(ControlState)),
                 tick_wait_time.run_if(in_state(ControlState)),
                 set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train,
