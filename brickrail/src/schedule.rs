@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     block::Block,
-    destination::Destination,
+    destination::{BlockDirectionFilter, Destination},
     editor::ControlStateMode,
     layout_primitives::DestinationID,
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
@@ -47,7 +47,7 @@ fn assign_random_routes(
                 id: DestinationID::new(0),
                 blocks: q_blocks
                     .iter()
-                    .map(|block| (block.id, None, None))
+                    .map(|block| (block.id, BlockDirectionFilter::Any, None))
                     .collect(),
             };
             println!("Assigning random route to {:?}", entity);

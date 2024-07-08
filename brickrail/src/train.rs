@@ -463,12 +463,7 @@ fn process_destination_queue(
         let train_entity = entity_map.get_entity(&GenericID::Train(train_id)).unwrap();
         let mut routes = vec![];
         for (block_id, dir, _) in queue.dest.blocks.iter() {
-            let directions = if let Some(dir) = dir {
-                vec![*dir]
-            } else {
-                vec![BlockDirection::Aligned, BlockDirection::Opposite]
-            };
-            for direction in directions.iter() {
+            for direction in dir.iter_directions() {
                 let target = block_id.to_logical(*direction, Facing::Forward);
                 if target == start {
                     continue;

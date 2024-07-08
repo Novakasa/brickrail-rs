@@ -1,4 +1,4 @@
-use crate::destination::{Destination, SpawnDestinationEvent};
+use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
     delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
     SelectionState, SpawnTrainEvent,
@@ -118,25 +118,41 @@ impl Block {
                 ui.separator();
 
                 ui.label("Destinations");
-                for (i, mut dest) in destinations.iter_mut().enumerate() {
-                    ui.horizontal(|ui| {
-                        if dest.blocks.iter().any(|(id, _, _)| id == &block.id) {
-                            ui.label(format!("Destination {}", i));
-                            if ui.button("Remove").clicked() {
-                                dest.blocks.retain(|(id, _, _)| id != &block.id);
+                for mut dest in destinations.iter_mut() {
+                    ui.push_id(dest.id, |ui| {
+                        ui.horizontal(|ui| {
+                            if let Some(filter) = dest.get_block_filter(block.id) {
+                                ui.label(format!("Destination {}", dest.id.id));
+
+                                let mut mutable_filter = filter.clone();
+                                ui_for_value(&mut mutable_filter, ui, &type_registry.read());
+                                if mutable_filter != filter {
+                                    dest.change_filter(block.id, mutable_filter);
+                                }
+
+                                if ui.button("Remove").clicked() {
+                                    dest.remove_block(block.id);
+                                }
+                            } else {
+                                if ui
+                                    .button(format!("Add to Destination {}", dest.id.id))
+                                    .clicked()
+                                {
+                                    dest.add_block(
+                                        block.id,
+                                        crate::destination::BlockDirectionFilter::Any,
+                                        None,
+                                    );
+                                }
                             }
-                        } else {
-                            if ui.button(format!("Add to Destination {}", i)).clicked() {
-                                dest.blocks.push((block.id, None, None));
-                            }
-                        }
+                        });
                     });
                 }
                 if ui.button("Add Destination").clicked() {
                     let dest_id = entity_map.new_destination_id();
                     let dest = Destination {
                         id: dest_id,
-                        blocks: vec![(block.id, None, None)],
+                        blocks: vec![(block.id, BlockDirectionFilter::Any, None)],
                     };
                     destination_spawner.send(SpawnDestinationEvent(dest));
                 }
