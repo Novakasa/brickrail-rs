@@ -91,7 +91,7 @@ impl Plugin for DestinationPlugin {
         app.register_component_as::<dyn Selectable, Destination>();
         app.add_systems(
             Update,
-            (spawn_destination.run_if(on_event::<SpawnDestinationEvent>())),
+            spawn_destination.run_if(on_event::<SpawnDestinationEvent>()),
         );
     }
 }

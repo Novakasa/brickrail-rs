@@ -32,6 +32,7 @@ pub fn inspector_system_world(world: &mut World) {
                 Switch::inspector(ui, world);
                 track_section_inspector(ui, world);
             };
+            ui.set_min_width(200.0);
         });
 
         let mut state = SystemState::<ResMut<InputData>>::new(world);

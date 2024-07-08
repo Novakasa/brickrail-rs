@@ -141,6 +141,24 @@ pub trait Selectable {
         100.0
     }
 }
+fn directory_ui<T: Sized + Component + Selectable>(
+    ui: &mut egui::Ui,
+    query: Query<&T>,
+    heading: &str,
+    selection: Option<GenericID>,
+) -> Option<GenericID> {
+    let mut selected = None;
+    ui.collapsing(heading, |ui| {
+        for selectable in query.iter() {
+            ui.add_enabled_ui(Some(selectable.get_id()) != selection, |ui| {
+                if ui.button(format!("{:?}", selectable.get_id())).clicked() {
+                    selected = Some(selectable.get_id());
+                }
+            });
+        }
+    });
+    selected
+}
 
 #[derive(Resource, Debug, Default)]
 pub struct SelectionState {
@@ -189,6 +207,40 @@ fn update_editor_state(
     }
     if keyboard_buttons.just_pressed(KeyCode::Digit2) {
         editor_state.set(EditorState::PreparingDeviceControl);
+    }
+}
+
+pub fn directory_panel(
+    mut egui_contexts: EguiContexts,
+    mut input_data: ResMut<InputData>,
+    mut selection_state: ResMut<SelectionState>,
+    q_trains: Query<&Train>,
+    q_dests: Query<&Destination>,
+    q_blocks: Query<&Block>,
+    q_switches: Query<&Switch>,
+    q_hubs: Query<&BLEHub>,
+) {
+    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+        egui::SidePanel::left("dir").show(ctx, |ui| {
+            ui.label("Directory");
+            let mut selected = None;
+            let selection = if let Selection::Single(sel) = selection_state.selection {
+                Some(sel)
+            } else {
+                None
+            };
+            selected = selected.or(directory_ui(ui, q_trains, "Trains", selection));
+            selected = selected.or(directory_ui(ui, q_dests, "Destinations", selection));
+            selected = selected.or(directory_ui(ui, q_blocks, "Blocks", selection));
+            selected = selected.or(directory_ui(ui, q_switches, "Switches", selection));
+            selected = selected.or(directory_ui(ui, q_hubs, "Hubs", selection));
+            if let Some(selected) = selected {
+                selection_state.selection = Selection::Single(selected);
+            }
+
+            ui.set_min_width(200.0);
+        });
+        input_data.mouse_over_ui |= ctx.wants_pointer_input() || ctx.is_pointer_over_area();
     }
 }
 
@@ -819,6 +871,7 @@ impl Plugin for EditorPlugin {
             Update,
             (
                 top_panel.after(inspector_system_world),
+                directory_panel.after(top_panel),
                 hub_status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),

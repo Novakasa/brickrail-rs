@@ -165,7 +165,7 @@ impl Into<SerializablePosition> for Position {
 
 #[derive(Component, Debug, Clone, Serialize, Deserialize)]
 pub struct Train {
-    id: TrainID,
+    pub id: TrainID,
     position: Position,
     #[serde(skip)]
     state: TrainState,
