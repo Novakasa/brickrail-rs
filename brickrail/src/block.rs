@@ -1,3 +1,4 @@
+use crate::destination::{Destination, SpawnDestinationEvent};
 use crate::editor::{
     delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
     SelectionState, SpawnTrainEvent,
@@ -86,9 +87,18 @@ impl Block {
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             EventWriter<SpawnTrainEvent>,
+            Query<&mut Destination>,
+            EventWriter<SpawnDestinationEvent>,
         )>::new(world);
-        let (mut blocks, entity_map, selection_state, type_registry, mut train_spawner) =
-            state.get_mut(world);
+        let (
+            mut blocks,
+            entity_map,
+            selection_state,
+            type_registry,
+            mut train_spawner,
+            mut destinations,
+            mut destination_spawner,
+        ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut block) = blocks.get_mut(entity) {
                 ui.label(format!("Block {:?}", block.id));
@@ -106,6 +116,30 @@ impl Block {
                     });
                 }
                 ui.separator();
+
+                ui.label("Destinations");
+                for (i, mut dest) in destinations.iter_mut().enumerate() {
+                    ui.horizontal(|ui| {
+                        if dest.blocks.iter().any(|(id, _, _)| id == &block.id) {
+                            ui.label(format!("Destination {}", i));
+                            if ui.button("Remove").clicked() {
+                                dest.blocks.retain(|(id, _, _)| id != &block.id);
+                            }
+                        } else {
+                            if ui.button(format!("Add to Destination {}", i)).clicked() {
+                                dest.blocks.push((block.id, None, None));
+                            }
+                        }
+                    });
+                }
+                if ui.button("Add Destination").clicked() {
+                    let dest_id = entity_map.new_destination_id();
+                    let dest = Destination {
+                        id: dest_id,
+                        blocks: vec![(block.id, None, None)],
+                    };
+                    destination_spawner.send(SpawnDestinationEvent(dest));
+                }
             }
         }
     }

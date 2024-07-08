@@ -9,7 +9,18 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
+pub struct ScheduleID {
+    pub id: usize,
+}
+
+impl ScheduleID {
+    pub fn new(id: usize) -> Self {
+        Self { id }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
 pub struct DestinationID {
     pub id: usize,
 }

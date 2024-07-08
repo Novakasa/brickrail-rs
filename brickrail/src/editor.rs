@@ -110,6 +110,8 @@ pub enum GenericID {
     TrackConnection(TrackConnectionID),
     Marker(TrackID),
     Hub(HubID),
+    Destination(DestinationID),
+    Schedule(ScheduleID),
 }
 
 #[derive(Default, Debug, Clone, Reflect, PartialEq, Eq)]

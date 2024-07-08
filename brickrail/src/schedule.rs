@@ -2,17 +2,11 @@ use bevy::prelude::*;
 
 use crate::{
     block::Block,
+    destination::Destination,
     editor::ControlStateMode,
-    layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
+    layout_primitives::DestinationID,
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
-
-#[derive(Debug, Clone, Component)]
-pub struct Destination {
-    pub id: DestinationID,
-    pub blocks: Vec<(BlockID, Option<BlockDirection>, Option<Facing>)>,
-}
-
 pub struct ScheduleEntry {
     pub dest: Destination,
     pub depart_time: f32,

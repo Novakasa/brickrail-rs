@@ -92,6 +92,8 @@ pub struct EntityMap {
     pub hubs: HashMap<HubID, Entity>,
     pub names: HashMap<GenericID, String>,
     pub layout_devices: HashMap<LayoutDeviceID, Entity>,
+    pub destinations: HashMap<DestinationID, Entity>,
+    pub schedules: HashMap<ScheduleID, Entity>,
 }
 
 impl EntityMap {
@@ -148,6 +150,14 @@ impl EntityMap {
 
     pub fn add_hub(&mut self, hub: HubID, entity: Entity) {
         self.hubs.try_insert(hub, entity).unwrap();
+    }
+
+    pub fn add_destination(&mut self, dest: DestinationID, entity: Entity) {
+        self.destinations.try_insert(dest, entity).unwrap();
+    }
+
+    pub fn add_schedule(&mut self, schedule: ScheduleID, entity: Entity) {
+        self.schedules.try_insert(schedule, entity).unwrap();
     }
 
     pub fn remove_track(&mut self, track: TrackID) {
@@ -222,6 +232,22 @@ impl EntityMap {
             id += 1;
         }
         return LayoutDeviceID::new(id, kind);
+    }
+
+    pub fn new_destination_id(&self) -> DestinationID {
+        let mut id = 1;
+        while self.destinations.contains_key(&DestinationID::new(id)) {
+            id += 1;
+        }
+        return DestinationID::new(id);
+    }
+
+    pub fn new_schedule_id(&self) -> ScheduleID {
+        let mut id = 0;
+        while self.schedules.contains_key(&ScheduleID::new(id)) {
+            id += 1;
+        }
+        return ScheduleID::new(id);
     }
 }
 

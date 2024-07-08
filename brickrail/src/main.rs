@@ -7,6 +7,7 @@ mod bevy_tokio_tasks;
 mod ble;
 mod ble_train;
 mod block;
+mod destination;
 mod editor;
 mod inspector;
 mod layout;
@@ -52,5 +53,6 @@ fn main() {
         .add_plugins(switch_motor::SwitchMotorPlugin)
         .add_plugins(layout_devices::LayoutDevicePlugin)
         .add_plugins(schedule::SchedulePlugin)
+        .add_plugins(destination::DestinationPlugin)
         .run();
 }
