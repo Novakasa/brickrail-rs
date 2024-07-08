@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
+use crate::destination::{self, Destination, SpawnDestinationEvent};
 use crate::inspector::inspector_system_world;
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
@@ -550,6 +551,8 @@ struct SerializableLayout {
     switches: Vec<SpawnSwitchEvent>,
     #[serde(default)]
     switch_motors: Vec<SpawnSwitchMotorEvent>,
+    #[serde(default)]
+    destinations: Vec<SpawnDestinationEvent>,
 }
 
 pub fn save_layout(
@@ -561,6 +564,7 @@ pub fn save_layout(
     q_tracks: Query<&Track>,
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_destinations: Query<&Destination>,
     connections: Res<Connections>,
     mut save_events: EventReader<SaveLayoutEvent>,
 ) {
@@ -605,6 +609,10 @@ pub fn save_layout(
                 update_switches: false,
             })
             .collect();
+        let destinations = q_destinations
+            .iter()
+            .map(|dest| SpawnDestinationEvent(dest.clone()))
+            .collect();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
             blocks,
@@ -615,6 +623,7 @@ pub fn save_layout(
             hubs,
             switches,
             switch_motors,
+            destinations,
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -695,6 +704,11 @@ pub fn load_layout(
             for serialized_switch_motor in layout_value.switch_motors {
                 commands.add(|world: &mut World| {
                     world.send_event(serialized_switch_motor);
+                });
+            }
+            for destination in layout_value.destinations {
+                commands.add(|world: &mut World| {
+                    world.send_event(destination);
                 });
             }
             commands.insert_resource(marker_map);

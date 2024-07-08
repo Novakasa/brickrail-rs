@@ -109,6 +109,8 @@ impl EntityMap {
             .chain(self.connections_outer.values())
             .chain(self.connections_inner.values())
             .chain(self.wagons.values())
+            .chain(self.destinations.values())
+            .chain(self.schedules.values())
     }
 
     pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
