@@ -1,10 +1,12 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemState, prelude::*};
+use bevy_inspector_egui::egui::{self, Grid, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     block::Block,
     destination::{BlockDirectionFilter, Destination},
-    editor::{ControlStateMode, GenericID, Selectable},
+    editor::{ControlStateMode, GenericID, Selectable, SelectionState},
+    layout::EntityMap,
     layout_primitives::{DestinationID, ScheduleID},
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
@@ -26,6 +28,7 @@ pub struct ScheduleEntry {
 pub struct TrainSchedule {
     pub id: ScheduleID,
     pub entries: Vec<ScheduleEntry>,
+    #[serde(skip)]
     pub current: usize,
     pub cycle_length: f32,
     pub cycle_offset: f32,
@@ -39,6 +42,52 @@ impl TrainSchedule {
             current: 0,
             cycle_length: 0.0,
             cycle_offset: 0.0,
+        }
+    }
+
+    pub fn inspector(ui: &mut Ui, world: &mut World) {
+        let mut state = SystemState::<(
+            Query<&mut TrainSchedule>,
+            Res<EntityMap>,
+            Res<SelectionState>,
+            Res<AppTypeRegistry>,
+        )>::new(world);
+        let (mut schedules, entity_map, selection_state, _type_registry) = state.get_mut(world);
+        if let Some(entity) = selection_state.get_entity(&entity_map) {
+            if let Ok(mut schedule) = schedules.get_mut(entity) {
+                ui.heading("Schedule");
+                Grid::new("settings").show(ui, |ui| {
+                    ui.label("Cycle length [seconds]");
+                    ui.add(egui::DragValue::new(&mut schedule.cycle_length));
+                    ui.end_row();
+
+                    ui.label("Cycle offset [seconds]");
+                    ui.add(egui::DragValue::new(&mut schedule.cycle_offset));
+                    ui.end_row();
+                });
+                ui.heading("Stops");
+                for (i, entry) in schedule.entries.iter_mut().enumerate() {
+                    ui.collapsing(format!("Stop {}", i + 1), |ui| {
+                        Grid::new("settings").show(ui, |ui| {
+                            ui.label("Destination");
+                            ui.end_row();
+                            ui.label("Departure time [seconds]");
+                            ui.add(egui::DragValue::new(&mut entry.depart_time));
+                            ui.end_row();
+                            ui.label("Minimum wait time [seconds]");
+                            ui.add(egui::DragValue::new(&mut entry.min_wait));
+                            ui.end_row();
+                        });
+                    });
+                }
+                if ui.button("Add stop").clicked() {
+                    schedule.entries.push(ScheduleEntry {
+                        dest: DestinationID::new(0),
+                        depart_time: 0.0,
+                        min_wait: 0.0,
+                    });
+                }
+            }
         }
     }
 }

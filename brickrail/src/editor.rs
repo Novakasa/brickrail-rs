@@ -178,6 +178,30 @@ pub trait Selectable {
     fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
         None
     }
+
+    fn selector(query: &Query<(&Self, Option<&Name>)>, ui: &mut egui::Ui)
+    where
+        Self: bevy::prelude::Component + Sized,
+    {
+        ComboBox::from_label("selecting")
+            .selected_text("")
+            .show_ui(ui, |ui| {});
+        for (selectable, name) in query.iter() {
+            ui.push_id(selectable.get_id(), |ui| {
+                ui.add_enabled_ui(true, |ui| {
+                    if ui
+                        .button(format!(
+                            "{:}",
+                            name.unwrap_or(&Name::from(selectable.name()))
+                        ))
+                        .clicked()
+                    {
+                        // selected = Some(selectable.get_id());
+                    }
+                });
+            });
+        }
+    }
 }
 
 #[derive(Resource, Debug, Default)]

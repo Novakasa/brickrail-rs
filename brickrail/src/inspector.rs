@@ -5,6 +5,7 @@ use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 use crate::layout::EntityMap;
+use crate::schedule::TrainSchedule;
 use crate::{
     ble::BLEHub,
     ble_train::BLETrain,
@@ -56,6 +57,7 @@ pub fn inspector_system_world(world: &mut World) {
                 Track::inspector(ui, world);
                 Marker::inspector(ui, world);
                 Switch::inspector(ui, world);
+                TrainSchedule::inspector(ui, world);
                 track_section_inspector(ui, world);
             };
             ui.set_min_width(200.0);
