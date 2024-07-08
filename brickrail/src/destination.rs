@@ -77,7 +77,8 @@ fn spawn_destination(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for SpawnDestinationEvent(dest) in events.read() {
-        let entity = commands.spawn(dest.clone()).id();
+        let name = Name::new(dest.id.to_string());
+        let entity = commands.spawn((name, dest.clone())).id();
         entity_map.add_destination(dest.id, entity);
     }
 }

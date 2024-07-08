@@ -17,23 +17,23 @@ use crate::{
 };
 
 fn name_editor(ui: &mut egui::Ui, world: &mut World) {
-    let mut state = SystemState::<(
-        Query<&mut Name>,
-        Res<SelectionState>,
-        Res<EntityMap>,
-        Commands,
-    )>::new(world);
-    let (mut names, selection_state, entity_map, mut commands) = state.get_mut(world);
+    let mut state =
+        SystemState::<(Query<&mut Name>, Res<SelectionState>, Res<EntityMap>)>::new(world);
+    let (mut names, selection_state, entity_map) = state.get_mut(world);
     if let Some(entity) = selection_state.get_entity(&entity_map) {
-        if let Ok(mut name) = names.get_mut(entity) {
-            ui.label("Name");
-            let mut name_edit = name.to_string();
-            ui.text_edit_singleline(&mut name_edit);
-            name.set(name_edit);
+        let id = if let Selection::Single(id) = selection_state.selection {
+            id
         } else {
-            println!("Adding name component");
-            if let Selection::Single(id) = selection_state.selection {
-                commands.entity(entity).insert(Name::new(format!("{}", id)));
+            return;
+        };
+        if let Ok(mut name) = names.get_mut(entity) {
+            if id.editable_name() {
+                ui.label("Name");
+                let mut name_edit = name.to_string();
+                ui.text_edit_singleline(&mut name_edit);
+                name.set(name_edit);
+            } else {
+                ui.label(name.to_string());
             }
         }
     }

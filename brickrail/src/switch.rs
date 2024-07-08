@@ -257,7 +257,8 @@ pub fn spawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for spawn_event in events.read() {
-        let entity = commands.spawn(spawn_event.switch.clone()).id();
+        let name = Name::new(spawn_event.switch.id.to_string());
+        let entity = commands.spawn((name, spawn_event.switch.clone())).id();
         entity_map.add_switch(spawn_event.switch.id, entity);
     }
 }

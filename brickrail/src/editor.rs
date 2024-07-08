@@ -116,6 +116,16 @@ pub enum GenericID {
     Schedule(ScheduleID),
 }
 
+impl GenericID {
+    pub fn editable_name(&self) -> bool {
+        match self {
+            GenericID::Hub(_) => false,
+            GenericID::Track(_) => false,
+            _ => true,
+        }
+    }
+}
+
 impl fmt::Display for GenericID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -162,6 +172,10 @@ pub trait Selectable {
 
     fn name(&self) -> String {
         format!("{:}", self.get_id())
+    }
+
+    fn editable_name(&self) -> bool {
+        true
     }
 }
 fn directory_ui<T: Sized + Component + Selectable>(

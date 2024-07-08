@@ -738,7 +738,10 @@ fn spawn_train(
         let ble_train = serialized_train
             .ble_train
             .unwrap_or(BLETrain::new(train_id));
-        let entity = commands.spawn((train, ble_train, WaitTime::new())).id();
+        let name = Name::new(train_id.to_string());
+        let entity = commands
+            .spawn((name, train, ble_train, WaitTime::new()))
+            .id();
         entity_map.add_train(train_id, entity);
     }
 }

@@ -145,6 +145,10 @@ impl Selectable for BLEHub {
     fn get_id(&self) -> GenericID {
         GenericID::Hub(self.id)
     }
+
+    fn editable_name(&self) -> bool {
+        false
+    }
 }
 
 impl BLEHub {
@@ -382,7 +386,8 @@ fn spawn_hub(
                 .insert(GenericID::Hub(hub_id), name.clone());
         }
         let hub_mutex = hub.hub.clone();
-        let entity = commands.spawn(hub).id();
+        let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
+        let entity = commands.spawn((name, hub)).id();
         entity_map.add_hub(hub_id, entity);
 
         runtime.spawn_background_task(move |mut ctx| async move {
@@ -631,15 +636,16 @@ pub struct HubMessageEvent<T: FromIOMessage> {
 fn handle_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
     mut train_sender: EventWriter<HubMessageEvent<TrainData>>,
-    mut q_hubs: Query<&mut BLEHub>,
+    mut q_hubs: Query<(&mut BLEHub, &mut Name)>,
     mut entity_map: ResMut<EntityMap>,
     settings: Res<Settings>,
 ) {
     for event in hub_event_reader.read() {
-        let mut hub = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
+        let (mut hub, mut name_component) = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
         match &event.event {
             IOEvent::NameDiscovered(name) => {
                 hub.name = Some(name.clone());
+                name_component.set(name.clone());
                 hub.set_downloaded_from_settings(&settings);
                 entity_map
                     .names

@@ -270,7 +270,8 @@ pub fn spawn_block(
         let block = BlockBundle::from_block(block);
         let block_id = block.block.id;
         // println!("Spawning block {:?}", block_id);
-        let entity = commands.spawn(block).id();
+        let name = Name::new(block_id.to_string());
+        let entity = commands.spawn((block, name)).id();
         entity_map.add_block(block_id, entity);
         for logical_id in block_id.logical_block_ids() {
             let in_track = logical_id.default_in_marker_track();
