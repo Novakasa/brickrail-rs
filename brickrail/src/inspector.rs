@@ -27,8 +27,8 @@ fn name_editor(ui: &mut egui::Ui, world: &mut World) {
             return;
         };
         if let Ok(mut name) = names.get_mut(entity) {
+            ui.label("Name:");
             if id.editable_name() {
-                ui.label("Name");
                 let mut name_edit = name.to_string();
                 ui.text_edit_singleline(&mut name_edit);
                 name.set(name_edit);

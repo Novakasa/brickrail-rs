@@ -115,7 +115,7 @@ impl Block {
                 }
                 ui.separator();
 
-                ui.label("Destinations");
+                ui.heading("Destinations");
                 for mut dest in destinations.iter_mut() {
                     ui.push_id(dest.id, |ui| {
                         ui.horizontal(|ui| {

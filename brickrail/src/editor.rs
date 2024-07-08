@@ -155,6 +155,8 @@ pub enum Selection {
 
 #[bevy_trait_query::queryable]
 pub trait Selectable {
+    // type SpawnEvent;
+
     fn get_id(&self) -> GenericID;
 
     fn get_depth(&self) -> f32 {
@@ -265,7 +267,7 @@ pub fn directory_panel(
 ) {
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
         egui::SidePanel::left("dir").show(ctx, |ui| {
-            ui.label("Directory");
+            ui.heading("Directory");
             let mut selected = None;
             let selection = if let Selection::Single(sel) = selection_state.selection {
                 Some(sel)
