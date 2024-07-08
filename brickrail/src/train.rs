@@ -28,7 +28,6 @@ use bevy_prototype_lyon::{
     prelude::{LineCap, StrokeOptions},
     shapes::Line,
 };
-use bevy_trait_query::RegisterExt;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +49,8 @@ pub struct TrainWagon {
 }
 
 impl Selectable for TrainWagon {
+    type SpawnEvent = SpawnTrainEvent;
+
     fn get_id(&self) -> GenericID {
         GenericID::Train(self.id.train)
     }
@@ -331,6 +332,8 @@ impl Train {
 }
 
 impl Selectable for Train {
+    type SpawnEvent = SpawnTrainEvent;
+
     fn get_id(&self) -> GenericID {
         GenericID::Train(self.id)
     }
@@ -868,8 +871,6 @@ pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
-        app.register_component_as::<dyn Selectable, Train>();
-        app.register_component_as::<dyn Selectable, TrainWagon>();
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
@@ -881,7 +882,7 @@ impl Plugin for TrainPlugin {
                 delete_selection_shortcut::<Train>,
                 despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
                 draw_train,
-                update_wagons,
+                update_wagons.after(finish_hover),
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
                 draw_hover_route,

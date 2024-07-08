@@ -4,7 +4,6 @@ use crate::{
     layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
 };
 use bevy::prelude::*;
-use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Event)]
@@ -66,6 +65,7 @@ impl Destination {
 }
 
 impl Selectable for Destination {
+    type SpawnEvent = SpawnDestinationEvent;
     fn get_id(&self) -> GenericID {
         GenericID::Destination(self.id)
     }
@@ -89,7 +89,6 @@ impl Plugin for DestinationPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnDestinationEvent>();
         app.register_type::<BlockDirectionFilter>();
-        app.register_component_as::<dyn Selectable, Destination>();
         app.add_systems(
             Update,
             spawn_destination.run_if(on_event::<SpawnDestinationEvent>()),

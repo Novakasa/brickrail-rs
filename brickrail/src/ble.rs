@@ -17,7 +17,6 @@ use crate::{
 use bevy::ecs::system::SystemState;
 use bevy::{input::keyboard, prelude::*, utils::HashMap};
 use bevy_inspector_egui::bevy_egui::egui::{self, widgets::Button, Grid, Ui};
-use bevy_trait_query::RegisterExt;
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
@@ -142,6 +141,8 @@ impl BLEHub {
 }
 
 impl Selectable for BLEHub {
+    type SpawnEvent = SpawnHubEvent;
+
     fn get_id(&self) -> GenericID {
         GenericID::Hub(self.id)
     }
@@ -904,7 +905,6 @@ pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
-        app.register_component_as::<dyn Selectable, BLEHub>();
         app.add_event::<HubEvent>();
         app.add_event::<HubCommandEvent>();
         app.add_event::<DespawnEvent<BLEHub>>();

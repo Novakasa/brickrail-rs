@@ -4,11 +4,11 @@ use bevy::ecs::system::SystemState;
 use bevy::{prelude::*, utils::HashMap};
 use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
-use bevy_trait_query::RegisterExt;
 use itertools::Itertools;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
+use crate::editor::SpawnTrainEvent;
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandEvent, HubConfiguration, HubMessageEvent},
     editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
@@ -332,6 +332,7 @@ impl BLETrain {
 }
 
 impl Selectable for BLETrain {
+    type SpawnEvent = SpawnTrainEvent;
     fn get_id(&self) -> GenericID {
         GenericID::Train(self.train_id)
     }
@@ -425,7 +426,6 @@ pub struct BLETrainPlugin;
 
 impl Plugin for BLETrainPlugin {
     fn build(&self, app: &mut App) {
-        app.register_component_as::<dyn Selectable, BLETrain>();
         app.add_event::<HubMessageEvent<TrainData>>();
         app.add_event::<MarkerAdvanceEvent>();
         app.add_systems(

@@ -3,7 +3,6 @@ use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::draw::Stroke;
-use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -150,6 +149,8 @@ impl Switch {
 }
 
 impl Selectable for Switch {
+    type SpawnEvent = SpawnSwitchEvent;
+
     fn get_id(&self) -> GenericID {
         GenericID::Switch(self.id)
     }
@@ -284,7 +285,6 @@ impl Plugin for SwitchPlugin {
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.add_event::<SetSwitchPositionEvent>();
         app.add_event::<DespawnEvent<Switch>>();
-        app.register_component_as::<dyn Selectable, Switch>();
         app.add_systems(
             Update,
             (

@@ -19,7 +19,6 @@ use bevy_prototype_lyon::{
     path::PathBuilder,
     prelude::{LineCap, StrokeOptions},
 };
-use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 
 pub const BLOCK_WIDTH: f32 = 20.0;
@@ -160,6 +159,8 @@ impl Block {
 }
 
 impl Selectable for Block {
+    type SpawnEvent = BlockSpawnEvent;
+
     fn get_depth(&self) -> f32 {
         0.0
     }
@@ -332,7 +333,6 @@ pub struct BlockPlugin;
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Block>();
-        app.register_component_as::<dyn Selectable, Block>();
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();
         app.add_event::<BlockCreateEvent>();

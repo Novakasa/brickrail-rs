@@ -5,7 +5,6 @@ use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::draw::Stroke;
-use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
@@ -193,6 +192,8 @@ impl Marker {
 }
 
 impl Selectable for Marker {
+    type SpawnEvent = MarkerSpawnEvent;
+
     fn get_id(&self) -> GenericID {
         GenericID::Marker(self.track)
     }
@@ -266,7 +267,6 @@ impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<MarkerSpawnEvent>();
         app.add_event::<DespawnEvent<Marker>>();
-        app.register_component_as::<dyn Selectable, Marker>();
         app.add_systems(Update, (create_marker, delete_selection_shortcut::<Marker>));
         app.add_systems(
             PostUpdate,

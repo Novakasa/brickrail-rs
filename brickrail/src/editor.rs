@@ -15,7 +15,7 @@ use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
-use crate::train::Train;
+use crate::train::{Train, TrainWagon};
 
 use bevy::color::palettes::css::BLUE;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
@@ -153,9 +153,8 @@ pub enum Selection {
     Section(DirectedSection),
 }
 
-#[bevy_trait_query::queryable]
 pub trait Selectable {
-    // type SpawnEvent;
+    type SpawnEvent;
 
     fn get_id(&self) -> GenericID;
 
@@ -179,7 +178,12 @@ pub trait Selectable {
     fn editable_name(&self) -> bool {
         true
     }
+
+    fn serialize_from_world(&self, _world: &World) -> Vec<Self::SpawnEvent> {
+        vec![]
+    }
 }
+
 fn directory_ui<T: Sized + Component + Selectable>(
     ui: &mut egui::Ui,
     query: Query<(&T, Option<&Name>)>,
@@ -241,6 +245,9 @@ impl HoverFilter {
 pub struct HoverState {
     pub hover: Option<GenericID>,
     pub filter: HoverFilter,
+    min_dist: f32,
+    hover_depth: f32,
+    candidate: Option<GenericID>,
 }
 
 fn update_editor_state(
@@ -488,20 +495,30 @@ fn spawn_camera(mut commands: Commands) {
         .insert(MainCamera);
 }
 
-fn update_hover(
+fn init_hover(mut hover_state: ResMut<HoverState>) {
+    hover_state.min_dist = f32::INFINITY;
+    hover_state.hover_depth = f32::NEG_INFINITY;
+    hover_state.candidate = None;
+}
+
+pub fn finish_hover(mut hover_state: ResMut<HoverState>) {
+    hover_state.min_dist = f32::INFINITY;
+    hover_state.hover_depth = f32::NEG_INFINITY;
+    hover_state.hover = hover_state.candidate;
+    hover_state.candidate = None;
+}
+
+pub fn update_hover<T: Selectable + Component>(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<(&mut dyn Selectable, Option<&Transform>, Option<&Stroke>)>,
+    q_selectable: Query<(&mut T, Option<&Transform>, Option<&Stroke>)>,
     mut hover_state: ResMut<HoverState>,
 ) {
-    let mut hover_candidate = None;
-    let mut min_dist = f32::INFINITY;
-    let mut hover_depth = f32::NEG_INFINITY;
-    for (entity, transform, stroke) in q_selectable.iter() {
-        for selectable in entity.iter() {
+    for (selectable, transform, stroke) in q_selectable.iter() {
+        {
             if !hover_state.filter.matches(&selectable.get_id()) {
                 continue;
             }
-            if selectable.get_depth() < hover_depth {
+            if selectable.get_depth() < hover_state.hover_depth {
                 continue;
             }
             let dist = selectable.get_distance(
@@ -512,15 +529,15 @@ fn update_hover(
             if dist > 0.0 {
                 continue;
             }
-            if dist < min_dist || selectable.get_depth() > hover_depth {
-                hover_candidate = Some(selectable.get_id());
-                min_dist = dist;
-                hover_depth = selectable.get_depth();
+            if dist < hover_state.min_dist || selectable.get_depth() > hover_state.hover_depth {
+                hover_state.candidate = Some(selectable.get_id());
+                hover_state.min_dist = dist;
+                hover_state.hover_depth = selectable.get_depth();
             }
         }
     }
-    if hover_candidate != hover_state.hover {
-        hover_state.hover = hover_candidate;
+    if hover_state.candidate != hover_state.hover {
+        hover_state.hover = hover_state.candidate;
         // println!("Hovering {:?}", hover_state.hover);
     }
 }
@@ -585,39 +602,47 @@ fn extend_selection(
     mut selection_state: ResMut<SelectionState>,
     connections: Res<Connections>,
 ) {
-    if hover_state.is_changed() {
-        // println!("{:?}", hover_state.hover);
-        if buttons.pressed(MouseButton::Left) {
-            if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
-                let mut section = DirectedSection::new();
-                section
-                    .push(
-                        track_id.get_directed(TrackDirection::First),
-                        &Connections::default(),
-                    )
-                    .unwrap();
-                selection_state.selection = Selection::Section(section);
+    match hover_state.hover {
+        Some(GenericID::Track(_)) => {}
+        _ => {
+            return;
+        }
+    }
+    // println!("{:?}", hover_state.hover);
+    if buttons.pressed(MouseButton::Left) {
+        if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
+            if hover_state.hover == Some(GenericID::Track(track_id)) {
+                return;
             }
-            match (&hover_state.hover, &mut selection_state.selection) {
-                (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
-                    match section.push_track(*track_id, &connections) {
-                        Ok(()) => {
-                            return;
-                        }
-                        Err(()) => {}
+
+            let mut section = DirectedSection::new();
+            section
+                .push(
+                    track_id.get_directed(TrackDirection::First),
+                    &Connections::default(),
+                )
+                .unwrap();
+            selection_state.selection = Selection::Section(section);
+        }
+        match (&hover_state.hover, &mut selection_state.selection) {
+            (Some(GenericID::Track(track_id)), Selection::Section(section)) => {
+                match section.push_track(*track_id, &connections) {
+                    Ok(()) => {
+                        return;
                     }
-                    let mut opposite = section.get_opposite();
-                    match opposite.push_track(*track_id, &connections) {
-                        Ok(()) => {
-                            println!("opposite");
-                            selection_state.selection = Selection::Section(opposite);
-                            return;
-                        }
-                        Err(()) => {}
-                    }
+                    Err(()) => {}
                 }
-                _ => {}
+                let mut opposite = section.get_opposite();
+                match opposite.push_track(*track_id, &connections) {
+                    Ok(()) => {
+                        println!("opposite");
+                        selection_state.selection = Selection::Section(opposite);
+                        return;
+                    }
+                    Err(()) => {}
+                }
             }
+            _ => {}
         }
     }
 }
@@ -900,10 +925,19 @@ impl Plugin for EditorPlugin {
         app.add_systems(
             Update,
             (
-                init_select,
-                update_hover,
-                draw_selection,
-                extend_selection,
+                (
+                    init_hover,
+                    update_hover::<Track>,
+                    update_hover::<Block>,
+                    update_hover::<Marker>,
+                    update_hover::<Switch>,
+                    update_hover::<TrainWagon>,
+                    finish_hover,
+                    init_select,
+                    extend_selection,
+                    draw_selection,
+                )
+                    .chain(),
                 save_layout.run_if(on_event::<SaveLayoutEvent>()),
                 load_layout.run_if(on_event::<LoadLayoutEvent>()),
                 new_layout.run_if(on_event::<NewLayoutEvent>()),

@@ -1,8 +1,8 @@
 use crate::{
     block::{Block, BlockCreateEvent},
     editor::{
-        delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
-        SelectionState,
+        delete_selection_shortcut, finish_hover, DespawnEvent, GenericID, HoverState, Selectable,
+        Selection, SelectionState,
     },
     layout::{Connections, EntityMap},
     layout_primitives::*,
@@ -19,7 +19,6 @@ use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
-use bevy_trait_query::RegisterExt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const TRACK_WIDTH: f32 = 10.0;
@@ -413,6 +412,8 @@ impl Track {
 }
 
 impl Selectable for Track {
+    type SpawnEvent = SpawnTrackEvent;
+
     fn get_depth(&self) -> f32 {
         1.0
     }
@@ -629,7 +630,6 @@ pub struct TrackPlugin;
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
-        app.register_component_as::<dyn Selectable, Track>();
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();
@@ -639,7 +639,7 @@ impl Plugin for TrackPlugin {
                 init_draw_track,
                 exit_draw_track,
                 update_draw_track,
-                update_track_color,
+                update_track_color.after(finish_hover),
                 draw_build_cells,
                 delete_selection_shortcut::<Track>,
                 despawn_track,
