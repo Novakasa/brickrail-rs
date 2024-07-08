@@ -3,19 +3,18 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use crate::ble::{BLEHub, HubState};
-use crate::ble_train::BLETrain;
-use crate::block::{Block, BlockSpawnEvent};
-use crate::destination::{Destination, SpawnDestinationEvent};
+use crate::block::{Block, BlockSpawnEvent, BlockSpawnEventQuery};
+use crate::destination::{Destination, SpawnDestinationEvent, SpawnDestinationEventQuery};
 use crate::inspector::inspector_system_world;
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::section::DirectedSection;
-use crate::switch::{SpawnSwitchEvent, Switch};
+use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
-use crate::train::{Train, TrainWagon};
+use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train, TrainWagon};
 
 use bevy::color::palettes::css::BLUE;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
@@ -179,7 +178,7 @@ pub trait Selectable {
         true
     }
 
-    fn serialize_from_world(&self, _world: &World) -> Vec<Self::SpawnEvent> {
+    fn serialize_from_world(&self, _world: &mut World) -> Vec<Self::SpawnEvent> {
         vec![]
     }
 }
@@ -648,12 +647,6 @@ fn extend_selection(
 }
 
 #[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SpawnTrainEvent {
-    pub train: Train,
-    pub ble_train: Option<BLETrain>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Event)]
 pub struct SpawnHubEvent {
     pub hub: BLEHub,
 }
@@ -663,7 +656,7 @@ struct SerializableLayout {
     marker_map: MarkerMap,
     tracks: Vec<SpawnTrackEvent>,
     connections: Vec<SpawnConnectionEvent>,
-    blocks: Vec<Block>,
+    blocks: Vec<BlockSpawnEvent>,
     markers: Vec<Marker>,
     #[serde(default)]
     trains: Vec<SpawnTrainEvent>,
@@ -679,39 +672,28 @@ struct SerializableLayout {
 
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
-    q_trains: Query<(&Train, &BLETrain)>,
-    q_switches: Query<&Switch>,
-    q_blocks: Query<&Block>,
+    q_trains: SpawnTrainEventQuery,
+    q_switches: SpawnSwitchEventQuery,
+    q_blocks: BlockSpawnEventQuery,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
-    q_destinations: Query<&Destination>,
+    q_destinations: SpawnDestinationEventQuery,
     connections: Res<Connections>,
     mut save_events: EventReader<SaveLayoutEvent>,
 ) {
     for event in save_events.read() {
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
-        let blocks = q_blocks.iter().map(|b| b.clone()).collect();
+        let blocks = q_blocks.get();
         let markers = q_markers.iter().map(|m| m.clone()).collect();
         let tracks = q_tracks
             .iter()
             .map(|t| SpawnTrackEvent(t.clone()))
             .collect();
-        let trains = q_trains
-            .iter()
-            .map(|(train, ble_train)| SpawnTrainEvent {
-                train: train.clone(),
-                ble_train: Some(ble_train.clone()),
-            })
-            .collect();
-        let switches = q_switches
-            .iter()
-            .map(|switch| SpawnSwitchEvent {
-                switch: switch.clone(),
-            })
-            .collect();
+        let trains = q_trains.get();
+        let switches = q_switches.get();
         let hubs = q_hubs
             .iter()
             .map(|hub| SpawnHubEvent { hub: hub.clone() })
@@ -731,10 +713,7 @@ pub fn save_layout(
                 update_switches: false,
             })
             .collect();
-        let destinations = q_destinations
-            .iter()
-            .map(|dest| SpawnDestinationEvent(dest.clone()))
-            .collect();
+        let destinations = q_destinations.get();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
             blocks,
@@ -800,7 +779,7 @@ pub fn load_layout(
             }
             for block in layout_value.blocks {
                 commands.add(|world: &mut World| {
-                    world.send_event(BlockSpawnEvent(block));
+                    world.send_event(block);
                 });
             }
             for marker in layout_value.markers {

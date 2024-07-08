@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
@@ -172,6 +173,23 @@ impl Selectable for Switch {
 #[derive(Serialize, Deserialize, Clone, Event)]
 pub struct SpawnSwitchEvent {
     pub switch: Switch,
+    pub name: Option<String>,
+}
+
+#[derive(SystemParam)]
+pub struct SpawnSwitchEventQuery<'w, 's> {
+    query: Query<'w, 's, (&'static Switch, &'static Name)>,
+}
+impl SpawnSwitchEventQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnSwitchEvent> {
+        self.query
+            .iter()
+            .map(|(switch, name)| SpawnSwitchEvent {
+                switch: switch.clone(),
+                name: Some(name.to_string()),
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Event)]
@@ -234,6 +252,7 @@ pub fn update_switch_turns(
             } else {
                 switch_spawn_events.send(SpawnSwitchEvent {
                     switch: Switch::new(update.id, update.positions.clone()),
+                    name: None,
                 });
             }
         } else {
@@ -258,7 +277,12 @@ pub fn spawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for spawn_event in events.read() {
-        let name = Name::new(spawn_event.switch.id.to_string());
+        let name = Name::new(
+            spawn_event
+                .name
+                .clone()
+                .unwrap_or(spawn_event.switch.id.to_string()),
+        );
         let entity = commands.spawn((name, spawn_event.switch.clone())).id();
         entity_map.add_switch(spawn_event.switch.id, entity);
     }

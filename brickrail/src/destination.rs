@@ -3,11 +3,30 @@ use crate::{
     layout::EntityMap,
     layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
 };
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemParam, prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Event)]
-pub struct SpawnDestinationEvent(pub Destination);
+pub struct SpawnDestinationEvent {
+    pub dest: Destination,
+    pub name: Option<String>,
+}
+
+#[derive(SystemParam)]
+pub struct SpawnDestinationEventQuery<'w, 's> {
+    query: Query<'w, 's, (&'static Destination, &'static Name)>,
+}
+impl SpawnDestinationEventQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnDestinationEvent> {
+        self.query
+            .iter()
+            .map(|(dest, name)| SpawnDestinationEvent {
+                dest: dest.clone(),
+                name: Some(name.to_string()),
+            })
+            .collect()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BlockDirectionFilter {
@@ -76,10 +95,15 @@ fn spawn_destination(
     mut events: EventReader<SpawnDestinationEvent>,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for SpawnDestinationEvent(dest) in events.read() {
-        let name = Name::new(dest.id.to_string());
-        let entity = commands.spawn((name, dest.clone())).id();
-        entity_map.add_destination(dest.id, entity);
+    for spawn_dest in events.read() {
+        let name = Name::new(
+            spawn_dest
+                .name
+                .clone()
+                .unwrap_or(spawn_dest.dest.id.to_string()),
+        );
+        let entity = commands.spawn((name, spawn_dest.dest.clone())).id();
+        entity_map.add_destination(spawn_dest.dest.id, entity);
     }
 }
 

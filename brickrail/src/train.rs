@@ -14,7 +14,7 @@ use crate::{
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
-    ecs::system::SystemState,
+    ecs::system::{SystemParam, SystemState},
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
@@ -341,6 +341,31 @@ impl Selectable for Train {
     fn get_depth(&self) -> f32 {
         3.0
     }
+}
+
+#[derive(SystemParam)]
+pub struct SpawnTrainEventQuery<'w, 's> {
+    trains: Query<'w, 's, (&'static Train, &'static BLETrain, &'static Name)>,
+}
+
+impl SpawnTrainEventQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnTrainEvent> {
+        self.trains
+            .iter()
+            .map(|(train, ble_train, name)| SpawnTrainEvent {
+                train: train.clone(),
+                ble_train: Some(ble_train.clone()),
+                name: Some(name.to_string()),
+            })
+            .collect()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Event)]
+pub struct SpawnTrainEvent {
+    pub train: Train,
+    pub ble_train: Option<BLETrain>,
+    pub name: Option<String>,
 }
 
 #[derive(Bundle)]
@@ -687,6 +712,7 @@ fn create_train_shortcut(
             train_events.send(SpawnTrainEvent {
                 train,
                 ble_train: None,
+                name: None,
             });
         }
     }
@@ -741,7 +767,7 @@ fn spawn_train(
         let ble_train = serialized_train
             .ble_train
             .unwrap_or(BLETrain::new(train_id));
-        let name = Name::new(train_id.to_string());
+        let name = Name::new(spawn_train.name.clone().unwrap_or(train_id.to_string()));
         let entity = commands
             .spawn((name, train, ble_train, WaitTime::new()))
             .id();

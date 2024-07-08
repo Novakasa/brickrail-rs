@@ -1,15 +1,15 @@
 use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
     delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
-    SelectionState, SpawnTrainEvent,
+    SelectionState,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
 use crate::section::LogicalSection;
-use crate::train::Train;
+use crate::train::{SpawnTrainEvent, Train};
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
-use bevy::ecs::system::SystemState;
+use bevy::ecs::system::{SystemParam, SystemState};
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::egui::Ui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
@@ -84,7 +84,7 @@ impl Block {
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             EventWriter<SpawnTrainEvent>,
-            Query<&mut Destination>,
+            Query<(&mut Destination, &Name)>,
             EventWriter<SpawnDestinationEvent>,
         )>::new(world);
         let (
@@ -110,16 +110,17 @@ impl Block {
                     train_spawner.send(SpawnTrainEvent {
                         train: train,
                         ble_train: None,
+                        name: None,
                     });
                 }
                 ui.separator();
 
                 ui.heading("Destinations");
-                for mut dest in destinations.iter_mut() {
+                for (mut dest, dest_name) in destinations.iter_mut() {
                     ui.push_id(dest.id, |ui| {
                         ui.horizontal(|ui| {
                             if let Some(filter) = dest.get_block_filter(block.id) {
-                                ui.label(format!("Destination{}", dest.id.id));
+                                ui.label(dest_name.to_string());
 
                                 let mut mutable_filter = filter.clone();
                                 ui_for_value(&mut mutable_filter, ui, &type_registry.read());
@@ -132,7 +133,7 @@ impl Block {
                                 }
                             } else {
                                 if ui
-                                    .button(format!("Add to Destination{}", dest.id.id))
+                                    .button(format!("Add to {}", dest_name.to_string()))
                                     .clicked()
                                 {
                                     dest.add_block(
@@ -151,7 +152,10 @@ impl Block {
                         id: dest_id,
                         blocks: vec![(block.id, BlockDirectionFilter::Any, None)],
                     };
-                    destination_spawner.send(SpawnDestinationEvent(dest));
+                    destination_spawner.send(SpawnDestinationEvent {
+                        dest: dest,
+                        name: None,
+                    });
                 }
             }
         }
@@ -234,7 +238,26 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
 }
 
 #[derive(Debug, Event, Clone, Serialize, Deserialize)]
-pub struct BlockSpawnEvent(pub Block);
+pub struct BlockSpawnEvent {
+    pub block: Block,
+    pub name: Option<String>,
+}
+
+#[derive(SystemParam)]
+pub struct BlockSpawnEventQuery<'w, 's> {
+    query: Query<'w, 's, (&'static Block, &'static Name)>,
+}
+impl BlockSpawnEventQuery<'_, '_> {
+    pub fn get(&self) -> Vec<BlockSpawnEvent> {
+        self.query
+            .iter()
+            .map(|(block, name)| BlockSpawnEvent {
+                block: block.clone(),
+                name: Some(name.to_string()),
+            })
+            .collect()
+    }
+}
 
 #[derive(Debug, Event, Clone, Serialize, Deserialize)]
 pub struct BlockCreateEvent(pub Block);
@@ -247,7 +270,10 @@ fn create_block(
 ) {
     for BlockCreateEvent(block) in create_events.read() {
         let block_id = block.id;
-        block_event_writer.send(BlockSpawnEvent(block.clone()));
+        block_event_writer.send(BlockSpawnEvent {
+            block: block.clone(),
+            name: None,
+        });
         for logical_id in block_id.logical_block_ids() {
             let in_track = logical_id.default_in_marker_track();
             if logical_id.facing == Facing::Forward {
@@ -266,12 +292,12 @@ pub fn spawn_block(
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
-        println!("Spawning block {:?}", request.0.id);
-        let block = request.0.clone();
+        println!("Spawning block {:?}", request.block.id);
+        let block = request.block.clone();
         let block = BlockBundle::from_block(block);
         let block_id = block.block.id;
         // println!("Spawning block {:?}", block_id);
-        let name = Name::new(block_id.to_string());
+        let name = Name::new(request.name.clone().unwrap_or(block_id.to_string()));
         let entity = commands.spawn((block, name)).id();
         entity_map.add_block(block_id, entity);
         for logical_id in block_id.logical_block_ids() {
