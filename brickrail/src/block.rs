@@ -122,7 +122,7 @@ impl Block {
                     ui.push_id(dest.id, |ui| {
                         ui.horizontal(|ui| {
                             if let Some(filter) = dest.get_block_filter(block.id) {
-                                ui.label(format!("Destination {}", dest.id.id));
+                                ui.label(format!("Destination{}", dest.id.id));
 
                                 let mut mutable_filter = filter.clone();
                                 ui_for_value(&mut mutable_filter, ui, &type_registry.read());
@@ -130,12 +130,12 @@ impl Block {
                                     dest.change_filter(block.id, mutable_filter);
                                 }
 
-                                if ui.button("Remove").clicked() {
+                                if ui.button("X").clicked() {
                                     dest.remove_block(block.id);
                                 }
                             } else {
                                 if ui
-                                    .button(format!("Add to Destination {}", dest.id.id))
+                                    .button(format!("Add to Destination{}", dest.id.id))
                                     .clicked()
                                 {
                                     dest.add_block(
@@ -148,7 +148,7 @@ impl Block {
                         });
                     });
                 }
-                if ui.button("Add Destination").clicked() {
+                if ui.button("Add to new Destination").clicked() {
                     let dest_id = entity_map.new_destination_id();
                     let dest = Destination {
                         id: dest_id,

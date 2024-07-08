@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::ble::{BLEHub, HubState};
 use crate::ble_train::BLETrain;
 use crate::block::{Block, BlockSpawnEvent};
-use crate::destination::{self, Destination, SpawnDestinationEvent};
+use crate::destination::{Destination, SpawnDestinationEvent};
 use crate::inspector::inspector_system_world;
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;

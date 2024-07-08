@@ -4,16 +4,24 @@ use crate::{
     block::Block,
     destination::{BlockDirectionFilter, Destination},
     editor::ControlStateMode,
-    layout_primitives::DestinationID,
+    layout_primitives::{DestinationID, ScheduleID},
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
+
+#[derive(Debug, Component)]
+pub struct AssignedSchedule {
+    pub schedule_id: ScheduleID,
+    pub offset: f32,
+}
+
 pub struct ScheduleEntry {
-    pub dest: Destination,
+    pub dest: DestinationID,
     pub depart_time: f32,
-    pub max_wait: Option<f32>,
+    pub min_wait: f32,
 }
 
 pub struct Schedule {
+    pub id: ScheduleID,
     pub entries: Vec<ScheduleEntry>,
     pub current: usize,
     pub cycle_length: f32,
@@ -22,14 +30,14 @@ pub struct Schedule {
 
 #[derive(Resource)]
 struct ControlInfo {
-    cycle: f32,
+    time: f32,
     wait_time: f32,
 }
 
 impl Default for ControlInfo {
     fn default() -> Self {
         Self {
-            cycle: 0.0,
+            time: 0.0,
             wait_time: 4.0,
         }
     }
