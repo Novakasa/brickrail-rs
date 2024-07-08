@@ -1,3 +1,4 @@
+use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
@@ -115,6 +116,24 @@ pub enum GenericID {
     Schedule(ScheduleID),
 }
 
+impl fmt::Display for GenericID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GenericID::Cell(id) => write!(f, "{:?}", id),
+            GenericID::Track(id) => write!(f, "{}", id),
+            GenericID::LogicalTrack(id) => write!(f, "{}", id),
+            GenericID::Block(id) => write!(f, "{}", id),
+            GenericID::Train(id) => write!(f, "{}", id),
+            GenericID::Switch(id) => write!(f, "Switch({})", id),
+            GenericID::TrackConnection(id) => write!(f, "{}", id),
+            GenericID::Marker(id) => write!(f, "Marker({})", id),
+            GenericID::Hub(id) => write!(f, "{}", id),
+            GenericID::Destination(id) => write!(f, "{}", id),
+            GenericID::Schedule(id) => write!(f, "{}", id),
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, Reflect, PartialEq, Eq)]
 pub enum Selection {
     #[default]
@@ -140,18 +159,28 @@ pub trait Selectable {
     ) -> f32 {
         100.0
     }
+
+    fn name(&self) -> String {
+        format!("{:}", self.get_id())
+    }
 }
 fn directory_ui<T: Sized + Component + Selectable>(
     ui: &mut egui::Ui,
-    query: Query<&T>,
+    query: Query<(&T, Option<&Name>)>,
     heading: &str,
     selection: Option<GenericID>,
 ) -> Option<GenericID> {
     let mut selected = None;
     ui.collapsing(heading, |ui| {
-        for selectable in query.iter() {
+        for (selectable, name) in query.iter() {
             ui.add_enabled_ui(Some(selectable.get_id()) != selection, |ui| {
-                if ui.button(format!("{:?}", selectable.get_id())).clicked() {
+                if ui
+                    .button(format!(
+                        "{:}",
+                        name.unwrap_or(&Name::from(selectable.name()))
+                    ))
+                    .clicked()
+                {
                     selected = Some(selectable.get_id());
                 }
             });
@@ -214,11 +243,11 @@ pub fn directory_panel(
     mut egui_contexts: EguiContexts,
     mut input_data: ResMut<InputData>,
     mut selection_state: ResMut<SelectionState>,
-    q_trains: Query<&Train>,
-    q_dests: Query<&Destination>,
-    q_blocks: Query<&Block>,
-    q_switches: Query<&Switch>,
-    q_hubs: Query<&BLEHub>,
+    q_trains: Query<(&Train, Option<&Name>)>,
+    q_dests: Query<(&Destination, Option<&Name>)>,
+    q_blocks: Query<(&Block, Option<&Name>)>,
+    q_switches: Query<(&Switch, Option<&Name>)>,
+    q_hubs: Query<(&BLEHub, Option<&Name>)>,
 ) {
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
         egui::SidePanel::left("dir").show(ctx, |ui| {

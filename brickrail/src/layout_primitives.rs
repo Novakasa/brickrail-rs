@@ -20,6 +20,12 @@ impl ScheduleID {
     }
 }
 
+impl fmt::Display for ScheduleID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Schedule{}", self.id)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
 pub struct DestinationID {
     pub id: usize,
@@ -28,6 +34,12 @@ pub struct DestinationID {
 impl DestinationID {
     pub fn new(id: usize) -> Self {
         Self { id }
+    }
+}
+
+impl fmt::Display for DestinationID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Destination{}", self.id)
     }
 }
 
@@ -60,6 +72,12 @@ pub struct TrainID {
 impl TrainID {
     pub fn new(id: usize) -> Self {
         Self { id }
+    }
+}
+
+impl fmt::Display for TrainID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Train{}", self.id)
     }
 }
 
