@@ -52,6 +52,10 @@ pub struct Destination {
 }
 
 impl Destination {
+    pub fn new(id: DestinationID) -> Self {
+        Self { id, blocks: vec![] }
+    }
+
     pub fn contains_block(&self, block_id: BlockID) -> bool {
         self.blocks.iter().any(|(id, _, _)| *id == block_id)
     }
@@ -87,6 +91,13 @@ impl Selectable for Destination {
     type SpawnEvent = SpawnDestinationEvent;
     fn get_id(&self) -> GenericID {
         GenericID::Destination(self.id)
+    }
+
+    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
+        Some(SpawnDestinationEvent {
+            dest: Destination::new(entity_map.new_destination_id()),
+            name: None,
+        })
     }
 }
 

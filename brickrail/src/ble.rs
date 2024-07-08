@@ -147,8 +147,10 @@ impl Selectable for BLEHub {
         GenericID::Hub(self.id)
     }
 
-    fn editable_name(&self) -> bool {
-        false
+    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
+        Some(SpawnHubEvent {
+            hub: BLEHub::new(entity_map.new_hub_id(HubType::Layout)),
+        })
     }
 }
 

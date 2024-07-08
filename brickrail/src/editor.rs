@@ -153,7 +153,7 @@ pub enum Selection {
 }
 
 pub trait Selectable {
-    type SpawnEvent;
+    type SpawnEvent: Event;
 
     fn get_id(&self) -> GenericID;
 
@@ -174,38 +174,9 @@ pub trait Selectable {
         format!("{:}", self.get_id())
     }
 
-    fn editable_name(&self) -> bool {
-        true
+    fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
+        None
     }
-
-    fn serialize_from_world(&self, _world: &mut World) -> Vec<Self::SpawnEvent> {
-        vec![]
-    }
-}
-
-fn directory_ui<T: Sized + Component + Selectable>(
-    ui: &mut egui::Ui,
-    query: Query<(&T, Option<&Name>)>,
-    heading: &str,
-    selection: Option<GenericID>,
-) -> Option<GenericID> {
-    let mut selected = None;
-    ui.collapsing(heading, |ui| {
-        for (selectable, name) in query.iter() {
-            ui.add_enabled_ui(Some(selectable.get_id()) != selection, |ui| {
-                if ui
-                    .button(format!(
-                        "{:}",
-                        name.unwrap_or(&Name::from(selectable.name()))
-                    ))
-                    .clicked()
-                {
-                    selected = Some(selectable.get_id());
-                }
-            });
-        }
-    });
-    selected
 }
 
 #[derive(Resource, Debug, Default)]
@@ -261,37 +232,73 @@ fn update_editor_state(
     }
 }
 
-pub fn directory_panel(
-    mut egui_contexts: EguiContexts,
-    mut input_data: ResMut<InputData>,
-    mut selection_state: ResMut<SelectionState>,
-    q_trains: Query<(&Train, Option<&Name>)>,
-    q_dests: Query<(&Destination, Option<&Name>)>,
-    q_blocks: Query<(&Block, Option<&Name>)>,
-    q_switches: Query<(&Switch, Option<&Name>)>,
-    q_hubs: Query<(&BLEHub, Option<&Name>)>,
-) {
+pub fn directory_panel(world: &mut World) {
+    let mut state = SystemState::<(EguiContexts,)>::new(world);
+    let (mut egui_contexts,) = state.get_mut(world);
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
-        egui::SidePanel::left("dir").show(ctx, |ui| {
+        egui::SidePanel::new(egui::panel::Side::Left, "Directory").show(ctx, |ui| {
             ui.heading("Directory");
-            let mut selected = None;
-            let selection = if let Selection::Single(sel) = selection_state.selection {
-                Some(sel)
-            } else {
-                None
+            {
+                directory_ui::<Train>(ui, world, "Trains");
+                directory_ui::<Block>(ui, world, "Blocks");
+                directory_ui::<Switch>(ui, world, "Switches");
+                directory_ui::<BLEHub>(ui, world, "Hubs");
+                directory_ui::<Destination>(ui, world, "Destinations");
             };
-            selected = selected.or(directory_ui(ui, q_trains, "Trains", selection));
-            selected = selected.or(directory_ui(ui, q_dests, "Destinations", selection));
-            selected = selected.or(directory_ui(ui, q_blocks, "Blocks", selection));
-            selected = selected.or(directory_ui(ui, q_switches, "Switches", selection));
-            selected = selected.or(directory_ui(ui, q_hubs, "Hubs", selection));
-            if let Some(selected) = selected {
-                selection_state.selection = Selection::Single(selected);
-            }
-
             ui.set_min_width(200.0);
         });
-        input_data.mouse_over_ui |= ctx.wants_pointer_input() || ctx.is_pointer_over_area();
+        state.apply(world);
+
+        let mut state = SystemState::<ResMut<InputData>>::new(world);
+        let mut input_data = state.get_mut(world);
+        input_data.mouse_over_ui = ctx.wants_pointer_input() || ctx.is_pointer_over_area();
+    }
+}
+
+pub fn directory_ui<T: Sized + Component + Selectable>(
+    ui: &mut egui::Ui,
+    world: &mut World,
+    heading: &str,
+) {
+    let mut state = SystemState::<(
+        Query<(&T, Option<&Name>)>,
+        ResMut<SelectionState>,
+        ResMut<EntityMap>,
+        EventWriter<T::SpawnEvent>,
+    )>::new(world);
+    let (query, mut selection_state, mut entity_map, mut spawner) = state.get_mut(world);
+    let mut selected = None;
+    let selection = if let Selection::Single(sel) = selection_state.selection {
+        Some(sel)
+    } else {
+        None
+    };
+    ui.collapsing(heading, |ui| {
+        for (selectable, name) in query.iter() {
+            ui.push_id(selectable.get_id(), |ui| {
+                ui.add_enabled_ui(Some(selectable.get_id()) != selection, |ui| {
+                    if ui
+                        .button(format!(
+                            "{:}",
+                            name.unwrap_or(&Name::from(selectable.name()))
+                        ))
+                        .clicked()
+                    {
+                        selected = Some(selectable.get_id());
+                    }
+                });
+            });
+        }
+        if let Some(event) = T::default_spawn_event(&mut entity_map) {
+            ui.separator();
+            if ui.button("New").clicked() {
+                spawner.send(event);
+            }
+        }
+        ui.separator();
+    });
+    if let Some(id) = selected {
+        selection_state.selection = Selection::Single(id);
     }
 }
 
