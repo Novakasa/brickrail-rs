@@ -10,6 +10,7 @@ use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
+use crate::schedule::TrainSchedule;
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
@@ -244,6 +245,7 @@ pub fn directory_panel(world: &mut World) {
                 directory_ui::<Switch>(ui, world, "Switches");
                 directory_ui::<BLEHub>(ui, world, "Hubs");
                 directory_ui::<Destination>(ui, world, "Destinations");
+                directory_ui::<TrainSchedule>(ui, world, "Schedules");
             };
             ui.set_min_width(200.0);
         });
