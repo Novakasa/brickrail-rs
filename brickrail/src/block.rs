@@ -1,7 +1,7 @@
 use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
-    delete_selection_shortcut, DespawnEvent, GenericID, HoverState, Selectable, Selection,
-    SelectionState,
+    delete_selection_shortcut, directory_panel, DespawnEvent, GenericID, HoverState, Selectable,
+    Selection, SelectionState,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
@@ -380,7 +380,7 @@ impl Plugin for BlockPlugin {
             Update,
             (
                 create_block.run_if(on_event::<BlockCreateEvent>()),
-                update_block_color,
+                update_block_color.after(directory_panel),
                 delete_selection_shortcut::<Block>,
             ),
         );

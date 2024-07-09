@@ -266,6 +266,7 @@ pub struct HoverState {
     min_dist: f32,
     hover_depth: f32,
     candidate: Option<GenericID>,
+    pub button_hover: bool,
 }
 
 fn update_editor_state(
@@ -312,11 +313,14 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
     let mut state = SystemState::<(
         Query<(&T, Option<&Name>)>,
         ResMut<SelectionState>,
+        ResMut<HoverState>,
         ResMut<EntityMap>,
         EventWriter<T::SpawnEvent>,
     )>::new(world);
-    let (query, mut selection_state, mut entity_map, mut spawner) = state.get_mut(world);
+    let (query, mut selection_state, mut hover_state, mut entity_map, mut spawner) =
+        state.get_mut(world);
     let mut selected = None;
+    let mut hovered = None;
     let selection = if let Selection::Single(sel) = selection_state.selection {
         Some(sel)
     } else {
@@ -326,14 +330,15 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
         for (selectable, name) in query.iter() {
             ui.push_id(selectable.generic_id(), |ui| {
                 ui.add_enabled_ui(Some(selectable.generic_id()) != selection, |ui| {
-                    if ui
-                        .button(format!(
-                            "{:}",
-                            name.unwrap_or(&Name::from(selectable.name()))
-                        ))
-                        .clicked()
-                    {
+                    let button = &ui.button(format!(
+                        "{:}",
+                        name.unwrap_or(&Name::from(selectable.name()))
+                    ));
+                    if button.clicked() {
                         selected = Some(selectable.generic_id());
+                    }
+                    if button.hovered() {
+                        hovered = Some(selectable.generic_id());
                     }
                 });
             });
@@ -348,6 +353,10 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
     });
     if let Some(id) = selected {
         selection_state.selection = Selection::Single(id);
+    }
+    if let Some(id) = hovered {
+        hover_state.hover = Some(id);
+        hover_state.button_hover = true;
     }
 }
 
@@ -554,6 +563,7 @@ fn init_hover(mut hover_state: ResMut<HoverState>) {
     hover_state.min_dist = f32::INFINITY;
     hover_state.hover_depth = f32::NEG_INFINITY;
     hover_state.candidate = None;
+    hover_state.button_hover = false;
 }
 
 pub fn finish_hover(mut hover_state: ResMut<HoverState>) {
@@ -984,8 +994,12 @@ impl Plugin for EditorPlugin {
         app.add_systems(
             Update,
             (
-                top_panel.after(inspector_system_world),
-                directory_panel.after(top_panel),
+                (
+                    inspector_system_world,
+                    directory_panel.after(finish_hover),
+                    top_panel,
+                )
+                    .chain(),
                 hub_status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),

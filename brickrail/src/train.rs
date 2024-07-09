@@ -398,11 +398,11 @@ fn update_wagons(
 ) {
     for train in q_trains.iter() {
         let mut color = Color::from(YELLOW);
-        if hover_state.hover == Some(GenericID::Train(train.id)) {
-            color = Color::from(RED);
-        }
         if Selection::Single(GenericID::Train(train.id)) == selection_state.selection {
             color = Color::from(ORANGE);
+        }
+        if hover_state.hover == Some(GenericID::Train(train.id)) {
+            color = Color::from(RED);
         }
         for wagon_id in &train.wagons {
             let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
@@ -918,7 +918,7 @@ impl Plugin for TrainPlugin {
                 delete_selection_shortcut::<Train>,
                 despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
                 draw_train,
-                update_wagons.after(finish_hover),
+                update_wagons.after(directory_panel),
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
                 draw_hover_route,
