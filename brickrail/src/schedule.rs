@@ -78,6 +78,7 @@ impl TrainSchedule {
                     ui.end_row();
                 });
                 ui.heading("Stops");
+                let mut remove_stop = None;
                 for (i, entry) in schedule.entries.iter_mut().enumerate() {
                     CollapsingHeader::new(format!(
                         "Stop {}: {}",
@@ -96,8 +97,14 @@ impl TrainSchedule {
                             ui.label("Minimum wait time [s]");
                             ui.add(egui::DragValue::new(&mut entry.min_wait));
                             ui.end_row();
+                            if ui.button("Remove stop").clicked() {
+                                remove_stop = Some(i);
+                            }
                         });
                     });
+                }
+                if let Some(i) = remove_stop {
+                    schedule.entries.remove(i);
                 }
                 if ui.button("Add stop").clicked() {
                     schedule.entries.push(ScheduleEntry::default());
