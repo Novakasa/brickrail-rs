@@ -278,7 +278,10 @@ fn update_time(time: Res<Time>, mut control_info: ResMut<ControlInfo>) {
 fn update_schedules(
     control_info: Res<ControlInfo>,
     q_schedules: Query<&TrainSchedule>,
-    mut q_assignments: Query<(Entity, &mut AssignedSchedule, &WaitTime)>,
+    mut q_assignments: Query<
+        (Entity, &mut AssignedSchedule, &WaitTime),
+        Without<QueuedDestination>,
+    >,
     entity_map: Res<EntityMap>,
     mut commands: Commands,
 ) {
