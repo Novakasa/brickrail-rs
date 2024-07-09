@@ -117,16 +117,16 @@ impl Block {
                 ui.separator();
 
                 ui.heading("Destinations");
+                ui.label("Assigned to destinations:");
                 Grid::new("dests").show(ui, |ui| {
-                    ui.label("Assigned to destinations:");
-                    ui.end_row();
                     for (mut dest, dest_name) in destinations.iter_mut() {
-                        // ui.push_id(dest.id, |ui| {
                         if let Some(filter) = dest.get_block_filter(block.id) {
                             ui.label(dest_name.to_string());
 
                             let mut mutable_filter = filter.clone();
-                            ui_for_value(&mut mutable_filter, ui, &type_registry.read());
+                            ui.push_id(dest.id, |ui| {
+                                ui_for_value(&mut mutable_filter, ui, &type_registry.read());
+                            });
                             if mutable_filter != filter {
                                 dest.change_filter(block.id, mutable_filter);
                             }
@@ -134,30 +134,27 @@ impl Block {
                             if ui.button("X").clicked() {
                                 dest.remove_block(block.id);
                             }
+                            ui.end_row();
                         }
-                        //});
-                        ui.end_row();
-                    }
-                    ui.label("Unassigned destinations:");
-                    ui.end_row();
-                    for (mut dest, dest_name) in destinations.iter_mut() {
-                        // ui.push_id(dest.id, |ui| {
-                        if !dest.contains_block(block.id) {
-                            if ui
-                                .button(format!("Add to {}", dest_name.to_string()))
-                                .clicked()
-                            {
-                                dest.add_block(
-                                    block.id,
-                                    crate::destination::BlockDirectionFilter::Any,
-                                    None,
-                                );
-                            }
-                        }
-                        //});
-                        ui.end_row();
                     }
                 });
+                ui.label("Unassigned destinations:");
+                for (mut dest, dest_name) in destinations.iter_mut() {
+                    // ui.push_id(dest.id, |ui| {
+                    if !dest.contains_block(block.id) {
+                        if ui
+                            .button(format!("Add to {}", dest_name.to_string()))
+                            .clicked()
+                        {
+                            dest.add_block(
+                                block.id,
+                                crate::destination::BlockDirectionFilter::Any,
+                                None,
+                            );
+                        }
+                    }
+                    //});
+                }
                 if ui.button("Add to new Destination").clicked() {
                     let dest_id = entity_map.new_destination_id();
                     let dest = Destination {
