@@ -1,5 +1,3 @@
-use std::thread::spawn;
-
 use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,

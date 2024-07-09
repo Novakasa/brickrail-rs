@@ -1,8 +1,8 @@
 use crate::{
     block::{Block, BlockCreateEvent},
     editor::{
-        delete_selection_shortcut, finish_hover, DespawnEvent, GenericID, HoverState, Selectable,
-        Selection, SelectionState,
+        delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
+        Selectable, Selection, SelectionState,
     },
     layout::{Connections, EntityMap},
     layout_primitives::*,
@@ -641,12 +641,12 @@ impl Plugin for TrackPlugin {
         app.add_systems(
             Update,
             (
-                init_draw_track,
-                exit_draw_track,
-                update_draw_track,
+                init_draw_track.run_if(in_state(EditorState::Edit)),
+                exit_draw_track.run_if(in_state(EditorState::Edit)),
+                update_draw_track.run_if(in_state(EditorState::Edit)),
                 update_track_color.after(finish_hover),
-                draw_build_cells,
-                delete_selection_shortcut::<Track>,
+                draw_build_cells.run_if(in_state(EditorState::Edit)),
+                delete_selection_shortcut::<Track>.run_if(in_state(EditorState::Edit)),
                 despawn_track,
             ),
         );
