@@ -104,7 +104,7 @@ impl TrainSchedule {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            Query<(&Name, &AssignedSchedule)>,
+            Query<(&Name, &AssignedSchedule, Option<&WaitTime>)>,
             Res<ControlInfo>,
         )>::new(world);
         let (
@@ -162,7 +162,7 @@ impl TrainSchedule {
                 }
                 ui.separator();
                 ui.heading("Assigned trains");
-                for (name, assigned) in q_assigned.iter() {
+                for (name, assigned, wait_option) in q_assigned.iter() {
                     if assigned.schedule_id != Some(schedule.id) {
                         continue;
                     }
@@ -172,6 +172,9 @@ impl TrainSchedule {
                         "Cycle time: {:1.0}",
                         assigned.cycle_time(control_info.time, &schedule)
                     ));
+                    if let Some(wait_time) = wait_option {
+                        ui.label(format!("Wait time: {:1.0}", wait_time.time));
+                    }
                 }
             }
         }
