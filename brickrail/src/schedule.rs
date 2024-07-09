@@ -1,4 +1,7 @@
-use bevy::{ecs::system::SystemState, prelude::*};
+use bevy::{
+    ecs::system::{SystemParam, SystemState},
+    prelude::*,
+};
 use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -114,12 +117,6 @@ impl TrainSchedule {
     }
 }
 
-#[derive(Debug, Event, Serialize, Deserialize)]
-pub struct SpawnScheduleEvent {
-    pub schedule: TrainSchedule,
-    pub name: Option<String>,
-}
-
 impl Selectable for TrainSchedule {
     type SpawnEvent = SpawnScheduleEvent;
     type ID = ScheduleID;
@@ -139,6 +136,28 @@ impl Selectable for TrainSchedule {
             schedule: TrainSchedule::new(entity_map.new_schedule_id()),
             name: None,
         })
+    }
+}
+
+#[derive(Debug, Event, Serialize, Deserialize, Clone)]
+pub struct SpawnScheduleEvent {
+    pub schedule: TrainSchedule,
+    pub name: Option<String>,
+}
+
+#[derive(SystemParam)]
+pub struct SpawnScheduleEventQuery<'w, 's> {
+    query: Query<'w, 's, (&'static TrainSchedule, &'static Name)>,
+}
+impl SpawnScheduleEventQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnScheduleEvent> {
+        self.query
+            .iter()
+            .map(|(schedule, name)| SpawnScheduleEvent {
+                schedule: schedule.clone(),
+                name: Some(name.to_string()),
+            })
+            .collect()
     }
 }
 

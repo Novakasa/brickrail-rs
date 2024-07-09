@@ -10,7 +10,7 @@ use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
-use crate::schedule::TrainSchedule;
+use crate::schedule::{SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
@@ -734,6 +734,8 @@ struct SerializableLayout {
     switch_motors: Vec<SpawnSwitchMotorEvent>,
     #[serde(default)]
     destinations: Vec<SpawnDestinationEvent>,
+    #[serde(default)]
+    schedules: Vec<SpawnScheduleEvent>,
 }
 
 pub fn save_layout(
@@ -746,20 +748,17 @@ pub fn save_layout(
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
     q_destinations: SpawnDestinationEventQuery,
+    q_schedules: SpawnScheduleEventQuery,
     connections: Res<Connections>,
     mut save_events: EventReader<SaveLayoutEvent>,
 ) {
     for event in save_events.read() {
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
-        let blocks = q_blocks.get();
-        let markers = q_markers.iter().map(|m| m.clone()).collect();
         let tracks = q_tracks
             .iter()
             .map(|t| SpawnTrackEvent(t.clone()))
             .collect();
-        let trains = q_trains.get();
-        let switches = q_switches.get();
         let hubs = q_hubs
             .iter()
             .map(|hub| SpawnHubEvent { hub: hub.clone() })
@@ -779,18 +778,18 @@ pub fn save_layout(
                 update_switches: false,
             })
             .collect();
-        let destinations = q_destinations.get();
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
-            blocks,
-            markers,
+            blocks: q_blocks.get(),
+            markers: q_markers.iter().map(|m| m.clone()).collect(),
             tracks,
             connections,
-            trains,
+            trains: q_trains.get(),
             hubs,
-            switches,
+            switches: q_switches.get(),
             switch_motors,
-            destinations,
+            destinations: q_destinations.get(),
+            schedules: q_schedules.get(),
         };
         let json = serde_json::to_string_pretty(&layout_val).unwrap();
         file.write(json.as_bytes()).unwrap();
@@ -876,6 +875,11 @@ pub fn load_layout(
             for destination in layout_value.destinations {
                 commands.add(|world: &mut World| {
                     world.send_event(destination);
+                });
+            }
+            for schedule in layout_value.schedules {
+                commands.add(|world: &mut World| {
+                    world.send_event(schedule);
                 });
             }
             commands.insert_resource(marker_map);
