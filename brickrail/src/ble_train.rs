@@ -262,7 +262,6 @@ impl BLETrain {
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut ble_train) = ble_trains.get_mut(entity) {
                 ui.heading("Master Hub");
-                ui.separator();
                 ble_train.master_hub.inspector_ui(
                     ui,
                     &hubs,

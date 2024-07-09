@@ -239,11 +239,11 @@ impl EntityMap {
     }
 
     pub fn new_destination_id(&self) -> DestinationID {
-        let mut id = 1;
-        while self.destinations.contains_key(&DestinationID::new(id)) {
+        let mut id = 0;
+        while self.destinations.contains_key(&DestinationID::Specific(id)) {
             id += 1;
         }
-        return DestinationID::new(id);
+        return DestinationID::Specific(id);
     }
 
     pub fn new_schedule_id(&self) -> ScheduleID {

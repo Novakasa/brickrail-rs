@@ -1,14 +1,15 @@
 use bevy::{
     ecs::system::{SystemParam, SystemState},
     prelude::*,
+    transform::commands,
 };
 use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     block::Block,
-    destination::{BlockDirectionFilter, Destination},
-    editor::{ControlStateMode, GenericID, Selectable, SelectionState},
+    destination::Destination,
+    editor::{ControlState, ControlStateMode, GenericID, Selectable, SelectionState},
     layout::EntityMap,
     layout_primitives::{DestinationID, ScheduleID},
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
@@ -18,6 +19,32 @@ use crate::{
 pub struct AssignedSchedule {
     pub schedule_id: Option<ScheduleID>,
     pub offset: f32,
+    #[serde(skip)]
+    pub current_stop_index: usize,
+}
+
+impl AssignedSchedule {
+    pub fn advance_stops(
+        &mut self,
+        schedule: &TrainSchedule,
+        time: f32,
+        wait_time: f32,
+    ) -> Option<QueuedDestination> {
+        let cycle_time = (time + schedule.cycle_offset + self.offset) % schedule.cycle_length;
+        let current_stop = schedule.entries[self.current_stop_index].clone();
+        if cycle_time >= current_stop.depart_time && wait_time >= current_stop.min_wait {
+            self.current_stop_index += 1;
+            if self.current_stop_index >= schedule.entries.len() {
+                self.current_stop_index = 0;
+            }
+            return Some(QueuedDestination {
+                dest: current_stop.dest.unwrap(),
+                strategy: TargetChoiceStrategy::Closest,
+                allow_locked: false,
+            });
+        }
+        None
+    }
 }
 
 #[derive(Debug, Component, Clone, Serialize, Deserialize)]
@@ -184,16 +211,9 @@ fn assign_random_routes(
 ) {
     for (entity, wait_time) in q_wait_time.iter() {
         if wait_time.time > control_info.wait_time {
-            let dest = Destination {
-                id: DestinationID::new(0),
-                blocks: q_blocks
-                    .iter()
-                    .map(|block| (block.id, BlockDirectionFilter::Any, None))
-                    .collect(),
-            };
             println!("Assigning random route to {:?}", entity);
             commands.entity(entity).insert(QueuedDestination {
-                dest,
+                dest: DestinationID::Random,
                 strategy: TargetChoiceStrategy::Random,
                 allow_locked: false,
             });
@@ -215,6 +235,35 @@ fn spawn_schedule(
     }
 }
 
+fn update_time(time: Res<Time>, mut control_info: ResMut<ControlInfo>) {
+    control_info.time += time.delta_seconds();
+}
+
+fn update_schedules(
+    control_info: Res<ControlInfo>,
+    q_schedules: Query<&TrainSchedule>,
+    mut q_assignments: Query<(Entity, &mut AssignedSchedule, &WaitTime)>,
+    entity_map: Res<EntityMap>,
+    mut commands: Commands,
+) {
+    for (entity, mut assigned_schedule, wait_time) in q_assignments.iter_mut() {
+        if let Some(schedule_id) = assigned_schedule.schedule_id {
+            let schedule = q_schedules
+                .get(
+                    entity_map
+                        .get_entity(&GenericID::Schedule(schedule_id))
+                        .unwrap(),
+                )
+                .unwrap();
+            if let Some(queued_dest) =
+                assigned_schedule.advance_stops(schedule, control_info.time, wait_time.time)
+            {
+                commands.entity(entity).insert(queued_dest);
+            }
+        }
+    }
+}
+
 pub struct SchedulePlugin;
 
 impl Plugin for SchedulePlugin {
@@ -224,7 +273,9 @@ impl Plugin for SchedulePlugin {
         app.add_systems(
             Update,
             (
+                update_time.run_if(in_state(ControlState)),
                 assign_random_routes.run_if(in_state(ControlStateMode::Random)),
+                update_schedules.run_if(in_state(ControlStateMode::Schedule)),
                 spawn_schedule.run_if(on_event::<SpawnScheduleEvent>()),
             ),
         );

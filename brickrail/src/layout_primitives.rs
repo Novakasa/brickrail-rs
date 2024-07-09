@@ -27,19 +27,17 @@ impl fmt::Display for ScheduleID {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
-pub struct DestinationID {
-    pub id: usize,
-}
-
-impl DestinationID {
-    pub fn new(id: usize) -> Self {
-        Self { id }
-    }
+pub enum DestinationID {
+    Random,
+    Specific(usize),
 }
 
 impl fmt::Display for DestinationID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Destination{}", self.id)
+        match self {
+            DestinationID::Random => write!(f, "DestinationRandom"),
+            DestinationID::Specific(id) => write!(f, "Destination{}", id),
+        }
     }
 }
 

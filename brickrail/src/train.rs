@@ -2,7 +2,7 @@ use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
     block::{spawn_block, Block},
-    destination::Destination,
+    destination::{BlockDirectionFilter, Destination},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
@@ -506,6 +506,7 @@ fn exit_drag_train(
 
 fn process_destination_queue(
     q_blocks: Query<&Block>,
+    q_destinations: Query<&Destination>,
     entity_map: Res<EntityMap>,
     connections: Res<Connections>,
     track_locks: Res<TrackLocks>,
@@ -520,7 +521,23 @@ fn process_destination_queue(
         let start = train.get_logical_block_id();
         let train_entity = entity_map.get_entity(&GenericID::Train(train_id)).unwrap();
         let mut routes = vec![];
-        for (block_id, dir, _) in queue.dest.blocks.iter() {
+        let destination = match queue.dest {
+            DestinationID::Specific(_) => q_destinations
+                .get(
+                    entity_map
+                        .get_entity(&GenericID::Destination(queue.dest))
+                        .unwrap(),
+                )
+                .unwrap(),
+            DestinationID::Random => &Destination {
+                id: DestinationID::Random,
+                blocks: q_blocks
+                    .iter()
+                    .map(|block| (block.id, BlockDirectionFilter::Any, None))
+                    .collect(),
+            },
+        };
+        for (block_id, dir, _) in destination.blocks.iter() {
             for direction in dir.iter_directions() {
                 let target = block_id.to_logical(*direction, Facing::Forward);
                 if target == start {
@@ -660,7 +677,7 @@ pub enum TargetChoiceStrategy {
 
 #[derive(Debug, Component)]
 pub struct QueuedDestination {
-    pub dest: Destination,
+    pub dest: DestinationID,
     pub strategy: TargetChoiceStrategy,
     pub allow_locked: bool,
 }

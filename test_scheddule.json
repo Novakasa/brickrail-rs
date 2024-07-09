@@ -1,0 +1,396 @@
+{
+  "marker_map": {
+    "in_markers": {
+      "\"L(-2,4,0|EW<|←)\"": "LB[(-2,4,0|EW)<(-4,4,0|EW)]",
+      "\"L(-4,5,0|EW>|←)\"": "LB[(-2,5,0|EW)>(-4,5,0|EW)]",
+      "\"L(-4,4,0|WE<|→)\"": "LB[(-4,4,0|WE)<(-2,4,0|WE)]",
+      "\"L(-2,1,0|EW<|←)\"": "LB[(-2,1,0|EW)<(-4,1,0|EW)]",
+      "\"L(-2,5,0|EW<|←)\"": "LB[(-2,5,0|EW)<(-4,5,0|EW)]",
+      "\"L(-2,4,0|WE>|→)\"": "LB[(-4,4,0|WE)>(-2,4,0|WE)]",
+      "\"L(-4,1,0|WE<|→)\"": "LB[(-4,1,0|WE)<(-2,1,0|WE)]",
+      "\"L(-2,5,0|WE>|→)\"": "LB[(-4,5,0|WE)>(-2,5,0|WE)]",
+      "\"L(-4,4,0|EW>|←)\"": "LB[(-2,4,0|EW)>(-4,4,0|EW)]",
+      "\"L(-4,5,0|WE<|→)\"": "LB[(-4,5,0|WE)<(-2,5,0|WE)]",
+      "\"L(-2,1,0|WE>|→)\"": "LB[(-4,1,0|WE)>(-2,1,0|WE)]",
+      "\"L(-4,1,0|EW>|←)\"": "LB[(-2,1,0|EW)>(-4,1,0|EW)]"
+    },
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(-4,5,0|EW|↔)",
+    "T(-3,5,0|EW|↔)",
+    "T(-2,5,0|EW|↔)",
+    "T(-1,5,0|EW|↔)",
+    "T(0,5,0|EW|↔)",
+    "T(1,5,0|EW|↔)",
+    "T(2,5,0|SW|⤡)",
+    "T(2,4,0|NS|↕)",
+    "T(2,3,0|NS|↕)",
+    "T(2,2,0|NS|↕)",
+    "T(2,1,0|NW|⤢)",
+    "T(1,1,0|EW|↔)",
+    "T(0,1,0|EW|↔)",
+    "T(-1,1,0|EW|↔)",
+    "T(-2,1,0|EW|↔)",
+    "T(-3,1,0|EW|↔)",
+    "T(-4,1,0|EW|↔)",
+    "T(-5,1,0|EW|↔)",
+    "T(-6,1,0|NE|⤡)",
+    "T(-6,2,0|NS|↕)",
+    "T(-6,3,0|NS|↕)",
+    "T(-6,4,0|NS|↕)",
+    "T(-6,5,0|SE|⤢)",
+    "T(-5,5,0|EW|↔)",
+    "T(-6,4,0|SE|⤢)",
+    "T(-5,4,0|EW|↔)",
+    "T(-4,4,0|EW|↔)",
+    "T(-3,4,0|EW|↔)",
+    "T(-2,4,0|EW|↔)",
+    "T(-1,4,0|EW|↔)",
+    "T(0,4,0|EW|↔)",
+    "T(1,4,0|EW|↔)",
+    "T(2,4,0|SW|⤡)"
+  ],
+  "connections": [
+    "C(-4,5,0|WE><-3,5,0|EW)",
+    "C(-3,5,0|WE><-2,5,0|EW)",
+    "C(-2,5,0|WE><-1,5,0|EW)",
+    "C(-1,5,0|WE><0,5,0|EW)",
+    "C(0,5,0|WE><1,5,0|EW)",
+    "C(1,5,0|WE><2,5,0|SW)",
+    "C(2,5,0|WS><2,4,0|SN)",
+    "C(2,4,0|NS><2,3,0|SN)",
+    "C(2,3,0|NS><2,2,0|SN)",
+    "C(2,2,0|NS><2,1,0|WN)",
+    "C(2,1,0|NW><1,1,0|WE)",
+    "C(1,1,0|EW><0,1,0|WE)",
+    "C(0,1,0|EW><-1,1,0|WE)",
+    "C(-1,1,0|EW><-2,1,0|WE)",
+    "C(-2,1,0|EW><-3,1,0|WE)",
+    "C(-3,1,0|EW><-4,1,0|WE)",
+    "C(-4,1,0|EW><-5,1,0|WE)",
+    "C(-5,1,0|EW><-6,1,0|NE)",
+    "C(-6,1,0|EN><-6,2,0|NS)",
+    "C(-6,2,0|SN><-6,3,0|NS)",
+    "C(-6,3,0|SN><-6,4,0|NS)",
+    "C(-6,4,0|SN><-6,5,0|ES)",
+    "C(-6,5,0|SE><-5,5,0|EW)",
+    "C(-5,5,0|WE><-4,5,0|EW)",
+    "C(-6,3,0|SN><-6,4,0|ES)",
+    "C(-6,4,0|SE><-5,4,0|EW)",
+    "C(-5,4,0|WE><-4,4,0|EW)",
+    "C(-4,4,0|WE><-3,4,0|EW)",
+    "C(-3,4,0|WE><-2,4,0|EW)",
+    "C(-2,4,0|WE><-1,4,0|EW)",
+    "C(-1,4,0|WE><0,4,0|EW)",
+    "C(0,4,0|WE><1,4,0|EW)",
+    "C(1,4,0|WE><2,4,0|SW)",
+    "C(2,4,0|WS><2,3,0|SN)"
+  ],
+  "blocks": [
+    {
+      "block": {
+        "id": "B[(-4,5,0|WE)-(-2,5,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,5,0|WE|→)",
+            "D(-3,5,0|WE|→)",
+            "D(-2,5,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-4,5,0|WE)-(-2,5,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-4,1,0|WE)-(-2,1,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,1,0|WE|→)",
+            "D(-3,1,0|WE|→)",
+            "D(-2,1,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-4,1,0|WE)-(-2,1,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-4,4,0|WE)-(-2,4,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,4,0|WE|→)",
+            "D(-3,4,0|WE|→)",
+            "D(-2,4,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-4,4,0|WE)-(-2,4,0|EW)]"
+    }
+  ],
+  "markers": [
+    {
+      "track": "T(-2,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-2,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-2,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    }
+  ],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(-4,5,0|WE)>(-2,5,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train0",
+      "schedule": {
+        "schedule_id": {
+          "id": 0
+        },
+        "offset": 0.0
+      }
+    }
+  ],
+  "hubs": [],
+  "switches": [
+    {
+      "switch": {
+        "id": "D(-6,3,0|SN|↑)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-6,3,0|SN|↑)"
+    },
+    {
+      "switch": {
+        "id": "D(2,3,0|SN|↑)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(2,3,0|SN|↑)"
+    }
+  ],
+  "switch_motors": [],
+  "destinations": [
+    {
+      "dest": {
+        "id": {
+          "Specific": 0
+        },
+        "blocks": [
+          [
+            "B[(-4,5,0|WE)-(-2,5,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination0"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 1
+        },
+        "blocks": [
+          [
+            "B[(-4,4,0|WE)-(-2,4,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination1"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 2
+        },
+        "blocks": [
+          [
+            "B[(-4,1,0|WE)-(-2,1,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination2"
+    }
+  ],
+  "schedules": [
+    {
+      "schedule": {
+        "id": {
+          "id": 0
+        },
+        "entries": [
+          {
+            "dest": {
+              "Specific": 0
+            },
+            "depart_time": 6.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 2
+            },
+            "depart_time": 15.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 1
+            },
+            "depart_time": 23.0,
+            "min_wait": 4.0
+          }
+        ],
+        "cycle_length": 30.0,
+        "cycle_offset": 0.0
+      },
+      "name": "Schedule0"
+    }
+  ]
+}
