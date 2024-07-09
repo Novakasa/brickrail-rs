@@ -1,5 +1,5 @@
 use bevy::{ecs::system::SystemState, prelude::*};
-use bevy_inspector_egui::egui::{self, Grid, Ui};
+use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -22,6 +22,16 @@ pub struct ScheduleEntry {
     pub dest: Option<DestinationID>,
     pub depart_time: f32,
     pub min_wait: f32,
+}
+
+impl Default for ScheduleEntry {
+    fn default() -> Self {
+        Self {
+            dest: None,
+            depart_time: 0.0,
+            min_wait: 4.0,
+        }
+    }
 }
 
 #[derive(Debug, Component, Clone, Serialize, Deserialize)]
@@ -69,33 +79,28 @@ impl TrainSchedule {
                 });
                 ui.heading("Stops");
                 for (i, entry) in schedule.entries.iter_mut().enumerate() {
-                    ui.collapsing(
-                        format!(
-                            "Stop {}: {}",
-                            i + 1,
-                            Destination::label_from_query(&entry.dest, &destinations)
-                        ),
-                        |ui| {
-                            Grid::new("settings").show(ui, |ui| {
-                                ui.label("Destination");
-                                Destination::selector(&destinations, ui, &mut entry.dest);
-                                ui.end_row();
-                                ui.label("Departure time [s]");
-                                ui.add(egui::DragValue::new(&mut entry.depart_time));
-                                ui.end_row();
-                                ui.label("Minimum wait time [s]");
-                                ui.add(egui::DragValue::new(&mut entry.min_wait));
-                                ui.end_row();
-                            });
-                        },
-                    );
+                    CollapsingHeader::new(format!(
+                        "Stop {}: {}",
+                        i + 1,
+                        Destination::label_from_query(&entry.dest, &destinations)
+                    ))
+                    .id_source(i)
+                    .show(ui, |ui| {
+                        Grid::new("settings").show(ui, |ui| {
+                            ui.label("Destination");
+                            Destination::selector(&destinations, ui, &mut entry.dest);
+                            ui.end_row();
+                            ui.label("Departure time [s]");
+                            ui.add(egui::DragValue::new(&mut entry.depart_time));
+                            ui.end_row();
+                            ui.label("Minimum wait time [s]");
+                            ui.add(egui::DragValue::new(&mut entry.min_wait));
+                            ui.end_row();
+                        });
+                    });
                 }
                 if ui.button("Add stop").clicked() {
-                    schedule.entries.push(ScheduleEntry {
-                        dest: None,
-                        depart_time: 0.0,
-                        min_wait: 0.0,
-                    });
+                    schedule.entries.push(ScheduleEntry::default());
                 }
             }
         }
