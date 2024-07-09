@@ -35,7 +35,7 @@ pub enum DestinationID {
 impl fmt::Display for DestinationID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DestinationID::Random => write!(f, "DestinationRandom"),
+            DestinationID::Random => write!(f, "Random destination"),
             DestinationID::Specific(id) => write!(f, "Destination{}", id),
         }
     }

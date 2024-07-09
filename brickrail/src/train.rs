@@ -8,7 +8,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, LegState, Route, TrainState},
-    schedule::{AssignedSchedule, TrainSchedule},
+    schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -301,9 +301,17 @@ impl Train {
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             Commands,
+            Res<ControlInfo>,
         )>::new(world);
-        let (mut trains, schedules, mut entity_map, selection_state, type_registry, mut commands) =
-            state.get_mut(world);
+        let (
+            mut trains,
+            schedules,
+            mut entity_map,
+            selection_state,
+            type_registry,
+            mut commands,
+            control_info,
+        ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok((mut train, schedule_option)) = trains.get_mut(entity) {
                 if ui_for_value(&mut train.settings, ui, &type_registry.read()) {
@@ -313,6 +321,18 @@ impl Train {
                 ui.heading("Schedule");
                 if let Some(mut schedule) = schedule_option {
                     TrainSchedule::selector_option(&schedules, ui, &mut schedule.schedule_id);
+                    let actual_schedule = schedules
+                        .get(
+                            entity_map
+                                .get_entity(&GenericID::Schedule(schedule.schedule_id.unwrap()))
+                                .unwrap(),
+                        )
+                        .unwrap()
+                        .0;
+                    ui.label(format!(
+                        "Cycle time {:1.0}",
+                        schedule.cycle_time(control_info.time, &actual_schedule)
+                    ));
                 } else {
                     commands.entity(entity).insert(AssignedSchedule::default());
                 }

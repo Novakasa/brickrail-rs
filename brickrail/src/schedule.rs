@@ -1,13 +1,11 @@
 use bevy::{
     ecs::system::{SystemParam, SystemState},
     prelude::*,
-    transform::commands,
 };
 use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    block::Block,
     destination::Destination,
     editor::{ControlState, ControlStateMode, GenericID, Selectable, SelectionState},
     layout::EntityMap,
@@ -30,13 +28,22 @@ impl AssignedSchedule {
         time: f32,
         wait_time: f32,
     ) -> Option<QueuedDestination> {
-        let cycle_time = (time + schedule.cycle_offset + self.offset) % schedule.cycle_length;
+        let cycle_time = self.cycle_time(time, schedule);
         let current_stop = schedule.entries[self.current_stop_index].clone();
-        if cycle_time >= current_stop.depart_time && wait_time >= current_stop.min_wait {
+        let prev_stop = schedule.entries
+            [(self.current_stop_index + schedule.entries.len() - 1) % schedule.entries.len()]
+        .clone();
+        let mut advance =
+            cycle_time >= current_stop.depart_time && wait_time >= current_stop.min_wait;
+        if current_stop.depart_time < prev_stop.depart_time {
+            advance = advance && cycle_time < prev_stop.depart_time;
+        }
+        if advance {
             self.current_stop_index += 1;
             if self.current_stop_index >= schedule.entries.len() {
                 self.current_stop_index = 0;
             }
+            let current_stop = schedule.entries[self.current_stop_index].clone();
             return Some(QueuedDestination {
                 dest: current_stop.dest.unwrap(),
                 strategy: TargetChoiceStrategy::Closest,
@@ -44,6 +51,11 @@ impl AssignedSchedule {
             });
         }
         None
+    }
+
+    pub fn cycle_time(&self, time: f32, schedule: &TrainSchedule) -> f32 {
+        let cycle_time = (time + schedule.cycle_offset + self.offset) % schedule.cycle_length;
+        cycle_time
     }
 }
 
@@ -92,9 +104,18 @@ impl TrainSchedule {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
+            Query<(&Name, &AssignedSchedule)>,
+            Res<ControlInfo>,
         )>::new(world);
-        let (mut schedules, destinations, entity_map, selection_state, _type_registry) =
-            state.get_mut(world);
+        let (
+            mut schedules,
+            destinations,
+            entity_map,
+            selection_state,
+            _type_registry,
+            q_assigned,
+            control_info,
+        ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut schedule) = schedules.get_mut(entity) {
                 ui.heading("Schedule");
@@ -138,6 +159,19 @@ impl TrainSchedule {
                 }
                 if ui.button("Add stop").clicked() {
                     schedule.entries.push(ScheduleEntry::default());
+                }
+                ui.separator();
+                ui.heading("Assigned trains");
+                for (name, assigned) in q_assigned.iter() {
+                    if assigned.schedule_id != Some(schedule.id) {
+                        continue;
+                    }
+                    ui.label(name.to_string());
+                    ui.label(format!("Current stop: {}", assigned.current_stop_index + 1));
+                    ui.label(format!(
+                        "Cycle time: {:1.0}",
+                        assigned.cycle_time(control_info.time, &schedule)
+                    ));
                 }
             }
         }
@@ -189,9 +223,9 @@ impl SpawnScheduleEventQuery<'_, '_> {
 }
 
 #[derive(Resource)]
-struct ControlInfo {
-    time: f32,
-    wait_time: f32,
+pub struct ControlInfo {
+    pub time: f32,
+    pub wait_time: f32,
 }
 
 impl Default for ControlInfo {
@@ -205,7 +239,6 @@ impl Default for ControlInfo {
 
 fn assign_random_routes(
     q_wait_time: Query<(Entity, &WaitTime), Without<QueuedDestination>>,
-    q_blocks: Query<&Block>,
     mut commands: Commands,
     control_info: Res<ControlInfo>,
 ) {

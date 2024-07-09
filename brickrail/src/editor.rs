@@ -10,7 +10,7 @@ use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
-use crate::schedule::{SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
+use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
@@ -387,7 +387,7 @@ pub fn top_panel(
     control_mode: Option<Res<State<ControlStateMode>>>,
     mut next_mode: ResMut<NextState<ControlStateMode>>,
     mut editor_info: ResMut<EditorInfo>,
-
+    control_info: Res<ControlInfo>,
     mut save_events: EventWriter<SaveLayoutEvent>,
 ) {
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
@@ -474,6 +474,7 @@ pub fn top_panel(
                             if editable_mode != mode {
                                 next_mode.set(editable_mode);
                             }
+                            ui.heading(format!("Time: {:1.1}", control_info.time))
                         });
                     });
                 });
