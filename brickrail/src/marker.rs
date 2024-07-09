@@ -193,9 +193,14 @@ impl Marker {
 
 impl Selectable for Marker {
     type SpawnEvent = MarkerSpawnEvent;
+    type ID = TrackID;
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Marker(self.track)
+    }
+
+    fn id(&self) -> Self::ID {
+        self.track
     }
 
     fn get_depth(&self) -> f32 {

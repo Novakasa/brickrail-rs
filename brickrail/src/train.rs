@@ -50,9 +50,14 @@ pub struct TrainWagon {
 
 impl Selectable for TrainWagon {
     type SpawnEvent = SpawnTrainEvent;
+    type ID = WagonID;
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Train(self.id.train)
+    }
+
+    fn id(&self) -> WagonID {
+        self.id
     }
 
     fn get_depth(&self) -> f32 {
@@ -333,8 +338,13 @@ impl Train {
 
 impl Selectable for Train {
     type SpawnEvent = SpawnTrainEvent;
+    type ID = TrainID;
 
-    fn get_id(&self) -> GenericID {
+    fn id(&self) -> Self::ID {
+        self.id
+    }
+
+    fn generic_id(&self) -> GenericID {
         GenericID::Train(self.id)
     }
 

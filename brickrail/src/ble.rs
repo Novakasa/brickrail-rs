@@ -142,8 +142,9 @@ impl BLEHub {
 
 impl Selectable for BLEHub {
     type SpawnEvent = SpawnHubEvent;
+    type ID = HubID;
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Hub(self.id)
     }
 
@@ -151,6 +152,9 @@ impl Selectable for BLEHub {
         Some(SpawnHubEvent {
             hub: BLEHub::new(entity_map.new_hub_id(HubType::Layout)),
         })
+    }
+    fn id(&self) -> Self::ID {
+        self.id.clone()
     }
 }
 

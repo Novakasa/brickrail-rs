@@ -89,7 +89,9 @@ impl Destination {
 
 impl Selectable for Destination {
     type SpawnEvent = SpawnDestinationEvent;
-    fn get_id(&self) -> GenericID {
+    type ID = DestinationID;
+
+    fn generic_id(&self) -> GenericID {
         GenericID::Destination(self.id)
     }
 
@@ -98,6 +100,10 @@ impl Selectable for Destination {
             dest: Destination::new(entity_map.new_destination_id()),
             name: None,
         })
+    }
+
+    fn id(&self) -> Self::ID {
+        self.id
     }
 }
 

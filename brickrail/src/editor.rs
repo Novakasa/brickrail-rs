@@ -155,8 +155,11 @@ pub enum Selection {
 
 pub trait Selectable {
     type SpawnEvent: Event;
+    type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug;
 
-    fn get_id(&self) -> GenericID;
+    fn generic_id(&self) -> GenericID;
+
+    fn id(&self) -> Self::ID;
 
     fn get_depth(&self) -> f32 {
         -100.0
@@ -172,35 +175,55 @@ pub trait Selectable {
     }
 
     fn name(&self) -> String {
-        format!("{:}", self.get_id())
+        format!("{:}", self.generic_id())
     }
 
     fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
         None
     }
 
-    fn selector(query: &Query<(&Self, Option<&Name>)>, ui: &mut egui::Ui)
-    where
-        Self: bevy::prelude::Component + Sized,
+    fn selector(
+        query: &Query<(&Self, Option<&Name>)>,
+        ui: &mut egui::Ui,
+        value: &mut Option<Self::ID>,
+    ) where
+        Self: Component + Sized,
     {
-        ComboBox::from_label("selecting")
-            .selected_text("")
-            .show_ui(ui, |ui| {});
-        for (selectable, name) in query.iter() {
-            ui.push_id(selectable.get_id(), |ui| {
-                ui.add_enabled_ui(true, |ui| {
-                    if ui
-                        .button(format!(
-                            "{:}",
-                            name.unwrap_or(&Name::from(selectable.name()))
-                        ))
-                        .clicked()
-                    {
-                        // selected = Some(selectable.get_id());
-                    }
-                });
+        let selected_text = Self::label_from_query(value, query);
+        ComboBox::from_id_source("selector")
+            .selected_text(selected_text)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(value, None, "None".to_string());
+                for (selectable, name) in query.iter() {
+                    ui.selectable_value(
+                        value,
+                        Some(selectable.id()),
+                        name.map_or(selectable.generic_id().to_string(), |v| v.to_string()),
+                    );
+                }
             });
-        }
+    }
+
+    fn label_from_query(
+        value: &Option<<Self as Selectable>::ID>,
+        query: &Query<(&Self, Option<&Name>)>,
+    ) -> String
+    where
+        Self: Component + Sized,
+    {
+        let selected_text = value.map_or("None".to_string(), |v| {
+            query
+                .iter()
+                .find_map(|(selectable, name)| {
+                    if selectable.id() == v {
+                        Some(name.map_or(selectable.generic_id().to_string(), |v| v.to_string()))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or("Not found!!".to_string())
+        });
+        selected_text
     }
 }
 
@@ -301,8 +324,8 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
     };
     ui.collapsing(heading, |ui| {
         for (selectable, name) in query.iter() {
-            ui.push_id(selectable.get_id(), |ui| {
-                ui.add_enabled_ui(Some(selectable.get_id()) != selection, |ui| {
+            ui.push_id(selectable.generic_id(), |ui| {
+                ui.add_enabled_ui(Some(selectable.generic_id()) != selection, |ui| {
                     if ui
                         .button(format!(
                             "{:}",
@@ -310,7 +333,7 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
                         ))
                         .clicked()
                     {
-                        selected = Some(selectable.get_id());
+                        selected = Some(selectable.generic_id());
                     }
                 });
             });
@@ -547,7 +570,7 @@ pub fn update_hover<T: Selectable + Component>(
 ) {
     for (selectable, transform, stroke) in q_selectable.iter() {
         {
-            if !hover_state.filter.matches(&selectable.get_id()) {
+            if !hover_state.filter.matches(&selectable.generic_id()) {
                 continue;
             }
             if selectable.get_depth() < hover_state.hover_depth {
@@ -562,7 +585,7 @@ pub fn update_hover<T: Selectable + Component>(
                 continue;
             }
             if dist < hover_state.min_dist || selectable.get_depth() > hover_state.hover_depth {
-                hover_state.candidate = Some(selectable.get_id());
+                hover_state.candidate = Some(selectable.generic_id());
                 hover_state.min_dist = dist;
                 hover_state.hover_depth = selectable.get_depth();
             }

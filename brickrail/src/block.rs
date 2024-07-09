@@ -164,12 +164,13 @@ impl Block {
 
 impl Selectable for Block {
     type SpawnEvent = BlockSpawnEvent;
+    type ID = BlockID;
 
     fn get_depth(&self) -> f32 {
         0.0
     }
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Block(self.id)
     }
 
@@ -181,6 +182,10 @@ impl Selectable for Block {
     ) -> f32 {
         let block_dist = self.distance_to(pos) - BLOCK_WIDTH / LAYOUT_SCALE;
         block_dist
+    }
+
+    fn id(&self) -> Self::ID {
+        self.id
     }
 }
 

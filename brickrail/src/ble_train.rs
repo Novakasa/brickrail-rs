@@ -333,8 +333,13 @@ impl BLETrain {
 
 impl Selectable for BLETrain {
     type SpawnEvent = SpawnTrainEvent;
-    fn get_id(&self) -> GenericID {
+    type ID = TrainID;
+
+    fn generic_id(&self) -> GenericID {
         GenericID::Train(self.train_id)
+    }
+    fn id(&self) -> Self::ID {
+        self.train_id
     }
 }
 

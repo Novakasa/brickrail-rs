@@ -413,13 +413,18 @@ impl Track {
 
 impl Selectable for Track {
     type SpawnEvent = SpawnTrackEvent;
+    type ID = TrackID;
 
     fn get_depth(&self) -> f32 {
         1.0
     }
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Track(self.id)
+    }
+
+    fn id(&self) -> Self::ID {
+        self.id
     }
 
     fn get_distance(

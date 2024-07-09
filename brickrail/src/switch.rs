@@ -151,9 +151,14 @@ impl Switch {
 
 impl Selectable for Switch {
     type SpawnEvent = SpawnSwitchEvent;
+    type ID = DirectedTrackID;
 
-    fn get_id(&self) -> GenericID {
+    fn generic_id(&self) -> GenericID {
         GenericID::Switch(self.id)
+    }
+
+    fn id(&self) -> Self::ID {
+        self.id
     }
 
     fn get_depth(&self) -> f32 {
