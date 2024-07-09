@@ -182,7 +182,7 @@ pub trait Selectable {
         None
     }
 
-    fn selector(
+    fn selector_option(
         query: &Query<(&Self, Option<&Name>)>,
         ui: &mut egui::Ui,
         value: &mut Option<Self::ID>,
@@ -198,6 +198,24 @@ pub trait Selectable {
                     ui.selectable_value(
                         value,
                         Some(selectable.id()),
+                        name.map_or(selectable.generic_id().to_string(), |v| v.to_string()),
+                    );
+                }
+            });
+    }
+
+    fn selector(query: &Query<(&Self, Option<&Name>)>, ui: &mut egui::Ui, value: &mut Self::ID)
+    where
+        Self: Component + Sized,
+    {
+        let selected_text = Self::label_from_query(&Some(value.clone()), query);
+        ComboBox::from_id_source("selector")
+            .selected_text(selected_text)
+            .show_ui(ui, |ui| {
+                for (selectable, name) in query.iter() {
+                    ui.selectable_value(
+                        value,
+                        selectable.id(),
                         name.map_or(selectable.generic_id().to_string(), |v| v.to_string()),
                     );
                 }

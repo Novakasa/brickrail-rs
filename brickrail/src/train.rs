@@ -1,3 +1,5 @@
+use std::thread::spawn;
+
 use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
@@ -8,6 +10,7 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{build_route, LegState, Route, TrainState},
+    schedule::{AssignedSchedule, TrainSchedule},
     section::LogicalSection,
     switch::SetSwitchPositionEvent,
     track::LAYOUT_SCALE,
@@ -294,18 +297,26 @@ impl Train {
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
-            Query<&mut Train>,
+            Query<(&mut Train, Option<&mut AssignedSchedule>)>,
+            Query<(&TrainSchedule, Option<&Name>)>,
             ResMut<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             Commands,
         )>::new(world);
-        let (mut trains, mut entity_map, selection_state, type_registry, mut commands) =
+        let (mut trains, schedules, mut entity_map, selection_state, type_registry, mut commands) =
             state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok(mut train) = trains.get_mut(entity) {
+            if let Ok((mut train, schedule_option)) = trains.get_mut(entity) {
                 if ui_for_value(&mut train.settings, ui, &type_registry.read()) {
                     train.update_wagon_entities(&mut commands, &mut entity_map);
+                }
+                ui.separator();
+                ui.heading("Schedule");
+                if let Some(mut schedule) = schedule_option {
+                    TrainSchedule::selector_option(&schedules, ui, &mut schedule.schedule_id);
+                } else {
+                    commands.entity(entity).insert(AssignedSchedule::default());
                 }
                 ui.separator();
             }
@@ -355,17 +366,27 @@ impl Selectable for Train {
 
 #[derive(SystemParam)]
 pub struct SpawnTrainEventQuery<'w, 's> {
-    trains: Query<'w, 's, (&'static Train, &'static BLETrain, &'static Name)>,
+    trains: Query<
+        'w,
+        's,
+        (
+            &'static Train,
+            &'static BLETrain,
+            &'static Name,
+            Option<&'static AssignedSchedule>,
+        ),
+    >,
 }
 
 impl SpawnTrainEventQuery<'_, '_> {
     pub fn get(&self) -> Vec<SpawnTrainEvent> {
         self.trains
             .iter()
-            .map(|(train, ble_train, name)| SpawnTrainEvent {
+            .map(|(train, ble_train, name, schedule)| SpawnTrainEvent {
                 train: train.clone(),
                 ble_train: Some(ble_train.clone()),
                 name: Some(name.to_string()),
+                schedule: schedule.cloned(),
             })
             .collect()
     }
@@ -376,6 +397,7 @@ pub struct SpawnTrainEvent {
     pub train: Train,
     pub ble_train: Option<BLETrain>,
     pub name: Option<String>,
+    pub schedule: Option<AssignedSchedule>,
 }
 
 #[derive(Bundle)]
@@ -723,6 +745,7 @@ fn create_train_shortcut(
                 train,
                 ble_train: None,
                 name: None,
+                schedule: None,
             });
         }
     }
@@ -778,8 +801,12 @@ fn spawn_train(
             .ble_train
             .unwrap_or(BLETrain::new(train_id));
         let name = Name::new(spawn_train.name.clone().unwrap_or(train_id.to_string()));
+        let schedule = spawn_train
+            .schedule
+            .clone()
+            .unwrap_or(AssignedSchedule::default());
         let entity = commands
-            .spawn((name, train, ble_train, WaitTime::new()))
+            .spawn((name, train, ble_train, WaitTime::new(), schedule))
             .id();
         entity_map.add_train(train_id, entity);
     }

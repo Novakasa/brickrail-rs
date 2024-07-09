@@ -14,9 +14,9 @@ use crate::{
     train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Clone, Serialize, Deserialize, Default)]
 pub struct AssignedSchedule {
-    pub schedule_id: ScheduleID,
+    pub schedule_id: Option<ScheduleID>,
     pub offset: f32,
 }
 
@@ -92,7 +92,7 @@ impl TrainSchedule {
                     .show(ui, |ui| {
                         Grid::new("settings").show(ui, |ui| {
                             ui.label("Destination");
-                            Destination::selector(&destinations, ui, &mut entry.dest);
+                            Destination::selector_option(&destinations, ui, &mut entry.dest);
                             ui.end_row();
                             ui.label("Departure time [s]");
                             ui.add(egui::DragValue::new(&mut entry.depart_time));

@@ -112,6 +112,7 @@ impl Block {
                         train: train,
                         ble_train: None,
                         name: None,
+                        schedule: None,
                     });
                 }
                 ui.separator();
