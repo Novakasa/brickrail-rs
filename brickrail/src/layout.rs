@@ -5,6 +5,7 @@ use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionEvent;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
 use bevy::color::palettes::css::{GOLD, GREEN};
+use bevy::ecs::query::{QueryData, QueryFilter, WorldQuery};
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
@@ -125,6 +126,24 @@ impl EntityMap {
             GenericID::Schedule(schedule_id) => self.schedules.get(schedule_id).copied(),
             _ => panic!("generic id get entity not implemented for {:?}", id),
         }
+    }
+
+    pub fn query_get<'a, D: QueryData, F: QueryFilter>(
+        &'a self,
+        query: &'a Query<D, F>,
+        id: &GenericID,
+    ) -> Option<<<D as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
+        let entity = self.get_entity(id)?;
+        query.get(entity).ok()
+    }
+
+    pub fn query_get_mut<'a, D: QueryData, F: QueryFilter>(
+        &'a self,
+        query: &'a mut Query<D, F>,
+        id: &GenericID,
+    ) -> Option<<D as WorldQuery>::Item<'_>> {
+        let entity = self.get_entity(id)?;
+        query.get_mut(entity).ok()
     }
 
     pub fn add_track(&mut self, track: TrackID, entity: Entity) {

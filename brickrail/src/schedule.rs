@@ -28,17 +28,9 @@ impl AssignedSchedule {
         time: f32,
         wait_time: f32,
     ) -> Option<QueuedDestination> {
-        let cycle_time = self.cycle_time(time, schedule);
-        let current_stop = schedule.entries[self.current_stop_index].clone();
-        let prev_stop = schedule.entries
-            [(self.current_stop_index + schedule.entries.len() - 1) % schedule.entries.len()]
-        .clone();
-        let mut advance =
-            cycle_time >= current_stop.depart_time && wait_time >= current_stop.min_wait;
-        if current_stop.depart_time < prev_stop.depart_time {
-            advance = advance && cycle_time < prev_stop.depart_time;
-        }
-        if advance {
+        let current_stop = self.curent_stop(schedule);
+
+        if self.next_departure(time, schedule) < 0.0 && wait_time >= current_stop.min_wait {
             self.current_stop_index += 1;
             if self.current_stop_index >= schedule.entries.len() {
                 self.current_stop_index = 0;
@@ -53,9 +45,29 @@ impl AssignedSchedule {
         None
     }
 
+    pub fn curent_stop(&self, schedule: &TrainSchedule) -> ScheduleEntry {
+        schedule.entries[self.current_stop_index].clone()
+    }
+
     pub fn cycle_time(&self, time: f32, schedule: &TrainSchedule) -> f32 {
         let cycle_time = (time + schedule.cycle_offset + self.offset) % schedule.cycle_length;
         cycle_time
+    }
+
+    pub fn next_departure(&self, time: f32, schedule: &TrainSchedule) -> f32 {
+        let current_stop = self.curent_stop(schedule);
+        let prev_stop = schedule.entries
+            [(self.current_stop_index + schedule.entries.len() - 1) % schedule.entries.len()]
+        .clone();
+        let cycle_time = self.cycle_time(time, schedule);
+        let next_departure = current_stop.depart_time - cycle_time;
+        if current_stop.depart_time < prev_stop.depart_time {
+            // this is for the wrapping case, the depart time is earlier than cycle time before wrapping
+            if cycle_time > prev_stop.depart_time {
+                return next_departure + schedule.cycle_length;
+            }
+        }
+        next_departure
     }
 }
 
@@ -167,13 +179,24 @@ impl TrainSchedule {
                         continue;
                     }
                     ui.label(name.to_string());
-                    ui.label(format!("Current stop: {}", assigned.current_stop_index + 1));
+                    let cycle_time = assigned.cycle_time(control_info.time, &schedule);
+                    let current_stop = assigned.curent_stop(&schedule);
+                    let next_departure = assigned.next_departure(control_info.time, &schedule);
+                    let destination = entity_map
+                        .query_get(
+                            &destinations,
+                            &GenericID::Destination(current_stop.dest.unwrap()),
+                        )
+                        .unwrap();
                     ui.label(format!(
-                        "Cycle time: {:1.0}",
-                        assigned.cycle_time(control_info.time, &schedule)
+                        "Current stop {}: {}",
+                        assigned.current_stop_index + 1,
+                        destination.1.unwrap().to_string()
                     ));
+                    ui.label(format!("Next departure: {:1.1}", next_departure));
+                    ui.label(format!("Cycle time: {:1.1}", cycle_time,));
                     if let Some(wait_time) = wait_option {
-                        ui.label(format!("Wait time: {:1.0}", wait_time.time));
+                        ui.label(format!("Wait time: {:1.1}", wait_time.time));
                     }
                 }
             }
