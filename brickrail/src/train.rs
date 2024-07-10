@@ -919,6 +919,7 @@ fn sensor_advance(
     mut commands: Commands,
 ) {
     for advance in ble_sensor_advance_events.read() {
+        info!("Advancing sensor for train {:?}", advance.id);
         let train_entity = entity_map
             .get_entity(&GenericID::Train(advance.id))
             .unwrap();
@@ -990,7 +991,9 @@ impl Plugin for TrainPlugin {
                 tick_wait_time.run_if(in_state(ControlState)),
                 set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train,
-                update_virtual_trains.run_if(in_state(EditorState::VirtualControl)),
+                update_virtual_trains
+                    .run_if(in_state(EditorState::VirtualControl))
+                    .after(sensor_advance),
                 update_virtual_trains_passive.run_if(in_state(EditorState::DeviceControl)),
                 sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
                 sync_intentions.run_if(in_state(EditorState::DeviceControl)),

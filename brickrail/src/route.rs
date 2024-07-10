@@ -299,7 +299,7 @@ impl Route {
     }
 
     pub fn advance_sensor(&mut self) -> Result<(), ()> {
-        info!(
+        debug!(
             "Advancing sensor, leg index: {}, old marker index: {}",
             self.leg_index,
             self.get_current_leg().index
@@ -335,6 +335,7 @@ impl Route {
         advance_events: &mut EventWriter<MarkerAdvanceEvent>,
     ) {
         if let Some(marker_index) = self.get_current_leg_mut().advance_distance(distance) {
+            debug!("Sending advance event for marker {}", marker_index);
             advance_events.send(MarkerAdvanceEvent {
                 id: self.train_id.clone(),
                 index: marker_index,
