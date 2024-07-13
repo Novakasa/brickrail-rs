@@ -321,18 +321,16 @@ impl Train {
                 ui.heading("Schedule");
                 if let Some(mut schedule) = schedule_option {
                     TrainSchedule::selector_option(&schedules, ui, &mut schedule.schedule_id);
-                    let actual_schedule = schedules
-                        .get(
-                            entity_map
-                                .get_entity(&GenericID::Schedule(schedule.schedule_id.unwrap()))
-                                .unwrap(),
-                        )
-                        .unwrap()
-                        .0;
-                    ui.label(format!(
-                        "Cycle time {:1.0}",
-                        schedule.cycle_time(control_info.time, &actual_schedule)
-                    ));
+                    if let Some(sched) = schedule.schedule_id {
+                        let actual_schedule = schedules
+                            .get(entity_map.get_entity(&GenericID::Schedule(sched)).unwrap())
+                            .unwrap()
+                            .0;
+                        ui.label(format!(
+                            "Cycle time {:1.0}",
+                            schedule.cycle_time(control_info.time, &actual_schedule)
+                        ));
+                    }
                 } else {
                     commands.entity(entity).insert(AssignedSchedule::default());
                 }
