@@ -1,0 +1,963 @@
+{
+  "marker_map": {
+    "in_markers": {
+      "\"L(-4,5,0|WE>|→)\"": "LB[(-6,5,0|WE)>(-4,5,0|WE)]",
+      "\"L(-4,4,0|EW<|←)\"": "LB[(-4,4,0|EW)<(-6,4,0|EW)]",
+      "\"L(-6,5,0|WE<|→)\"": "LB[(-6,5,0|WE)<(-4,5,0|WE)]",
+      "\"L(-4,0,0|EW<|←)\"": "LB[(-4,0,0|EW)<(-6,0,0|EW)]",
+      "\"L(-6,0,0|EW>|←)\"": "LB[(-4,0,0|EW)>(-6,0,0|EW)]",
+      "\"L(2,5,0|WE>|→)\"": "LB[(0,5,0|WE)>(2,5,0|WE)]",
+      "\"L(0,0,0|WE<|→)\"": "LB[(0,0,0|WE)<(2,0,0|WE)]",
+      "\"L(2,0,0|EW<|←)\"": "LB[(2,0,0|EW)<(0,0,0|EW)]",
+      "\"L(2,4,0|EW<|←)\"": "LB[(2,4,0|EW)<(0,4,0|EW)]",
+      "\"L(0,1,0|WE<|→)\"": "LB[(0,1,0|WE)<(2,1,0|WE)]",
+      "\"L(0,5,0|WE<|→)\"": "LB[(0,5,0|WE)<(2,5,0|WE)]",
+      "\"L(2,5,0|EW<|←)\"": "LB[(2,5,0|EW)<(0,5,0|EW)]",
+      "\"L(0,4,0|EW>|←)\"": "LB[(2,4,0|EW)>(0,4,0|EW)]",
+      "\"L(-4,1,0|WE>|→)\"": "LB[(-6,1,0|WE)>(-4,1,0|WE)]",
+      "\"L(-6,5,0|EW>|←)\"": "LB[(-4,5,0|EW)>(-6,5,0|EW)]",
+      "\"L(2,0,0|WE>|→)\"": "LB[(0,0,0|WE)>(2,0,0|WE)]",
+      "\"L(-4,4,0|WE>|→)\"": "LB[(-6,4,0|WE)>(-4,4,0|WE)]",
+      "\"L(-4,0,0|WE>|→)\"": "LB[(-6,0,0|WE)>(-4,0,0|WE)]",
+      "\"L(0,0,0|EW>|←)\"": "LB[(2,0,0|EW)>(0,0,0|EW)]",
+      "\"L(-6,1,0|WE<|→)\"": "LB[(-6,1,0|WE)<(-4,1,0|WE)]",
+      "\"L(2,1,0|WE>|→)\"": "LB[(0,1,0|WE)>(2,1,0|WE)]",
+      "\"L(-6,1,0|EW>|←)\"": "LB[(-4,1,0|EW)>(-6,1,0|EW)]",
+      "\"L(0,5,0|EW>|←)\"": "LB[(2,5,0|EW)>(0,5,0|EW)]",
+      "\"L(-6,0,0|WE<|→)\"": "LB[(-6,0,0|WE)<(-4,0,0|WE)]",
+      "\"L(-4,1,0|EW<|←)\"": "LB[(-4,1,0|EW)<(-6,1,0|EW)]",
+      "\"L(2,1,0|EW<|←)\"": "LB[(2,1,0|EW)<(0,1,0|EW)]",
+      "\"L(-6,4,0|EW>|←)\"": "LB[(-4,4,0|EW)>(-6,4,0|EW)]",
+      "\"L(-4,5,0|EW<|←)\"": "LB[(-4,5,0|EW)<(-6,5,0|EW)]",
+      "\"L(2,4,0|WE>|→)\"": "LB[(0,4,0|WE)>(2,4,0|WE)]",
+      "\"L(0,1,0|EW>|←)\"": "LB[(2,1,0|EW)>(0,1,0|EW)]",
+      "\"L(-6,4,0|WE<|→)\"": "LB[(-6,4,0|WE)<(-4,4,0|WE)]",
+      "\"L(0,4,0|WE<|→)\"": "LB[(0,4,0|WE)<(2,4,0|WE)]"
+    },
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(-5,5,0|EW|↔)",
+    "T(-4,5,0|EW|↔)",
+    "T(-3,5,0|EW|↔)",
+    "T(-2,5,0|EW|↔)",
+    "T(-1,5,0|EW|↔)",
+    "T(0,5,0|EW|↔)",
+    "T(1,5,0|EW|↔)",
+    "T(2,5,0|EW|↔)",
+    "T(3,5,0|SW|⤡)",
+    "T(3,4,0|NS|↕)",
+    "T(3,3,0|NS|↕)",
+    "T(3,2,0|NS|↕)",
+    "T(3,1,0|NS|↕)",
+    "T(3,0,0|NW|⤢)",
+    "T(2,0,0|EW|↔)",
+    "T(1,0,0|EW|↔)",
+    "T(0,0,0|EW|↔)",
+    "T(-1,0,0|EW|↔)",
+    "T(-2,0,0|EW|↔)",
+    "T(-3,0,0|EW|↔)",
+    "T(-4,0,0|EW|↔)",
+    "T(-5,0,0|EW|↔)",
+    "T(-6,0,0|EW|↔)",
+    "T(-7,0,0|NE|⤡)",
+    "T(-7,1,0|NS|↕)",
+    "T(-7,2,0|NS|↕)",
+    "T(-7,3,0|NS|↕)",
+    "T(-7,4,0|NS|↕)",
+    "T(-7,5,0|SE|⤢)",
+    "T(-6,5,0|EW|↔)",
+    "T(-7,4,0|SE|⤢)",
+    "T(-6,4,0|EW|↔)",
+    "T(-5,4,0|EW|↔)",
+    "T(-4,4,0|EW|↔)",
+    "T(-3,4,0|EW|↔)",
+    "T(-2,4,0|EW|↔)",
+    "T(-1,4,0|EW|↔)",
+    "T(0,4,0|EW|↔)",
+    "T(1,4,0|EW|↔)",
+    "T(2,4,0|EW|↔)",
+    "T(3,4,0|SW|⤡)",
+    "T(-2,4,0|NW|⤢)",
+    "T(-2,5,0|SE|⤢)",
+    "T(-2,4,0|NE|⤡)",
+    "T(-2,5,0|SW|⤡)",
+    "T(-7,1,0|NE|⤡)",
+    "T(-6,1,0|EW|↔)",
+    "T(-5,1,0|EW|↔)",
+    "T(-4,1,0|EW|↔)",
+    "T(-3,1,0|EW|↔)",
+    "T(-2,1,0|EW|↔)",
+    "T(-1,1,0|EW|↔)",
+    "T(0,1,0|EW|↔)",
+    "T(1,1,0|EW|↔)",
+    "T(2,1,0|EW|↔)",
+    "T(3,1,0|NW|⤢)",
+    "T(-2,1,0|SE|⤢)",
+    "T(-2,0,0|NW|⤢)",
+    "T(-2,1,0|SW|⤡)",
+    "T(-2,0,0|NE|⤡)"
+  ],
+  "connections": [
+    "C(-5,5,0|WE><-4,5,0|EW)",
+    "C(-4,5,0|WE><-3,5,0|EW)",
+    "C(-3,5,0|WE><-2,5,0|EW)",
+    "C(-2,5,0|WE><-1,5,0|EW)",
+    "C(-1,5,0|WE><0,5,0|EW)",
+    "C(0,5,0|WE><1,5,0|EW)",
+    "C(1,5,0|WE><2,5,0|EW)",
+    "C(2,5,0|WE><3,5,0|SW)",
+    "C(3,5,0|WS><3,4,0|SN)",
+    "C(3,4,0|NS><3,3,0|SN)",
+    "C(3,3,0|NS><3,2,0|SN)",
+    "C(3,2,0|NS><3,1,0|SN)",
+    "C(3,1,0|NS><3,0,0|WN)",
+    "C(3,0,0|NW><2,0,0|WE)",
+    "C(2,0,0|EW><1,0,0|WE)",
+    "C(1,0,0|EW><0,0,0|WE)",
+    "C(0,0,0|EW><-1,0,0|WE)",
+    "C(-1,0,0|EW><-2,0,0|WE)",
+    "C(-2,0,0|EW><-3,0,0|WE)",
+    "C(-3,0,0|EW><-4,0,0|WE)",
+    "C(-4,0,0|EW><-5,0,0|WE)",
+    "C(-5,0,0|EW><-6,0,0|WE)",
+    "C(-6,0,0|EW><-7,0,0|NE)",
+    "C(-7,0,0|EN><-7,1,0|NS)",
+    "C(-7,1,0|SN><-7,2,0|NS)",
+    "C(-7,2,0|SN><-7,3,0|NS)",
+    "C(-7,3,0|SN><-7,4,0|NS)",
+    "C(-7,4,0|SN><-7,5,0|ES)",
+    "C(-7,5,0|SE><-6,5,0|EW)",
+    "C(-6,5,0|WE><-5,5,0|EW)",
+    "C(-7,3,0|SN><-7,4,0|ES)",
+    "C(-7,4,0|SE><-6,4,0|EW)",
+    "C(-6,4,0|WE><-5,4,0|EW)",
+    "C(-5,4,0|WE><-4,4,0|EW)",
+    "C(-4,4,0|WE><-3,4,0|EW)",
+    "C(-3,4,0|WE><-2,4,0|EW)",
+    "C(-2,4,0|WE><-1,4,0|EW)",
+    "C(-1,4,0|WE><0,4,0|EW)",
+    "C(0,4,0|WE><1,4,0|EW)",
+    "C(1,4,0|WE><2,4,0|EW)",
+    "C(2,4,0|WE><3,4,0|SW)",
+    "C(3,4,0|WS><3,3,0|SN)",
+    "C(-3,4,0|WE><-2,4,0|NW)",
+    "C(-2,4,0|WN><-2,5,0|ES)",
+    "C(-2,5,0|SE><-1,5,0|EW)",
+    "C(-1,4,0|EW><-2,4,0|NE)",
+    "C(-2,4,0|EN><-2,5,0|WS)",
+    "C(-2,5,0|SW><-3,5,0|WE)",
+    "C(-7,2,0|NS><-7,1,0|EN)",
+    "C(-7,1,0|NE><-6,1,0|EW)",
+    "C(-6,1,0|WE><-5,1,0|EW)",
+    "C(-5,1,0|WE><-4,1,0|EW)",
+    "C(-4,1,0|WE><-3,1,0|EW)",
+    "C(-3,1,0|WE><-2,1,0|EW)",
+    "C(-2,1,0|WE><-1,1,0|EW)",
+    "C(-1,1,0|WE><0,1,0|EW)",
+    "C(0,1,0|WE><1,1,0|EW)",
+    "C(1,1,0|WE><2,1,0|EW)",
+    "C(2,1,0|WE><3,1,0|NW)",
+    "C(3,1,0|WN><3,2,0|NS)",
+    "C(-1,1,0|EW><-2,1,0|SE)",
+    "C(-2,1,0|ES><-2,0,0|WN)",
+    "C(-2,0,0|NW><-3,0,0|WE)",
+    "C(-3,1,0|WE><-2,1,0|SW)",
+    "C(-2,1,0|WS><-2,0,0|EN)",
+    "C(-2,0,0|NE><-1,0,0|EW)"
+  ],
+  "blocks": [
+    {
+      "block": {
+        "id": "B[(-6,4,0|WE)-(-4,4,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-6,4,0|WE|→)",
+            "D(-5,4,0|WE|→)",
+            "D(-4,4,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-6,4,0|WE)-(-4,4,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-6,5,0|WE)-(-4,5,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-6,5,0|WE|→)",
+            "D(-5,5,0|WE|→)",
+            "D(-4,5,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-6,5,0|WE)-(-4,5,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(0,5,0|WE)-(2,5,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(0,5,0|WE|→)",
+            "D(1,5,0|WE|→)",
+            "D(2,5,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(0,5,0|WE)-(2,5,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(0,4,0|WE)-(2,4,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(0,4,0|WE|→)",
+            "D(1,4,0|WE|→)",
+            "D(2,4,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(0,4,0|WE)-(2,4,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(0,1,0|WE)-(2,1,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(0,1,0|WE|→)",
+            "D(1,1,0|WE|→)",
+            "D(2,1,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(0,1,0|WE)-(2,1,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(0,0,0|WE)-(2,0,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(0,0,0|WE|→)",
+            "D(1,0,0|WE|→)",
+            "D(2,0,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(0,0,0|WE)-(2,0,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-6,1,0|WE)-(-4,1,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-6,1,0|WE|→)",
+            "D(-5,1,0|WE|→)",
+            "D(-4,1,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-6,1,0|WE)-(-4,1,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-6,0,0|WE)-(-4,0,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-6,0,0|WE|→)",
+            "D(-5,0,0|WE|→)",
+            "D(-4,0,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-6,0,0|WE)-(-4,0,0|EW)]"
+    }
+  ],
+  "markers": [
+    {
+      "track": "T(-4,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-6,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-6,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-6,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-6,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(0,5,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(0,5,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,5,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,5,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,5,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(0,4,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(0,4,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,4,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,4,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,4,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(0,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(0,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,0,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,0,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,0,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,0,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,0,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(0,0,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(0,0,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,0,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,0,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(0,0,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-6,1,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-6,1,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,1,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,1,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,1,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,0,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,0,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,0,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,0,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,0,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-6,0,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-6,0,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,0,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,0,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-6,0,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    }
+  ],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(-6,5,0|WE)>(-4,5,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train0",
+      "schedule": {
+        "schedule_id": {
+          "id": 0
+        },
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 1
+        },
+        "position": {
+          "Block": "LB[(-6,4,0|WE)>(-4,4,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 1
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train1",
+      "schedule": {
+        "schedule_id": {
+          "id": 0
+        },
+        "offset": 0.0
+      }
+    }
+  ],
+  "hubs": [
+    {
+      "hub": {
+        "id": "Layout0",
+        "name": null
+      }
+    },
+    {
+      "hub": {
+        "id": "Layout1",
+        "name": null
+      }
+    },
+    {
+      "hub": {
+        "id": "Layout2",
+        "name": null
+      }
+    }
+  ],
+  "switches": [
+    {
+      "switch": {
+        "id": "D(-7,3,0|SN|↑)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-7,3,0|SN|↑)"
+    },
+    {
+      "switch": {
+        "id": "D(3,3,0|SN|↑)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(3,3,0|SN|↑)"
+    },
+    {
+      "switch": {
+        "id": "D(-3,4,0|WE|→)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-3,4,0|WE|→)"
+    },
+    {
+      "switch": {
+        "id": "D(-1,5,0|EW|←)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-1,5,0|EW|←)"
+    },
+    {
+      "switch": {
+        "id": "D(-1,4,0|EW|←)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-1,4,0|EW|←)"
+    },
+    {
+      "switch": {
+        "id": "D(-3,5,0|WE|→)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-3,5,0|WE|→)"
+    },
+    {
+      "switch": {
+        "id": "D(-7,2,0|NS|↓)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-7,2,0|NS|↓)"
+    },
+    {
+      "switch": {
+        "id": "D(3,2,0|NS|↓)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(3,2,0|NS|↓)"
+    },
+    {
+      "switch": {
+        "id": "D(-1,1,0|EW|←)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-1,1,0|EW|←)"
+    },
+    {
+      "switch": {
+        "id": "D(-3,0,0|WE|→)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-3,0,0|WE|→)"
+    },
+    {
+      "switch": {
+        "id": "D(-3,1,0|WE|→)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-3,1,0|WE|→)"
+    },
+    {
+      "switch": {
+        "id": "D(-1,0,0|EW|←)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-1,0,0|EW|←)"
+    }
+  ],
+  "switch_motors": [],
+  "destinations": [
+    {
+      "dest": {
+        "id": {
+          "Specific": 0
+        },
+        "blocks": [
+          [
+            "B[(-6,5,0|WE)-(-4,5,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-6,4,0|WE)-(-4,4,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "NorthWest"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 1
+        },
+        "blocks": [
+          [
+            "B[(0,5,0|WE)-(2,5,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(0,4,0|WE)-(2,4,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "NorthEast"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 2
+        },
+        "blocks": [
+          [
+            "B[(-6,1,0|WE)-(-4,1,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-6,0,0|WE)-(-4,0,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "SouthWest"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 3
+        },
+        "blocks": [
+          [
+            "B[(0,1,0|WE)-(2,1,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(0,0,0|WE)-(2,0,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "SoutEast"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 4
+        },
+        "blocks": []
+      },
+      "name": "Destination4"
+    }
+  ],
+  "schedules": [
+    {
+      "schedule": {
+        "id": {
+          "id": 0
+        },
+        "entries": [
+          {
+            "dest": {
+              "Specific": 0
+            },
+            "depart_time": 10.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 1
+            },
+            "depart_time": 20.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 3
+            },
+            "depart_time": 30.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 2
+            },
+            "depart_time": 50.0,
+            "min_wait": 4.0
+          }
+        ],
+        "cycle_length": 60.0,
+        "cycle_offset": 0.0
+      },
+      "name": "Schedule0"
+    }
+  ]
+}
