@@ -983,12 +983,12 @@ impl Plugin for TrainPlugin {
                 draw_train_route.after(draw_hover_route),
                 draw_locked_tracks.after(draw_train_route),
                 draw_hover_route,
-                init_drag_train,
+                init_drag_train.after(finish_hover),
                 exit_drag_train,
                 process_destination_queue.run_if(in_state(ControlState)),
                 tick_wait_time.run_if(in_state(ControlState)),
                 set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
-                update_drag_train,
+                update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
                     .after(sensor_advance),
