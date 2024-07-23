@@ -8,13 +8,13 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 bevy = { version = "0.14.0", features = ["dynamic_linking", "serialize"] }
-bevy-inspector-egui = { git = "https://github.com/kristoff3r/bevy-inspector-egui.git", branch = "main" }
-bevy_framepace = "0.17.0-rc.1"
+bevy-inspector-egui = "0.25"
+bevy_framepace = "0.17"
 bevy_mouse_tracking_plugin = { git = "https://github.com/Novakasa/bevy-mouse-tracking.git", branch = "main" }
-bevy_pancam = { git = "https://github.com/tomara-x/bevy_pancam.git", branch = "main" }
-bevy_prototype_lyon = { git = "https://github.com/Carroted/bevy_prototype_lyon.git", branch = "bevy-main" }
+bevy_pancam = "0.12"
+bevy_prototype_lyon = "0.12"
 itertools = "0.11.0"
-petgraph = { version = "0.6.4", features = ["serde-1"] }
+petgraph = { version = "0.6.5", features = ["serde-1"] }
 serde = "1.0.193"
 serde_json = "1.0.108"
 serde_json_any_key = "2.0.0"
