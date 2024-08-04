@@ -1,4 +1,4 @@
-use bevy::color::palettes::css::MAGENTA;
+use bevy::color::palettes::css::{GRAY, MAGENTA};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
@@ -9,6 +9,7 @@ use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use serde::{Deserialize, Serialize};
 
+use crate::editor::{directory_panel, HoverState};
 use crate::track::build_connection_path_extents;
 use crate::{
     ble::{BLEHub, HubCommandEvent},
@@ -44,6 +45,45 @@ impl Switch {
 
         self.positions = positions;
         self.positions.sort();
+    }
+
+    pub fn get_position(
+        &self,
+        motor_positions: &Vec<Option<MotorPosition>>,
+    ) -> Option<SwitchPosition> {
+        if motor_positions.len() == 2 {
+            match (motor_positions[0].clone(), motor_positions[1].clone()) {
+                (Some(MotorPosition::Left), Some(MotorPosition::Left)) => {
+                    return Some(SwitchPosition::Left);
+                }
+                (Some(MotorPosition::Left), Some(MotorPosition::Right)) => {
+                    return None;
+                }
+                (Some(MotorPosition::Right), Some(MotorPosition::Right)) => {
+                    return Some(SwitchPosition::Right);
+                }
+                (Some(MotorPosition::Right), Some(MotorPosition::Left)) => {
+                    return Some(SwitchPosition::Center);
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+        if motor_positions.len() == 1 {
+            match motor_positions[0] {
+                Some(MotorPosition::Left) => {
+                    return Some(self.positions[0].clone());
+                }
+                Some(MotorPosition::Right) => {
+                    return Some(self.positions[1].clone());
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+        panic!("Invalid motor positions");
     }
 
     pub fn iter_motor_positions(
@@ -226,8 +266,8 @@ pub fn update_switch_position(
                             println!("Sending switch command {:?}", command);
                             hub_commands.send(command);
                         }
-                        motor.position = position;
                     }
+                    motor.position = position;
                 }
             }
         }
@@ -345,7 +385,7 @@ impl SwitchConnectionBundle {
                 path: build_connection_path_extents(
                     connection,
                     straight_length,
-                    straight_length + 0.4,
+                    straight_length + 0.5,
                 ),
                 spatial: SpatialBundle {
                     transform: Transform::from_xyz(0.0, 0.0, 300.0),
@@ -359,6 +399,39 @@ impl SwitchConnectionBundle {
                     .with_line_width(TRACK_WIDTH * 0.25)
                     .with_line_cap(LineCap::Round),
             },
+        }
+    }
+}
+
+fn update_switch_shapes(
+    switches: Query<&Switch>,
+    switch_motors: Query<&SwitchMotor>,
+    mut connections: Query<(&SwitchConnection, &mut Stroke, &mut Transform)>,
+    hover_state: Res<HoverState>,
+    selection_state: Res<SelectionState>,
+    entity_map: Res<EntityMap>,
+) {
+    for (connection, mut stroke, mut transform) in connections.iter_mut() {
+        let switch = switches
+            .get(entity_map.switches[&connection.connection.from_track])
+            .unwrap();
+        let positions = switch
+            .motors
+            .iter()
+            .map(|motor_id| {
+                motor_id
+                    .and_then(|id| entity_map.layout_devices.get(&id))
+                    .and_then(|entity| switch_motors.get(*entity).ok())
+                    .map(|motor| motor.position.clone())
+            })
+            .collect::<Vec<Option<MotorPosition>>>();
+        let position = switch.get_position(&positions);
+        if position == Some(connection.connection.get_switch_position()) {
+            stroke.color = Color::from(MAGENTA);
+            transform.translation.z = 35.0;
+        } else {
+            stroke.color = Color::from(GRAY);
+            transform.translation.z = 30.0;
         }
     }
 }
@@ -388,6 +461,7 @@ impl Plugin for SwitchPlugin {
             Update,
             (
                 spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
+                update_switch_shapes.after(directory_panel),
                 update_switch_turns
                     .after(spawn_connection)
                     .run_if(on_event::<UpdateSwitchTurnsEvent>()),
