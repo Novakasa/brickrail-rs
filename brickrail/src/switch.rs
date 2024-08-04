@@ -240,6 +240,8 @@ pub fn update_switch_turns(
     mut despawn_switch_events: EventWriter<DespawnEvent<Switch>>,
     mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
+    mut commands: Commands,
+    switch_connections: Query<(Entity, &SwitchConnection)>,
 ) {
     for update in events.read() {
         if update.positions.len() > 1 {
@@ -256,6 +258,31 @@ pub fn update_switch_turns(
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let switch = switches.get(entity.clone()).unwrap();
                 despawn_switch_events.send(DespawnEvent(switch.clone()));
+            }
+        }
+        for (entity, connection) in switch_connections.iter() {
+            if update.id == connection.connection.from_track {
+                if !update
+                    .positions
+                    .contains(&connection.connection.to_track.get_switch_position())
+                {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+        }
+        let mut matched_positions = update.positions.clone();
+        for (_, connection) in switch_connections.iter() {
+            if update.id == connection.connection.from_track {
+                matched_positions
+                    .retain(|pos| pos != &connection.connection.to_track.get_switch_position());
+            }
+        }
+        if let Some(switch_entity) = entity_map.switches.get(&update.id) {
+            for pos in matched_positions {
+                let connection = update.id.get_switch_connection(&pos);
+                commands.entity(*switch_entity).with_children(|builder| {
+                    builder.spawn(SwitchConnectionBundle::new(connection));
+                });
             }
         }
     }
