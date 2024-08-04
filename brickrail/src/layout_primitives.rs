@@ -902,7 +902,7 @@ impl DirectedTrackConnectionID {
         self.curve_center() + Vec2::from_angle(angle) * self.curve_radius()
     }
 
-    fn straight_length(&self) -> f32 {
+    pub fn straight_length(&self) -> f32 {
         if self.curve_index() != 0 {
             return 0.0;
         }
@@ -1309,7 +1309,7 @@ impl DirectedTrackID {
         }
     }
 
-    fn straight_length(&self) -> f32 {
+    pub fn straight_length(&self) -> f32 {
         if self.dir_index() % 2 == 0 {
             0.5 - 0.25 * 2.0_f32.sqrt()
         } else {

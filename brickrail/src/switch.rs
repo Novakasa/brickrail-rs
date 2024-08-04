@@ -310,11 +310,12 @@ pub fn spawn_switch(
                     .map(|pos| switch.id.get_switch_connection(pos))
                 {
                     let length = connection.connection_length();
+                    let straight_length = connection.from_track.straight_length();
                     builder.spawn((
                         ShapeBundle {
                             path: build_connection_path_extents(
                                 connection,
-                                length * 0.3,
+                                straight_length,
                                 length * 0.7,
                             ),
                             spatial: SpatialBundle {
