@@ -4,7 +4,7 @@ use crate::{
         delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
         Selectable, Selection, SelectionState,
     },
-    layout::{Connections, EntityMap},
+    layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     switch::UpdateSwitchTurnsEvent,
@@ -23,6 +23,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
+pub const PATH_WIDTH: f32 = TRACK_WIDTH * 0.25;
 pub const LAYOUT_SCALE: f32 = 40.0;
 
 #[derive(Resource, Default)]
@@ -168,8 +169,11 @@ pub fn spawn_connection(
             let inner_entity = commands
                 .spawn(TrackBaseShape::new(directed, TrackShapeType::Inner))
                 .id();
+            let path_entity = commands
+                .spawn(TrackBaseShape::new(directed, TrackShapeType::Path))
+                .id();
             connections.connect_tracks_simple(&connection_id);
-            entity_map.add_connection(directed, outer_entity, inner_entity);
+            entity_map.add_connection(directed, outer_entity, inner_entity, path_entity);
         }
 
         if spawn_connection.update_switches {
@@ -193,6 +197,7 @@ pub fn spawn_connection(
 pub enum TrackShapeType {
     Outer,
     Inner,
+    Path,
 }
 
 #[derive(Component)]
@@ -213,6 +218,16 @@ impl TrackBaseShape {
         let (color, width, z) = match &shape_type {
             TrackShapeType::Inner => (Color::BLACK, TRACK_INNER_WIDTH, 10.0),
             TrackShapeType::Outer => (Color::WHITE, TRACK_WIDTH, 5.0),
+            TrackShapeType::Path => (
+                Color::from(LinearRgba {
+                    red: 0.0,
+                    green: 0.0,
+                    blue: 0.0,
+                    alpha: 0.0,
+                }),
+                PATH_WIDTH,
+                13.0,
+            ),
         };
 
         let connection = TrackConnectionShape {
@@ -556,38 +571,59 @@ fn update_track_color(
     mut q_strokes: Query<(&TrackConnectionShape, &mut Stroke, &mut Transform)>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
+    track_locks: Res<TrackLocks>,
 ) {
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
     for (connection, mut stroke, mut transform) in q_strokes.iter_mut() {
-        if connection.shape_type == TrackShapeType::Outer {
-            continue;
-        }
-        if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
-            stroke.color = Color::from(RED);
-            transform.translation = Vec3::new(0.0, 0.0, 20.0);
-            continue;
-        }
+        match connection.shape_type {
+            TrackShapeType::Inner => {
+                if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
+                    stroke.color = Color::from(RED);
+                    transform.translation = Vec3::new(0.0, 0.0, 12.0);
+                    continue;
+                }
 
-        if selection_state.selection
-            == Selection::Single(GenericID::Track(connection.id.from_track.track))
-        {
-            stroke.color = Color::from(BLUE);
-            transform.translation = Vec3::new(0.0, 0.0, 15.0);
-            continue;
-        }
+                if selection_state.selection
+                    == Selection::Single(GenericID::Track(connection.id.from_track.track))
+                {
+                    stroke.color = Color::from(BLUE);
+                    transform.translation = Vec3::new(0.0, 0.0, 11.0);
+                    continue;
+                }
 
-        if let Selection::Section(section) = &selection_state.selection {
-            if section.has_track(&connection.id.from_track.track) {
-                stroke.color = Color::from(BLUE);
-                transform.translation = Vec3::new(0.0, 0.0, 15.0);
-                continue;
+                if let Selection::Section(section) = &selection_state.selection {
+                    if section.has_track(&connection.id.from_track.track) {
+                        stroke.color = Color::from(BLUE);
+                        transform.translation = Vec3::new(0.0, 0.0, 11.0);
+                        continue;
+                    }
+                }
+
+                stroke.color = Color::BLACK;
+                transform.translation = Vec3::new(0.0, 0.0, 10.0);
             }
+            TrackShapeType::Path => {
+                if track_locks
+                    .locked_tracks
+                    .contains_key(&connection.id.from_track.track)
+                {
+                    stroke.color = Color::from(RED);
+                    transform.translation = Vec3::new(0.0, 0.0, 14.0);
+                    continue;
+                } else {
+                    stroke.color = Color::from(LinearRgba {
+                        red: 0.0,
+                        green: 0.0,
+                        blue: 0.0,
+                        alpha: 0.0,
+                    });
+                    transform.translation = Vec3::new(0.0, 0.0, 13.0);
+                }
+            }
+            _ => {}
         }
-
-        stroke.color = Color::BLACK;
-        transform.translation = Vec3::new(0.0, 0.0, 10.0);
     }
 }
 

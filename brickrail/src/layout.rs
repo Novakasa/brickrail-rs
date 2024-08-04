@@ -148,6 +148,7 @@ pub struct EntityMap {
     pub tracks: HashMap<TrackID, Entity>,
     pub connections_outer: HashMap<DirectedTrackConnectionID, Entity>,
     pub connections_inner: HashMap<DirectedTrackConnectionID, Entity>,
+    pub connections_path: HashMap<DirectedTrackConnectionID, Entity>,
     pub switches: HashMap<DirectedTrackID, Entity>,
     pub markers: HashMap<TrackID, Entity>,
     pub blocks: HashMap<BlockID, Entity>,
@@ -284,12 +285,16 @@ impl EntityMap {
         connection: DirectedTrackConnectionID,
         outer_entity: Entity,
         inner_entity: Entity,
+        path_entity: Entity,
     ) {
         self.connections_outer
             .try_insert(connection, outer_entity)
             .unwrap();
         self.connections_inner
             .try_insert(connection, inner_entity)
+            .unwrap();
+        self.connections_path
+            .try_insert(connection, path_entity)
             .unwrap();
     }
 
