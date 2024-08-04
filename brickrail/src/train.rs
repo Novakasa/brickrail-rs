@@ -880,6 +880,7 @@ fn update_virtual_trains(
     mut track_locks: ResMut<TrackLocks>,
     mut advance_events: EventWriter<MarkerAdvanceEvent>,
     entity_map: Res<EntityMap>,
+    mut switch_events: EventWriter<SetSwitchPositionEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
         if !track_locks.is_clean(&train.id) {
@@ -887,6 +888,12 @@ fn update_virtual_trains(
             train
                 .get_route_mut()
                 .update_intentions(track_locks.as_ref(), &switches, &entity_map);
+            train.get_route().update_locks(
+                &mut track_locks,
+                &entity_map,
+                &mut switch_events,
+                &switches,
+            );
             track_locks.mark_clean(&train.id);
         }
         train.traverse_route(time.delta_seconds(), &mut advance_events);
@@ -957,6 +964,12 @@ fn sensor_advance(
                     track_locks.as_ref(),
                     &switches,
                     &entity_map,
+                );
+                train.get_route().update_locks(
+                    &mut track_locks,
+                    &entity_map,
+                    &mut set_switch_position,
+                    &switches,
                 );
                 track_locks.mark_clean(&train.id);
             }

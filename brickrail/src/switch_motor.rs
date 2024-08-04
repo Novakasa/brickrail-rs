@@ -40,7 +40,6 @@ pub struct SwitchMotor {
     #[serde(skip)]
     pub position: MotorPosition,
     #[serde(default)]
-    pub inverted: bool,
     pub pulse_duration: u16,
     pub pulse_strength: u16,
 }
@@ -49,7 +48,6 @@ impl Default for SwitchMotor {
     fn default() -> Self {
         Self {
             position: MotorPosition::Unknown,
-            inverted: false,
             pulse_duration: 500,
             pulse_strength: 100,
         }
@@ -81,7 +79,6 @@ impl SwitchMotor {
         let mut config = HubConfiguration::default();
         config.add_value(address_offset + 0, self.pulse_strength as u32);
         config.add_value(address_offset + 1, self.pulse_duration as u32);
-        config.add_value(address_offset + 2, self.inverted as u32);
 
         let mut map = HashMap::new();
         map.insert(device.hub_id.unwrap(), config);
