@@ -289,32 +289,50 @@ pub fn spawn_switch(
                     .iter()
                     .map(|pos| switch.id.get_switch_connection(pos))
                 {
-                    let length = connection.connection_length();
-                    let straight_length = connection.from_track.straight_length();
-                    builder.spawn((
-                        ShapeBundle {
-                            path: build_connection_path_extents(
-                                connection,
-                                straight_length,
-                                length * 0.7,
-                            ),
-                            spatial: SpatialBundle {
-                                transform: Transform::from_xyz(0.0, 0.0, 300.0),
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        Stroke {
-                            color: Color::from(MAGENTA),
-                            options: StrokeOptions::default()
-                                .with_line_width(TRACK_WIDTH * 0.25)
-                                .with_line_cap(LineCap::Round),
-                        },
-                    ));
+                    builder.spawn(SwitchConnectionBundle::new(connection));
                 }
             })
             .id();
         entity_map.add_switch(spawn_event.switch.id, entity);
+    }
+}
+
+#[derive(Component, Debug)]
+pub struct SwitchConnection {
+    pub connection: DirectedTrackConnectionID,
+}
+
+#[derive(Bundle)]
+pub struct SwitchConnectionBundle {
+    connection: SwitchConnection,
+    shape: ShapeBundle,
+    stroke: Stroke,
+}
+
+impl SwitchConnectionBundle {
+    pub fn new(connection: DirectedTrackConnectionID) -> Self {
+        let straight_length = connection.from_track.straight_length();
+        Self {
+            connection: SwitchConnection { connection },
+            shape: ShapeBundle {
+                path: build_connection_path_extents(
+                    connection,
+                    straight_length,
+                    straight_length + 0.4,
+                ),
+                spatial: SpatialBundle {
+                    transform: Transform::from_xyz(0.0, 0.0, 300.0),
+                    ..default()
+                },
+                ..default()
+            },
+            stroke: Stroke {
+                color: Color::from(MAGENTA),
+                options: StrokeOptions::default()
+                    .with_line_width(TRACK_WIDTH * 0.25)
+                    .with_line_cap(LineCap::Round),
+            },
+        }
     }
 }
 
