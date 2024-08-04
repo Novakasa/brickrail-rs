@@ -10,7 +10,7 @@ use crate::{
     route::{build_route, LegState, Route, TrainState},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
-    switch::SetSwitchPositionEvent,
+    switch::{SetSwitchPositionEvent, Switch},
     track::LAYOUT_SCALE,
 };
 use bevy::{
@@ -232,10 +232,11 @@ impl Train {
         track_locks: &mut ResMut<TrackLocks>,
         entity_map: &Res<EntityMap>,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+        switches: &Query<&Switch>,
     ) {
         let route = self.get_route_mut();
         route.advance_sensor().expect("Failed to advance sensor");
-        route.update_locks(track_locks, entity_map, set_switch_position);
+        route.update_locks(track_locks, entity_map, set_switch_position, switches);
 
         self.set_seek_target();
     }
@@ -530,6 +531,7 @@ fn process_destination_queue(
     track_locks: Res<TrackLocks>,
     q_trains: Query<(&Train, &QueuedDestination)>,
     q_markers: Query<&Marker>,
+    switches: Query<&Switch>,
     marker_map: Res<MarkerMap>,
     mut commands: Commands,
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
@@ -564,7 +566,7 @@ fn process_destination_queue(
                 if let Some(logical_section) = connections.find_route_section(
                     start,
                     target,
-                    Some((&train_id, &track_locks)),
+                    Some((&train_id, &track_locks, &switches, &entity_map)),
                     train.settings.prefer_facing,
                 ) {
                     let route = build_route(
@@ -611,6 +613,7 @@ fn update_drag_train(
     track_locks: Res<TrackLocks>,
     q_trains: Query<&Train>,
     q_markers: Query<&Marker>,
+    switches: Query<&Switch>,
     marker_map: Res<MarkerMap>,
 ) {
     if train_drag_state.train_id.is_none() {
@@ -642,7 +645,7 @@ fn update_drag_train(
         if let Some(logical_section) = connections.find_route_section(
             start,
             train_drag_state.target.unwrap(),
-            Some((&train_id, &track_locks)),
+            Some((&train_id, &track_locks, &switches, &entity_map)),
             train.settings.prefer_facing,
         ) {
             // println!("Section: {:?}", section);
@@ -717,6 +720,7 @@ fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
 
 fn set_train_route(
     mut q_trains: Query<(&mut Train, &mut BLETrain)>,
+    switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
     mut route_events: EventReader<SetTrainRouteEvent>,
     mut track_locks: ResMut<TrackLocks>,
@@ -744,11 +748,14 @@ fn set_train_route(
 
         train
             .get_route_mut()
-            .update_intentions(track_locks.as_ref());
+            .update_intentions(track_locks.as_ref(), &switches, &entity_map);
         // println!("state: {:?}", train.route.get_train_state());
-        train
-            .get_route()
-            .update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
+        train.get_route().update_locks(
+            &mut track_locks,
+            &entity_map,
+            &mut set_switch_position,
+            &switches,
+        );
         train.set_seek_target();
 
         if editor_state.get().ble_commands_enabled() {
@@ -793,6 +800,7 @@ fn spawn_train(
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    switches: Query<&Switch>,
 ) {
     for spawn_train in train_events.read() {
         let serialized_train = spawn_train.clone();
@@ -816,7 +824,12 @@ fn spawn_train(
             &entity_map,
             &marker_map,
         );
-        route.update_locks(&mut track_locks, &entity_map, &mut set_switch_position);
+        route.update_locks(
+            &mut track_locks,
+            &entity_map,
+            &mut set_switch_position,
+            &switches,
+        );
         train.position = Position::Route(route);
         println!("train block: {:?}", train.get_logical_block_id());
         let mut train = TrainBundle::from_train(train);
@@ -862,16 +875,18 @@ fn despawn_train(
 
 fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
+    switches: Query<&Switch>,
     time: Res<Time>,
     mut track_locks: ResMut<TrackLocks>,
     mut advance_events: EventWriter<MarkerAdvanceEvent>,
+    entity_map: Res<EntityMap>,
 ) {
     for mut train in q_trains.iter_mut() {
         if !track_locks.is_clean(&train.id) {
             // println!("Updating intentions for train {:?}", train.id);
             train
                 .get_route_mut()
-                .update_intentions(track_locks.as_ref());
+                .update_intentions(track_locks.as_ref(), &switches, &entity_map);
             track_locks.mark_clean(&train.id);
         }
         train.traverse_route(time.delta_seconds(), &mut advance_events);
@@ -915,6 +930,7 @@ fn sensor_advance(
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
     mut commands: Commands,
+    switches: Query<&Switch>,
 ) {
     for advance in ble_sensor_advance_events.read() {
         info!("Advancing sensor for train {:?}", advance.id);
@@ -923,7 +939,12 @@ fn sensor_advance(
             .unwrap();
         let mut train = q_trains.get_mut(train_entity).unwrap();
         assert_eq!(advance.index, train.get_route().get_current_leg().index + 1);
-        train.advance_sensor(&mut track_locks, &entity_map, &mut set_switch_position);
+        train.advance_sensor(
+            &mut track_locks,
+            &entity_map,
+            &mut set_switch_position,
+            &switches,
+        );
 
         if train.get_route().is_completed() {
             println!("Train {:?} completed route", train.id);
@@ -932,9 +953,11 @@ fn sensor_advance(
 
         for mut train in q_trains.iter_mut() {
             if !track_locks.is_clean(&train.id) {
-                train
-                    .get_route_mut()
-                    .update_intentions(track_locks.as_ref());
+                train.get_route_mut().update_intentions(
+                    track_locks.as_ref(),
+                    &switches,
+                    &entity_map,
+                );
                 track_locks.mark_clean(&train.id);
             }
         }

@@ -12,6 +12,7 @@ use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionEvent;
+use crate::switch::Switch;
 use crate::track::LAYOUT_SCALE;
 use crate::train::MarkerAdvanceEvent;
 
@@ -232,10 +233,15 @@ impl Route {
         &mut self.legs[self.leg_index]
     }
 
-    pub fn update_intentions(&mut self, track_locks: &TrackLocks) {
+    pub fn update_intentions(
+        &mut self,
+        track_locks: &TrackLocks,
+        switches: &Query<&Switch>,
+        entity_map: &EntityMap,
+    ) {
         let mut free_until = 0;
         for (i, leg) in self.iter_legs_remaining().enumerate() {
-            if track_locks.can_lock(&self.train_id, &leg.travel_section) {
+            if track_locks.can_lock(&self.train_id, &leg.travel_section, switches, entity_map) {
                 free_until = i + self.leg_index;
             } else {
                 break;
@@ -266,6 +272,7 @@ impl Route {
         track_locks: &mut TrackLocks,
         entity_map: &EntityMap,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+        switches: &Query<&Switch>,
     ) {
         let current_leg = self.get_current_leg();
         track_locks.unlock_all(&self.train_id);
@@ -274,6 +281,7 @@ impl Route {
                 &self.train_id,
                 &current_leg.travel_section,
                 entity_map,
+                switches,
                 set_switch_position,
             );
         } else {
@@ -281,6 +289,7 @@ impl Route {
                 &self.train_id,
                 &current_leg.to_section,
                 entity_map,
+                switches,
                 set_switch_position,
             );
         }
@@ -292,6 +301,7 @@ impl Route {
                     &self.train_id,
                     &next_leg.travel_section,
                     entity_map,
+                    switches,
                     set_switch_position,
                 );
             }

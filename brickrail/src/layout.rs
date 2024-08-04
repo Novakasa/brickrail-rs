@@ -2,10 +2,12 @@ use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
-use crate::switch::SetSwitchPositionEvent;
+use crate::switch::{SetSwitchPositionEvent, Switch};
+use crate::switch_motor::MotorPosition;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
 use bevy::color::palettes::css::{GOLD, GREEN};
 use bevy::ecs::query::{QueryData, QueryFilter, WorldQuery};
+use bevy::utils::hashbrown::hash_map::OccupiedError;
 use bevy::utils::HashMap;
 use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
@@ -15,16 +17,27 @@ use serde_json_any_key::any_key_map;
 #[derive(Resource, Default)]
 pub struct TrackLocks {
     pub locked_tracks: HashMap<TrackID, TrainID>,
+    pub locked_switches: HashMap<DirectedTrackID, (TrainID, SwitchPosition)>,
+    pub locked_switch_motors: HashMap<LayoutDeviceID, (TrainID, MotorPosition)>,
     pub clean_trains: HashSet<TrainID>,
 }
 
 impl TrackLocks {
-    pub fn can_lock(&self, train: &TrainID, section: &LogicalSection) -> bool {
+    pub fn can_lock(
+        &self,
+        train: &TrainID,
+        section: &LogicalSection,
+        switches: &Query<&Switch>,
+        entity_map: &EntityMap,
+    ) -> bool {
         for track in section.tracks.iter() {
-            if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
-                if locked_train != train {
-                    return false;
-                }
+            if !self.can_lock_track(train, &track.track()) {
+                return false;
+            }
+        }
+        for connection in section.connection_iter() {
+            if !self.can_lock_connection(train, &connection, switches, entity_map) {
+                return false;
             }
         }
         return true;
@@ -34,6 +47,33 @@ impl TrackLocks {
         if let Some(locked_train) = self.locked_tracks.get(track) {
             if locked_train != train {
                 return false;
+            }
+        }
+        return true;
+    }
+
+    pub fn can_lock_connection(
+        &self,
+        _train: &TrainID,
+        connection: &LogicalTrackConnectionID,
+        switches: &Query<&Switch>,
+        entity_map: &EntityMap,
+    ) -> bool {
+        let directed_connection = connection.to_directed();
+        if let Some(switch) = entity_map
+            .switches
+            .get(&directed_connection.from_track)
+            .and_then(|e| switches.get(*e).ok())
+        {
+            let position = directed_connection.to_track.get_switch_position();
+            for (id_option, pos) in switch.iter_motor_positions(&position) {
+                if let Some(id) = id_option {
+                    if let Some((_, locked_pos)) = self.locked_switch_motors.get(id) {
+                        if locked_pos != &pos {
+                            return false;
+                        }
+                    }
+                }
             }
         }
         return true;
@@ -52,18 +92,38 @@ impl TrackLocks {
         train: &TrainID,
         section: &LogicalSection,
         entity_map: &EntityMap,
+        switches: &Query<&Switch>,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
     ) {
         for track in section.tracks.iter() {
+            if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
+                if locked_train != train {
+                    panic!("Track {:?} is already locked by {:?}", track, locked_train);
+                }
+            }
             self.locked_tracks.insert(track.track(), *train);
         }
 
         for directed_connection in section.directed_connection_iter() {
-            if entity_map
-                .switches
-                .contains_key(&directed_connection.from_track)
-            {
+            if let Some(entity) = entity_map.switches.get(&directed_connection.from_track) {
                 let position = directed_connection.to_track.get_switch_position();
+                let switch = switches.get(*entity).unwrap();
+                for (id_option, pos) in switch.iter_motor_positions(&position) {
+                    if let Some(id) = id_option {
+                        match self
+                            .locked_switch_motors
+                            .try_insert(id.clone(), (*train, pos.clone()))
+                        {
+                            Ok(_) => {}
+                            Err(OccupiedError {
+                                entry: _entry,
+                                value: (_locked_train, locked_pos),
+                            }) => {
+                                assert_eq!(locked_pos, pos);
+                            }
+                        }
+                    }
+                }
                 set_switch_position.send(SetSwitchPositionEvent {
                     id: directed_connection.from_track,
                     position,
@@ -76,6 +136,8 @@ impl TrackLocks {
     pub fn unlock_all(&mut self, train: &TrainID) {
         self.locked_tracks
             .retain(|_, locked_train| locked_train != train);
+        self.locked_switch_motors
+            .retain(|_, (locked_train, _)| locked_train != train);
         self.clean_trains = HashSet::new();
     }
 }
@@ -570,7 +632,7 @@ impl Connections {
         &self,
         start: LogicalBlockID,
         target: LogicalBlockID,
-        avoid_locked: Option<(&TrainID, &TrackLocks)>,
+        avoid_locked: Option<(&TrainID, &TrackLocks, &Query<&Switch>, &EntityMap)>,
         prefer_facing: Option<Facing>,
     ) -> Option<LogicalSection> {
         let start_track = start.default_in_marker_track();
@@ -579,10 +641,18 @@ impl Connections {
             &self.logical_graph,
             start_track,
             |track| track == target_track,
-            |(_a, b, _)| {
+            |(a, b, _)| {
                 let mut cost = 1.0;
-                if let Some((train, locks)) = avoid_locked {
+                if let Some((train, locks, switches, entity_map)) = avoid_locked {
                     if !locks.can_lock_track(train, &b.track()) {
+                        cost += f32::INFINITY;
+                    }
+                    if !locks.can_lock_connection(
+                        train,
+                        &LogicalTrackConnectionID::new(a, b),
+                        switches,
+                        entity_map,
+                    ) {
                         cost += f32::INFINITY;
                     }
                 }

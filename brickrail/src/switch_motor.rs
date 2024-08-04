@@ -62,7 +62,6 @@ impl SwitchMotor {
     }
 
     pub fn switch_command(
-        &self,
         device: &LayoutDevice,
         position: &MotorPosition,
     ) -> Option<HubCommandEvent> {

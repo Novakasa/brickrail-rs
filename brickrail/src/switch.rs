@@ -37,6 +37,10 @@ impl Switch {
         switch
     }
 
+    pub fn position(&self) -> &SwitchPosition {
+        &self.positions[self.pos_index]
+    }
+
     pub fn set_positions(&mut self, positions: Vec<SwitchPosition>) {
         self.pos_index = 0;
         self.motors
@@ -47,26 +51,30 @@ impl Switch {
     }
 
     pub fn switch(&mut self, position: &SwitchPosition) {
-        if let Some(index) = self.positions.iter().position(|p| p == position) {
-            self.pos_index = index;
-        }
+        let index = self.positions.iter().position(|p| p == position).unwrap();
+        self.pos_index = index;
     }
 
     pub fn iter_motor_positions(
         &self,
+        pos: &SwitchPosition,
     ) -> impl Iterator<Item = (&Option<LayoutDeviceID>, MotorPosition)> {
-        self.motors.iter().enumerate().map(|(index, motor_id)| {
-            let position = match (self.pos_index, index) {
-                (0, 0) => MotorPosition::Left,
-                (0, 1) => MotorPosition::Left,
-                (1, 0) => MotorPosition::Right,
-                (1, 1) => MotorPosition::Left,
-                (2, 0) => MotorPosition::Right,
-                (2, 1) => MotorPosition::Right,
-                _ => panic!("Invalid switch position"),
-            };
-            (motor_id, position)
-        })
+        let pos_index = self.positions.iter().position(|p| p == pos).unwrap();
+        self.motors
+            .iter()
+            .enumerate()
+            .map(move |(index, motor_id)| {
+                let position = match (pos_index, index) {
+                    (0, 0) => MotorPosition::Left,
+                    (0, 1) => MotorPosition::Left,
+                    (1, 0) => MotorPosition::Right,
+                    (1, 1) => MotorPosition::Left,
+                    (2, 0) => MotorPosition::Right,
+                    (2, 1) => MotorPosition::Right,
+                    _ => panic!("Invalid switch position"),
+                };
+                (motor_id, position)
+            })
     }
 
     pub fn inspector(ui: &mut Ui, world: &mut World) {
@@ -221,7 +229,7 @@ pub fn update_switch_position(
         if let Some(entity) = entity_map.switches.get(&update.id) {
             let mut switch = switches.get_mut(*entity).unwrap();
             switch.switch(&update.position);
-            for (motor_id, position) in switch.iter_motor_positions() {
+            for (motor_id, position) in switch.iter_motor_positions(switch.position()) {
                 if let Some(motor_id) = motor_id {
                     let entity = entity_map.layout_devices.get(motor_id).unwrap();
                     let (mut motor, device) = switch_motors.get_mut(*entity).unwrap();
@@ -230,7 +238,7 @@ pub fn update_switch_position(
                     }
 
                     if editor_state.get().ble_commands_enabled() {
-                        if let Some(command) = motor.switch_command(device, &position) {
+                        if let Some(command) = SwitchMotor::switch_command(device, &position) {
                             println!("Sending switch command {:?}", command);
                             hub_commands.send(command);
                         }
