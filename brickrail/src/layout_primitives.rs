@@ -54,6 +54,16 @@ pub enum SwitchPosition {
     Right,
 }
 
+impl fmt::Display for SwitchPosition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SwitchPosition::Left => write!(f, "Left"),
+            SwitchPosition::Center => write!(f, "Center"),
+            SwitchPosition::Right => write!(f, "Right"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub struct WagonID {
     pub train: TrainID,

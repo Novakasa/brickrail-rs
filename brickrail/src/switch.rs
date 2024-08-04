@@ -24,8 +24,6 @@ use crate::{
 pub struct Switch {
     id: DirectedTrackID,
     positions: Vec<SwitchPosition>,
-    #[serde(skip)]
-    pos_index: usize,
     pub motors: Vec<Option<LayoutDeviceID>>,
 }
 
@@ -34,29 +32,18 @@ impl Switch {
         let mut switch = Self {
             id,
             positions: Vec::new(),
-            pos_index: 0,
             motors: Vec::new(),
         };
         switch.set_positions(positions);
         switch
     }
 
-    pub fn position(&self) -> &SwitchPosition {
-        &self.positions[self.pos_index]
-    }
-
     pub fn set_positions(&mut self, positions: Vec<SwitchPosition>) {
-        self.pos_index = 0;
         self.motors
             .resize_with(positions.len() - 1, Default::default);
 
         self.positions = positions;
         self.positions.sort();
-    }
-
-    pub fn switch(&mut self, position: &SwitchPosition) {
-        let index = self.positions.iter().position(|p| p == position).unwrap();
-        self.pos_index = index;
     }
 
     pub fn iter_motor_positions(
@@ -111,19 +98,13 @@ impl Switch {
                 ui.heading("Switch");
                 ui.label("position");
                 ui.horizontal(|ui| {
-                    let mut current_pos = switch.positions[switch.pos_index].clone();
                     for position in switch.positions.clone() {
-                        ui.radio_value(
-                            &mut current_pos,
-                            position.clone(),
-                            format!("{:?}", position),
-                        );
-                    }
-                    if current_pos != switch.positions[switch.pos_index] {
-                        set_switch_position.send(SetSwitchPositionEvent {
-                            id: switch.id,
-                            position: current_pos,
-                        });
+                        if ui.button(position.to_string()).clicked() {
+                            set_switch_position.send(SetSwitchPositionEvent {
+                                id: switch.id,
+                                position,
+                            });
+                        }
                     }
                 });
                 ui.separator();
@@ -223,7 +204,7 @@ pub struct SetSwitchPositionEvent {
 
 pub fn update_switch_position(
     mut events: EventReader<SetSwitchPositionEvent>,
-    mut switches: Query<&mut Switch>,
+    switches: Query<&Switch>,
     mut switch_motors: Query<(&mut SwitchMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: EventWriter<HubCommandEvent>,
@@ -231,9 +212,8 @@ pub fn update_switch_position(
 ) {
     for update in events.read() {
         if let Some(entity) = entity_map.switches.get(&update.id) {
-            let mut switch = switches.get_mut(*entity).unwrap();
-            switch.switch(&update.position);
-            for (motor_id, position) in switch.iter_motor_positions(switch.position()) {
+            let switch = switches.get(*entity).unwrap();
+            for (motor_id, position) in switch.iter_motor_positions(&update.position) {
                 if let Some(motor_id) = motor_id {
                     let entity = entity_map.layout_devices.get(motor_id).unwrap();
                     let (mut motor, device) = switch_motors.get_mut(*entity).unwrap();

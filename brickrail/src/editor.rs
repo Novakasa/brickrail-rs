@@ -921,7 +921,7 @@ fn new_layout(
         let (entity_map, mut commands, mut events) = params.get_mut(world);
         events.clear();
         for entity in entity_map.iter_all_entities() {
-            commands.entity(*entity).despawn();
+            commands.entity(*entity).despawn_recursive();
         }
     }
     params.apply(world);
