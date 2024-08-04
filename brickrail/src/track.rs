@@ -32,16 +32,24 @@ struct TrackBuildState {
     portal_entrance: Option<DirectedTrackID>,
 }
 
-fn build_connection_path(dirconnection: DirectedTrackConnectionID) -> Path {
+pub fn build_connection_path(dirconnection: DirectedTrackConnectionID) -> Path {
+    let length = dirconnection.connection_length() * 0.5;
+    build_connection_path_extents(dirconnection, 0.0, length)
+}
+
+pub fn build_connection_path_extents(
+    dirconnection: DirectedTrackConnectionID,
+    from: f32,
+    to: f32,
+) -> Path {
     let mut path_builder = PathBuilder::new();
-    let length = dirconnection.connection_length() * 0.49;
-    path_builder.move_to(dirconnection.interpolate_pos(0.0) * LAYOUT_SCALE);
+    path_builder.move_to(dirconnection.interpolate_pos(from) * LAYOUT_SCALE);
     let num_segments = match dirconnection.curve_index() {
         0 => 1,
         _ => 5,
     };
     for i in 1..(num_segments + 1) {
-        let dist = i as f32 * length / num_segments as f32;
+        let dist = from + i as f32 * (to - from) / num_segments as f32;
         path_builder.line_to(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE);
     }
 

@@ -1,11 +1,15 @@
+use bevy::color::palettes::css::MAGENTA;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::entity::ShapeBundle;
+use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use serde::{Deserialize, Serialize};
 
+use crate::track::build_connection_path_extents;
 use crate::{
     ble::{BLEHub, HubCommandEvent},
     editor::{DespawnEvent, EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
@@ -290,13 +294,45 @@ pub fn spawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for spawn_event in events.read() {
+        let switch = spawn_event.switch.clone();
         let name = Name::new(
             spawn_event
                 .name
                 .clone()
                 .unwrap_or(spawn_event.switch.id.to_string()),
         );
-        let entity = commands.spawn((name, spawn_event.switch.clone())).id();
+        let entity = commands
+            .spawn((name, spawn_event.switch.clone(), TransformBundle::default()))
+            .with_children(|builder| {
+                for connection in switch
+                    .positions
+                    .iter()
+                    .map(|pos| switch.id.get_switch_connection(pos))
+                {
+                    let length = connection.connection_length();
+                    builder.spawn((
+                        ShapeBundle {
+                            path: build_connection_path_extents(
+                                connection,
+                                length * 0.3,
+                                length * 0.7,
+                            ),
+                            spatial: SpatialBundle {
+                                transform: Transform::from_xyz(0.0, 0.0, 300.0),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        Stroke {
+                            color: Color::from(MAGENTA),
+                            options: StrokeOptions::default()
+                                .with_line_width(TRACK_WIDTH * 0.25)
+                                .with_line_cap(LineCap::Round),
+                        },
+                    ));
+                }
+            })
+            .id();
         entity_map.add_switch(spawn_event.switch.id, entity);
     }
 }

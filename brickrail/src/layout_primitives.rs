@@ -1192,6 +1192,36 @@ impl DirectedTrackID {
         }
     }
 
+    pub fn get_next_track(&self, position: &SwitchPosition) -> DirectedTrackID {
+        let delta = match position {
+            SwitchPosition::Right => -1.0f32,
+            SwitchPosition::Left => 1.0,
+            SwitchPosition::Center => 0.0,
+        };
+        let cell = self.track.cell.get_neighbor(self.to_cardinal());
+        let straight_dir = self.track.cell.get_delta_vec(&cell);
+        print!("straight_dir: {:?}", straight_dir);
+        let orthogonal_dir = Vec2::new(-straight_dir.y, straight_dir.x);
+        println!("orthogonal_dir: {:?}", orthogonal_dir);
+        let final_cell = CellID::from_vec2(
+            cell.get_vec2() + straight_dir * (1.0 - delta.abs()) + orthogonal_dir * delta,
+        );
+        let to_slot = cell.get_shared_slot(&final_cell).unwrap();
+        println!("from: {:?}, to: {:?}", self.to_slot(), to_slot);
+        DirectedTrackID::from_slots(self.to_slot(), to_slot).unwrap()
+    }
+
+    pub fn get_switch_connection(
+        &self,
+        switch_position: &SwitchPosition,
+    ) -> DirectedTrackConnectionID {
+        let switch_track = self.get_next_track(&switch_position);
+        DirectedTrackConnectionID {
+            from_track: self.clone(),
+            to_track: switch_track,
+        }
+    }
+
     pub fn opposite(&self) -> Self {
         Self {
             track: self.track,
