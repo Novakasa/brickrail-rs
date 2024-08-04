@@ -1,4 +1,4 @@
-use bevy::color::palettes::css::{GRAY, MAGENTA};
+use bevy::color::palettes::css::{BLUE, GRAY, MAGENTA};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
@@ -9,7 +9,7 @@ use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use serde::{Deserialize, Serialize};
 
-use crate::editor::{directory_panel, HoverState};
+use crate::editor::{directory_panel, HoverState, Selection};
 use crate::track::build_connection_path_extents;
 use crate::{
     ble::{BLEHub, HubCommandEvent},
@@ -426,13 +426,25 @@ fn update_switch_shapes(
             })
             .collect::<Vec<Option<MotorPosition>>>();
         let position = switch.get_position(&positions);
+        let mut color;
         if position == Some(connection.connection.get_switch_position()) {
-            stroke.color = Color::from(MAGENTA);
+            color = Color::from(MAGENTA);
             transform.translation.z = 35.0;
         } else {
-            stroke.color = Color::from(GRAY);
+            color = Color::from(GRAY);
             transform.translation.z = 30.0;
         }
+        if hover_state.hover == Some(GenericID::Switch(connection.connection.from_track)) {
+            color = Color::from(RED);
+            transform.translation.z = 40.0;
+        }
+        if selection_state.selection
+            == Selection::Single(GenericID::Switch(connection.connection.from_track))
+        {
+            color = Color::from(BLUE);
+            transform.translation.z = 36.0;
+        }
+        stroke.color = color;
     }
 }
 
