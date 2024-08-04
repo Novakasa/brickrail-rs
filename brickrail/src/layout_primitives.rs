@@ -889,7 +889,7 @@ impl DirectedTrackConnectionID {
     }
 
     fn curve_length(&self) -> f32 {
-        self.curve_radius() * self.curve_index().abs() as f32
+        self.curve_radius() * self.curve_delta_angle().abs()
     }
 
     fn curve_center(&self) -> Vec2 {

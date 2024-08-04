@@ -5,7 +5,7 @@ use crate::section::LogicalSection;
 use crate::switch::{SetSwitchPositionEvent, Switch};
 use crate::switch_motor::MotorPosition;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
-use bevy::color::palettes::css::{GOLD, GREEN};
+use bevy::color::palettes::css::{GOLD, GREEN, ORANGE};
 use bevy::ecs::query::{QueryData, QueryFilter, WorldQuery};
 use bevy::utils::hashbrown::hash_map::OccupiedError;
 use bevy::utils::HashMap;
@@ -692,6 +692,12 @@ fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Re
         connection.draw_with_gizmos(&mut gizmos, LAYOUT_SCALE, Color::from(GOLD));
         let pos = connection.interpolate_pos(dist * connection.connection_length());
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.05 * LAYOUT_SCALE, Color::from(GREEN));
+        let pos_unnormalized = connection.interpolate_pos(dist);
+        gizmos.circle_2d(
+            pos_unnormalized * LAYOUT_SCALE,
+            0.05 * LAYOUT_SCALE,
+            Color::from(ORANGE),
+        );
     }
 }
 
