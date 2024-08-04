@@ -204,7 +204,12 @@ impl Selectable for Switch {
         _transform: Option<&Transform>,
         _stroke: Option<&Stroke>,
     ) -> f32 {
-        self.id.to_slot().get_vec2().distance(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
+        self.id
+            .to_slot()
+            .get_vec2()
+            .lerp(self.id.from_slot().get_vec2(), 0.1)
+            .distance(pos)
+            - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
 }
 
@@ -330,7 +335,11 @@ pub fn update_switch_turns(
 
 pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
     for switch in switches.iter() {
-        let pos = switch.id.to_slot().get_vec2();
+        let pos = switch
+            .id
+            .to_slot()
+            .get_vec2()
+            .lerp(switch.id.from_slot().get_vec2(), 0.1);
         gizmos.circle_2d(pos * LAYOUT_SCALE, 0.1 * LAYOUT_SCALE, Color::from(RED));
     }
 }
@@ -434,15 +443,16 @@ fn update_switch_shapes(
             color = Color::from(GRAY);
             transform.translation.z = 30.0;
         }
-        if hover_state.hover == Some(GenericID::Switch(connection.connection.from_track)) {
-            color = Color::from(RED);
-            transform.translation.z = 40.0;
-        }
+
         if selection_state.selection
             == Selection::Single(GenericID::Switch(connection.connection.from_track))
         {
             color = Color::from(BLUE);
             transform.translation.z = 36.0;
+        }
+        if hover_state.hover == Some(GenericID::Switch(connection.connection.from_track)) {
+            color = Color::from(RED);
+            transform.translation.z = 40.0;
         }
         stroke.color = color;
     }
@@ -478,7 +488,7 @@ impl Plugin for SwitchPlugin {
                     .after(spawn_connection)
                     .run_if(on_event::<UpdateSwitchTurnsEvent>()),
                 update_switch_position.run_if(on_event::<SetSwitchPositionEvent>()),
-                draw_switches,
+                // draw_switches,
                 despawn_switch.run_if(on_event::<DespawnEvent<Switch>>()),
             ),
         );
