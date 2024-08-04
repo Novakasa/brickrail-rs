@@ -17,7 +17,6 @@ use serde_json_any_key::any_key_map;
 #[derive(Resource, Default)]
 pub struct TrackLocks {
     pub locked_tracks: HashMap<TrackID, TrainID>,
-    pub locked_switches: HashMap<DirectedTrackID, (TrainID, SwitchPosition)>,
     pub locked_switch_motors: HashMap<LayoutDeviceID, (TrainID, MotorPosition)>,
     pub clean_trains: HashSet<TrainID>,
 }
@@ -44,9 +43,11 @@ impl TrackLocks {
     }
 
     pub fn can_lock_track(&self, train: &TrainID, track: &TrackID) -> bool {
-        if let Some(locked_train) = self.locked_tracks.get(track) {
-            if locked_train != train {
-                return false;
+        for colliding_track in track.colliding_tracks() {
+            if let Some(locked_train) = self.locked_tracks.get(&colliding_track) {
+                if locked_train != train {
+                    return false;
+                }
             }
         }
         return true;

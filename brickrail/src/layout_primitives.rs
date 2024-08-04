@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{f32::consts::PI, str::FromStr};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::hashbrown::HashSet};
 use strum_macros::{Display, EnumIter};
 
 use serde::{Deserialize, Serialize};
@@ -1391,6 +1391,14 @@ impl TrackID {
         Some(Self { cell, orientation })
     }
 
+    pub fn slot0(&self) -> Slot {
+        self.cell.get_slot(self.orientation.get_cardinals().0)
+    }
+
+    pub fn slot1(&self) -> Slot {
+        self.cell.get_slot(self.orientation.get_cardinals().1)
+    }
+
     pub fn from_cells(cell1: CellID, cell2: CellID, cell3: CellID) -> Option<Self> {
         let slot0 = cell1.get_shared_slot(&cell2)?;
         let slot1 = cell2.get_shared_slot(&cell3)?;
@@ -1441,6 +1449,30 @@ impl TrackID {
             self.get_directed(Last).get_logical(Forward),
             self.get_directed(Last).get_logical(Backward),
         ]
+    }
+
+    pub fn colliding_tracks(&self) -> HashSet<TrackID> {
+        let mut tracks = HashSet::new();
+        let cell = self.cell;
+        for cardinal in [Cardinal::N, Cardinal::S, Cardinal::E, Cardinal::W].iter() {
+            let to_slot = cell.get_slot(*cardinal);
+            if let Some(track) = Self::from_slots(self.slot0(), to_slot) {
+                tracks.insert(track);
+            }
+            if let Some(track) = Self::from_slots(self.slot1(), to_slot) {
+                tracks.insert(track);
+            }
+        }
+        match self.orientation {
+            Orientation::EW => {
+                tracks.insert(Self::new(cell, Orientation::NS));
+            }
+            Orientation::NS => {
+                tracks.insert(Self::new(cell, Orientation::EW));
+            }
+            _ => {}
+        }
+        tracks
     }
 
     pub fn distance_to(&self, normalized_pos: Vec2) -> f32 {
