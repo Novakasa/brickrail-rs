@@ -8,11 +8,13 @@ use crate::{
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     switch::UpdateSwitchTurnsEvent,
+    train::{Train, TrainDragState},
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::{BLUE, GRAY, RED},
+    color::palettes::css::{BLUE, GRAY, ORANGE, RED},
     ecs::system::SystemState,
+    utils::hashbrown::HashSet,
 };
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
@@ -572,7 +574,24 @@ fn update_track_color(
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
     track_locks: Res<TrackLocks>,
+    trains: Query<&Train>,
+    drag_train: Res<TrainDragState>,
 ) {
+    let mut route_tracks = HashSet::new();
+    for train in trains.iter() {
+        for leg in train.get_route().iter_legs_remaining() {
+            for track in leg.travel_section.tracks.iter() {
+                route_tracks.insert(track.track());
+            }
+        }
+    }
+    if let Some(route) = drag_train.route.as_ref() {
+        for leg in route.iter_legs_remaining() {
+            for track in leg.travel_section.tracks.iter() {
+                route_tracks.insert(track.track());
+            }
+        }
+    }
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
@@ -605,22 +624,27 @@ fn update_track_color(
                 transform.translation = Vec3::new(0.0, 0.0, 10.0);
             }
             TrackShapeType::Path => {
+                let mut color = Color::from(LinearRgba {
+                    red: 0.0,
+                    green: 0.0,
+                    blue: 0.0,
+                    alpha: 0.0,
+                });
+                let mut z = 13.0;
                 if track_locks
                     .locked_tracks
                     .contains_key(&connection.id.from_track.track)
                 {
-                    stroke.color = Color::from(RED);
-                    transform.translation = Vec3::new(0.0, 0.0, 14.0);
-                    continue;
+                    color = Color::from(ORANGE);
+                    z = 15.0;
                 } else {
-                    stroke.color = Color::from(LinearRgba {
-                        red: 0.0,
-                        green: 0.0,
-                        blue: 0.0,
-                        alpha: 0.0,
-                    });
-                    transform.translation = Vec3::new(0.0, 0.0, 13.0);
+                    if route_tracks.contains(&connection.id.from_track.track) {
+                        color = Color::from(BLUE);
+                        z = 14.0;
+                    }
                 }
+                stroke.color = color;
+                transform.translation.z = z;
             }
             _ => {}
         }

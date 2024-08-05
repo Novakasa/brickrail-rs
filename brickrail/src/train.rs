@@ -37,11 +37,11 @@ const WAGON_DIST: f32 = 0.7;
 const WAGON_LENGTH: f32 = 0.6;
 
 #[derive(Resource, Default, Debug)]
-struct TrainDragState {
+pub struct TrainDragState {
     train_id: Option<TrainID>,
     target: Option<LogicalBlockID>,
     target_facing: Facing,
-    route: Option<Route>,
+    pub route: Option<Route>,
 }
 
 #[derive(Component, Debug)]
@@ -1016,9 +1016,9 @@ impl Plugin for TrainPlugin {
                 despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
                 draw_train,
                 update_wagons.after(directory_panel),
-                draw_train_route.after(draw_hover_route),
-                draw_locked_tracks.after(draw_train_route),
-                draw_hover_route,
+                // draw_train_route.after(draw_hover_route),
+                // draw_locked_tracks.after(draw_train_route),
+                // draw_hover_route,
                 init_drag_train.after(finish_hover),
                 exit_drag_train,
                 process_destination_queue.run_if(in_state(ControlState)),

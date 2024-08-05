@@ -29,7 +29,7 @@ fn main() {
     let hash = utils::get_file_hash(file);
     println!("Hash: {}", hash);
     env::set_var("RUST_BACKTRACE", "1");
-    env::set_var("RUST_LOG", "pybricks_ble=info,brickrail=info,bevy=debug");
+    env::set_var("RUST_LOG", "pybricks_ble=info,brickrail=info,bevy=info");
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window::default()),
