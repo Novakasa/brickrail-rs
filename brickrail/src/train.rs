@@ -1023,14 +1023,20 @@ impl Plugin for TrainPlugin {
                 exit_drag_train,
                 process_destination_queue.run_if(in_state(ControlState)),
                 tick_wait_time.run_if(in_state(ControlState)),
-                set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
+                set_train_route
+                    .run_if(on_event::<SetTrainRouteEvent>())
+                    .after(process_destination_queue),
                 update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
                     .after(sensor_advance),
-                update_virtual_trains_passive.run_if(in_state(EditorState::DeviceControl)),
+                update_virtual_trains_passive
+                    .run_if(in_state(EditorState::DeviceControl))
+                    .after(sensor_advance),
                 sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
-                sync_intentions.run_if(in_state(EditorState::DeviceControl)),
+                sync_intentions
+                    .run_if(in_state(EditorState::DeviceControl))
+                    .after(update_virtual_trains_passive),
                 trigger_manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
