@@ -10,6 +10,7 @@ use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
+use crate::post_processing::PostProcessSettings;
 use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
@@ -18,6 +19,7 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train, TrainWagon};
 
 use bevy::color::palettes::css::BLUE;
+use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
@@ -573,7 +575,21 @@ fn spawn_camera(mut commands: Commands) {
         ..default()
     };
     commands
-        .spawn((Camera2dBundle::default(), pancam))
+        .spawn((
+            Camera2dBundle {
+                camera: Camera {
+                    hdr: false,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            pancam,
+            BloomSettings {
+                intensity: 0.0,
+                ..Default::default()
+            },
+            PostProcessSettings { intensity: 0.0 },
+        ))
         .add(InitWorldTracking)
         .insert(MainCamera);
 }

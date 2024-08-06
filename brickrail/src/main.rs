@@ -14,6 +14,7 @@ mod layout;
 mod layout_devices;
 mod layout_primitives;
 mod marker;
+mod post_processing;
 mod route;
 mod schedule;
 mod section;
@@ -36,6 +37,7 @@ fn main() {
             close_when_requested: false,
             ..Default::default()
         }))
+        .add_plugins(post_processing::PostProcessPlugin)
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins(editor::EditorPlugin)
