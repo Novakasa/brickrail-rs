@@ -358,7 +358,7 @@ pub fn spawn_switch(
                 .unwrap_or(spawn_event.switch.id.to_string()),
         );
         let entity = commands
-            .spawn((name, spawn_event.switch.clone(), TransformBundle::default()))
+            .spawn((name, spawn_event.switch.clone(), SpatialBundle::default()))
             .with_children(|builder| {
                 for connection in switch
                     .positions
