@@ -18,7 +18,7 @@ use serde_json_any_key::any_key_map;
 pub struct TrackLocks {
     pub locked_tracks: HashMap<TrackID, TrainID>,
     pub locked_switch_motors: HashMap<LayoutDeviceID, (TrainID, MotorPosition)>,
-    pub clean_trains: HashSet<TrainID>,
+    pub consistent_intentions: HashSet<TrainID>,
 }
 
 impl TrackLocks {
@@ -80,12 +80,12 @@ impl TrackLocks {
         return true;
     }
 
-    pub fn mark_clean(&mut self, train: &TrainID) {
-        self.clean_trains.insert(train.clone());
+    pub fn mark_consistent_intentions(&mut self, train: &TrainID) {
+        self.consistent_intentions.insert(train.clone());
     }
 
     pub fn is_clean(&self, train: &TrainID) -> bool {
-        self.clean_trains.contains(train)
+        self.consistent_intentions.contains(train)
     }
 
     pub fn lock(
@@ -138,7 +138,7 @@ impl TrackLocks {
             .retain(|_, locked_train| locked_train != train);
         self.locked_switch_motors
             .retain(|_, (locked_train, _)| locked_train != train);
-        self.clean_trains = HashSet::new();
+        self.consistent_intentions = HashSet::new();
     }
 }
 

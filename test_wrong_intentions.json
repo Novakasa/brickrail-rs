@@ -1,0 +1,436 @@
+{
+  "marker_map": {
+    "in_markers": {
+      "\"L(2,7,0|WE>|→)\"": "LB[(1,7,0|WE)>(2,7,0|WE)]",
+      "\"L(6,7,0|EW>|←)\"": "LB[(7,7,0|EW)>(6,7,0|EW)]",
+      "\"L(-7,7,0|EW<|←)\"": "LB[(-7,7,0|EW)<(-8,7,0|EW)]",
+      "\"L(-4,7,0|EW>|←)\"": "LB[(-3,7,0|EW)>(-4,7,0|EW)]",
+      "\"L(-3,7,0|WE>|→)\"": "LB[(-4,7,0|WE)>(-3,7,0|WE)]",
+      "\"L(-3,7,0|EW<|←)\"": "LB[(-3,7,0|EW)<(-4,7,0|EW)]",
+      "\"L(1,7,0|EW>|←)\"": "LB[(2,7,0|EW)>(1,7,0|EW)]",
+      "\"L(10,7,0|EW<|←)\"": "LB[(10,7,0|EW)<(9,7,0|EW)]",
+      "\"L(2,7,0|EW<|←)\"": "LB[(2,7,0|EW)<(1,7,0|EW)]",
+      "\"L(1,7,0|WE<|→)\"": "LB[(1,7,0|WE)<(2,7,0|WE)]",
+      "\"L(-4,7,0|WE<|→)\"": "LB[(-4,7,0|WE)<(-3,7,0|WE)]",
+      "\"L(10,7,0|WE>|→)\"": "LB[(9,7,0|WE)>(10,7,0|WE)]",
+      "\"L(9,7,0|EW>|←)\"": "LB[(10,7,0|EW)>(9,7,0|EW)]",
+      "\"L(-7,7,0|WE>|→)\"": "LB[(-8,7,0|WE)>(-7,7,0|WE)]",
+      "\"L(6,7,0|WE<|→)\"": "LB[(6,7,0|WE)<(7,7,0|WE)]",
+      "\"L(-8,7,0|WE<|→)\"": "LB[(-8,7,0|WE)<(-7,7,0|WE)]",
+      "\"L(7,7,0|WE>|→)\"": "LB[(6,7,0|WE)>(7,7,0|WE)]",
+      "\"L(7,7,0|EW<|←)\"": "LB[(7,7,0|EW)<(6,7,0|EW)]",
+      "\"L(9,7,0|WE<|→)\"": "LB[(9,7,0|WE)<(10,7,0|WE)]",
+      "\"L(-8,7,0|EW>|←)\"": "LB[(-7,7,0|EW)>(-8,7,0|EW)]"
+    },
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(-9,7,0|EW|↔)",
+    "T(-8,7,0|EW|↔)",
+    "T(-7,7,0|EW|↔)",
+    "T(-6,7,0|EW|↔)",
+    "T(-5,7,0|EW|↔)",
+    "T(-4,7,0|EW|↔)",
+    "T(-3,7,0|EW|↔)",
+    "T(-2,7,0|EW|↔)",
+    "T(-1,7,0|EW|↔)",
+    "T(0,7,0|EW|↔)",
+    "T(1,7,0|EW|↔)",
+    "T(2,7,0|EW|↔)",
+    "T(3,7,0|EW|↔)",
+    "T(4,7,0|EW|↔)",
+    "T(5,7,0|EW|↔)",
+    "T(6,7,0|EW|↔)",
+    "T(7,7,0|EW|↔)",
+    "T(8,7,0|EW|↔)",
+    "T(9,7,0|EW|↔)",
+    "T(10,7,0|EW|↔)",
+    "T(11,7,0|EW|↔)"
+  ],
+  "connections": [
+    "C(-9,7,0|WE><-8,7,0|EW)",
+    "C(-8,7,0|WE><-7,7,0|EW)",
+    "C(-7,7,0|WE><-6,7,0|EW)",
+    "C(-6,7,0|WE><-5,7,0|EW)",
+    "C(-5,7,0|WE><-4,7,0|EW)",
+    "C(-4,7,0|WE><-3,7,0|EW)",
+    "C(-3,7,0|WE><-2,7,0|EW)",
+    "C(-2,7,0|WE><-1,7,0|EW)",
+    "C(-1,7,0|WE><0,7,0|EW)",
+    "C(0,7,0|WE><1,7,0|EW)",
+    "C(1,7,0|WE><2,7,0|EW)",
+    "C(2,7,0|WE><3,7,0|EW)",
+    "C(3,7,0|WE><4,7,0|EW)",
+    "C(4,7,0|WE><5,7,0|EW)",
+    "C(5,7,0|WE><6,7,0|EW)",
+    "C(6,7,0|WE><7,7,0|EW)",
+    "C(7,7,0|WE><8,7,0|EW)",
+    "C(8,7,0|WE><9,7,0|EW)",
+    "C(9,7,0|WE><10,7,0|EW)",
+    "C(10,7,0|WE><11,7,0|EW)"
+  ],
+  "blocks": [
+    {
+      "block": {
+        "id": "B[(-8,7,0|WE)-(-7,7,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-8,7,0|WE|→)",
+            "D(-7,7,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-8,7,0|WE)-(-7,7,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-4,7,0|WE)-(-3,7,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,7,0|WE|→)",
+            "D(-3,7,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(-4,7,0|WE)-(-3,7,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(1,7,0|WE)-(2,7,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(1,7,0|WE|→)",
+            "D(2,7,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(1,7,0|WE)-(2,7,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(6,7,0|WE)-(7,7,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(6,7,0|WE|→)",
+            "D(7,7,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(6,7,0|WE)-(7,7,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(9,7,0|WE)-(10,7,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(9,7,0|WE|→)",
+            "D(10,7,0|WE|→)"
+          ]
+        },
+        "settings": {}
+      },
+      "name": "B[(9,7,0|WE)-(10,7,0|EW)]"
+    }
+  ],
+  "markers": [
+    {
+      "track": "T(-7,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-7,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-7,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-7,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-7,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-8,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-8,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-8,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-8,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-8,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-3,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-3,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-3,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(1,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(1,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(1,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(1,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(1,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(7,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(7,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(7,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(7,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(7,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(6,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(6,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(6,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(6,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(6,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(10,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(10,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(10,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(10,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(10,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(9,7,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(9,7,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(9,7,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(9,7,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(9,7,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    }
+  ],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(-8,7,0|WE)>(-7,7,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train0",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 1
+        },
+        "position": {
+          "Block": "LB[(-4,7,0|WE)>(-3,7,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 1
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train1",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 2
+        },
+        "position": {
+          "Block": "LB[(6,7,0|WE)>(7,7,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 2
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train2",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    }
+  ],
+  "hubs": [],
+  "switches": [],
+  "switch_motors": [],
+  "destinations": [],
+  "schedules": []
+}

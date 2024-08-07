@@ -905,8 +905,8 @@ fn update_train_route(
     train
         .get_route()
         .update_locks(track_locks, entity_map, set_switch_position, switches);
-    track_locks.clean_trains.clear();
-    track_locks.mark_clean(&train.id);
+    track_locks.consistent_intentions.clear();
+    track_locks.mark_consistent_intentions(&train.id);
 }
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {

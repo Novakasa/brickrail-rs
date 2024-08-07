@@ -241,7 +241,11 @@ impl Route {
     ) {
         let mut free_until = 0;
         for (i, leg) in self.iter_legs_remaining().enumerate() {
-            if track_locks.can_lock(&self.train_id, &leg.travel_section, switches, entity_map) {
+            let section = match leg.get_leg_state() {
+                LegState::Completed => &leg.to_section,
+                _ => &leg.travel_section,
+            };
+            if track_locks.can_lock(&self.train_id, section, switches, entity_map) {
                 free_until = i + self.leg_index;
             } else {
                 break;
