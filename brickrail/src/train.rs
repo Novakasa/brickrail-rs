@@ -11,7 +11,7 @@ use crate::{
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     switch::{SetSwitchPositionEvent, Switch},
-    track::{self, LAYOUT_SCALE},
+    track::LAYOUT_SCALE,
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -725,9 +725,13 @@ fn set_train_route(
 ) {
     for event in route_events.read() {
         let mut route = event.route.clone();
+
         let train_entity = entity_map
             .get_entity(&GenericID::Train(event.train_id))
             .unwrap();
+        if route.num_legs() > 1 {
+            commands.entity(train_entity).remove::<WaitTime>();
+        }
         let (mut train, ble_train) = q_trains.get_mut(train_entity).unwrap();
         // println!("Dropping train {:?} on block {:?}", train_id, block_id);
         route.pretty_print();
@@ -737,6 +741,7 @@ fn set_train_route(
                 .get_current_leg()
                 .get_signed_pos_from_last(),
         );
+
         // route.get_current_leg_mut().intention = LegIntention::Stop;
         train.position = Position::Route(route);
 
@@ -756,7 +761,6 @@ fn set_train_route(
                 hub_commands.send(input);
             }
         }
-        commands.entity(train_entity).remove::<WaitTime>();
     }
 }
 
@@ -804,12 +808,10 @@ fn spawn_train(
             Position::Route(_) => panic!("Can't spawn train with route"),
         };
         println!("spawning at block {:?}", block_id);
-        let mut section = LogicalSection::new();
-        section.tracks.push(block_id.default_in_marker_track());
         let train_id = TrainID::new(entity_map.trains.len());
-        let route = build_route(
+        let route = block_route(
+            block_id,
             train_id,
-            &section,
             &q_markers,
             &q_blocks,
             &entity_map,
@@ -847,6 +849,22 @@ fn spawn_train(
             .id();
         entity_map.add_train(train_id, entity);
     }
+}
+
+fn block_route(
+    block_id: LogicalBlockID,
+    train_id: TrainID,
+    q_markers: &Query<&Marker>,
+    q_blocks: &Query<&Block>,
+    entity_map: &EntityMap,
+    marker_map: &MarkerMap,
+) -> Route {
+    let mut section = LogicalSection::new();
+    section.tracks.push(block_id.default_in_marker_track());
+    let route = build_route(
+        train_id, &section, q_markers, q_blocks, entity_map, marker_map,
+    );
+    route
 }
 
 fn despawn_train(
@@ -923,12 +941,16 @@ fn trigger_manual_sensor_advance(
 
 fn sensor_advance(
     mut q_trains: Query<&mut Train, With<BLETrain>>,
+    q_markers: Query<&Marker>,
+    q_blocks: Query<&Block>,
+    marker_map: Res<MarkerMap>,
     mut ble_sensor_advance_events: EventReader<MarkerAdvanceEvent>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
     mut commands: Commands,
     switches: Query<&Switch>,
+    mut set_train_route: EventWriter<SetTrainRouteEvent>,
 ) {
     for advance in ble_sensor_advance_events.read() {
         info!("Advancing sensor for train {:?}", advance.id);
@@ -949,6 +971,18 @@ fn sensor_advance(
         if train.get_route().is_completed() {
             println!("Train {:?} completed route", train.id);
             commands.entity(train_entity).insert(WaitTime::new());
+            let route = block_route(
+                train.get_route().get_current_leg().get_target_block_id(),
+                train.id,
+                &q_markers,
+                &q_blocks,
+                &entity_map,
+                &marker_map,
+            );
+            set_train_route.send(SetTrainRouteEvent {
+                train_id: train.id,
+                route: route,
+            });
         }
 
         for mut train in q_trains.iter_mut() {
