@@ -593,6 +593,7 @@ fn process_destination_queue(
             println!("No route found for train {:?}", train_id);
         }
         commands.entity(train_entity).remove::<QueuedDestination>();
+        return;
     }
 }
 

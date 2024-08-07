@@ -633,6 +633,50 @@ impl Connections {
         connections
     }
 
+    pub fn dijkstra(
+        &self,
+        start: LogicalBlockID,
+        targets: &[LogicalBlockID],
+        avoid_locked: Option<(&TrainID, &TrackLocks, &Query<&Switch>, &EntityMap)>,
+        prefer_facing: Option<Facing>,
+    ) -> HashMap<LogicalBlockID, f64> {
+        let start_node = start.default_in_marker_track();
+        let result =
+            petgraph::algo::dijkstra(&self.logical_graph, start_node, None, |(a, b, _)| {
+                let mut cost = 1.0;
+                if let Some((train, locks, switches, entity_map)) = avoid_locked {
+                    if !locks.can_lock_track(train, &b.track()) {
+                        cost += 10000.0;
+                    }
+                    if !locks.can_lock_connection(
+                        train,
+                        &LogicalTrackConnectionID::new(a, b),
+                        switches,
+                        entity_map,
+                    ) {
+                        cost += 10000.0;
+                    }
+                }
+                if let Some(facing) = prefer_facing {
+                    if b.facing != facing {
+                        cost += 10000.0;
+                    }
+                }
+                return cost;
+            });
+        let target_nodes = targets
+            .iter()
+            .map(|target| (target.default_in_marker_track(), target))
+            .collect::<HashMap<_, _>>();
+        let mut filtered_result = HashMap::new();
+        for (track, cost) in result.iter() {
+            if let Some(block) = target_nodes.get(track) {
+                filtered_result.insert(**block, *cost);
+            }
+        }
+        filtered_result
+    }
+
     pub fn find_route_section(
         &self,
         start: LogicalBlockID,
@@ -650,7 +694,7 @@ impl Connections {
                 let mut cost = 1.0;
                 if let Some((train, locks, switches, entity_map)) = avoid_locked {
                     if !locks.can_lock_track(train, &b.track()) {
-                        cost += f32::INFINITY;
+                        cost += 10000.0;
                     }
                     if !locks.can_lock_connection(
                         train,
@@ -658,7 +702,7 @@ impl Connections {
                         switches,
                         entity_map,
                     ) {
-                        cost += f32::INFINITY;
+                        cost += 10000.0;
                     }
                 }
                 if let Some(facing) = prefer_facing {
