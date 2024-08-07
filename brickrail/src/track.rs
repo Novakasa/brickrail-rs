@@ -7,6 +7,7 @@ use crate::{
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
+    route::LegState,
     switch::UpdateSwitchTurnsEvent,
     train::{Train, TrainDragState},
     utils::bresenham_line,
@@ -580,7 +581,11 @@ fn update_track_color(
     let mut route_tracks = HashSet::new();
     for train in trains.iter() {
         for leg in train.get_route().iter_legs_remaining() {
-            for track in leg.travel_section.tracks.iter() {
+            let section = match leg.get_leg_state() {
+                LegState::Completed => &leg.to_section,
+                _ => &leg.travel_section,
+            };
+            for track in section.tracks.iter() {
                 route_tracks.insert(track.track());
             }
         }

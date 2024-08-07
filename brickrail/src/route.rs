@@ -463,8 +463,8 @@ pub enum LegDistInRange {
 
 #[derive(Debug, Clone)]
 pub struct RouteLeg {
-    to_section: LogicalSection,
-    from_section: LogicalSection,
+    pub to_section: LogicalSection,
+    pub from_section: LogicalSection,
     pub travel_section: LogicalSection,
     markers: Vec<RouteMarkerData>,
     pub index: usize,
