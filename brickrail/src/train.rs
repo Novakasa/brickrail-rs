@@ -11,7 +11,7 @@ use crate::{
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     switch::{SetSwitchPositionEvent, Switch},
-    track::LAYOUT_SCALE,
+    track::{self, LAYOUT_SCALE},
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -227,16 +227,9 @@ impl Train {
         }
     }
 
-    pub fn advance_sensor(
-        &mut self,
-        track_locks: &mut ResMut<TrackLocks>,
-        entity_map: &Res<EntityMap>,
-        set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
-        switches: &Query<&Switch>,
-    ) {
+    pub fn advance_sensor(&mut self) {
         let route = self.get_route_mut();
         route.advance_sensor().expect("Failed to advance sensor");
-        route.update_locks(track_locks, entity_map, set_switch_position, switches);
 
         self.set_seek_target();
     }
@@ -540,7 +533,6 @@ fn process_destination_queue(
         let train_id = train.id;
         let start = train.get_logical_block_id();
         let train_entity = entity_map.get_entity(&GenericID::Train(train_id)).unwrap();
-        let mut routes = vec![];
         let destination = match queue.dest {
             DestinationID::Specific(_) => q_destinations
                 .get(
@@ -557,6 +549,8 @@ fn process_destination_queue(
                     .collect(),
             },
         };
+
+        let mut routes = vec![];
         for (block_id, dir, _) in destination.blocks.iter() {
             for direction in dir.iter_directions() {
                 let target = block_id.to_logical(*direction, Facing::Forward);
@@ -746,15 +740,12 @@ fn set_train_route(
         // route.get_current_leg_mut().intention = LegIntention::Stop;
         train.position = Position::Route(route);
 
-        train
-            .get_route_mut()
-            .update_intentions(track_locks.as_ref(), &switches, &entity_map);
-        // println!("state: {:?}", train.route.get_train_state());
-        train.get_route().update_locks(
+        update_train_route(
+            &mut train,
             &mut track_locks,
+            &switches,
             &entity_map,
             &mut set_switch_position,
-            &switches,
         );
         train.set_seek_target();
 
@@ -875,29 +866,29 @@ fn despawn_train(
 
 fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
-    switches: Query<&Switch>,
     time: Res<Time>,
-    mut track_locks: ResMut<TrackLocks>,
     mut advance_events: EventWriter<MarkerAdvanceEvent>,
-    entity_map: Res<EntityMap>,
-    mut switch_events: EventWriter<SetSwitchPositionEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
-        if !track_locks.is_clean(&train.id) {
-            // println!("Updating intentions for train {:?}", train.id);
-            train
-                .get_route_mut()
-                .update_intentions(track_locks.as_ref(), &switches, &entity_map);
-            train.get_route().update_locks(
-                &mut track_locks,
-                &entity_map,
-                &mut switch_events,
-                &switches,
-            );
-            track_locks.mark_clean(&train.id);
-        }
         train.traverse_route(time.delta_seconds(), &mut advance_events);
     }
+}
+
+fn update_train_route(
+    train: &mut Mut<Train>,
+    track_locks: &mut ResMut<TrackLocks>,
+    switches: &Query<&Switch>,
+    entity_map: &Res<EntityMap>,
+    set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+) {
+    train
+        .get_route_mut()
+        .update_intentions(track_locks.as_ref(), switches, entity_map);
+    train
+        .get_route()
+        .update_locks(track_locks, entity_map, set_switch_position, switches);
+    track_locks.clean_trains.clear();
+    track_locks.mark_clean(&train.id);
 }
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
@@ -946,11 +937,13 @@ fn sensor_advance(
             .unwrap();
         let mut train = q_trains.get_mut(train_entity).unwrap();
         assert_eq!(advance.index, train.get_route().get_current_leg().index + 1);
-        train.advance_sensor(
+        train.advance_sensor();
+        update_train_route(
+            &mut train,
             &mut track_locks,
+            &switches,
             &entity_map,
             &mut set_switch_position,
-            &switches,
         );
 
         if train.get_route().is_completed() {
@@ -960,18 +953,13 @@ fn sensor_advance(
 
         for mut train in q_trains.iter_mut() {
             if !track_locks.is_clean(&train.id) {
-                train.get_route_mut().update_intentions(
-                    track_locks.as_ref(),
-                    &switches,
-                    &entity_map,
-                );
-                train.get_route().update_locks(
+                update_train_route(
+                    &mut train,
                     &mut track_locks,
+                    &switches,
                     &entity_map,
                     &mut set_switch_position,
-                    &switches,
                 );
-                track_locks.mark_clean(&train.id);
             }
         }
     }

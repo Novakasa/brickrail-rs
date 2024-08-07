@@ -131,7 +131,6 @@ impl TrackLocks {
                 });
             }
         }
-        self.clean_trains = HashSet::new();
     }
 
     pub fn unlock_all(&mut self, train: &TrainID) {
