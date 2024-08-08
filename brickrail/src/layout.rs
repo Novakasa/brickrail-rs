@@ -693,16 +693,15 @@ impl Connections {
             |(a, b, _)| {
                 let mut cost = 1.0;
                 if let Some((train, locks, switches, entity_map)) = avoid_locked {
-                    if !locks.can_lock_track(train, &b.track()) {
-                        cost += 10000.0;
-                    }
-                    if !locks.can_lock_connection(
-                        train,
-                        &LogicalTrackConnectionID::new(a, b),
-                        switches,
-                        entity_map,
-                    ) {
-                        cost += 10000.0;
+                    if !locks.can_lock_track(train, &b.track())
+                        || !locks.can_lock_connection(
+                            train,
+                            &LogicalTrackConnectionID::new(a, b),
+                            switches,
+                            entity_map,
+                        )
+                    {
+                        cost += f32::INFINITY;
                     }
                 }
                 if let Some(facing) = prefer_facing {

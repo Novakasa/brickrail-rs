@@ -10,7 +10,7 @@ use crate::{
     editor::{ControlState, ControlStateMode, GenericID, Selectable, SelectionState},
     layout::EntityMap,
     layout_primitives::{DestinationID, ScheduleID},
-    train::{QueuedDestination, TargetChoiceStrategy, WaitTime},
+    train::{set_train_route, PlanRouteEvent, QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
 
 #[derive(Debug, Component, Clone, Serialize, Deserialize, Default)]
@@ -268,6 +268,7 @@ fn assign_random_routes(
     mut commands: Commands,
     control_info: Res<ControlInfo>,
 ) {
+    let mut assigned_destination = false;
     for (entity, wait_time) in q_wait_time.iter() {
         if wait_time.time > control_info.wait_time {
             println!("Assigning random route to {:?}", entity);
@@ -276,7 +277,11 @@ fn assign_random_routes(
                 strategy: TargetChoiceStrategy::Random,
                 allow_locked: false,
             });
+            assigned_destination = true;
         }
+    }
+    if assigned_destination {
+        commands.trigger(PlanRouteEvent {});
     }
 }
 
@@ -308,6 +313,7 @@ fn update_schedules(
     entity_map: Res<EntityMap>,
     mut commands: Commands,
 ) {
+    let mut assigned_destination = false;
     for (entity, mut assigned_schedule, wait_time) in q_assignments.iter_mut() {
         if let Some(schedule_id) = assigned_schedule.schedule_id {
             let schedule = q_schedules
@@ -321,8 +327,12 @@ fn update_schedules(
                 assigned_schedule.advance_stops(schedule, control_info.time, wait_time.time)
             {
                 commands.entity(entity).insert(queued_dest);
+                assigned_destination = true;
             }
         }
+    }
+    if assigned_destination {
+        commands.trigger(PlanRouteEvent {});
     }
 }
 
@@ -336,8 +346,12 @@ impl Plugin for SchedulePlugin {
             Update,
             (
                 update_time.run_if(in_state(ControlState)),
-                assign_random_routes.run_if(in_state(ControlStateMode::Random)),
-                update_schedules.run_if(in_state(ControlStateMode::Schedule)),
+                assign_random_routes
+                    .run_if(in_state(ControlStateMode::Random))
+                    .before(set_train_route),
+                update_schedules
+                    .run_if(in_state(ControlStateMode::Schedule))
+                    .before(set_train_route),
                 spawn_schedule.run_if(on_event::<SpawnScheduleEvent>()),
             ),
         );

@@ -516,7 +516,11 @@ fn exit_drag_train(
     }
 }
 
+#[derive(Event, Debug)]
+pub struct PlanRouteEvent {}
+
 fn process_destination_queue(
+    _trigger: Trigger<PlanRouteEvent>,
     q_blocks: Query<&Block>,
     q_destinations: Query<&Destination>,
     entity_map: Res<EntityMap>,
@@ -526,13 +530,17 @@ fn process_destination_queue(
     q_markers: Query<&Marker>,
     switches: Query<&Switch>,
     marker_map: Res<MarkerMap>,
-    mut commands: Commands,
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
 ) {
     for (train, queue) in q_trains.iter() {
+        if !train.get_route().is_completed() {
+            continue;
+        }
+        if train.get_route().num_legs() > 1 {
+            continue;
+        }
         let train_id = train.id;
         let start = train.get_logical_block_id();
-        let train_entity = entity_map.get_entity(&GenericID::Train(train_id)).unwrap();
         let destination = match queue.dest {
             DestinationID::Specific(_) => q_destinations
                 .get(
@@ -584,7 +592,7 @@ fn process_destination_queue(
             }
         }
 
-        if let Some(route) = routes.pop() {
+        if let Some(route) = routes.first().cloned() {
             set_train_route.send(SetTrainRouteEvent {
                 train_id,
                 route: route,
@@ -592,7 +600,6 @@ fn process_destination_queue(
         } else {
             println!("No route found for train {:?}", train_id);
         }
-        commands.entity(train_entity).remove::<QueuedDestination>();
         return;
     }
 }
@@ -699,7 +706,7 @@ pub struct QueuedDestination {
 }
 
 #[derive(Debug, Event)]
-struct SetTrainRouteEvent {
+pub struct SetTrainRouteEvent {
     train_id: TrainID,
     route: Route,
 }
@@ -713,7 +720,7 @@ fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
     }
 }
 
-fn set_train_route(
+pub fn set_train_route(
     mut q_trains: Query<(&mut Train, &mut BLETrain)>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
@@ -732,6 +739,8 @@ fn set_train_route(
             .unwrap();
         if route.num_legs() > 1 {
             commands.entity(train_entity).remove::<WaitTime>();
+        } else {
+            commands.entity(train_entity).remove::<QueuedDestination>();
         }
         let (mut train, ble_train) = q_trains.get_mut(train_entity).unwrap();
         // println!("Dropping train {:?} on block {:?}", train_id, block_id);
@@ -752,6 +761,7 @@ fn set_train_route(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &mut commands,
         );
         train.set_seek_target();
 
@@ -899,6 +909,7 @@ fn update_train_route(
     switches: &Query<&Switch>,
     entity_map: &Res<EntityMap>,
     set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+    commands: &mut Commands,
 ) {
     train
         .get_route_mut()
@@ -908,6 +919,7 @@ fn update_train_route(
         .update_locks(track_locks, entity_map, set_switch_position, switches);
     track_locks.consistent_intentions.clear();
     track_locks.mark_consistent_intentions(&train.id);
+    commands.trigger(PlanRouteEvent {});
 }
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
@@ -967,6 +979,7 @@ fn sensor_advance(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &mut commands,
         );
 
         if train.get_route().is_completed() {
@@ -994,6 +1007,7 @@ fn sensor_advance(
                     &switches,
                     &entity_map,
                     &mut set_switch_position,
+                    &mut commands,
                 );
             }
         }
@@ -1031,6 +1045,7 @@ impl Plugin for TrainPlugin {
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
         app.add_event::<DespawnEvent<Train>>();
+        app.observe(process_destination_queue);
         app.add_systems(
             Update,
             (
@@ -1044,11 +1059,8 @@ impl Plugin for TrainPlugin {
                 // draw_hover_route,
                 init_drag_train.after(finish_hover),
                 exit_drag_train,
-                process_destination_queue.run_if(in_state(ControlState)),
                 tick_wait_time.run_if(in_state(ControlState)),
-                set_train_route
-                    .run_if(on_event::<SetTrainRouteEvent>())
-                    .after(process_destination_queue),
+                set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
                 update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
