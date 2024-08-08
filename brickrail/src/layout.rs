@@ -629,30 +629,11 @@ impl Connections {
         targets: &[LogicalBlockID],
         avoid_locked: Option<(&TrainID, &TrackLocks, &Query<&Switch>, &EntityMap)>,
         prefer_facing: Option<Facing>,
-    ) -> HashMap<LogicalBlockID, f64> {
+    ) -> HashMap<LogicalBlockID, f32> {
         let start_node = start.default_in_marker_track();
         let result =
             petgraph::algo::dijkstra(&self.logical_graph, start_node, None, |(a, b, _)| {
-                let mut cost = 1.0;
-                if let Some((train, locks, switches, entity_map)) = avoid_locked {
-                    if !locks.can_lock_track(train, &b.track()) {
-                        cost += 10000.0;
-                    }
-                    if !locks.can_lock_connection(
-                        train,
-                        &LogicalTrackConnectionID::new(a, b),
-                        switches,
-                        entity_map,
-                    ) {
-                        cost += 10000.0;
-                    }
-                }
-                if let Some(facing) = prefer_facing {
-                    if b.facing != facing {
-                        cost += 10000.0;
-                    }
-                }
-                return cost;
+                edge_cost(a, b, avoid_locked, prefer_facing)
             });
         let target_nodes = targets
             .iter()
@@ -680,27 +661,7 @@ impl Connections {
             &self.logical_graph,
             start_track,
             |track| track == target_track,
-            |(a, b, _)| {
-                let mut cost = 1.0;
-                if let Some((train, locks, switches, entity_map)) = avoid_locked {
-                    if !locks.can_lock_track(train, &b.track())
-                        || !locks.can_lock_connection(
-                            train,
-                            &LogicalTrackConnectionID::new(a, b),
-                            switches,
-                            entity_map,
-                        )
-                    {
-                        cost += f32::INFINITY;
-                    }
-                }
-                if let Some(facing) = prefer_facing {
-                    if b.facing != facing {
-                        cost += 10000.0;
-                    }
-                }
-                return cost;
-            },
+            |(a, b, _)| edge_cost(a, b, avoid_locked, prefer_facing),
             |track| {
                 let delta = track.cell().get_delta_vec(&target_track.cell());
                 delta.x.abs() + delta.y.abs()
@@ -710,6 +671,33 @@ impl Connections {
             None => None,
         }
     }
+}
+
+fn edge_cost(
+    a: LogicalTrackID,
+    b: LogicalTrackID,
+    avoid_locked: Option<(&TrainID, &TrackLocks, &Query<&Switch>, &EntityMap)>,
+    prefer_facing: Option<Facing>,
+) -> f32 {
+    let mut cost = 1.0;
+    if let Some((train, locks, switches, entity_map)) = avoid_locked {
+        if !locks.can_lock_track(train, &b.track())
+            || !locks.can_lock_connection(
+                train,
+                &LogicalTrackConnectionID::new(a, b),
+                switches,
+                entity_map,
+            )
+        {
+            cost += f32::INFINITY;
+        }
+    }
+    if let Some(facing) = prefer_facing {
+        if b.facing != facing {
+            cost += 10000.0;
+        }
+    }
+    cost
 }
 
 fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Res<Time>) {
