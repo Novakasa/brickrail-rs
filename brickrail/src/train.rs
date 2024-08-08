@@ -536,11 +536,13 @@ fn assign_destination_route(
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
 ) {
     for (train, queue) in q_trains.iter() {
-        if !train.get_route().is_completed() && !train.get_route().is_blocked() {
-            continue;
-        }
-        if train.get_route().num_legs() > 1 && !train.get_route().is_blocked() {
-            continue;
+        if !train.get_route().is_blocked() {
+            if !train.get_route().is_completed() {
+                continue;
+            }
+            if train.get_route().num_legs() > 1 {
+                continue;
+            }
         }
 
         let train_id = train.id;
@@ -913,19 +915,19 @@ fn update_virtual_trains(
 
 fn update_train_route(
     train: &mut Train,
-    track_locks: &mut ResMut<TrackLocks>,
+    track_locks: &mut TrackLocks,
     switches: &Query<&Switch>,
     entity_map: &EntityMap,
     set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
 ) -> bool {
     train
         .get_route_mut()
-        .update_intentions(track_locks.as_ref(), switches, entity_map);
+        .update_intentions(track_locks, switches, entity_map);
     let old_locks = track_locks.clone();
     train
         .get_route()
         .update_locks(track_locks, entity_map, set_switch_position, switches);
-    **track_locks != old_locks
+    *track_locks != old_locks
 }
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
