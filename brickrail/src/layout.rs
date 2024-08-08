@@ -7,18 +7,17 @@ use crate::switch_motor::MotorPosition;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
 use bevy::color::palettes::css::{GOLD, GREEN, ORANGE};
 use bevy::ecs::query::{QueryData, QueryFilter, WorldQuery};
+use bevy::prelude::*;
 use bevy::utils::hashbrown::hash_map::OccupiedError;
 use bevy::utils::HashMap;
-use bevy::{prelude::*, utils::HashSet};
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Clone, PartialEq, Eq)]
 pub struct TrackLocks {
     pub locked_tracks: HashMap<TrackID, TrainID>,
     pub locked_switch_motors: HashMap<LayoutDeviceID, (TrainID, MotorPosition)>,
-    pub consistent_intentions: HashSet<TrainID>,
 }
 
 impl TrackLocks {
@@ -80,14 +79,6 @@ impl TrackLocks {
         return true;
     }
 
-    pub fn mark_consistent_intentions(&mut self, train: &TrainID) {
-        self.consistent_intentions.insert(train.clone());
-    }
-
-    pub fn is_clean(&self, train: &TrainID) -> bool {
-        self.consistent_intentions.contains(train)
-    }
-
     pub fn lock(
         &mut self,
         train: &TrainID,
@@ -138,7 +129,6 @@ impl TrackLocks {
             .retain(|_, locked_train| locked_train != train);
         self.locked_switch_motors
             .retain(|_, (locked_train, _)| locked_train != train);
-        self.consistent_intentions = HashSet::new();
     }
 }
 

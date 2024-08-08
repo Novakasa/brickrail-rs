@@ -517,9 +517,12 @@ fn exit_drag_train(
 }
 
 #[derive(Event, Debug)]
+pub struct LocksChangedEvent {}
+
+#[derive(Event, Debug)]
 pub struct PlanRouteEvent {}
 
-fn process_destination_queue(
+fn assign_destination_route(
     _trigger: Trigger<PlanRouteEvent>,
     q_blocks: Query<&Block>,
     q_destinations: Query<&Destination>,
@@ -533,12 +536,13 @@ fn process_destination_queue(
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
 ) {
     for (train, queue) in q_trains.iter() {
-        if !train.get_route().is_completed() {
+        if !train.get_route().is_completed() && !train.get_route().is_blocked() {
             continue;
         }
-        if train.get_route().num_legs() > 1 {
+        if train.get_route().num_legs() > 1 && !train.get_route().is_blocked() {
             continue;
         }
+
         let train_id = train.id;
         let start = train.get_logical_block_id();
         let destination = match queue.dest {
@@ -755,14 +759,15 @@ pub fn set_train_route(
         // route.get_current_leg_mut().intention = LegIntention::Stop;
         train.position = Position::Route(route);
 
-        update_train_route(
+        if update_train_route(
             &mut train,
             &mut track_locks,
             &switches,
             &entity_map,
             &mut set_switch_position,
-            &mut commands,
-        );
+        ) {
+            commands.trigger(LocksChangedEvent {});
+        }
         train.set_seek_target();
 
         if editor_state.get().ble_commands_enabled() {
@@ -828,13 +833,16 @@ fn spawn_train(
             &entity_map,
             &marker_map,
         );
-        route.update_locks(
+        train.position = Position::Route(route);
+        if update_train_route(
+            &mut train,
             &mut track_locks,
+            &switches,
             &entity_map,
             &mut set_switch_position,
-            &switches,
-        );
-        train.position = Position::Route(route);
+        ) {
+            commands.trigger(LocksChangedEvent {});
+        }
         println!("train block: {:?}", train.get_logical_block_id());
         let mut train = TrainBundle::from_train(train);
         train
@@ -904,22 +912,20 @@ fn update_virtual_trains(
 }
 
 fn update_train_route(
-    train: &mut Mut<Train>,
+    train: &mut Train,
     track_locks: &mut ResMut<TrackLocks>,
     switches: &Query<&Switch>,
-    entity_map: &Res<EntityMap>,
+    entity_map: &EntityMap,
     set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
-    commands: &mut Commands,
-) {
+) -> bool {
     train
         .get_route_mut()
         .update_intentions(track_locks.as_ref(), switches, entity_map);
+    let old_locks = track_locks.clone();
     train
         .get_route()
         .update_locks(track_locks, entity_map, set_switch_position, switches);
-    track_locks.consistent_intentions.clear();
-    track_locks.mark_consistent_intentions(&train.id);
-    commands.trigger(PlanRouteEvent {});
+    **track_locks != old_locks
 }
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
@@ -973,14 +979,15 @@ fn sensor_advance(
         let mut train = q_trains.get_mut(train_entity).unwrap();
         assert_eq!(advance.index, train.get_route().get_current_leg().index + 1);
         train.advance_sensor();
-        update_train_route(
+        if update_train_route(
             &mut train,
             &mut track_locks,
             &switches,
             &entity_map,
             &mut set_switch_position,
-            &mut commands,
-        );
+        ) {
+            commands.trigger(LocksChangedEvent {});
+        }
 
         if train.get_route().is_completed() {
             println!("Train {:?} completed route", train.id);
@@ -998,20 +1005,32 @@ fn sensor_advance(
                 route: route,
             });
         }
+    }
+}
 
-        for mut train in q_trains.iter_mut() {
-            if !track_locks.is_clean(&train.id) {
-                update_train_route(
-                    &mut train,
-                    &mut track_locks,
-                    &switches,
-                    &entity_map,
-                    &mut set_switch_position,
-                    &mut commands,
-                );
-            }
+fn update_routes(
+    _trigger: Trigger<LocksChangedEvent>,
+    mut q_trains: Query<&mut Train>,
+    mut track_locks: ResMut<TrackLocks>,
+    switches: Query<&Switch>,
+    entity_map: Res<EntityMap>,
+    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut commands: Commands,
+) {
+    for mut train in q_trains.iter_mut() {
+        if update_train_route(
+            &mut train,
+            &mut track_locks,
+            &switches,
+            &entity_map,
+            &mut set_switch_position,
+        ) {
+            commands.trigger(LocksChangedEvent {});
+            return;
         }
     }
+    // only triggered if no locks changed this run
+    commands.trigger(PlanRouteEvent {});
 }
 
 fn sync_intentions(
@@ -1045,7 +1064,8 @@ impl Plugin for TrainPlugin {
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
         app.add_event::<DespawnEvent<Train>>();
-        app.observe(process_destination_queue);
+        app.observe(assign_destination_route);
+        app.observe(update_routes);
         app.add_systems(
             Update,
             (
