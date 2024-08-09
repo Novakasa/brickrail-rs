@@ -9,6 +9,7 @@ use crate::{
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
+    track_mesh::{self, MeshType},
     train::{Train, TrainDragState},
     utils::bresenham_line,
 };
@@ -23,6 +24,7 @@ use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tess::path::Path;
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -57,7 +59,7 @@ pub fn build_connection_path_extents(
         path_builder.line_to(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE);
     }
 
-    path_builder.build()
+    path_builder.build().0
 }
 
 impl TrackBuildState {
@@ -167,16 +169,13 @@ pub fn spawn_connection(
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
             let outer_entity = commands
-                .spawn(TrackBaseShape::new(directed, TrackShapeType::Outer))
+                .spawn((TrackShapeOuter::new(directed), SpatialBundle::default()))
                 .id();
             let inner_entity = commands
-                .spawn(TrackBaseShape::new(directed, TrackShapeType::Inner))
-                .id();
-            let path_entity = commands
-                .spawn(TrackBaseShape::new(directed, TrackShapeType::Path))
+                .spawn((TrackShapeInner::new(directed), SpatialBundle::default()))
                 .id();
             connections.connect_tracks_simple(&connection_id);
-            entity_map.add_connection(directed, outer_entity, inner_entity, path_entity);
+            entity_map.add_connection(directed, outer_entity, inner_entity, outer_entity);
         }
 
         if spawn_connection.update_switches {
@@ -203,57 +202,61 @@ pub enum TrackShapeType {
     Path,
 }
 
-#[derive(Component)]
-pub struct TrackConnectionShape {
-    pub id: DirectedTrackConnectionID,
-    pub shape_type: TrackShapeType,
+#[derive(Debug, Component)]
+struct TrackShapeOuter {
+    id: DirectedTrackConnectionID,
 }
 
-#[derive(Bundle)]
-pub struct TrackBaseShape {
-    connection: TrackConnectionShape,
-    shape: ShapeBundle,
-    stroke: Stroke,
+impl TrackShapeOuter {
+    pub fn new(id: DirectedTrackConnectionID) -> Self {
+        Self { id }
+    }
 }
 
-impl TrackBaseShape {
-    pub fn new(id: DirectedTrackConnectionID, shape_type: TrackShapeType) -> Self {
-        let (color, width, z) = match &shape_type {
-            TrackShapeType::Inner => (Color::BLACK, TRACK_INNER_WIDTH, 10.0),
-            TrackShapeType::Outer => (Color::WHITE, TRACK_WIDTH, 5.0),
-            TrackShapeType::Path => (
-                Color::from(LinearRgba {
-                    red: 0.0,
-                    green: 0.0,
-                    blue: 0.0,
-                    alpha: 0.0,
-                }),
-                PATH_WIDTH,
-                13.0,
-            ),
-        };
+impl MeshType for TrackShapeOuter {
+    type ID = DirectedTrackConnectionID;
 
-        let connection = TrackConnectionShape {
-            id: id,
-            shape_type: shape_type,
-        };
-        Self {
-            connection: connection,
-            shape: ShapeBundle {
-                path: build_connection_path(id),
-                spatial: SpatialBundle {
-                    transform: Transform::from_xyz(0.0, 0.0, z),
-                    ..default()
-                },
-                ..default()
-            },
-            stroke: Stroke {
-                color,
-                options: StrokeOptions::default()
-                    .with_line_width(width)
-                    .with_line_cap(LineCap::Round),
-            },
-        }
+    fn id(&self) -> Self::ID {
+        self.id
+    }
+
+    fn stroke() -> StrokeOptions {
+        StrokeOptions::default()
+            .with_line_width(TRACK_WIDTH)
+            .with_line_cap(LineCap::Round)
+    }
+
+    fn path(id: &Self::ID) -> tess::path::Path {
+        build_connection_path(*id)
+    }
+}
+
+#[derive(Debug, Component)]
+struct TrackShapeInner {
+    id: DirectedTrackConnectionID,
+}
+
+impl TrackShapeInner {
+    pub fn new(id: DirectedTrackConnectionID) -> Self {
+        Self { id }
+    }
+}
+
+impl MeshType for TrackShapeInner {
+    type ID = DirectedTrackConnectionID;
+
+    fn id(&self) -> Self::ID {
+        self.id
+    }
+
+    fn stroke() -> StrokeOptions {
+        StrokeOptions::default()
+            .with_line_width(TRACK_INNER_WIDTH)
+            .with_line_cap(LineCap::Round)
+    }
+
+    fn path(id: &Self::ID) -> tess::path::Path {
+        build_connection_path(*id)
     }
 }
 
@@ -570,8 +573,8 @@ fn draw_build_cells(
     }
 }
 
-fn update_track_color(
-    mut q_strokes: Query<(&TrackConnectionShape, &mut Stroke, &mut Transform)>,
+fn update_inner_track(
+    mut q_strokes: Query<(&TrackShapeInner, &mut Transform)>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
     track_locks: Res<TrackLocks>,
@@ -600,59 +603,31 @@ fn update_track_color(
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
-    for (connection, mut stroke, mut transform) in q_strokes.iter_mut() {
-        match connection.shape_type {
-            TrackShapeType::Inner => {
-                if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
-                    stroke.color = Color::from(RED);
-                    transform.translation = Vec3::new(0.0, 0.0, 12.0);
-                    continue;
-                }
-
-                if selection_state.selection
-                    == Selection::Single(GenericID::Track(connection.id.from_track.track))
-                {
-                    stroke.color = Color::from(BLUE);
-                    transform.translation = Vec3::new(0.0, 0.0, 11.0);
-                    continue;
-                }
-
-                if let Selection::Section(section) = &selection_state.selection {
-                    if section.has_track(&connection.id.from_track.track) {
-                        stroke.color = Color::from(BLUE);
-                        transform.translation = Vec3::new(0.0, 0.0, 11.0);
-                        continue;
-                    }
-                }
-
-                stroke.color = Color::BLACK;
-                transform.translation = Vec3::new(0.0, 0.0, 10.0);
-            }
-            TrackShapeType::Path => {
-                let mut color = Color::from(LinearRgba {
-                    red: 0.0,
-                    green: 0.0,
-                    blue: 0.0,
-                    alpha: 0.0,
-                });
-                let mut z = 13.0;
-                if track_locks
-                    .locked_tracks
-                    .contains_key(&connection.id.from_track.track)
-                {
-                    color = Color::from(ORANGE);
-                    z = 15.0;
-                } else {
-                    if route_tracks.contains(&connection.id.from_track.track) {
-                        color = Color::from(BLUE);
-                        z = 14.0;
-                    }
-                }
-                stroke.color = color;
-                transform.translation.z = z;
-            }
-            _ => {}
+    for (connection, mut transform) in q_strokes.iter_mut() {
+        if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
+            // stroke.color = Color::from(RED);
+            transform.translation = Vec3::new(0.0, 0.0, 12.0);
+            continue;
         }
+
+        if selection_state.selection
+            == Selection::Single(GenericID::Track(connection.id.from_track.track))
+        {
+            // stroke.color = Color::from(BLUE);
+            transform.translation = Vec3::new(0.0, 0.0, 11.0);
+            continue;
+        }
+
+        if let Selection::Section(section) = &selection_state.selection {
+            if section.has_track(&connection.id.from_track.track) {
+                // stroke.color = Color::from(BLUE);
+                transform.translation = Vec3::new(0.0, 0.0, 11.0);
+                continue;
+            }
+        }
+
+        // stroke.color = Color::BLACK;
+        transform.translation = Vec3::new(0.0, 0.0, 10.0);
     }
 }
 
@@ -708,6 +683,8 @@ pub struct TrackPlugin;
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
+        app.add_plugins(track_mesh::TrackMeshPlugin::<TrackShapeOuter>::default());
+        app.add_plugins(track_mesh::TrackMeshPlugin::<TrackShapeInner>::default());
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();
@@ -717,7 +694,7 @@ impl Plugin for TrackPlugin {
                 init_draw_track.run_if(in_state(EditorState::Edit)),
                 exit_draw_track.run_if(in_state(EditorState::Edit)),
                 update_draw_track.run_if(in_state(EditorState::Edit)),
-                update_track_color.after(finish_hover),
+                update_inner_track.after(finish_hover),
                 draw_build_cells.run_if(in_state(EditorState::Edit)),
                 delete_selection_shortcut::<Track>.run_if(in_state(EditorState::Edit)),
                 despawn_track,

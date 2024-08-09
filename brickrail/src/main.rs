@@ -2,6 +2,7 @@ use std::{env, path::Path};
 
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui;
+use bevy_prototype_lyon::plugin::ShapePlugin;
 
 mod bevy_tokio_tasks;
 mod ble;
@@ -22,6 +23,7 @@ mod settings;
 mod switch;
 mod switch_motor;
 mod track;
+mod track_mesh;
 mod train;
 mod utils;
 
@@ -37,6 +39,7 @@ fn main() {
             close_when_requested: false,
             ..Default::default()
         }))
+        .add_plugins(ShapePlugin)
         .add_plugins(post_processing::PostProcessPlugin)
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin)

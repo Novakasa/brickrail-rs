@@ -991,7 +991,6 @@ impl Plugin for EditorPlugin {
         app.insert_resource(Msaa::Sample8);
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
-        app.add_plugins(ShapePlugin);
         app.init_state::<EditorState>();
         app.add_computed_state::<ControlState>();
         app.add_sub_state::<ControlStateMode>();

@@ -381,8 +381,6 @@ pub struct SwitchConnection {
 #[derive(Bundle)]
 pub struct SwitchConnectionBundle {
     connection: SwitchConnection,
-    shape: ShapeBundle,
-    stroke: Stroke,
 }
 
 impl SwitchConnectionBundle {
@@ -390,24 +388,6 @@ impl SwitchConnectionBundle {
         let straight_length = connection.from_track.straight_length();
         Self {
             connection: SwitchConnection { connection },
-            shape: ShapeBundle {
-                path: build_connection_path_extents(
-                    connection,
-                    straight_length,
-                    straight_length + 0.5,
-                ),
-                spatial: SpatialBundle {
-                    transform: Transform::from_xyz(0.0, 0.0, 300.0),
-                    ..default()
-                },
-                ..default()
-            },
-            stroke: Stroke {
-                color: Color::from(MAGENTA),
-                options: StrokeOptions::default()
-                    .with_line_width(TRACK_WIDTH * 0.25)
-                    .with_line_cap(LineCap::Round),
-            },
         }
     }
 }
