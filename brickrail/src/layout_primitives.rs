@@ -47,7 +47,9 @@ pub struct LogicalDiscriminator {
     pub facing: Facing,
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Reflect, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy,
+)]
 pub enum SwitchPosition {
     Left,
     Center,
@@ -732,6 +734,29 @@ impl Orientation {
     }
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+pub struct DirectedConnectionShape {
+    pub orientation: Orientation,
+    pub direction: TrackDirection,
+    pub turn: SwitchPosition,
+}
+
+impl DirectedConnectionShape {
+    pub fn to_connection(&self, cell: CellID) -> DirectedTrackConnectionID {
+        let directed_track = DirectedTrackID {
+            track: TrackID {
+                cell,
+                orientation: self.orientation,
+            },
+            direction: self.direction,
+        };
+        DirectedTrackConnectionID {
+            from_track: directed_track,
+            to_track: directed_track.get_next_track(&self.turn),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub enum ConnectionDirection {
     Aligned,
@@ -858,6 +883,15 @@ impl DirectedTrackConnectionID {
             to_track,
         }
     }
+
+    pub fn shape_id(&self) -> DirectedConnectionShape {
+        DirectedConnectionShape {
+            orientation: self.from_track.track.orientation,
+            direction: self.from_track.direction,
+            turn: self.get_switch_position(),
+        }
+    }
+
     pub fn is_continuous(&self) -> bool {
         self.from_track.to_slot() == self.to_track.from_slot() && !self.flips_facing()
     }

@@ -40,6 +40,8 @@ pub trait MeshType: Component {
 
     fn path(id: &Self::ID) -> Path;
 
+    fn base_transform(&self) -> Transform;
+
     fn build_mesh(id: &Self::ID) -> Mesh {
         let mut stroke_tesselator = StrokeTessellator::new();
         let mut buffers = VertexBuffers::new();
@@ -101,7 +103,7 @@ fn add_meshes<T: MeshType>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut mesh_cache: ResMut<MeshCache<T>>,
-    query: Query<(Entity, &T), Without<Handle<Mesh>>>,
+    query: Query<(Entity, &T), Without<Mesh2dHandle>>,
     mut commands: Commands,
 ) {
     for (entity, id) in query.iter() {
@@ -109,6 +111,10 @@ fn add_meshes<T: MeshType>(
             mesh_cache.insert(id.id(), &mut meshes);
         }
         commands.entity(entity).insert((
+            SpatialBundle {
+                transform: id.base_transform(),
+                ..Default::default()
+            },
             Mesh2dHandle(mesh_cache.meshes[&id.id()].clone()),
             materials.add(ColorMaterial::from(Color::WHITE)),
         ));

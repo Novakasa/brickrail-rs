@@ -168,12 +168,8 @@ pub fn spawn_connection(
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
-            let outer_entity = commands
-                .spawn((TrackShapeOuter::new(directed), SpatialBundle::default()))
-                .id();
-            let inner_entity = commands
-                .spawn((TrackShapeInner::new(directed), SpatialBundle::default()))
-                .id();
+            let outer_entity = commands.spawn(TrackShapeOuter::new(directed)).id();
+            let inner_entity = commands.spawn(TrackShapeInner::new(directed)).id();
             connections.connect_tracks_simple(&connection_id);
             entity_map.add_connection(directed, outer_entity, inner_entity, outer_entity);
         }
@@ -214,10 +210,10 @@ impl TrackShapeOuter {
 }
 
 impl MeshType for TrackShapeOuter {
-    type ID = DirectedTrackConnectionID;
+    type ID = DirectedConnectionShape;
 
     fn id(&self) -> Self::ID {
-        self.id
+        self.id.shape_id()
     }
 
     fn stroke() -> StrokeOptions {
@@ -226,8 +222,12 @@ impl MeshType for TrackShapeOuter {
             .with_line_cap(LineCap::Round)
     }
 
+    fn base_transform(&self) -> Transform {
+        Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
+    }
+
     fn path(id: &Self::ID) -> tess::path::Path {
-        build_connection_path(*id)
+        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
     }
 }
 
@@ -243,10 +243,14 @@ impl TrackShapeInner {
 }
 
 impl MeshType for TrackShapeInner {
-    type ID = DirectedTrackConnectionID;
+    type ID = DirectedConnectionShape;
 
     fn id(&self) -> Self::ID {
-        self.id
+        self.id.shape_id()
+    }
+
+    fn base_transform(&self) -> Transform {
+        Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
     }
 
     fn stroke() -> StrokeOptions {
@@ -256,7 +260,7 @@ impl MeshType for TrackShapeInner {
     }
 
     fn path(id: &Self::ID) -> tess::path::Path {
-        build_connection_path(*id)
+        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
     }
 }
 
@@ -577,7 +581,7 @@ fn update_inner_track(
     mut q_strokes: Query<(&TrackShapeInner, &mut Transform)>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
-    track_locks: Res<TrackLocks>,
+    _track_locks: Res<TrackLocks>,
     trains: Query<&Train>,
     drag_train: Res<TrainDragState>,
 ) {
@@ -606,7 +610,7 @@ fn update_inner_track(
     for (connection, mut transform) in q_strokes.iter_mut() {
         if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
             // stroke.color = Color::from(RED);
-            transform.translation = Vec3::new(0.0, 0.0, 12.0);
+            transform.translation.z = 12.0;
             continue;
         }
 
@@ -614,20 +618,20 @@ fn update_inner_track(
             == Selection::Single(GenericID::Track(connection.id.from_track.track))
         {
             // stroke.color = Color::from(BLUE);
-            transform.translation = Vec3::new(0.0, 0.0, 11.0);
+            transform.translation.z = 11.0;
             continue;
         }
 
         if let Selection::Section(section) = &selection_state.selection {
             if section.has_track(&connection.id.from_track.track) {
                 // stroke.color = Color::from(BLUE);
-                transform.translation = Vec3::new(0.0, 0.0, 11.0);
+                transform.translation.z = 11.0;
                 continue;
             }
         }
 
         // stroke.color = Color::BLACK;
-        transform.translation = Vec3::new(0.0, 0.0, 10.0);
+        transform.translation.z = 10.0;
     }
 }
 
