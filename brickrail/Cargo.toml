@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-bevy = { version = "0.14", features = ["dynamic_linking", "serialize"] }
+bevy = { version = "0.14", features = ["serialize"] }
 bevy-inspector-egui = "0.25"
 bevy_framepace = "0.17"
 bevy_mouse_tracking_plugin = { git = "https://github.com/Novakasa/bevy-mouse-tracking.git", branch = "main" }
@@ -27,6 +27,9 @@ bitflags = "2.4"
 rfd = "0.14"
 sha2 = "0.10"
 rand = "0.8"
+
+[dev-dependencies]
+bevy = { version = "0.14", features = ["dynamic_linking", "serialize"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread"] }

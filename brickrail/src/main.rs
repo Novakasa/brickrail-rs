@@ -1,6 +1,6 @@
 use std::{env, path::Path};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::diagnostic::RenderDiagnosticsPlugin};
 use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
@@ -59,5 +59,7 @@ fn main() {
         .add_plugins(layout_devices::LayoutDevicePlugin)
         .add_plugins(schedule::SchedulePlugin)
         .add_plugins(destination::DestinationPlugin)
+        // .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(RenderDiagnosticsPlugin::default())
         .run();
 }

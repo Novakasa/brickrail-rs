@@ -4,6 +4,7 @@ resolver = "2"
 default-members = ["brickrail"]
 members = ["brickrail", "pybricks-ble", "test-pybricks"]
 
+
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1

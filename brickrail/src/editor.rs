@@ -27,6 +27,7 @@ use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::bevy_inspector::ui_for_all_assets;
 use bevy_inspector_egui::egui::ComboBox;
 use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -316,6 +317,11 @@ pub fn directory_panel(world: &mut World) {
                 directory_ui::<TrainSchedule>(ui, world, "Schedules");
             };
             ui.set_min_width(200.0);
+            ui.separator();
+
+            ui.collapsing("Assets", |ui| {
+                ui_for_all_assets(world, ui);
+            });
         });
         state.apply(world);
 
