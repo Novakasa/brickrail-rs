@@ -417,10 +417,16 @@ impl MeshType for SwitchConnection {
         )
     }
 
-    fn path(id: &Self::ID) -> Path {
-        let connection = id.to_connection(CellID::new(0, 0, 0));
+    fn path(&self) -> Path {
+        let connection = self.id().to_connection(CellID::new(0, 0, 0));
         let straight_length = connection.from_track.straight_length();
         build_connection_path_extents(connection, straight_length, straight_length + 0.5)
+    }
+
+    fn interpolate(&self, dist: f32) -> Vec2 {
+        self.id()
+            .to_connection(CellID::new(0, 0, 0))
+            .interpolate_pos(dist)
     }
 }
 

@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use bevy::{
+    math::NormedVectorSpace,
     prelude::*,
     render::{
         mesh::{Indices, PrimitiveTopology},
@@ -14,16 +15,18 @@ use lyon_tessellation::{
     StrokeVertexConstructor, VertexBuffers,
 };
 
+use crate::track::{LAYOUT_SCALE, TRACK_WIDTH};
+
 #[derive(Resource)]
 pub struct MeshCache<T: MeshType> {
     pub meshes: HashMap<T::ID, Mesh2dHandle>,
 }
 
 impl<T: MeshType> MeshCache<T> {
-    pub fn insert(&mut self, id: T::ID, assets: &mut Assets<Mesh>) {
-        let mesh = T::build_mesh(&id);
+    pub fn insert(&mut self, mesh: &T, assets: &mut Assets<Mesh>) {
+        let generated_mesh = mesh.build_mesh();
         self.meshes
-            .try_insert(id, Mesh2dHandle(assets.add(mesh)))
+            .try_insert(mesh.id(), Mesh2dHandle(assets.add(generated_mesh)))
             .unwrap();
     }
 }
@@ -43,11 +46,13 @@ pub trait MeshType: Component {
 
     fn stroke() -> StrokeOptions;
 
-    fn path(id: &Self::ID) -> Path;
+    fn path(&self) -> Path;
 
     fn base_transform(&self) -> Transform;
 
-    fn build_mesh(id: &Self::ID) -> Mesh {
+    fn interpolate(&self, dist: f32) -> Vec2;
+
+    fn build_mesh(&self) -> Mesh {
         let mut stroke_tesselator = StrokeTessellator::new();
         let mut buffers = VertexBuffers::new();
         let mut builder = BuffersBuilder::new(
@@ -57,7 +62,7 @@ pub trait MeshType: Component {
             },
         );
         stroke_tesselator
-            .tessellate_path(&Self::path(id), &Self::stroke(), &mut builder)
+            .tessellate_path(&self.path(), &Self::stroke(), &mut builder)
             .unwrap();
 
         let mut mesh = Mesh::new(
@@ -86,7 +91,17 @@ pub trait MeshType: Component {
             buffers
                 .vertices
                 .iter()
-                .map(|v| [v.dist, 1.0])
+                .map(|v| {
+                    let pos = self.interpolate(v.dist);
+                    let pos2 = self.interpolate(v.dist + 0.01);
+                    [
+                        v.dist,
+                        ((pos2 - pos)
+                            .normalize()
+                            .perp_dot(Vec2::from(v.position) / LAYOUT_SCALE - pos))
+                            + Self::stroke().line_width / 2.0,
+                    ]
+                })
                 .collect::<Vec<[f32; 2]>>(),
         );
         mesh
@@ -120,16 +135,16 @@ fn add_meshes<T: MeshType>(
     query: Query<(Entity, &T), Without<Mesh2dHandle>>,
     mut commands: Commands,
 ) {
-    for (entity, id) in query.iter() {
-        if !mesh_cache.meshes.contains_key(&id.id()) {
-            mesh_cache.insert(id.id(), &mut meshes);
+    for (entity, mesh) in query.iter() {
+        if !mesh_cache.meshes.contains_key(&mesh.id()) {
+            mesh_cache.insert(mesh, &mut meshes);
         }
         commands.entity(entity).insert((
             SpatialBundle {
-                transform: id.base_transform(),
+                transform: mesh.base_transform(),
                 ..Default::default()
             },
-            mesh_cache.meshes[&id.id()].clone(),
+            mesh_cache.meshes[&mesh.id()].clone(),
         ));
         println!("Number of meshes: {:?}", mesh_cache.meshes.len());
     }

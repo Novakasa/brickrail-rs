@@ -262,8 +262,14 @@ impl MeshType for TrackShapeOuter {
         Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
     }
 
-    fn path(id: &Self::ID) -> Path {
-        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
+    fn path(&self) -> Path {
+        build_connection_path(self.id().to_connection(CellID::new(0, 0, 0)))
+    }
+
+    fn interpolate(&self, dist: f32) -> Vec2 {
+        self.id()
+            .to_connection(CellID::new(0, 0, 0))
+            .interpolate_pos(dist)
     }
 }
 
@@ -297,8 +303,14 @@ impl MeshType for TrackShapeInner {
             .with_line_cap(LineCap::Round)
     }
 
-    fn path(id: &Self::ID) -> Path {
-        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
+    fn path(&self) -> Path {
+        build_connection_path(self.id().to_connection(CellID::new(0, 0, 0)))
+    }
+
+    fn interpolate(&self, dist: f32) -> Vec2 {
+        self.id()
+            .to_connection(CellID::new(0, 0, 0))
+            .interpolate_pos(dist)
     }
 }
 
@@ -332,8 +344,14 @@ impl MeshType for TrackShapePath {
             .with_line_cap(LineCap::Round)
     }
 
-    fn path(id: &Self::ID) -> Path {
-        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
+    fn path(&self) -> Path {
+        build_connection_path(self.id().to_connection(CellID::new(0, 0, 0)))
+    }
+
+    fn interpolate(&self, dist: f32) -> Vec2 {
+        self.id()
+            .to_connection(CellID::new(0, 0, 0))
+            .interpolate_pos(dist)
     }
 }
 
