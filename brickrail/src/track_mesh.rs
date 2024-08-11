@@ -9,7 +9,7 @@ use bevy::{
     sprite::Mesh2dHandle,
     utils::hashbrown::HashMap,
 };
-use bevy_prototype_lyon::prelude::tess::{
+use lyon_tessellation::{
     path::Path, BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex,
     StrokeVertexConstructor, VertexBuffers,
 };
@@ -86,7 +86,7 @@ pub trait MeshType: Component {
             buffers
                 .vertices
                 .iter()
-                .map(|v| [1.0, v.dist])
+                .map(|v| [v.dist, 1.0])
                 .collect::<Vec<[f32; 2]>>(),
         );
         mesh

@@ -27,6 +27,7 @@ bitflags = "2.4"
 rfd = "0.14"
 sha2 = "0.10"
 rand = "0.8"
+lyon_tessellation = "1.0.15"
 
 [dev-dependencies]
 bevy = { version = "0.14", features = ["dynamic_linking", "serialize"] }

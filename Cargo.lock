@@ -1603,6 +1603,7 @@ dependencies = [
  "bevy_prototype_lyon",
  "bitflags 2.6.0",
  "itertools 0.11.0",
+ "lyon_tessellation",
  "petgraph",
  "pybricks-ble",
  "rand",

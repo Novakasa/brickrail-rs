@@ -23,12 +23,13 @@ use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
-use bevy_prototype_lyon::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tess::{
+use bevy_prototype_lyon::draw::Stroke;
+use lyon_tessellation::{
     math::Point,
-    path::{traits::PathBuilder, BuilderWithAttributes, Path},
+    path::{BuilderWithAttributes, Path},
+    LineCap, StrokeOptions,
 };
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -247,7 +248,7 @@ impl MeshType for TrackShapeOuter {
         Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
     }
 
-    fn path(id: &Self::ID) -> tess::path::Path {
+    fn path(id: &Self::ID) -> Path {
         build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
     }
 }
@@ -280,7 +281,7 @@ impl MeshType for TrackShapeInner {
             .with_line_cap(LineCap::Round)
     }
 
-    fn path(id: &Self::ID) -> tess::path::Path {
+    fn path(id: &Self::ID) -> Path {
         build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
     }
 }
