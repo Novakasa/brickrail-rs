@@ -15,7 +15,7 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::{BLUE, GRAY, GREEN, ORANGE, RED},
+    color::palettes::css::{BLUE, GRAY, GREEN, ORANGE, RED, WHITE},
     ecs::system::SystemState,
     utils::hashbrown::HashSet,
 };
@@ -25,7 +25,10 @@ use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tess::path::Path;
+use tess::{
+    math::Point,
+    path::{traits::PathBuilder, BuilderWithAttributes, Path},
+};
 
 pub const TRACK_WIDTH: f32 = 10.0;
 pub const TRACK_INNER_WIDTH: f32 = 6.0;
@@ -44,23 +47,34 @@ pub fn build_connection_path(dirconnection: DirectedTrackConnectionID) -> Path {
     build_connection_path_extents(dirconnection, 0.0, length)
 }
 
+pub fn vec_point(vec: Vec2) -> Point {
+    Point::new(vec.x, vec.y)
+}
+
 pub fn build_connection_path_extents(
     dirconnection: DirectedTrackConnectionID,
     from: f32,
     to: f32,
 ) -> Path {
-    let mut path_builder = PathBuilder::new();
-    path_builder.move_to(dirconnection.interpolate_pos(from) * LAYOUT_SCALE);
+    let mut path_builder = BuilderWithAttributes::new(1);
+    path_builder.begin(
+        vec_point(dirconnection.interpolate_pos(from) * LAYOUT_SCALE),
+        &[from],
+    );
     let num_segments = match dirconnection.curve_index() {
         0 => 1,
         _ => 5,
     };
     for i in 1..(num_segments + 1) {
         let dist = from + i as f32 * (to - from) / num_segments as f32;
-        path_builder.line_to(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE);
+        path_builder.line_to(
+            vec_point(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE),
+            &[dist],
+        );
     }
+    path_builder.end(false);
 
-    path_builder.build().0
+    path_builder.build()
 }
 
 impl TrackBuildState {
@@ -171,8 +185,7 @@ pub fn spawn_connection(
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
             let base_material = materials.add(TrackBaseMaterial {
-                color: LinearRgba::from(GREEN),
-                color_texture: None,
+                color: LinearRgba::from(WHITE),
             });
             let outer_entity = commands
                 .spawn((TrackShapeOuter::new(directed), base_material))

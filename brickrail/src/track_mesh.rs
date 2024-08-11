@@ -81,6 +81,14 @@ pub trait MeshType: Component {
                 .map(|v| v.color)
                 .collect::<Vec<[f32; 4]>>(),
         );
+        mesh.insert_attribute(
+            Mesh::ATTRIBUTE_UV_0,
+            buffers
+                .vertices
+                .iter()
+                .map(|v| [1.0, v.dist])
+                .collect::<Vec<[f32; 2]>>(),
+        );
         mesh
     }
 }
@@ -89,6 +97,7 @@ pub trait MeshType: Component {
 pub struct Vertex {
     pub position: [f32; 2],
     pub color: [f32; 4],
+    pub dist: f32,
 }
 
 pub struct VertexConstructor {
@@ -96,10 +105,11 @@ pub struct VertexConstructor {
 }
 
 impl StrokeVertexConstructor<Vertex> for VertexConstructor {
-    fn new_vertex(&mut self, vertex: StrokeVertex) -> Vertex {
+    fn new_vertex(&mut self, mut vertex: StrokeVertex) -> Vertex {
         Vertex {
             position: [vertex.position().x, vertex.position().y],
             color: self.color.to_linear().to_f32_array(),
+            dist: vertex.interpolated_attributes()[0],
         }
     }
 }
