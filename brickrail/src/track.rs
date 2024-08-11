@@ -7,18 +7,14 @@ use crate::{
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
-    materials::TrackBaseMaterial,
+    materials::{TrackBaseMaterial, TrackInnerMaterial},
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
     track_mesh::{self, MeshType},
     train::{Train, TrainDragState},
     utils::bresenham_line,
 };
-use bevy::{
-    color::palettes::css::{BLUE, GRAY, GREEN, ORANGE, RED, WHITE},
-    ecs::system::SystemState,
-    utils::hashbrown::HashSet,
-};
+use bevy::{color::palettes::css::*, ecs::system::SystemState, utils::hashbrown::HashSet};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
@@ -180,18 +176,24 @@ pub fn spawn_connection(
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: EventReader<SpawnConnectionEvent>,
     mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
-    mut materials: ResMut<Assets<TrackBaseMaterial>>,
+    mut base_materials: ResMut<Assets<TrackBaseMaterial>>,
+    mut inner_materials: ResMut<Assets<TrackInnerMaterial>>,
 ) {
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
-            let base_material = materials.add(TrackBaseMaterial {
+            let base_material = base_materials.add(TrackBaseMaterial {
                 color: LinearRgba::from(WHITE),
             });
             let outer_entity = commands
                 .spawn((TrackShapeOuter::new(directed), base_material))
                 .id();
-            let inner_entity = commands.spawn(TrackShapeInner::new(directed)).id();
+            let inner_material = inner_materials.add(TrackInnerMaterial {
+                color: LinearRgba::from(BLACK),
+            });
+            let inner_entity = commands
+                .spawn((TrackShapeInner::new(directed), inner_material))
+                .id();
             connections.connect_tracks_simple(&connection_id);
             entity_map.add_connection(directed, outer_entity, inner_entity, outer_entity);
         }

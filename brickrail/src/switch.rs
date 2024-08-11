@@ -5,12 +5,14 @@ use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::draw::Stroke;
-use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
+use lyon_tessellation::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::editor::{directory_panel, HoverState, Selection};
-use crate::track::build_connection_path_extents;
+use crate::materials::TrackPathMaterial;
+use crate::track::{build_connection_path_extents, PATH_WIDTH};
+use crate::track_mesh::{MeshType, TrackMeshPlugin};
 use crate::{
     ble::{BLEHub, HubCommandEvent},
     editor::{DespawnEvent, EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
@@ -287,6 +289,7 @@ pub fn update_switch_turns(
     entity_map: Res<EntityMap>,
     mut commands: Commands,
     switch_connections: Query<(Entity, &SwitchConnection)>,
+    mut switch_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
     for update in events.read() {
         if update.positions.len() > 1 {
@@ -326,7 +329,12 @@ pub fn update_switch_turns(
             for pos in matched_positions {
                 let connection = update.id.get_switch_connection(&pos);
                 commands.entity(*switch_entity).with_children(|builder| {
-                    builder.spawn(SwitchConnectionBundle::new(connection));
+                    builder.spawn((
+                        SwitchConnection::new(connection),
+                        switch_materials.add(TrackPathMaterial {
+                            color: LinearRgba::from(GRAY),
+                        }),
+                    ));
                 });
             }
         }
@@ -348,6 +356,7 @@ pub fn spawn_switch(
     mut commands: Commands,
     mut events: EventReader<SpawnSwitchEvent>,
     mut entity_map: ResMut<EntityMap>,
+    mut switch_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
     for spawn_event in events.read() {
         let switch = spawn_event.switch.clone();
@@ -365,7 +374,12 @@ pub fn spawn_switch(
                     .iter()
                     .map(|pos| switch.id.get_switch_connection(pos))
                 {
-                    builder.spawn(SwitchConnectionBundle::new(connection));
+                    builder.spawn((
+                        SwitchConnection::new(connection),
+                        switch_materials.add(TrackPathMaterial {
+                            color: LinearRgba::from(GRAY),
+                        }),
+                    ));
                 }
             })
             .id();
@@ -378,17 +392,35 @@ pub struct SwitchConnection {
     pub connection: DirectedTrackConnectionID,
 }
 
-#[derive(Bundle)]
-pub struct SwitchConnectionBundle {
-    connection: SwitchConnection,
+impl SwitchConnection {
+    pub fn new(connection: DirectedTrackConnectionID) -> Self {
+        Self { connection }
+    }
 }
 
-impl SwitchConnectionBundle {
-    pub fn new(connection: DirectedTrackConnectionID) -> Self {
+impl MeshType for SwitchConnection {
+    type ID = DirectedConnectionShape;
+
+    fn id(&self) -> Self::ID {
+        self.connection.shape_id()
+    }
+
+    fn stroke() -> StrokeOptions {
+        StrokeOptions::default()
+            .with_line_width(PATH_WIDTH)
+            .with_line_cap(LineCap::Round)
+    }
+
+    fn base_transform(&self) -> Transform {
+        Transform::from_translation(
+            (self.connection.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(30.0),
+        )
+    }
+
+    fn path(id: &Self::ID) -> Path {
+        let connection = id.to_connection(CellID::new(0, 0, 0));
         let straight_length = connection.from_track.straight_length();
-        Self {
-            connection: SwitchConnection { connection },
-        }
+        build_connection_path_extents(connection, straight_length, straight_length + 0.5)
     }
 }
 
@@ -459,6 +491,7 @@ impl Plugin for SwitchPlugin {
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.add_event::<SetSwitchPositionEvent>();
         app.add_event::<DespawnEvent<Switch>>();
+        app.add_plugins(TrackMeshPlugin::<SwitchConnection>::default());
         app.add_systems(
             Update,
             (
