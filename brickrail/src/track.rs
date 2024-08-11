@@ -7,17 +7,17 @@ use crate::{
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
-    materials::{TrackBaseMaterial, TrackInnerMaterial},
+    materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
-    track_mesh::{self, MeshType},
+    track_mesh::{self, MeshType, TrackMeshPlugin},
     train::{Train, TrainDragState},
     utils::bresenham_line,
 };
 use bevy::{color::palettes::css::*, ecs::system::SystemState, utils::hashbrown::HashSet};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
-use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::{bevy_egui, egui::epaint::tessellator::path};
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::draw::Stroke;
 use lyon_tessellation::{
@@ -62,13 +62,18 @@ pub fn build_connection_path_extents(
         0 => 1,
         _ => 5,
     };
-    for i in 1..(num_segments + 1) {
-        let dist = from + i as f32 * (to - from) / num_segments as f32;
+    let epsilon = 0.001;
+    for i in 0..(num_segments + 1) {
+        let dist = from + epsilon + i as f32 * (to - from - epsilon) / num_segments as f32;
         path_builder.line_to(
             vec_point(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE),
             &[dist],
         );
     }
+    path_builder.line_to(
+        vec_point(dirconnection.interpolate_pos(to) * LAYOUT_SCALE),
+        &[to],
+    );
     path_builder.end(false);
 
     path_builder.build()
@@ -178,6 +183,7 @@ pub fn spawn_connection(
     mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
     mut base_materials: ResMut<Assets<TrackBaseMaterial>>,
     mut inner_materials: ResMut<Assets<TrackInnerMaterial>>,
+    mut path_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
@@ -194,8 +200,14 @@ pub fn spawn_connection(
             let inner_entity = commands
                 .spawn((TrackShapeInner::new(directed), inner_material))
                 .id();
+            let path_material = path_materials.add(TrackPathMaterial {
+                color: LinearRgba::from(RED).with_alpha(0.5),
+            });
+            let path_entity = commands
+                .spawn((TrackShapePath::new(directed), path_material))
+                .id();
             connections.connect_tracks_simple(&connection_id);
-            entity_map.add_connection(directed, outer_entity, inner_entity, outer_entity);
+            entity_map.add_connection(directed, outer_entity, inner_entity, path_entity);
         }
 
         if spawn_connection.update_switches {
@@ -274,12 +286,49 @@ impl MeshType for TrackShapeInner {
     }
 
     fn base_transform(&self) -> Transform {
-        Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
+        Transform::from_translation(
+            (self.id.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(1.0),
+        )
     }
 
     fn stroke() -> StrokeOptions {
         StrokeOptions::default()
             .with_line_width(TRACK_INNER_WIDTH)
+            .with_line_cap(LineCap::Round)
+    }
+
+    fn path(id: &Self::ID) -> Path {
+        build_connection_path(id.to_connection(CellID::new(0, 0, 0)))
+    }
+}
+
+#[derive(Debug, Component)]
+struct TrackShapePath {
+    id: DirectedTrackConnectionID,
+}
+
+impl TrackShapePath {
+    pub fn new(id: DirectedTrackConnectionID) -> Self {
+        Self { id }
+    }
+}
+
+impl MeshType for TrackShapePath {
+    type ID = DirectedConnectionShape;
+
+    fn id(&self) -> Self::ID {
+        self.id.shape_id()
+    }
+
+    fn base_transform(&self) -> Transform {
+        Transform::from_translation(
+            (self.id.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(19.0),
+        )
+    }
+
+    fn stroke() -> StrokeOptions {
+        StrokeOptions::default()
+            .with_line_width(PATH_WIDTH)
             .with_line_cap(LineCap::Round)
     }
 
@@ -711,8 +760,9 @@ pub struct TrackPlugin;
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
-        app.add_plugins(track_mesh::TrackMeshPlugin::<TrackShapeOuter>::default());
-        app.add_plugins(track_mesh::TrackMeshPlugin::<TrackShapeInner>::default());
+        app.add_plugins(TrackMeshPlugin::<TrackShapeOuter>::default());
+        app.add_plugins(TrackMeshPlugin::<TrackShapeInner>::default());
+        app.add_plugins(TrackMeshPlugin::<TrackShapePath>::default());
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();
