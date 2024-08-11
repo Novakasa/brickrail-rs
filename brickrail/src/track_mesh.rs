@@ -106,18 +106,13 @@ impl StrokeVertexConstructor<Vertex> for VertexConstructor {
 
 fn add_meshes<T: MeshType>(
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut mesh_cache: ResMut<MeshCache<T>>,
     query: Query<(Entity, &T), Without<Mesh2dHandle>>,
     mut commands: Commands,
-    mut material_handles: ResMut<Materials>,
 ) {
     for (entity, id) in query.iter() {
         if !mesh_cache.meshes.contains_key(&id.id()) {
             mesh_cache.insert(id.id(), &mut meshes);
-        }
-        if material_handles.white.is_none() {
-            material_handles.white = Some(materials.add(ColorMaterial::from(Color::WHITE)));
         }
         commands.entity(entity).insert((
             SpatialBundle {
@@ -125,7 +120,6 @@ fn add_meshes<T: MeshType>(
                 ..Default::default()
             },
             mesh_cache.meshes[&id.id()].clone(),
-            material_handles.white.clone().unwrap(),
         ));
         println!("Number of meshes: {:?}", mesh_cache.meshes.len());
     }
@@ -135,15 +129,9 @@ pub struct TrackMeshPlugin<T: MeshType> {
     pub marker: PhantomData<T>,
 }
 
-#[derive(Debug, Resource, Default)]
-pub struct Materials {
-    pub white: Option<Handle<ColorMaterial>>,
-}
-
 impl<T: MeshType> Plugin for TrackMeshPlugin<T> {
     fn build(&self, app: &mut App) {
         app.insert_resource(MeshCache::<T>::default());
-        app.insert_resource(Materials::default());
         app.add_systems(Update, add_meshes::<T>);
     }
 }

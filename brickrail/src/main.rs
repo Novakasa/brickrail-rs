@@ -15,6 +15,7 @@ mod layout;
 mod layout_devices;
 mod layout_primitives;
 mod marker;
+mod materials;
 mod post_processing;
 mod route;
 mod schedule;
@@ -61,5 +62,6 @@ fn main() {
         .add_plugins(destination::DestinationPlugin)
         // .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RenderDiagnosticsPlugin::default())
+        .add_plugins(materials::MaterialsPlugin)
         .run();
 }

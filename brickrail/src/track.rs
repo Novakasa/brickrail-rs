@@ -7,6 +7,7 @@ use crate::{
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
+    materials::TrackBaseMaterial,
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
     track_mesh::{self, MeshType},
@@ -14,7 +15,7 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::{BLUE, GRAY, ORANGE, RED},
+    color::palettes::css::{BLUE, GRAY, GREEN, ORANGE, RED},
     ecs::system::SystemState,
     utils::hashbrown::HashSet,
 };
@@ -164,11 +165,18 @@ pub fn spawn_connection(
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: EventReader<SpawnConnectionEvent>,
     mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
+    mut materials: ResMut<Assets<TrackBaseMaterial>>,
 ) {
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
-            let outer_entity = commands.spawn(TrackShapeOuter::new(directed)).id();
+            let base_material = materials.add(TrackBaseMaterial {
+                color: LinearRgba::from(GREEN),
+                color_texture: None,
+            });
+            let outer_entity = commands
+                .spawn((TrackShapeOuter::new(directed), base_material))
+                .id();
             let inner_entity = commands.spawn(TrackShapeInner::new(directed)).id();
             connections.connect_tracks_simple(&connection_id);
             entity_map.add_connection(directed, outer_entity, inner_entity, outer_entity);
