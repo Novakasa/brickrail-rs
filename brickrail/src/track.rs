@@ -10,14 +10,14 @@ use crate::{
     materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
-    track_mesh::{self, MeshType, TrackMeshPlugin},
+    track_mesh::{MeshType, TrackMeshPlugin},
     train::{Train, TrainDragState},
     utils::bresenham_line,
 };
 use bevy::{color::palettes::css::*, ecs::system::SystemState, utils::hashbrown::HashSet};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
-use bevy_inspector_egui::{bevy_egui, egui::epaint::tessellator::path};
+use bevy_inspector_egui::bevy_egui;
 use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::draw::Stroke;
 use lyon_tessellation::{
