@@ -202,6 +202,7 @@ pub fn spawn_connection(
                 .id();
             let path_material = path_materials.add(TrackPathMaterial {
                 color: LinearRgba::from(RED).with_alpha(0.0),
+                direction: 1,
             });
             let path_entity = commands
                 .spawn((TrackShapePath::new(directed), path_material))
@@ -670,7 +671,7 @@ fn draw_build_cells(
 
 fn update_path_track(
     mut query: Query<(&TrackShapePath, &mut Transform, &Handle<TrackPathMaterial>)>,
-    _track_locks: Res<TrackLocks>,
+    track_locks: Res<TrackLocks>,
     trains: Query<&Train>,
     drag_train: Res<TrainDragState>,
     mut path_materials: ResMut<Assets<TrackPathMaterial>>,
@@ -683,38 +684,50 @@ fn update_path_track(
                 _ => &leg.travel_section,
             };
             for track in section.tracks.iter() {
-                route_tracks.insert(track.track());
+                route_tracks.insert(track.dirtrack);
             }
         }
     }
     if let Some(route) = drag_train.route.as_ref() {
         for leg in route.iter_legs_remaining() {
             for track in leg.travel_section.tracks.iter() {
-                route_tracks.insert(track.track());
+                route_tracks.insert(track.dirtrack);
             }
         }
     }
 
     for (connection, mut transform, material_handle) in query.iter_mut() {
         let z = connection.base_transform().translation.z;
-        match (
-            route_tracks.contains(&connection.id.from_track.track),
-            _track_locks
-                .locked_tracks
-                .contains_key(&connection.id.from_track.track),
+        let dir = match (
+            route_tracks.contains(&connection.id.from_track),
+            route_tracks.contains(&connection.id.from_track.opposite()),
         ) {
-            (_, true) => {
-                path_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(ORANGE);
-                transform.translation.z = z + 0.5;
-            }
-            (true, false) => {
-                path_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(BLUE);
+            (true, false) => 1,
+            (false, true) => -1,
+            (true, true) => 2,
+            (false, false) => 0,
+        };
+
+        let material = path_materials.get_mut(material_handle).unwrap();
+
+        match dir {
+            0 => {
+                material.color = LinearRgba::from(BLACK).with_alpha(0.0);
                 transform.translation.z = z;
+                material.direction = 0;
             }
-            (false, false) => {
-                path_materials.get_mut(material_handle).unwrap().color =
-                    LinearRgba::from(BLACK).with_alpha(0.0);
-                transform.translation.z = z;
+            _ => {
+                if track_locks
+                    .locked_tracks
+                    .contains_key(&connection.id.from_track.track)
+                {
+                    material.color = LinearRgba::from(ORANGE);
+                    transform.translation.z = z + 0.5;
+                } else {
+                    material.color = LinearRgba::from(BLUE);
+                    transform.translation.z = z + 0.3;
+                }
+                material.direction = dir;
             }
         }
     }

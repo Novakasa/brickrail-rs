@@ -39,6 +39,8 @@ impl Material2d for TrackInnerMaterial {
 pub struct TrackPathMaterial {
     #[uniform(0)]
     pub color: LinearRgba,
+    #[uniform(1)]
+    pub direction: i32,
 }
 
 impl Material2d for TrackPathMaterial {

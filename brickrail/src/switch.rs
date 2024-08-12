@@ -334,6 +334,7 @@ pub fn update_switch_turns(
                         SwitchConnection::new(connection),
                         switch_materials.add(TrackPathMaterial {
                             color: LinearRgba::from(GRAY),
+                            direction: 0,
                         }),
                     ));
                 });
@@ -379,6 +380,7 @@ pub fn spawn_switch(
                         SwitchConnection::new(connection),
                         switch_materials.add(TrackPathMaterial {
                             color: LinearRgba::from(GRAY),
+                            direction: 0,
                         }),
                     ));
                 }
