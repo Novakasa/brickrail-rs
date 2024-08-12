@@ -4,5 +4,6 @@
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4((20.0 * mesh.uv.x) % 1.0, (20.0 * mesh.uv.y) % 1.0, 0.0, 1.0);
+    var test_uvs = vec4((20.0 * mesh.uv.x) % 1.0, (20.0 * mesh.uv.y) % 1.0, 0.0, 1.0);
+    return material_color;
 }

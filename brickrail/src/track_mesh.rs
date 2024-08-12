@@ -1,7 +1,6 @@
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use bevy::{
-    math::NormedVectorSpace,
     prelude::*,
     render::{
         mesh::{Indices, PrimitiveTopology},
@@ -15,7 +14,7 @@ use lyon_tessellation::{
     StrokeVertexConstructor, VertexBuffers,
 };
 
-use crate::track::{LAYOUT_SCALE, TRACK_WIDTH};
+use crate::track::LAYOUT_SCALE;
 
 #[derive(Resource)]
 pub struct MeshCache<T: MeshType> {
@@ -93,7 +92,7 @@ pub trait MeshType: Component {
                 .iter()
                 .map(|v| {
                     let pos = self.interpolate(v.dist);
-                    let pos2 = self.interpolate(v.dist + 0.01);
+                    let pos2 = self.interpolate(v.dist + 0.001);
                     [
                         v.dist,
                         ((pos2 - pos)

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::egui::epaint::tessellator::path;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
@@ -433,10 +434,15 @@ impl MeshType for SwitchConnection {
 fn update_switch_shapes(
     switches: Query<&Switch>,
     switch_motors: Query<&SwitchMotor>,
-    mut connections: Query<(&SwitchConnection, &mut Stroke, &mut Transform)>,
+    mut connections: Query<(
+        &SwitchConnection,
+        &Handle<TrackPathMaterial>,
+        &mut Transform,
+    )>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
     entity_map: Res<EntityMap>,
+    mut path_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
     for (connection, mut stroke, mut transform) in connections.iter_mut() {
         let switch = switches
@@ -472,7 +478,7 @@ fn update_switch_shapes(
             color = Color::from(RED);
             transform.translation.z = 40.0;
         }
-        stroke.color = color;
+        path_materials.get_mut(stroke).unwrap().color = LinearRgba::from(color);
     }
 }
 

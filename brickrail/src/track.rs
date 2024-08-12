@@ -201,7 +201,7 @@ pub fn spawn_connection(
                 .spawn((TrackShapeInner::new(directed), inner_material))
                 .id();
             let path_material = path_materials.add(TrackPathMaterial {
-                color: LinearRgba::from(RED).with_alpha(0.5),
+                color: LinearRgba::from(RED).with_alpha(0.0),
             });
             let path_entity = commands
                 .spawn((TrackShapePath::new(directed), path_material))
@@ -668,13 +668,12 @@ fn draw_build_cells(
     }
 }
 
-fn update_inner_track(
-    mut q_strokes: Query<(&TrackShapeInner, &mut Transform)>,
-    hover_state: Res<HoverState>,
-    selection_state: Res<SelectionState>,
+fn update_path_track(
+    mut query: Query<(&TrackShapePath, &mut Transform, &Handle<TrackPathMaterial>)>,
     _track_locks: Res<TrackLocks>,
     trains: Query<&Train>,
     drag_train: Res<TrainDragState>,
+    mut path_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
     let mut route_tracks = HashSet::new();
     for train in trains.iter() {
@@ -695,34 +694,71 @@ fn update_inner_track(
             }
         }
     }
+
+    for (connection, mut transform, material_handle) in query.iter_mut() {
+        let z = connection.base_transform().translation.z;
+        match (
+            route_tracks.contains(&connection.id.from_track.track),
+            _track_locks
+                .locked_tracks
+                .contains_key(&connection.id.from_track.track),
+        ) {
+            (_, true) => {
+                path_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(ORANGE);
+                transform.translation.z = z + 0.5;
+            }
+            (true, false) => {
+                path_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(BLUE);
+                transform.translation.z = z;
+            }
+            (false, false) => {
+                path_materials.get_mut(material_handle).unwrap().color =
+                    LinearRgba::from(BLACK).with_alpha(0.0);
+                transform.translation.z = z;
+            }
+        }
+    }
+}
+
+fn update_inner_track(
+    mut q_strokes: Query<(
+        &TrackShapeInner,
+        &mut Transform,
+        &Handle<TrackInnerMaterial>,
+    )>,
+    hover_state: Res<HoverState>,
+    selection_state: Res<SelectionState>,
+    mut inner_materials: ResMut<Assets<TrackInnerMaterial>>,
+) {
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
-    for (connection, mut transform) in q_strokes.iter_mut() {
+    for (connection, mut transform, material_handle) in q_strokes.iter_mut() {
+        let z = connection.base_transform().translation.z;
         if hover_state.hover == Some(GenericID::Track(connection.id.from_track.track)) {
-            // stroke.color = Color::from(RED);
-            transform.translation.z = 12.0;
+            inner_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(RED);
+            transform.translation.z = z + 0.5;
             continue;
         }
 
         if selection_state.selection
             == Selection::Single(GenericID::Track(connection.id.from_track.track))
         {
-            // stroke.color = Color::from(BLUE);
-            transform.translation.z = 11.0;
+            inner_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(BLUE);
+            transform.translation.z = z + 0.3;
             continue;
         }
 
         if let Selection::Section(section) = &selection_state.selection {
             if section.has_track(&connection.id.from_track.track) {
-                // stroke.color = Color::from(BLUE);
-                transform.translation.z = 11.0;
+                inner_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(BLUE);
+                transform.translation.z = z + 0.3;
                 continue;
             }
         }
 
-        // stroke.color = Color::BLACK;
-        transform.translation.z = 10.0;
+        inner_materials.get_mut(material_handle).unwrap().color = LinearRgba::from(BLACK);
+        transform.translation.z = z;
     }
 }
 
@@ -791,6 +827,7 @@ impl Plugin for TrackPlugin {
                 exit_draw_track.run_if(in_state(EditorState::Edit)),
                 update_draw_track.run_if(in_state(EditorState::Edit)),
                 update_inner_track.after(finish_hover),
+                update_path_track,
                 draw_build_cells.run_if(in_state(EditorState::Edit)),
                 delete_selection_shortcut::<Track>.run_if(in_state(EditorState::Edit)),
                 despawn_track,

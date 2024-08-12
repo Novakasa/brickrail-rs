@@ -2,11 +2,13 @@ use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin},
+    utils::hashbrown::HashMap,
 };
 
 #[derive(Debug, Resource, Default)]
 pub struct Materials {
-    pub white: Option<Handle<ColorMaterial>>,
+    pub base_material: Handle<TrackBaseMaterial>,
+    pub inner_materials: HashMap<TrackInnerMaterial, Handle<TrackInnerMaterial>>,
 }
 
 #[derive(Asset, Reflect, AsBindGroup, Debug, Clone)]
