@@ -895,7 +895,7 @@ fn despawn_train(
     mut track_locks: ResMut<TrackLocks>,
 ) {
     for event in despawn_events.read() {
-        let train_id = event.0.id;
+        let train_id = event.0;
         let entity = entity_map.trains.get(&train_id).unwrap();
         track_locks.unlock_all(&train_id);
         commands.entity(*entity).despawn();

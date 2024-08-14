@@ -243,6 +243,7 @@ impl EntityMap {
     pub fn remove_connection(&mut self, connection: DirectedTrackConnectionID) {
         self.connections_outer.remove(&connection);
         self.connections_inner.remove(&connection);
+        self.connections_path.remove(&connection);
     }
 
     pub fn remove_marker(&mut self, track: TrackID) {

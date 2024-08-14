@@ -423,12 +423,12 @@ fn despawn_hub(
     for event in hub_event_reader.read() {
         for mut ble_train in q_ble_trains.iter_mut() {
             if let Some(master_hub) = ble_train.master_hub.hub_id.clone() {
-                if master_hub == event.0.id {
+                if master_hub == event.0 {
                     ble_train.master_hub.hub_id = None;
                 }
             }
             for puppet in ble_train.puppets.iter_mut() {
-                if Some(event.0.id) == puppet.hub_id {
+                if Some(event.0) == puppet.hub_id {
                     puppet.hub_id = None;
                 }
             }
@@ -436,16 +436,16 @@ fn despawn_hub(
 
         for mut layout_device in q_layout_devices.iter_mut() {
             if let Some(hub_id) = layout_device.hub_id {
-                if hub_id == event.0.id {
+                if hub_id == event.0 {
                     layout_device.hub_id = None;
                 }
             }
         }
 
-        if let Some(entity) = entity_map.hubs.remove(&event.0.id) {
+        if let Some(entity) = entity_map.hubs.remove(&event.0) {
             commands.entity(entity).despawn_recursive();
         }
-        entity_map.remove_hub(event.0.id);
+        entity_map.remove_hub(event.0);
     }
 }
 

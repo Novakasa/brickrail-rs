@@ -305,7 +305,7 @@ pub fn update_switch_turns(
         } else {
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let switch = switches.get(entity.clone()).unwrap();
-                despawn_switch_events.send(DespawnEvent(switch.clone()));
+                despawn_switch_events.send(DespawnEvent(switch.id()));
             }
         }
         for (entity, connection) in switch_connections.iter() {
@@ -489,9 +489,9 @@ pub fn despawn_switch(
     mut entity_map: ResMut<EntityMap>,
 ) {
     for despawn_event in events.read() {
-        if let Some(entity) = entity_map.switches.get(&despawn_event.0.id) {
+        if let Some(entity) = entity_map.switches.get(&despawn_event.0) {
             commands.entity(*entity).despawn_recursive();
-            entity_map.remove_switch(despawn_event.0.id);
+            entity_map.remove_switch(despawn_event.0);
         }
     }
 }

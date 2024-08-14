@@ -9,7 +9,7 @@ use crate::{
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
-    switch::UpdateSwitchTurnsEvent,
+    switch::{Switch, UpdateSwitchTurnsEvent},
     track_mesh::{MeshType, TrackMeshPlugin},
     train::{PlanRouteEvent, Train, TrainDragState},
     utils::bresenham_line,
@@ -787,9 +787,18 @@ fn despawn_track(
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: EventReader<DespawnEvent<Track>>,
     mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
+    mut switch_despawn_events: EventWriter<DespawnEvent<Switch>>,
 ) {
     for despawn_event in event_reader.read() {
-        let track_id = despawn_event.0.id;
+        let track_id = despawn_event.0;
+
+        for switch in track_id
+            .dirtracks()
+            .iter()
+            .filter(|id| entity_map.switches.contains_key(*id))
+        {
+            switch_despawn_events.send(DespawnEvent(*switch));
+        }
 
         let mut other_dirtracks = vec![];
 
@@ -799,6 +808,8 @@ fn despawn_track(
                 commands.entity(outer).despawn_recursive();
                 let inner = entity_map.connections_inner.get(&directed).unwrap().clone();
                 commands.entity(inner).despawn_recursive();
+                let path = entity_map.connections_path.get(&directed).unwrap().clone();
+                commands.entity(path).despawn_recursive();
                 entity_map.remove_connection(directed);
                 for other in connection.tracks() {
                     if other.track != track_id {

@@ -330,8 +330,7 @@ pub fn despawn_block(
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
-        let block = request.0.clone();
-        let block_id = block.id;
+        let block_id = request.0;
         println!("Despawning block {:?}", block_id);
         for logical_id in block_id.logical_block_ids() {
             let in_track = logical_id.default_in_marker_track();

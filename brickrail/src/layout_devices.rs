@@ -1,9 +1,10 @@
 use crate::{
     ble::BLEHub,
-    editor::{DespawnEvent, SelectionState, SpawnHubEvent},
+    editor::{DespawnEvent, Selectable, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::*,
     switch::Switch,
+    switch_motor::SpawnSwitchMotorEvent,
 };
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Layout, Ui};
@@ -62,6 +63,19 @@ impl LayoutDevice {
     }
 }
 
+impl Selectable for LayoutDevice {
+    type ID = LayoutDeviceID;
+    type SpawnEvent = SpawnSwitchMotorEvent;
+
+    fn id(&self) -> LayoutDeviceID {
+        self.id
+    }
+
+    fn generic_id(&self) -> crate::editor::GenericID {
+        crate::editor::GenericID::LayoutDevice(self.id)
+    }
+}
+
 pub trait DeviceComponent: Component {
     type SpawnEvent: SpawnDeviceID;
 
@@ -116,7 +130,7 @@ pub fn select_device_id<T: DeviceComponent>(
                         if let Some(id) = selected_id.take() {
                             let entity = entity_map.layout_devices[&id];
                             let (_, device) = devices.get(entity).unwrap();
-                            despawn_events.send(DespawnEvent(device.clone()));
+                            despawn_events.send(DespawnEvent(device.id()));
                         }
                     }
                 }
@@ -134,14 +148,14 @@ fn despawn_layout_device(
     for event in events.read() {
         for mut switch in q_switches.iter_mut() {
             for motor in switch.motors.iter_mut() {
-                if motor == &Some(event.0.id) {
+                if motor == &Some(event.0) {
                     motor.take();
                 }
             }
-            if let Some(entity) = entity_map.layout_devices.remove(&event.0.id) {
+            if let Some(entity) = entity_map.layout_devices.remove(&event.0) {
                 commands.entity(entity).despawn_recursive();
             }
-            entity_map.remove_layout_device(event.0.id);
+            entity_map.remove_layout_device(event.0);
         }
     }
 }

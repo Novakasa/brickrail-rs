@@ -117,6 +117,7 @@ pub enum GenericID {
     Hub(HubID),
     Destination(DestinationID),
     Schedule(ScheduleID),
+    LayoutDevice(LayoutDeviceID),
 }
 
 impl GenericID {
@@ -133,6 +134,7 @@ impl fmt::Display for GenericID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GenericID::Cell(id) => write!(f, "{:?}", id),
+            GenericID::LayoutDevice(id) => write!(f, "{:?}", id),
             GenericID::Track(id) => write!(f, "{}", id),
             GenericID::LogicalTrack(id) => write!(f, "{}", id),
             GenericID::Block(id) => write!(f, "{}", id),
@@ -158,7 +160,7 @@ pub enum Selection {
 
 pub trait Selectable {
     type SpawnEvent: Event;
-    type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug;
+    type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug + Send + Sync;
 
     fn generic_id(&self) -> GenericID;
 
@@ -682,7 +684,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component + Clone>(
             Selection::Single(id) => {
                 let entity = entity_map.get_entity(id).unwrap();
                 if let Ok(component) = q_selectable.get_mut(entity) {
-                    despawn_events.send(DespawnEvent(component.clone()));
+                    despawn_events.send(DespawnEvent(component.id()));
                     selection_state.selection = Selection::None;
                 }
             }
@@ -838,7 +840,7 @@ pub fn save_layout(
 }
 
 #[derive(Event)]
-pub struct DespawnEvent<T>(pub T);
+pub struct DespawnEvent<T: Selectable>(pub T::ID);
 
 #[derive(Event)]
 pub struct LoadLayoutEvent {
