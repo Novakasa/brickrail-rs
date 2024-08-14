@@ -145,7 +145,6 @@ fn add_meshes<T: MeshType>(
             },
             mesh_cache.meshes[&mesh.id()].clone(),
         ));
-        println!("Number of meshes: {:?}", mesh_cache.meshes.len());
     }
 }
 

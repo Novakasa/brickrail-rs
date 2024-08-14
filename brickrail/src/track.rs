@@ -11,7 +11,7 @@ use crate::{
     route::LegState,
     switch::UpdateSwitchTurnsEvent,
     track_mesh::{MeshType, TrackMeshPlugin},
-    train::{Train, TrainDragState},
+    train::{PlanRouteEvent, Train, TrainDragState},
     utils::bresenham_line,
 };
 use bevy::{color::palettes::css::*, ecs::system::SystemState, utils::hashbrown::HashSet};
@@ -202,7 +202,7 @@ pub fn spawn_connection(
                 .id();
             let path_material = path_materials.add(TrackPathMaterial {
                 color: LinearRgba::from(RED).with_alpha(0.0),
-                direction: 1,
+                direction: 0,
             });
             let path_entity = commands
                 .spawn((TrackShapePath::new(directed), path_material))
@@ -670,6 +670,7 @@ fn draw_build_cells(
 }
 
 fn update_path_track(
+    _trigger: Trigger<PlanRouteEvent>,
     mut query: Query<(&TrackShapePath, &mut Transform, &Handle<TrackPathMaterial>)>,
     track_locks: Res<TrackLocks>,
     trains: Query<&Train>,
@@ -696,6 +697,8 @@ fn update_path_track(
         }
     }
 
+    println!("{:?}", route_tracks);
+
     for (connection, mut transform, material_handle) in query.iter_mut() {
         let z = connection.base_transform().translation.z;
         let dir = match (
@@ -717,6 +720,7 @@ fn update_path_track(
                 material.direction = 0;
             }
             _ => {
+                println!("{:?} {:?}", connection.id, dir);
                 if track_locks
                     .locked_tracks
                     .contains_key(&connection.id.from_track.track)
@@ -833,6 +837,7 @@ impl Plugin for TrackPlugin {
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();
+        app.observe(update_path_track);
         app.add_systems(
             Update,
             (
@@ -840,7 +845,6 @@ impl Plugin for TrackPlugin {
                 exit_draw_track.run_if(in_state(EditorState::Edit)),
                 update_draw_track.run_if(in_state(EditorState::Edit)),
                 update_inner_track.after(finish_hover),
-                update_path_track,
                 draw_build_cells.run_if(in_state(EditorState::Edit)),
                 delete_selection_shortcut::<Track>.run_if(in_state(EditorState::Edit)),
                 despawn_track,

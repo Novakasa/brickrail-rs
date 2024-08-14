@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
-use bevy_inspector_egui::egui::epaint::tessellator::path;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
@@ -446,7 +445,7 @@ fn update_switch_shapes(
     entity_map: Res<EntityMap>,
     mut path_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
-    for (connection, mut stroke, mut transform) in connections.iter_mut() {
+    for (connection, material, mut transform) in connections.iter_mut() {
         let switch = switches
             .get(entity_map.switches[&connection.connection.from_track])
             .unwrap();
@@ -480,7 +479,7 @@ fn update_switch_shapes(
             color = Color::from(RED);
             transform.translation.z = 40.0;
         }
-        path_materials.get_mut(stroke).unwrap().color = LinearRgba::from(color);
+        path_materials.get_mut(material).unwrap().color = LinearRgba::from(color);
     }
 }
 

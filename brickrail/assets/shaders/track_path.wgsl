@@ -7,7 +7,8 @@
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     var test_uvs = vec4((20.0 * mesh.uv.x - globals.time * f32(direction)) % 1.0, (20.0 * mesh.uv.y) % 1.0, 0.0, 1.0);
-    // discrete f32 mask that scrolls
-    var mask = floor((mesh.uv.x - globals.time * f32(direction)) % 1.0 + 0.8);
+    var mask = floor((f32(direction) * mesh.uv.x - globals.time) % 1.0 + 1.8);
     return material_color * mask;
+    // var val = (f32(direction) * mesh.uv.x - globals.time) % 1.0 + 0.8;
+    // return vec4(val, -val, val - 1.0, 1.0);
 }
