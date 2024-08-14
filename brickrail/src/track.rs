@@ -260,7 +260,9 @@ impl MeshType for TrackShapeOuter {
     }
 
     fn base_transform(&self) -> Transform {
-        Transform::from_translation(self.id.from_track.cell().get_vec2().extend(0.0) * LAYOUT_SCALE)
+        Transform::from_translation(
+            (self.id.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(1.0),
+        )
     }
 
     fn path(&self) -> Path {
@@ -342,7 +344,7 @@ impl MeshType for TrackShapePath {
     fn stroke() -> StrokeOptions {
         StrokeOptions::default()
             .with_line_width(PATH_WIDTH)
-            .with_line_cap(LineCap::Round)
+            .with_line_cap(LineCap::Butt)
     }
 
     fn path(&self) -> Path {
@@ -677,33 +679,33 @@ fn update_path_track(
     drag_train: Res<TrainDragState>,
     mut path_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
-    let mut route_tracks = HashSet::new();
+    let mut route_connections = HashSet::new();
     for train in trains.iter() {
         for leg in train.get_route().iter_legs_remaining() {
             let section = match leg.get_leg_state() {
                 LegState::Completed => &leg.to_section,
                 _ => &leg.travel_section,
             };
-            for track in section.tracks.iter() {
-                route_tracks.insert(track.dirtrack);
+            for connection in section.directed_connection_iter() {
+                route_connections.insert(connection);
             }
         }
     }
     if let Some(route) = drag_train.route.as_ref() {
         for leg in route.iter_legs_remaining() {
-            for track in leg.travel_section.tracks.iter() {
-                route_tracks.insert(track.dirtrack);
+            for connection in leg.travel_section.directed_connection_iter() {
+                route_connections.insert(connection);
             }
         }
     }
 
-    println!("{:?}", route_tracks);
+    println!("{:?}", route_connections);
 
     for (connection, mut transform, material_handle) in query.iter_mut() {
         let z = connection.base_transform().translation.z;
         let dir = match (
-            route_tracks.contains(&connection.id.from_track),
-            route_tracks.contains(&connection.id.from_track.opposite()),
+            route_connections.contains(&connection.id),
+            route_connections.contains(&connection.id.opposite()),
         ) {
             (true, false) => 1,
             (false, true) => -1,

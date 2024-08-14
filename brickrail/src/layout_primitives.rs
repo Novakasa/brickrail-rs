@@ -1008,6 +1008,13 @@ impl DirectedTrackConnectionID {
     pub fn get_switch_position(&self) -> SwitchPosition {
         self.to_track.get_switch_position()
     }
+
+    pub fn opposite(&self) -> Self {
+        Self {
+            from_track: self.to_track.opposite(),
+            to_track: self.from_track.opposite(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
