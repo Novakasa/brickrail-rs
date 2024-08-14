@@ -53,10 +53,10 @@ pub fn build_connection_path_extents(
     from: f32,
     to: f32,
 ) -> Path {
-    let mut path_builder = BuilderWithAttributes::new(1);
+    let mut path_builder = BuilderWithAttributes::new(2);
     path_builder.begin(
         vec_point(dirconnection.interpolate_pos(from) * LAYOUT_SCALE),
-        &[from],
+        &[from, 0.0],
     );
     let num_segments = match dirconnection.curve_index() {
         0 => 1,
@@ -67,12 +67,12 @@ pub fn build_connection_path_extents(
         let dist = from + epsilon + i as f32 * (to - from - epsilon) / num_segments as f32;
         path_builder.line_to(
             vec_point(dirconnection.interpolate_pos(dist) * LAYOUT_SCALE),
-            &[dist],
+            &[dist, dist / (to - from)],
         );
     }
     path_builder.line_to(
         vec_point(dirconnection.interpolate_pos(to) * LAYOUT_SCALE),
-        &[to],
+        &[to, 1.0],
     );
     path_builder.end(false);
 

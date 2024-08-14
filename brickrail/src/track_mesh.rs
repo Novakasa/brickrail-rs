@@ -94,11 +94,12 @@ pub trait MeshType: Component {
                     let pos = self.interpolate(v.dist);
                     let pos2 = self.interpolate(v.dist + 0.001);
                     [
-                        v.dist,
-                        ((pos2 - pos)
+                        v.relative,
+                        (((pos2 - pos)
                             .normalize()
                             .perp_dot(Vec2::from(v.position) / LAYOUT_SCALE - pos))
-                            + Self::stroke().line_width / 2.0,
+                            + Self::stroke().line_width / 2.0)
+                            / Self::stroke().line_width,
                     ]
                 })
                 .collect::<Vec<[f32; 2]>>(),
@@ -112,6 +113,7 @@ pub struct Vertex {
     pub position: [f32; 2],
     pub color: [f32; 4],
     pub dist: f32,
+    pub relative: f32,
 }
 
 pub struct VertexConstructor {
@@ -124,6 +126,7 @@ impl StrokeVertexConstructor<Vertex> for VertexConstructor {
             position: [vertex.position().x, vertex.position().y],
             color: self.color.to_linear().to_f32_array(),
             dist: vertex.interpolated_attributes()[0],
+            relative: vertex.interpolated_attributes()[1],
         }
     }
 }
