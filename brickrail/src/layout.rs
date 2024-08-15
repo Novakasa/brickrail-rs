@@ -144,7 +144,6 @@ pub struct EntityMap {
     pub trains: HashMap<TrainID, Entity>,
     pub wagons: HashMap<WagonID, Entity>,
     pub hubs: HashMap<HubID, Entity>,
-    pub names: HashMap<GenericID, String>,
     pub layout_devices: HashMap<LayoutDeviceID, Entity>,
     pub destinations: HashMap<DestinationID, Entity>,
     pub schedules: HashMap<ScheduleID, Entity>,
@@ -162,6 +161,7 @@ impl EntityMap {
             .chain(self.layout_devices.values())
             .chain(self.connections_outer.values())
             .chain(self.connections_inner.values())
+            .chain(self.connections_path.values())
             .chain(self.wagons.values())
             .chain(self.destinations.values())
             .chain(self.schedules.values())

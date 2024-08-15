@@ -387,11 +387,6 @@ fn spawn_hub(
         println!("name: {:?}", hub.name);
         println!("downloaded: {:?}", hub.downloaded);
         let hub_id = hub.id;
-        if let Some(name) = &hub.name {
-            entity_map
-                .names
-                .insert(GenericID::Hub(hub_id), name.clone());
-        }
         let hub_mutex = hub.hub.clone();
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
         let entity = commands.spawn((name, hub)).id();
