@@ -639,7 +639,7 @@ fn handle_hub_events(
     mut hub_event_reader: EventReader<HubEvent>,
     mut train_sender: EventWriter<HubMessageEvent<TrainData>>,
     mut q_hubs: Query<(&mut BLEHub, &mut Name)>,
-    mut entity_map: ResMut<EntityMap>,
+    entity_map: Res<EntityMap>,
     settings: Res<Settings>,
 ) {
     for event in hub_event_reader.read() {
@@ -649,9 +649,6 @@ fn handle_hub_events(
                 hub.name = Some(name.clone());
                 name_component.set(name.clone());
                 hub.set_downloaded_from_settings(&settings);
-                entity_map
-                    .names
-                    .insert(GenericID::Hub(hub.id), name.clone());
                 return;
             }
             IOEvent::Message(msg) => {
