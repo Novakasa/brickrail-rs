@@ -2,7 +2,7 @@ use bevy::{
     ecs::system::{SystemParam, SystemState},
     prelude::*,
 };
-use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, Ui};
+use bevy_inspector_egui::egui::{self, CollapsingHeader, Grid, RichText, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -173,12 +173,13 @@ impl TrainSchedule {
                     schedule.entries.push(ScheduleEntry::default());
                 }
                 ui.separator();
-                ui.heading("Assigned trains");
+                ui.label(RichText::new("Assigned trains").heading().strong());
                 for (name, assigned, wait_option) in q_assigned.iter() {
+                    ui.separator();
                     if assigned.schedule_id != Some(schedule.id) {
                         continue;
                     }
-                    ui.label(name.to_string());
+                    ui.label(RichText::new(format!("{}", name)).heading());
                     let cycle_time = assigned.cycle_time(control_info.time, &schedule);
                     let current_stop = assigned.curent_stop(&schedule);
                     let next_departure = assigned.next_departure(control_info.time, &schedule);
@@ -189,7 +190,7 @@ impl TrainSchedule {
                         )
                         .unwrap();
                     ui.label(format!(
-                        "Current stop {}: {}",
+                        "Current stop: {} - {}",
                         assigned.current_stop_index + 1,
                         destination.1.unwrap().to_string()
                     ));
