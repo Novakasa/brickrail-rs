@@ -64,7 +64,7 @@ pub fn build_route(
 
     for (critical_path, in_track) in split {
         let target_id = marker_map.in_markers.get(&in_track).unwrap();
-        println!(
+        debug!(
             "in_track: {:?}, first: {:?}",
             in_track,
             critical_path.tracks.first().unwrap()
@@ -84,7 +84,7 @@ pub fn build_route(
         let from_section = from_block.get_logical_section(from_id.clone());
 
         let mut travel_section = LogicalSection::new();
-        println!("critical path: {:?}", critical_path);
+        debug!("critical path: {:?}", critical_path);
         if critical_path.tracks.first().unwrap().facing
             == critical_path.tracks.last().unwrap().facing
         {
@@ -92,7 +92,7 @@ pub fn build_route(
             travel_section.extend_merge(&critical_path);
         }
         travel_section.extend_merge(&to_section);
-        println!("travel section: {:?}", travel_section);
+        debug!("travel section: {:?}", travel_section);
 
         for logical in critical_path.tracks.iter() {
             debug!("looking for marker at {:?}", logical);

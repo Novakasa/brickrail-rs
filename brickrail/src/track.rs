@@ -699,8 +699,6 @@ fn update_path_track(
         }
     }
 
-    println!("{:?}", route_connections);
-
     for (connection, mut transform, material_handle) in query.iter_mut() {
         let z = connection.base_transform().translation.z;
         let dir = match (
@@ -722,7 +720,6 @@ fn update_path_track(
                 material.direction = 0;
             }
             _ => {
-                println!("{:?} {:?}", connection.id, dir);
                 if track_locks
                     .locked_tracks
                     .contains_key(&connection.id.from_track.track)
@@ -732,8 +729,10 @@ fn update_path_track(
                 } else {
                     material.color = LinearRgba::from(BLUE);
                     transform.translation.z = z + 0.3;
+                    println!("blue");
                 }
                 material.direction = dir;
+                println!("Setting direction to {}", dir);
             }
         }
     }

@@ -721,7 +721,7 @@ fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
     for mut wait_time in q_times.iter_mut() {
         wait_time.time += time.delta_seconds();
         if (wait_time.time - time.delta_seconds()) % 1.0 > wait_time.time % 1.0 {
-            println!("Wait time: {:1.0}s", wait_time.time);
+            debug!("Wait time: {:1.0}s", wait_time.time);
         }
     }
 }
