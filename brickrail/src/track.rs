@@ -296,7 +296,7 @@ impl MeshType for TrackShapeInner {
 
     fn base_transform(&self) -> Transform {
         Transform::from_translation(
-            (self.id.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(1.0),
+            (self.id.from_track.cell().get_vec2() * LAYOUT_SCALE).extend(2.0),
         )
     }
 
