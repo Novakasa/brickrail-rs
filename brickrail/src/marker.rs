@@ -1,5 +1,6 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
+use bevy::sprite::Mesh2d;
 use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
@@ -8,6 +9,7 @@ use bevy_prototype_lyon::draw::Stroke;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
+use crate::materials;
 use crate::{
     editor::*,
     layout::{EntityMap, MarkerMap},
@@ -241,12 +243,52 @@ pub fn spawn_marker(
     mut commands: Commands,
     mut marker_events: EventReader<MarkerSpawnEvent>,
     mut entity_map: ResMut<EntityMap>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for event in marker_events.read() {
         let marker = event.0.clone();
         let track_id = marker.track;
-        let entity = commands.spawn(marker).id();
+        let mesh = Circle::new(0.05 * LAYOUT_SCALE).mesh().build();
+        let material = ColorMaterial::from(marker.color.get_display_color());
+        let entity = commands
+            .spawn((
+                ColorMesh2dBundle {
+                    mesh: meshes.add(mesh).into(),
+                    material: materials.add(material),
+                    transform: Transform::from_translation(
+                        (marker
+                            .track
+                            .get_directed(TrackDirection::First)
+                            .get_center_vec2()
+                            * LAYOUT_SCALE)
+                            .extend(25.0),
+                    ),
+                    ..Default::default()
+                },
+                marker,
+            ))
+            .id();
         entity_map.add_marker(track_id, entity);
+    }
+}
+
+fn set_marker_color(
+    markers: Query<(&Marker, &Handle<ColorMaterial>)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    hover_state: Res<HoverState>,
+    selection_state: Res<SelectionState>,
+) {
+    for (marker, material) in markers.iter() {
+        let mut color = marker.color.get_display_color();
+        if selection_state.selection == Selection::Single(GenericID::Marker(marker.track)) {
+            color = Color::from(RED);
+        }
+        if hover_state.hover == Some(GenericID::Marker(marker.track)) {
+            color = Color::from(BLUE);
+        }
+        let material = materials.get_mut(material).unwrap();
+        material.color = color;
     }
 }
 
@@ -259,9 +301,15 @@ pub fn despawn_marker(
     for event in marker_events.read() {
         let track_id = event.0;
         let entity = entity_map.markers.get(&track_id).unwrap().clone();
-        commands.entity(entity.clone()).remove::<Marker>();
+        commands.entity(entity.clone()).despawn_recursive();
         entity_map.remove_marker(track_id);
         marker_map.remove_marker(track_id);
+    }
+}
+
+fn draw_markers(q_markers: Query<&Marker>, mut gizmos: Gizmos) {
+    for marker in q_markers.iter() {
+        marker.draw_with_gizmos(&mut gizmos);
     }
 }
 
@@ -271,7 +319,14 @@ impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<MarkerSpawnEvent>();
         app.add_event::<DespawnEvent<Marker>>();
-        app.add_systems(Update, (create_marker, delete_selection_shortcut::<Marker>));
+        app.add_systems(
+            Update,
+            (
+                create_marker,
+                delete_selection_shortcut::<Marker>,
+                set_marker_color,
+            ),
+        );
         app.add_systems(
             PostUpdate,
             (

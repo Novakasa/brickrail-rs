@@ -931,12 +931,6 @@ pub fn load_layout(
     params.apply(world);
 }
 
-fn draw_markers(q_markers: Query<&Marker>, mut gizmos: Gizmos) {
-    for marker in q_markers.iter() {
-        marker.draw_with_gizmos(&mut gizmos);
-    }
-}
-
 fn new_layout(
     world: &mut World,
     params: &mut SystemState<(Res<EntityMap>, Commands, EventReader<NewLayoutEvent>)>,
@@ -1032,7 +1026,6 @@ impl Plugin for EditorPlugin {
                 save_layout.run_if(on_event::<SaveLayoutEvent>()),
                 load_layout.run_if(on_event::<LoadLayoutEvent>()),
                 new_layout.run_if(on_event::<NewLayoutEvent>()),
-                draw_markers,
                 update_editor_state,
                 close_event.run_if(on_event::<WindowCloseRequested>()),
             ),
