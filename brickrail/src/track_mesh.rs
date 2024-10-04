@@ -52,6 +52,10 @@ pub trait MeshType: Component {
     fn interpolate(&self, dist: f32) -> Vec2;
 
     fn build_mesh(&self) -> Mesh {
+        self.build_path_mesh()
+    }
+
+    fn build_path_mesh(&self) -> Mesh {
         let mut stroke_tesselator = StrokeTessellator::new();
         let mut buffers = VertexBuffers::new();
         let mut builder = BuffersBuilder::new(

@@ -56,6 +56,16 @@ pub enum SwitchPosition {
     Right,
 }
 
+impl SwitchPosition {
+    pub fn opposite(&self) -> SwitchPosition {
+        match self {
+            SwitchPosition::Left => SwitchPosition::Right,
+            SwitchPosition::Center => SwitchPosition::Center,
+            SwitchPosition::Right => SwitchPosition::Left,
+        }
+    }
+}
+
 impl fmt::Display for SwitchPosition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -739,6 +749,7 @@ pub struct DirectedConnectionShape {
     pub orientation: Orientation,
     pub direction: TrackDirection,
     pub turn: SwitchPosition,
+    pub is_portal: bool,
 }
 
 impl DirectedConnectionShape {
@@ -889,6 +900,7 @@ impl DirectedTrackConnectionID {
             orientation: self.from_track.track.orientation,
             direction: self.from_track.direction,
             turn: self.get_switch_position(),
+            is_portal: !self.is_continuous(),
         }
     }
 
@@ -1006,7 +1018,11 @@ impl DirectedTrackConnectionID {
     }
 
     pub fn get_switch_position(&self) -> SwitchPosition {
-        self.to_track.get_switch_position()
+        if !self.is_continuous() {
+            self.from_track.get_switch_position().opposite()
+        } else {
+            self.to_track.get_switch_position()
+        }
     }
 
     pub fn opposite(&self) -> Self {

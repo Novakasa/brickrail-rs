@@ -1,6 +1,5 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
-use bevy::sprite::Mesh2d;
 use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
@@ -9,7 +8,6 @@ use bevy_prototype_lyon::draw::Stroke;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
-use crate::materials;
 use crate::{
     editor::*,
     layout::{EntityMap, MarkerMap},

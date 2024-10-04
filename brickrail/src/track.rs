@@ -14,7 +14,9 @@ use crate::{
     train::{PlanRouteEvent, Train, TrainDragState},
     utils::bresenham_line,
 };
-use bevy::{color::palettes::css::*, ecs::system::SystemState, utils::hashbrown::HashSet};
+use bevy::{
+    color::palettes::css::*, ecs::system::SystemState, math::vec4, utils::hashbrown::HashSet,
+};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
@@ -273,6 +275,23 @@ impl MeshType for TrackShapeOuter {
         self.id()
             .to_connection(CellID::new(0, 0, 0))
             .interpolate_pos(dist)
+    }
+
+    fn build_mesh(&self) -> Mesh {
+        let mut mesh = self.build_path_mesh();
+        if self.id().is_portal {
+            let mut circle = Circle::new(TRACK_WIDTH * 0.7).mesh().build().translated_by(
+                (self.id.from_track.to_slot().get_vec2() - self.id.from_track.cell().get_vec2())
+                    .extend(0.0)
+                    * LAYOUT_SCALE,
+            );
+            circle.insert_attribute(
+                Mesh::ATTRIBUTE_COLOR,
+                vec![vec4(1.0, 1.0, 1.0, 1.0); circle.get_vertex_size() as usize],
+            );
+            mesh.merge(&circle);
+        }
+        mesh
     }
 }
 
