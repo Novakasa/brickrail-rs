@@ -559,7 +559,12 @@ fn assign_destination_route(
                 id: DestinationID::Random,
                 blocks: q_blocks
                     .iter()
-                    .map(|block| (block.id, BlockDirectionFilter::Any, None))
+                    .filter_map(|block| {
+                        if block.settings.passthrough {
+                            return None;
+                        }
+                        Some((block.id, BlockDirectionFilter::Any, None))
+                    })
                     .collect(),
             },
         };

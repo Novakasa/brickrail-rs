@@ -33,7 +33,10 @@ struct LogicalID {
 }
 
 #[derive(Debug, Reflect, Default, Serialize, Deserialize, Clone)]
-pub struct BlockSettings {}
+pub struct BlockSettings {
+    #[serde(default)]
+    pub passthrough: bool,
+}
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
 pub struct Block {
