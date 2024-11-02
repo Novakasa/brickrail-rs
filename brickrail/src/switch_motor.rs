@@ -24,6 +24,22 @@ pub enum MotorPosition {
     Right,
 }
 
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+pub enum MotorPolarity {
+    #[default]
+    Normal,
+    Inverted,
+}
+
+impl MotorPolarity {
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            Self::Normal => 0,
+            Self::Inverted => 1,
+        }
+    }
+}
+
 impl MotorPosition {
     pub fn to_u8(&self) -> u8 {
         match self {
@@ -42,6 +58,8 @@ pub struct SwitchMotor {
     #[serde(default)]
     pub pulse_duration: u16,
     pub pulse_strength: u16,
+    #[serde(default)]
+    pub polarity: MotorPolarity,
 }
 
 impl Default for SwitchMotor {
@@ -50,6 +68,7 @@ impl Default for SwitchMotor {
             position: MotorPosition::Unknown,
             pulse_duration: 500,
             pulse_strength: 100,
+            polarity: MotorPolarity::Normal,
         }
     }
 }
@@ -79,6 +98,7 @@ impl SwitchMotor {
         let mut config = HubConfiguration::default();
         config.add_value(address_offset + 0, self.pulse_strength as u32);
         config.add_value(address_offset + 1, self.pulse_duration as u32);
+        config.add_value(address_offset + 2, self.polarity.to_u32());
 
         let mut map = HashMap::new();
         map.insert(device.hub_id.unwrap(), config);
