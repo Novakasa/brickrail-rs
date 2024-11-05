@@ -831,7 +831,7 @@ fn spawn_train(
             Position::Route(_) => panic!("Can't spawn train with route"),
         };
         println!("spawning at block {:?}", block_id);
-        let train_id = TrainID::new(entity_map.trains.len());
+        let train_id = spawn_train.train.id;
         let route = block_route(
             block_id,
             train_id,
