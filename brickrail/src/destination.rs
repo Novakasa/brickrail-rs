@@ -132,7 +132,7 @@ impl Plugin for DestinationPlugin {
         app.register_type::<BlockDirectionFilter>();
         app.add_systems(
             Update,
-            spawn_destination.run_if(on_event::<SpawnDestinationEvent>()),
+            spawn_destination.run_if(on_event::<SpawnDestinationEvent>),
         );
     }
 }

@@ -10,7 +10,6 @@ use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
-use crate::post_processing::PostProcessSettings;
 use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
@@ -582,24 +581,7 @@ fn spawn_camera(mut commands: Commands) {
         grab_buttons: vec![MouseButton::Middle],
         ..default()
     };
-    commands
-        .spawn((
-            Camera2dBundle {
-                camera: Camera {
-                    hdr: false,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            pancam,
-            BloomSettings {
-                intensity: 0.0,
-                ..Default::default()
-            },
-            PostProcessSettings { intensity: 0.0 },
-        ))
-        .add(InitWorldTracking)
-        .insert(MainCamera);
+    commands.spawn((Camera2d::default(), MainCamera));
 }
 
 fn init_hover(mut hover_state: ResMut<HoverState>) {
@@ -876,52 +858,52 @@ pub fn load_layout(
             println!("Sending spawn events");
             // commands.insert_resource(connections);
             for track in layout_value.tracks {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(track);
                 });
             }
             for connection in layout_value.connections {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(connection);
                 });
             }
             for block in layout_value.blocks {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(block);
                 });
             }
             for marker in layout_value.markers {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(MarkerSpawnEvent(marker));
                 });
             }
             for serialized_train in layout_value.trains {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(serialized_train);
                 });
             }
             for serialized_hub in layout_value.hubs {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(serialized_hub);
                 });
             }
             for serialized_switch in layout_value.switches {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(serialized_switch);
                 });
             }
             for serialized_switch_motor in layout_value.switch_motors {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(serialized_switch_motor);
                 });
             }
             for destination in layout_value.destinations {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(destination);
                 });
             }
             for schedule in layout_value.schedules {
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(schedule);
                 });
             }
@@ -990,7 +972,6 @@ pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Msaa::Sample8);
         app.add_plugins(PanCamPlugin);
         app.add_plugins(MousePosPlugin);
         app.init_state::<EditorState>();
@@ -1023,11 +1004,11 @@ impl Plugin for EditorPlugin {
                     draw_selection,
                 )
                     .chain(),
-                save_layout.run_if(on_event::<SaveLayoutEvent>()),
-                load_layout.run_if(on_event::<LoadLayoutEvent>()),
-                new_layout.run_if(on_event::<NewLayoutEvent>()),
+                save_layout.run_if(on_event::<SaveLayoutEvent>),
+                load_layout.run_if(on_event::<LoadLayoutEvent>),
+                new_layout.run_if(on_event::<NewLayoutEvent>),
                 update_editor_state,
-                close_event.run_if(on_event::<WindowCloseRequested>()),
+                close_event.run_if(on_event::<WindowCloseRequested>),
             ),
         );
         app.add_systems(

@@ -150,7 +150,7 @@ impl Plugin for SwitchMotorPlugin {
         app.add_event::<SpawnSwitchMotorEvent>();
         app.add_systems(
             Update,
-            spawn_switch_motor.run_if(on_event::<SpawnSwitchMotorEvent>()),
+            spawn_switch_motor.run_if(on_event::<SpawnSwitchMotorEvent>),
         );
     }
 }

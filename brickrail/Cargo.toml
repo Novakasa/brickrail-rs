@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-bevy = { version = "0.14", features = ["serialize"] }
-bevy-inspector-egui = "0.25"
-bevy_framepace = "0.17"
+bevy = { version = "0.15", features = ["serialize"] }
+bevy-inspector-egui = "0.28"
+bevy_framepace = { git = "https://github.com/eero-lehtinen/bevy_framepace", branch = "bevy-15" }
 bevy_mouse_tracking_plugin = { git = "https://github.com/Novakasa/bevy-mouse-tracking.git", branch = "main" }
-bevy_pancam = "0.12"
-bevy_prototype_lyon = "0.12"
+bevy_pancam = "0.16"
+bevy_prototype_lyon = "0.13"
 itertools = "0.11"
 petgraph = { version = "0.6", features = ["serde-1"] }
 serde = "1.0"
@@ -30,7 +30,7 @@ rand = "0.8"
 lyon_tessellation = "1.0.15"
 
 [dev-dependencies]
-bevy = { version = "0.14", features = ["dynamic_linking", "serialize"] }
+bevy = { version = "0.15", features = ["dynamic_linking", "serialize"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread"] }

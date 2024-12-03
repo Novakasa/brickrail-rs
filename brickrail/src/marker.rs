@@ -1,5 +1,6 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
+use bevy::sprite::Material2d;
 use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
@@ -249,21 +250,19 @@ pub fn spawn_marker(
         let track_id = marker.track;
         let mesh = Circle::new(0.05 * LAYOUT_SCALE).mesh().build();
         let material = ColorMaterial::from(marker.color.get_display_color());
+        let transform = Transform::from_translation(
+            (marker
+                .track
+                .get_directed(TrackDirection::First)
+                .get_center_vec2()
+                * LAYOUT_SCALE)
+                .extend(25.0),
+        );
         let entity = commands
             .spawn((
-                ColorMesh2dBundle {
-                    mesh: meshes.add(mesh).into(),
-                    material: materials.add(material),
-                    transform: Transform::from_translation(
-                        (marker
-                            .track
-                            .get_directed(TrackDirection::First)
-                            .get_center_vec2()
-                            * LAYOUT_SCALE)
-                            .extend(25.0),
-                    ),
-                    ..Default::default()
-                },
+                Mesh2d(meshes.add(mesh).into()),
+                transform,
+                MeshMaterial2d(materials.add(material)),
                 marker,
             ))
             .id();
@@ -272,7 +271,7 @@ pub fn spawn_marker(
 }
 
 fn set_marker_color(
-    markers: Query<(&Marker, &Handle<ColorMaterial>)>,
+    markers: Query<(&Marker, &MeshMaterial2d<ColorMaterial>)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
@@ -329,7 +328,7 @@ impl Plugin for MarkerPlugin {
             PostUpdate,
             (
                 spawn_marker
-                    .run_if(on_event::<MarkerSpawnEvent>())
+                    .run_if(on_event::<MarkerSpawnEvent>)
                     .after(spawn_track),
                 despawn_marker,
             ),

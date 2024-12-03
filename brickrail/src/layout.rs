@@ -530,7 +530,7 @@ impl Connections {
     pub fn iter_from_track<'a>(
         &'a self,
         track: LogicalTrackID,
-    ) -> impl Iterator<Item = LogicalTrackID> + '_ {
+    ) -> impl Iterator<Item = LogicalTrackID> + 'a {
         ConnectionIterator {
             current_track: track,
             continue_at_fork: false,
@@ -702,7 +702,7 @@ fn edge_cost(
 }
 
 fn draw_layout_graph(mut gizmos: Gizmos, connections: Res<Connections>, time: Res<Time>) {
-    let dist = time.elapsed_seconds() % 1.0;
+    let dist = time.elapsed_secs() % 1.0;
     for track in connections.logical_graph.nodes() {
         track
             .dirtrack

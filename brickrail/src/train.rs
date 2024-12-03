@@ -115,7 +115,6 @@ impl TrainWagonBundle {
                 .with_line_cap(LineCap::Round),
         };
         let shape = ShapeBundle {
-            spatial: SpatialBundle::default(),
             path: path,
             ..default()
         };
@@ -724,8 +723,8 @@ pub struct SetTrainRouteEvent {
 
 fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
     for mut wait_time in q_times.iter_mut() {
-        wait_time.time += time.delta_seconds();
-        if (wait_time.time - time.delta_seconds()) % 1.0 > wait_time.time % 1.0 {
+        wait_time.time += time.delta_secs();
+        if (wait_time.time - time.delta_secs()) % 1.0 > wait_time.time % 1.0 {
             debug!("Wait time: {:1.0}s", wait_time.time);
         }
     }
@@ -914,7 +913,7 @@ fn update_virtual_trains(
     mut advance_events: EventWriter<MarkerAdvanceEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
-        train.traverse_route(time.delta_seconds(), &mut advance_events);
+        train.traverse_route(time.delta_secs(), &mut advance_events);
     }
 }
 
@@ -937,7 +936,7 @@ fn update_train_route(
 
 fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time>) {
     for mut train in q_trains.iter_mut() {
-        train.traverse_route_passive(time.delta_seconds());
+        train.traverse_route_passive(time.delta_secs());
     }
 }
 
@@ -1071,14 +1070,14 @@ impl Plugin for TrainPlugin {
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
         app.add_event::<DespawnEvent<Train>>();
-        app.observe(assign_destination_route);
-        app.observe(update_routes);
+        app.add_observer(assign_destination_route);
+        app.add_observer(update_routes);
         app.add_systems(
             Update,
             (
                 create_train_shortcut,
                 delete_selection_shortcut::<Train>,
-                despawn_train.run_if(on_event::<DespawnEvent<Train>>()),
+                despawn_train.run_if(on_event::<DespawnEvent<Train>>),
                 draw_train,
                 update_wagons.after(directory_panel),
                 // draw_train_route.after(draw_hover_route),
@@ -1087,7 +1086,7 @@ impl Plugin for TrainPlugin {
                 init_drag_train.after(finish_hover),
                 exit_drag_train,
                 tick_wait_time.run_if(in_state(ControlState)),
-                set_train_route.run_if(on_event::<SetTrainRouteEvent>()),
+                set_train_route.run_if(on_event::<SetTrainRouteEvent>),
                 update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
@@ -1095,7 +1094,7 @@ impl Plugin for TrainPlugin {
                 update_virtual_trains_passive
                     .run_if(in_state(EditorState::DeviceControl))
                     .after(sensor_advance),
-                sensor_advance.run_if(on_event::<MarkerAdvanceEvent>()),
+                sensor_advance.run_if(on_event::<MarkerAdvanceEvent>),
                 sync_intentions
                     .run_if(in_state(EditorState::DeviceControl))
                     .after(update_virtual_trains_passive),
@@ -1105,7 +1104,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SpawnTrainEvent>())
+                .run_if(on_event::<SpawnTrainEvent>)
                 .after(spawn_block),
         );
     }

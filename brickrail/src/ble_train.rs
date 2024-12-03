@@ -434,7 +434,7 @@ impl Plugin for BLETrainPlugin {
         app.add_event::<MarkerAdvanceEvent>();
         app.add_systems(
             Update,
-            handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>()),
+            handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>),
         );
     }
 }

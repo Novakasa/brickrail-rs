@@ -301,7 +301,7 @@ fn spawn_schedule(
 }
 
 fn update_time(time: Res<Time>, mut control_info: ResMut<ControlInfo>) {
-    control_info.time += time.delta_seconds();
+    control_info.time += time.delta_secs();
 }
 
 fn update_schedules(
@@ -353,7 +353,7 @@ impl Plugin for SchedulePlugin {
                 update_schedules
                     .run_if(in_state(ControlStateMode::Schedule))
                     .before(set_train_route),
-                spawn_schedule.run_if(on_event::<SpawnScheduleEvent>()),
+                spawn_schedule.run_if(on_event::<SpawnScheduleEvent>),
             ),
         );
     }

@@ -15,7 +15,8 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::*, ecs::system::SystemState, math::vec4, utils::hashbrown::HashSet,
+    color::palettes::css::*, ecs::system::SystemState, math::vec4, sprite::MaterialMesh2dBundle,
+    utils::hashbrown::HashSet,
 };
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
@@ -190,22 +191,22 @@ pub fn spawn_connection(
     for spawn_connection in event_reader.read() {
         let connection_id = spawn_connection.id;
         for directed in connection_id.directed_connections() {
-            let base_material = base_materials.add(TrackBaseMaterial {
+            let base_material = MeshMaterial2d(base_materials.add(TrackBaseMaterial {
                 color: LinearRgba::from(WHITE),
-            });
+            }));
             let outer_entity = commands
                 .spawn((TrackShapeOuter::new(directed), base_material))
                 .id();
-            let inner_material = inner_materials.add(TrackInnerMaterial {
+            let inner_material = MeshMaterial2d(inner_materials.add(TrackInnerMaterial {
                 color: LinearRgba::from(BLACK),
-            });
+            }));
             let inner_entity = commands
                 .spawn((TrackShapeInner::new(directed), inner_material))
                 .id();
-            let path_material = path_materials.add(TrackPathMaterial {
+            let path_material = MeshMaterial2d(path_materials.add(TrackPathMaterial {
                 color: LinearRgba::from(RED).with_alpha(0.0),
                 direction: 0,
-            });
+            }));
             let path_entity = commands
                 .spawn((TrackShapePath::new(directed), path_material))
                 .id();
@@ -692,7 +693,11 @@ fn draw_build_cells(
 
 fn update_path_track(
     _trigger: Trigger<PlanRouteEvent>,
-    mut query: Query<(&TrackShapePath, &mut Transform, &Handle<TrackPathMaterial>)>,
+    mut query: Query<(
+        &TrackShapePath,
+        &mut Transform,
+        &MeshMaterial2d<TrackPathMaterial>,
+    )>,
     track_locks: Res<TrackLocks>,
     trains: Query<&Train>,
     drag_train: Res<TrainDragState>,
@@ -761,7 +766,7 @@ fn update_inner_track(
     mut q_strokes: Query<(
         &TrackShapeInner,
         &mut Transform,
-        &Handle<TrackInnerMaterial>,
+        &MeshMaterial2d<TrackInnerMaterial>,
     )>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
@@ -868,7 +873,7 @@ impl Plugin for TrackPlugin {
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();
-        app.observe(update_path_track);
+        app.add_observer(update_path_track);
         app.add_systems(
             Update,
             (
@@ -884,9 +889,9 @@ impl Plugin for TrackPlugin {
         app.add_systems(
             PostUpdate,
             (
-                spawn_track.run_if(on_event::<SpawnTrackEvent>()),
+                spawn_track.run_if(on_event::<SpawnTrackEvent>),
                 spawn_connection
-                    .run_if(on_event::<SpawnConnectionEvent>())
+                    .run_if(on_event::<SpawnConnectionEvent>)
                     .after(spawn_track),
             ),
         );

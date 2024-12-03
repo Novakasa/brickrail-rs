@@ -6,7 +6,6 @@ use bevy::{
         mesh::{Indices, PrimitiveTopology},
         render_asset::RenderAssetUsages,
     },
-    sprite::Mesh2dHandle,
     utils::hashbrown::HashMap,
 };
 use lyon_tessellation::{
@@ -18,14 +17,14 @@ use crate::track::LAYOUT_SCALE;
 
 #[derive(Resource)]
 pub struct MeshCache<T: MeshType> {
-    pub meshes: HashMap<T::ID, Mesh2dHandle>,
+    pub meshes: HashMap<T::ID, Mesh2d>,
 }
 
 impl<T: MeshType> MeshCache<T> {
     pub fn insert(&mut self, mesh: &T, assets: &mut Assets<Mesh>) {
         let generated_mesh = mesh.build_mesh();
         self.meshes
-            .try_insert(mesh.id(), Mesh2dHandle(assets.add(generated_mesh)))
+            .try_insert(mesh.id(), Mesh2d(assets.add(generated_mesh)))
             .unwrap();
     }
 }
@@ -138,20 +137,16 @@ impl StrokeVertexConstructor<Vertex> for VertexConstructor {
 fn add_meshes<T: MeshType>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut mesh_cache: ResMut<MeshCache<T>>,
-    query: Query<(Entity, &T), Without<Mesh2dHandle>>,
+    query: Query<(Entity, &T), Without<Mesh2d>>,
     mut commands: Commands,
 ) {
     for (entity, mesh) in query.iter() {
         if !mesh_cache.meshes.contains_key(&mesh.id()) {
             mesh_cache.insert(mesh, &mut meshes);
         }
-        commands.entity(entity).insert((
-            SpatialBundle {
-                transform: mesh.base_transform(),
-                ..Default::default()
-            },
-            mesh_cache.meshes[&mesh.id()].clone(),
-        ));
+        commands
+            .entity(entity)
+            .insert((mesh.base_transform(), mesh_cache.meshes[&mesh.id()].clone()));
     }
 }
 

@@ -167,7 +167,7 @@ impl Plugin for LayoutDevicePlugin {
         app.add_event::<DespawnEvent<LayoutDevice>>();
         app.add_systems(
             Update,
-            despawn_layout_device.run_if(on_event::<DespawnEvent<LayoutDevice>>()),
+            despawn_layout_device.run_if(on_event::<DespawnEvent<LayoutDevice>>),
         );
     }
 }

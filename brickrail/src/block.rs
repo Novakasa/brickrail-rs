@@ -382,7 +382,7 @@ impl Plugin for BlockPlugin {
         app.add_systems(
             Update,
             (
-                create_block.run_if(on_event::<BlockCreateEvent>()),
+                create_block.run_if(on_event::<BlockCreateEvent>),
                 update_block_color.after(directory_panel),
                 delete_selection_shortcut::<Block>,
             ),
@@ -391,7 +391,7 @@ impl Plugin for BlockPlugin {
             PostUpdate,
             (
                 spawn_block
-                    .run_if(on_event::<BlockSpawnEvent>())
+                    .run_if(on_event::<BlockSpawnEvent>)
                     .after(spawn_marker),
                 despawn_block,
             ),

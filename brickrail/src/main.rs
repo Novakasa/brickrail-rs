@@ -16,7 +16,6 @@ mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod materials;
-mod post_processing;
 mod route;
 mod schedule;
 mod section;
@@ -41,7 +40,6 @@ fn main() {
             ..Default::default()
         }))
         .add_plugins(ShapePlugin)
-        .add_plugins(post_processing::PostProcessPlugin)
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins(editor::EditorPlugin)

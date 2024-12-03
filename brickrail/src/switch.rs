@@ -331,10 +331,10 @@ pub fn update_switch_turns(
                 commands.entity(*switch_entity).with_children(|builder| {
                     builder.spawn((
                         SwitchConnection::new(connection),
-                        switch_materials.add(TrackPathMaterial {
+                        MeshMaterial2d(switch_materials.add(TrackPathMaterial {
                             color: LinearRgba::from(GRAY),
                             direction: 0,
-                        }),
+                        })),
                     ));
                 });
             }
@@ -377,10 +377,10 @@ pub fn spawn_switch(
                 {
                     builder.spawn((
                         SwitchConnection::new(connection),
-                        switch_materials.add(TrackPathMaterial {
+                        MeshMaterial2d(switch_materials.add(TrackPathMaterial {
                             color: LinearRgba::from(GRAY),
                             direction: 0,
-                        }),
+                        })),
                     ));
                 }
             })
@@ -437,7 +437,7 @@ fn update_switch_shapes(
     switch_motors: Query<&SwitchMotor>,
     mut connections: Query<(
         &SwitchConnection,
-        &Handle<TrackPathMaterial>,
+        &MeshMaterial2d<TrackPathMaterial>,
         &mut Transform,
     )>,
     hover_state: Res<HoverState>,
@@ -508,14 +508,14 @@ impl Plugin for SwitchPlugin {
         app.add_systems(
             Update,
             (
-                spawn_switch.run_if(on_event::<SpawnSwitchEvent>()),
+                spawn_switch.run_if(on_event::<SpawnSwitchEvent>),
                 update_switch_shapes.after(directory_panel),
                 update_switch_turns
                     .after(spawn_connection)
-                    .run_if(on_event::<UpdateSwitchTurnsEvent>()),
-                update_switch_position.run_if(on_event::<SetSwitchPositionEvent>()),
+                    .run_if(on_event::<UpdateSwitchTurnsEvent>),
+                update_switch_position.run_if(on_event::<SetSwitchPositionEvent>),
                 // draw_switches,
-                despawn_switch.run_if(on_event::<DespawnEvent<Switch>>()),
+                despawn_switch.run_if(on_event::<DespawnEvent<Switch>>),
             ),
         );
     }

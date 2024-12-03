@@ -909,11 +909,11 @@ impl Plugin for BLEPlugin {
         app.add_systems(
             Update,
             (
-                spawn_hub.run_if(on_event::<SpawnHubEvent>()),
-                despawn_hub.run_if(on_event::<DespawnEvent<BLEHub>>()),
+                spawn_hub.run_if(on_event::<SpawnHubEvent>),
+                despawn_hub.run_if(on_event::<DespawnEvent<BLEHub>>),
                 delete_selection_shortcut::<BLEHub>,
-                handle_hub_events.run_if(on_event::<HubEvent>()),
-                execute_hub_commands.run_if(on_event::<HubCommandEvent>()),
+                handle_hub_events.run_if(on_event::<HubEvent>),
+                execute_hub_commands.run_if(on_event::<HubCommandEvent>),
                 create_hub,
                 prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                 monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
