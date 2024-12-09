@@ -10,7 +10,6 @@ tokio = { version = "1", features = ["full"] }
 bevy = { version = "0.15", features = ["serialize"] }
 bevy-inspector-egui = "0.28"
 bevy_framepace = { git = "https://github.com/eero-lehtinen/bevy_framepace", branch = "bevy-15" }
-bevy_mouse_tracking_plugin = { git = "https://github.com/Novakasa/bevy-mouse-tracking.git", branch = "main" }
 bevy_pancam = "0.16"
 bevy_prototype_lyon = "0.13"
 itertools = "0.11"

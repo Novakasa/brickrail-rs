@@ -18,7 +18,6 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train, TrainWagon};
 
 use bevy::color::palettes::css::BLUE;
-use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
@@ -28,7 +27,6 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::bevy_inspector::ui_for_all_assets;
 use bevy_inspector_egui::egui::ComboBox;
-use bevy_mouse_tracking_plugin::{prelude::*, MainCamera, MousePosWorld};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_prototype_lyon::prelude::*;
 use rfd::FileDialog;
@@ -581,7 +579,7 @@ fn spawn_camera(mut commands: Commands) {
         grab_buttons: vec![MouseButton::Middle],
         ..default()
     };
-    commands.spawn((Camera2d::default(), MainCamera));
+    commands.spawn((Camera2d::default(), pancam));
 }
 
 fn init_hover(mut hover_state: ResMut<HoverState>) {
@@ -598,6 +596,28 @@ pub fn finish_hover(mut hover_state: ResMut<HoverState>) {
     hover_state.candidate = None;
 }
 
+#[derive(Resource, Debug, Default)]
+pub struct MousePosWorld {
+    pub pos: Vec2,
+}
+
+fn update_world_mouse_pos(
+    mut mouse_pos_world: ResMut<MousePosWorld>,
+    q_window: Query<&Window, With<PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform)>,
+) {
+    let (camera, camera_transform) = q_camera.single();
+    let window = q_window.single();
+
+    if let Some(world_pos) = window
+        .cursor_position()
+        .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor).ok())
+        .map(|ray| ray.origin.truncate())
+    {
+        mouse_pos_world.pos = world_pos;
+    }
+}
+
 pub fn update_hover<T: Selectable + Component>(
     mouse_world_pos: Res<MousePosWorld>,
     q_selectable: Query<(&mut T, Option<&Transform>, Option<&Stroke>)>,
@@ -611,11 +631,8 @@ pub fn update_hover<T: Selectable + Component>(
             if selectable.get_depth() < hover_state.hover_depth {
                 continue;
             }
-            let dist = selectable.get_distance(
-                mouse_world_pos.truncate() / LAYOUT_SCALE,
-                transform,
-                stroke,
-            );
+            let dist =
+                selectable.get_distance(mouse_world_pos.pos / LAYOUT_SCALE, transform, stroke);
             if dist > 0.0 {
                 continue;
             }
@@ -973,7 +990,6 @@ pub struct EditorPlugin;
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(PanCamPlugin);
-        app.add_plugins(MousePosPlugin);
         app.init_state::<EditorState>();
         app.add_computed_state::<ControlState>();
         app.add_sub_state::<ControlStateMode>();
@@ -986,8 +1002,10 @@ impl Plugin for EditorPlugin {
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
         app.insert_resource(EditorInfo::default());
+        app.insert_resource(MousePosWorld::default());
         app.add_systems(Startup, spawn_camera);
         app.add_systems(OnExit(EditorState::Disconnecting), disconnect_finish);
+        app.add_systems(PreUpdate, update_world_mouse_pos);
         app.add_systems(
             Update,
             (

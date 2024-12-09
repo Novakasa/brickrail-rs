@@ -21,7 +21,6 @@ use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
-use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
@@ -442,7 +441,7 @@ fn update_wagons(
             let offset2 = offset + train.in_place_cycle * WAGON_DIST;
             let pos = train.get_route().interpolate_offset(offset2);
             let pos2 = train.get_route().interpolate_offset(offset2 + 0.01);
-            let angle = -(pos2 - pos).angle_between(Vec2::X);
+            let angle = -(pos2 - pos).angle_to(Vec2::X);
             transform.translation = pos.extend(20.0) * LAYOUT_SCALE;
             transform.rotation = Quat::from_rotation_z(angle);
 
@@ -641,7 +640,7 @@ fn update_drag_train(
             .get(entity_map.get_entity(&GenericID::Block(block_id)).unwrap())
             .unwrap();
         train_drag_state.target = Some(block_id.to_logical(
-            block.hover_pos_to_direction(mouse_pos.truncate() / LAYOUT_SCALE),
+            block.hover_pos_to_direction(mouse_pos.pos / LAYOUT_SCALE),
             train_drag_state.target_facing,
         ));
         if train_drag_state.target == old_target {

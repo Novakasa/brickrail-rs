@@ -2,7 +2,7 @@ use crate::{
     block::{Block, BlockCreateEvent},
     editor::{
         delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
-        Selectable, Selection, SelectionState,
+        MousePosWorld, Selectable, Selection, SelectionState,
     },
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
@@ -15,13 +15,11 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::*, ecs::system::SystemState, math::vec4, sprite::MaterialMesh2dBundle,
-    utils::hashbrown::HashSet,
+    color::palettes::css::*, ecs::system::SystemState, math::vec4, utils::hashbrown::HashSet,
 };
 use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
-use bevy_mouse_tracking_plugin::MousePosWorld;
 use bevy_prototype_lyon::draw::Stroke;
 use lyon_tessellation::{
     math::Point,
@@ -623,7 +621,7 @@ fn init_draw_track(
                 return;
             }
         }
-        let first_cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
+        let first_cell = CellID::from_vec2(mouse_world_pos.pos / LAYOUT_SCALE);
         track_build_state.hover_cells.push(first_cell);
     }
 }
@@ -650,7 +648,7 @@ fn update_draw_track(
         return;
     }
     let start = (last_cell.unwrap().x, last_cell.unwrap().y);
-    let mouse_cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
+    let mouse_cell = CellID::from_vec2(mouse_world_pos.pos / LAYOUT_SCALE);
     for point in bresenham_line(start, (mouse_cell.x, mouse_cell.y)).iter() {
         let cell = CellID::new(point.0, point.1, 0);
         track_build_state.hover_cells.push(cell);
@@ -675,7 +673,7 @@ fn draw_build_cells(
             Color::from(GRAY),
         );
     }
-    let cell = CellID::from_vec2(mouse_world_pos.truncate() / LAYOUT_SCALE);
+    let cell = CellID::from_vec2(mouse_world_pos.pos / LAYOUT_SCALE);
     gizmos.circle_2d(
         cell.get_vec2() * LAYOUT_SCALE,
         LAYOUT_SCALE * 0.25,

@@ -1168,14 +1168,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_mouse_tracking_plugin"
-version = "0.7.0"
-source = "git+https://github.com/Novakasa/bevy-mouse-tracking.git?branch=main#3dfb7559454a937c1e2fc8258724dbb96abdd217"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "bevy_pancam"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1763,7 +1755,6 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_framepace",
- "bevy_mouse_tracking_plugin",
  "bevy_pancam",
  "bevy_prototype_lyon",
  "bitflags 2.6.0",
