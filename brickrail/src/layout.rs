@@ -185,7 +185,7 @@ impl EntityMap {
         &'a self,
         query: &'a Query<D, F>,
         id: &GenericID,
-    ) -> Option<<<D as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
+    ) -> Option<<<D as QueryData>::ReadOnly as WorldQuery>::Item<'a>> {
         let entity = self.get_entity(id)?;
         query.get(entity).ok()
     }
@@ -194,7 +194,7 @@ impl EntityMap {
         &'a self,
         query: &'a mut Query<D, F>,
         id: &GenericID,
-    ) -> Option<<D as WorldQuery>::Item<'_>> {
+    ) -> Option<<D as WorldQuery>::Item<'a>> {
         let entity = self.get_entity(id)?;
         query.get_mut(entity).ok()
     }

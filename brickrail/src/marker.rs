@@ -1,6 +1,5 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
-use bevy::sprite::Material2d;
 use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;

@@ -148,7 +148,7 @@ impl TrainSchedule {
                         i + 1,
                         Destination::label_from_query(&entry.dest, &destinations)
                     ))
-                    .id_source(i)
+                    .id_salt(i)
                     .show(ui, |ui| {
                         Grid::new("settings").show(ui, |ui| {
                             ui.label("Destination");

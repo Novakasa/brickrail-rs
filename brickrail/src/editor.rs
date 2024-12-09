@@ -192,7 +192,7 @@ pub trait Selectable {
         Self: Component + Sized,
     {
         let selected_text = Self::label_from_query(value, query);
-        ComboBox::from_id_source("selector")
+        ComboBox::from_id_salt("selector")
             .selected_text(selected_text)
             .show_ui(ui, |ui| {
                 ui.selectable_value(value, None, "None".to_string());
@@ -211,7 +211,7 @@ pub trait Selectable {
         Self: Component + Sized,
     {
         let selected_text = Self::label_from_query(&Some(value.clone()), query);
-        ComboBox::from_id_source("selector")
+        ComboBox::from_id_salt("selector")
             .selected_text(selected_text)
             .show_ui(ui, |ui| {
                 for (selectable, name) in query.iter() {
@@ -858,7 +858,7 @@ pub fn load_layout(
     world: &mut World,
     params: &mut SystemState<(Commands, EventReader<LoadLayoutEvent>)>,
 ) {
-    world.run_system_once(new_layout);
+    world.run_system_once(new_layout).unwrap();
     {
         let (mut commands, mut load_events) = params.get_mut(world);
         for event in load_events.read() {
