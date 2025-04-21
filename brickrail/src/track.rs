@@ -202,7 +202,7 @@ pub fn spawn_connection(
                 .spawn((TrackShapeInner::new(directed), inner_material))
                 .id();
             let path_material = MeshMaterial2d(path_materials.add(TrackPathMaterial {
-                color: LinearRgba::from(RED).with_alpha(0.0),
+                color: BLACK.with_alpha(0.0).into(),
                 direction: 0,
             }));
             let path_entity = commands
@@ -737,7 +737,7 @@ fn update_path_track(
 
         match dir {
             0 => {
-                material.color = LinearRgba::from(BLACK).with_alpha(0.0);
+                material.color = BLACK.with_alpha(0.0).into();
                 transform.translation.z = z;
                 material.direction = 0;
             }

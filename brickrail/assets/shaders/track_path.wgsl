@@ -10,7 +10,6 @@ fn arrow_mask(uv: vec2<f32>, dir: i32) -> f32 {
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    var test_uvs = vec4((20.0 * mesh.uv.x - globals.time * f32(direction)) % 1.0, (20.0 * mesh.uv.y) % 1.0, 0.0, 1.0);
     var mask = arrow_mask(mesh.uv, direction);
     if direction == 0 {
         mask = 1.0;
