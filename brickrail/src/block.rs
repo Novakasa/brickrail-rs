@@ -32,10 +32,18 @@ struct LogicalID {
     facing: Facing,
 }
 
+#[derive(Debug, Clone, Event)]
+struct UpdateReverseConnectios {
+    block_id: BlockID,
+    disallow_reversing: bool,
+}
+
 #[derive(Debug, Reflect, Default, Serialize, Deserialize, Clone)]
 pub struct BlockSettings {
     #[serde(default)]
     pub passthrough: bool,
+    #[serde(default)]
+    pub disallow_reversing: bool,
 }
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
@@ -90,6 +98,7 @@ impl Block {
             EventWriter<SpawnTrainEvent>,
             Query<(&mut Destination, &Name)>,
             EventWriter<SpawnDestinationEvent>,
+            EventWriter<UpdateReverseConnectios>,
         )>::new(world);
         let (
             mut blocks,
@@ -99,11 +108,28 @@ impl Block {
             mut train_spawner,
             mut destinations,
             mut destination_spawner,
+            mut update_reverse_connections,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut block) = blocks.get_mut(entity) {
                 ui.label(format!("Block {:?}", block.id));
-                ui_for_value(&mut block.settings, ui, &type_registry.read());
+                Grid::new("settings").show(ui, |ui| {
+                    ui.label("Passthrough");
+                    ui_for_value(&mut block.settings.passthrough, ui, &type_registry.read());
+                    ui.end_row();
+                    ui.label("Disallow reversing");
+                    if ui_for_value(
+                        &mut block.settings.disallow_reversing,
+                        ui,
+                        &type_registry.read(),
+                    ) {
+                        update_reverse_connections.send(UpdateReverseConnectios {
+                            block_id: block.id,
+                            disallow_reversing: block.settings.disallow_reversing,
+                        });
+                    }
+                    ui.end_row();
+                });
 
                 if ui.button("Add train").clicked() {
                     let train_id = entity_map.new_train_id();
@@ -255,6 +281,32 @@ fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
     shape
 }
 
+fn update_reverse_connections(
+    mut update_reverse_connections: EventReader<UpdateReverseConnectios>,
+    mut connections: ResMut<Connections>,
+) {
+    for UpdateReverseConnectios {
+        block_id,
+        disallow_reversing,
+    } in update_reverse_connections.read()
+    {
+        for logical_id in block_id.logical_block_ids() {
+            let in_track = logical_id.default_in_marker_track();
+            if !disallow_reversing {
+                println!("Connecting tracks {:?} {:?}", in_track, in_track.reversed());
+                connections.connect_tracks(&in_track, &in_track.reversed());
+            } else {
+                println!(
+                    "Disconnecting tracks {:?} {:?}",
+                    in_track,
+                    in_track.reversed()
+                );
+                connections.disconnect_tracks(&in_track, &in_track.reversed());
+            }
+        }
+    }
+}
+
 #[derive(Debug, Event, Clone, Serialize, Deserialize)]
 pub struct BlockSpawnEvent {
     pub block: Block,
@@ -312,16 +364,17 @@ pub fn spawn_block(
     for request in block_event_reader.read() {
         println!("Spawning block {:?}", request.block.id);
         let block = request.block.clone();
-        let block = BlockBundle::from_block(block);
-        let block_id = block.block.id;
+        let block_id = block.id;
         // println!("Spawning block {:?}", block_id);
         let name = Name::new(request.name.clone().unwrap_or(block_id.to_string()));
-        let entity = commands.spawn((block, name)).id();
-        entity_map.add_block(block_id, entity);
         for logical_id in block_id.logical_block_ids() {
             let in_track = logical_id.default_in_marker_track();
-            connections.connect_tracks(&in_track, &in_track.reversed());
+            if !block.settings.disallow_reversing {
+                connections.connect_tracks(&in_track, &in_track.reversed());
+            }
         }
+        let entity = commands.spawn((BlockBundle::from_block(block), name)).id();
+        entity_map.add_block(block_id, entity);
     }
 }
 
@@ -379,10 +432,12 @@ impl Plugin for BlockPlugin {
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();
         app.add_event::<BlockCreateEvent>();
+        app.add_event::<UpdateReverseConnectios>();
         app.add_systems(
             Update,
             (
                 create_block.run_if(on_event::<BlockCreateEvent>),
+                update_reverse_connections.run_if(on_event::<UpdateReverseConnectios>),
                 update_block_color.after(directory_panel),
                 delete_selection_shortcut::<Block>,
             ),
