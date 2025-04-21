@@ -607,7 +607,9 @@ fn update_world_mouse_pos(
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
     let (camera, camera_transform) = q_camera.single();
-    let window = q_window.single();
+    let Ok(window) = q_window.get_single() else {
+        return;
+    };
 
     if let Some(world_pos) = window
         .cursor_position()
