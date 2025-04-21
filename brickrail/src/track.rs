@@ -751,10 +751,10 @@ fn update_path_track(
                 } else {
                     material.color = LinearRgba::from(BLUE);
                     transform.translation.z = z + 0.3;
-                    println!("blue");
+                    debug!("blue");
                 }
                 material.direction = dir;
-                println!("Setting direction to {}", dir);
+                debug!("Setting direction to {}", dir);
             }
         }
     }

@@ -112,6 +112,7 @@ pub fn build_route(
                 leg_markers.push(route_marker);
             }
         }
+        // println!("greedy: {:?}", target_block.settings.passthrough);
 
         let mut leg = RouteLeg {
             travel_section,
@@ -125,6 +126,7 @@ pub fn build_route(
             to_section,
             from_section,
             intention_synced: false,
+            greedy: target_block.settings.passthrough,
         };
         leg.reset_pos_to_prev_marker();
         route.push_leg(leg);
@@ -252,7 +254,9 @@ impl Route {
                 _ => &leg.travel_section,
             };
             if track_locks.can_lock(&self.train_id, section, switches, entity_map) {
-                free_until = i + self.leg_index;
+                if !leg.greedy {
+                    free_until = i + self.leg_index;
+                }
             } else {
                 break;
             }
@@ -304,16 +308,24 @@ impl Route {
             );
         }
         if let Some(next_leg) = self.get_next_leg() {
-            if current_leg.get_leg_state() != LegState::None
-                && current_leg.intention == LegIntention::Pass
+            if (current_leg.get_leg_state() != LegState::None
+                && current_leg.intention == LegIntention::Pass)
+                || current_leg.greedy
             {
-                track_locks.lock(
-                    &self.train_id,
-                    &next_leg.travel_section,
-                    entity_map,
-                    switches,
-                    set_switch_position,
-                );
+                let mut next_leg = Some(next_leg);
+                while let Some(iter_leg) = next_leg {
+                    track_locks.lock(
+                        &self.train_id,
+                        &iter_leg.travel_section,
+                        entity_map,
+                        switches,
+                        set_switch_position,
+                    );
+                    next_leg = self.legs.get(iter_leg.leg_index + 1);
+                    if !iter_leg.greedy {
+                        break;
+                    }
+                }
             }
         }
     }
@@ -480,6 +492,7 @@ pub struct RouteLeg {
     target_block: LogicalBlockID,
     from_block: LogicalBlockID,
     pub intention_synced: bool,
+    greedy: bool,
 }
 
 impl RouteLeg {
