@@ -8,6 +8,7 @@ mod bevy_tokio_tasks;
 mod ble;
 mod ble_train;
 mod block;
+mod crossing;
 mod destination;
 mod editor;
 mod inspector;

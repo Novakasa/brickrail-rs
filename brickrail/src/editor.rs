@@ -109,6 +109,7 @@ pub enum GenericID {
     Block(BlockID),
     Train(TrainID),
     Switch(DirectedTrackID),
+    Crossing(TrackID),
     TrackConnection(TrackConnectionID),
     Marker(TrackID),
     Hub(HubID),
@@ -142,6 +143,7 @@ impl fmt::Display for GenericID {
             GenericID::Hub(id) => write!(f, "{}", id),
             GenericID::Destination(id) => write!(f, "{}", id),
             GenericID::Schedule(id) => write!(f, "{}", id),
+            GenericID::Crossing(id) => write!(f, "Crossing({})", id),
         }
     }
 }
