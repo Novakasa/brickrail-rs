@@ -2,6 +2,7 @@ use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
     block::{spawn_block, Block},
+    crossing::{LevelCrossing, SetCrossingPositionEvent},
     destination::{BlockDirectionFilter, Destination},
     editor::*,
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
@@ -739,6 +740,8 @@ pub fn set_train_route(
     editor_state: Res<State<EditorState>>,
     mut hub_commands: EventWriter<HubCommandEvent>,
     mut commands: Commands,
+    crossings: Query<&LevelCrossing>,
+    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
 ) {
     for event in route_events.read() {
         let mut route = event.route.clone();
@@ -770,6 +773,8 @@ pub fn set_train_route(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &crossings,
+            &mut set_crossing_position,
         ) {
             commands.trigger(LocksChangedEvent {});
         }
@@ -817,6 +822,8 @@ fn spawn_train(
     q_markers: Query<&Marker>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
     switches: Query<&Switch>,
+    crossings: Query<&LevelCrossing>,
+    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
 ) {
     for spawn_train in train_events.read() {
         let serialized_train = spawn_train.clone();
@@ -845,6 +852,8 @@ fn spawn_train(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &crossings,
+            &mut set_crossing_position,
         ) {
             commands.trigger(LocksChangedEvent {});
         }
@@ -922,14 +931,21 @@ fn update_train_route(
     switches: &Query<&Switch>,
     entity_map: &EntityMap,
     set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+    crossings: &Query<&LevelCrossing>,
+    set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
 ) -> bool {
     train
         .get_route_mut()
         .update_intentions(track_locks, switches, entity_map);
     let old_locks = track_locks.clone();
-    train
-        .get_route()
-        .update_locks(track_locks, entity_map, set_switch_position, switches);
+    train.get_route().update_locks(
+        track_locks,
+        entity_map,
+        set_switch_position,
+        set_crossing_position,
+        switches,
+        crossings,
+    );
     *track_locks != old_locks
 }
 
@@ -975,6 +991,8 @@ fn sensor_advance(
     mut commands: Commands,
     switches: Query<&Switch>,
     mut set_train_route: EventWriter<SetTrainRouteEvent>,
+    crossings: Query<&LevelCrossing>,
+    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
 ) {
     for advance in ble_sensor_advance_events.read() {
         info!("Advancing sensor for train {:?}", advance.id);
@@ -990,6 +1008,8 @@ fn sensor_advance(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &crossings,
+            &mut set_crossing_position,
         ) {
             commands.trigger(LocksChangedEvent {});
         }
@@ -1021,6 +1041,8 @@ fn update_routes(
     entity_map: Res<EntityMap>,
     mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
     mut commands: Commands,
+    crossings: Query<&LevelCrossing>,
+    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
 ) {
     for mut train in q_trains.iter_mut() {
         if update_train_route(
@@ -1029,6 +1051,8 @@ fn update_routes(
             &switches,
             &entity_map,
             &mut set_switch_position,
+            &crossings,
+            &mut set_crossing_position,
         ) {
             commands.trigger(LocksChangedEvent {});
             return;

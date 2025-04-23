@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use itertools::Itertools;
 
 use crate::block::Block;
+use crate::crossing::LevelCrossing;
+use crate::crossing::SetCrossingPositionEvent;
 use crate::layout::EntityMap;
 use crate::layout::MarkerMap;
 use crate::layout::TrackLocks;
@@ -286,7 +288,9 @@ impl Route {
         track_locks: &mut TrackLocks,
         entity_map: &EntityMap,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+        set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
         switches: &Query<&Switch>,
+        crossings: &Query<&LevelCrossing>,
     ) {
         let current_leg = self.get_current_leg();
         track_locks.unlock_all(&self.train_id);
@@ -296,7 +300,9 @@ impl Route {
                 &current_leg.travel_section,
                 entity_map,
                 switches,
+                crossings,
                 set_switch_position,
+                set_crossing_position,
             );
         } else {
             track_locks.lock(
@@ -304,7 +310,9 @@ impl Route {
                 &current_leg.to_section,
                 entity_map,
                 switches,
+                crossings,
                 set_switch_position,
+                set_crossing_position,
             );
         }
         if let Some(next_leg) = self.get_next_leg() {
@@ -319,7 +327,9 @@ impl Route {
                         &iter_leg.travel_section,
                         entity_map,
                         switches,
+                        crossings,
                         set_switch_position,
+                        set_crossing_position,
                     );
                     next_leg = self.legs.get(iter_leg.leg_index + 1);
                     if !iter_leg.greedy {

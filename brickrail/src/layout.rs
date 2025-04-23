@@ -1,3 +1,4 @@
+use crate::crossing::{LevelCrossing, SetCrossingPositionEvent};
 use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
@@ -85,7 +86,9 @@ impl TrackLocks {
         section: &LogicalSection,
         entity_map: &EntityMap,
         switches: &Query<&Switch>,
+        crossings: &Query<&LevelCrossing>,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+        set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
     ) {
         for track in section.tracks.iter() {
             if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
@@ -121,6 +124,10 @@ impl TrackLocks {
                     position,
                 });
             }
+            if let Some(entity) = entity_map
+                .crossings
+                .get(&directed_connection.from_track.track)
+            {}
         }
     }
 
