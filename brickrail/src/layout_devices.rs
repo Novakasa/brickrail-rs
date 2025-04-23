@@ -4,7 +4,7 @@ use crate::{
     layout::EntityMap,
     layout_primitives::*,
     switch::Switch,
-    switch_motor::SpawnSwitchMotorEvent,
+    switch_motor::SpawnPulseMotorEvent,
 };
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Layout, Ui};
@@ -65,7 +65,7 @@ impl LayoutDevice {
 
 impl Selectable for LayoutDevice {
     type ID = LayoutDeviceID;
-    type SpawnEvent = SpawnSwitchMotorEvent;
+    type SpawnEvent = SpawnPulseMotorEvent;
 
     fn id(&self) -> LayoutDeviceID {
         self.id

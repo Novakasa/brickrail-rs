@@ -147,6 +147,7 @@ pub struct EntityMap {
     pub layout_devices: HashMap<LayoutDeviceID, Entity>,
     pub destinations: HashMap<DestinationID, Entity>,
     pub schedules: HashMap<ScheduleID, Entity>,
+    pub crossings: HashMap<TrackID, Entity>,
 }
 
 impl EntityMap {
@@ -165,6 +166,7 @@ impl EntityMap {
             .chain(self.wagons.values())
             .chain(self.destinations.values())
             .chain(self.schedules.values())
+            .chain(self.crossings.values())
     }
 
     pub fn get_entity(&self, id: &GenericID) -> Option<Entity> {
@@ -177,6 +179,7 @@ impl EntityMap {
             GenericID::Hub(hub_id) => self.hubs.get(hub_id).copied(),
             GenericID::Destination(dest_id) => self.destinations.get(dest_id).copied(),
             GenericID::Schedule(schedule_id) => self.schedules.get(schedule_id).copied(),
+            GenericID::Crossing(track_id) => self.crossings.get(track_id).copied(),
             _ => panic!("generic id get entity not implemented for {:?}", id),
         }
     }
@@ -236,6 +239,10 @@ impl EntityMap {
         self.schedules.try_insert(schedule, entity).unwrap();
     }
 
+    pub fn add_crossing(&mut self, crossing: TrackID, entity: Entity) {
+        self.crossings.try_insert(crossing, entity).unwrap();
+    }
+
     pub fn remove_track(&mut self, track: TrackID) {
         self.tracks.remove(&track);
     }
@@ -268,6 +275,10 @@ impl EntityMap {
 
     pub fn remove_layout_device(&mut self, device: LayoutDeviceID) {
         self.layout_devices.remove(&device);
+    }
+
+    pub fn remove_crossing(&mut self, crossing: TrackID) {
+        self.crossings.remove(&crossing);
     }
 
     pub fn add_connection(

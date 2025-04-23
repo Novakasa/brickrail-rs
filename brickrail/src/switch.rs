@@ -19,7 +19,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
-    switch_motor::{MotorPosition, SpawnSwitchMotorEvent, SwitchMotor},
+    switch_motor::{MotorPosition, PulseMotor, SpawnPulseMotorEvent},
     track::{spawn_connection, LAYOUT_SCALE, TRACK_WIDTH},
 };
 
@@ -118,9 +118,9 @@ impl Switch {
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
             EventWriter<SpawnHubEvent>,
-            EventWriter<SpawnSwitchMotorEvent>,
+            EventWriter<SpawnPulseMotorEvent>,
             EventWriter<DespawnEvent<LayoutDevice>>,
-            Query<(&mut SwitchMotor, &mut LayoutDevice)>,
+            Query<(&mut PulseMotor, &mut LayoutDevice)>,
             EventWriter<SetSwitchPositionEvent>,
         )>::new(world);
         let (
@@ -252,7 +252,7 @@ pub struct SetSwitchPositionEvent {
 pub fn update_switch_position(
     mut events: EventReader<SetSwitchPositionEvent>,
     switches: Query<&Switch>,
-    mut switch_motors: Query<(&mut SwitchMotor, &LayoutDevice)>,
+    mut switch_motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: EventWriter<HubCommandEvent>,
     editor_state: Res<State<EditorState>>,
@@ -269,7 +269,7 @@ pub fn update_switch_position(
                     }
 
                     if editor_state.get().ble_commands_enabled() {
-                        if let Some(command) = SwitchMotor::switch_command(device, &position) {
+                        if let Some(command) = PulseMotor::switch_command(device, &position) {
                             println!("Sending switch command {:?}", command);
                             hub_commands.send(command);
                         }
@@ -439,7 +439,7 @@ impl MeshType for SwitchConnection {
 
 fn update_switch_shapes(
     switches: Query<&Switch>,
-    switch_motors: Query<&SwitchMotor>,
+    switch_motors: Query<&PulseMotor>,
     mut connections: Query<(
         &SwitchConnection,
         &MeshMaterial2d<TrackPathMaterial>,

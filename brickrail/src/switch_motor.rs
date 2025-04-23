@@ -15,7 +15,7 @@ use pybricks_ble::io_hub::Input;
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Debug, Reflect, Serialize, Deserialize, Clone, Default, PartialEq, Eq, InspectorOptions,
+    Debug, Reflect, Serialize, Deserialize, Clone, Copy, Default, PartialEq, Eq, InspectorOptions,
 )]
 pub enum MotorPosition {
     #[default]
@@ -52,7 +52,8 @@ impl MotorPosition {
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Component, InspectorOptions)]
 #[reflect(InspectorOptions)]
-pub struct SwitchMotor {
+#[serde(rename = "SwitchMotor")]
+pub struct PulseMotor {
     #[serde(skip)]
     pub position: MotorPosition,
     #[serde(default)]
@@ -62,7 +63,7 @@ pub struct SwitchMotor {
     pub polarity: MotorPolarity,
 }
 
-impl Default for SwitchMotor {
+impl Default for PulseMotor {
     fn default() -> Self {
         Self {
             position: MotorPosition::Unknown,
@@ -73,7 +74,7 @@ impl Default for SwitchMotor {
     }
 }
 
-impl SwitchMotor {
+impl PulseMotor {
     pub fn inspector(&mut self, ui: &mut Ui, type_registry: &TypeRegistry) {
         ui_for_value(self, ui, type_registry);
     }
@@ -106,31 +107,31 @@ impl SwitchMotor {
     }
 }
 
-impl DeviceComponent for SwitchMotor {
-    type SpawnEvent = SpawnSwitchMotorEvent;
+impl DeviceComponent for PulseMotor {
+    type SpawnEvent = SpawnPulseMotorEvent;
 
     fn new_id(entity_map: &mut EntityMap) -> LayoutDeviceID {
-        entity_map.new_layout_device_id(LayoutDeviceType::SwitchMotor)
+        entity_map.new_layout_device_id(LayoutDeviceType::PulseMotor)
     }
 }
 
 #[derive(Debug, Reflect, Serialize, Deserialize, Clone, Event)]
-pub struct SpawnSwitchMotorEvent {
+pub struct SpawnPulseMotorEvent {
     pub device: LayoutDevice,
-    pub motor: SwitchMotor,
+    pub motor: PulseMotor,
 }
 
-impl SpawnDeviceID for SpawnSwitchMotorEvent {
+impl SpawnDeviceID for SpawnPulseMotorEvent {
     fn from_id(id: LayoutDeviceID) -> Self {
         Self {
             device: LayoutDevice::from_id(id),
-            motor: SwitchMotor::default(),
+            motor: PulseMotor::default(),
         }
     }
 }
 
-fn spawn_switch_motor(
-    mut events: EventReader<SpawnSwitchMotorEvent>,
+fn spawn_pulse_motor(
+    mut events: EventReader<SpawnPulseMotorEvent>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
 ) {
@@ -143,14 +144,14 @@ fn spawn_switch_motor(
     }
 }
 
-pub struct SwitchMotorPlugin;
+pub struct PulseMotorPlugin;
 
-impl Plugin for SwitchMotorPlugin {
+impl Plugin for PulseMotorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnSwitchMotorEvent>();
+        app.add_event::<SpawnPulseMotorEvent>();
         app.add_systems(
             Update,
-            spawn_switch_motor.run_if(on_event::<SpawnSwitchMotorEvent>),
+            spawn_pulse_motor.run_if(on_event::<SpawnPulseMotorEvent>),
         );
     }
 }

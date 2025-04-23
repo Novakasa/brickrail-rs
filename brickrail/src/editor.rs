@@ -13,7 +13,7 @@ use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
-use crate::switch_motor::{SpawnSwitchMotorEvent, SwitchMotor};
+use crate::switch_motor::{PulseMotor, SpawnPulseMotorEvent};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train, TrainWagon};
 
@@ -777,7 +777,7 @@ struct SerializableLayout {
     #[serde(default)]
     switches: Vec<SpawnSwitchEvent>,
     #[serde(default)]
-    switch_motors: Vec<SpawnSwitchMotorEvent>,
+    switch_motors: Vec<SpawnPulseMotorEvent>,
     #[serde(default)]
     destinations: Vec<SpawnDestinationEvent>,
     #[serde(default)]
@@ -792,7 +792,7 @@ pub fn save_layout(
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
     q_hubs: Query<&BLEHub>,
-    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_destinations: SpawnDestinationEventQuery,
     q_schedules: SpawnScheduleEventQuery,
     connections: Res<Connections>,
@@ -811,7 +811,7 @@ pub fn save_layout(
             .collect();
         let switch_motors = q_switch_motors
             .iter()
-            .map(|(motor, device)| SpawnSwitchMotorEvent {
+            .map(|(motor, device)| SpawnPulseMotorEvent {
                 motor: motor.clone(),
                 device: device.clone(),
             })

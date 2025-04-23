@@ -1,5 +1,6 @@
 use crate::{
     block::{Block, BlockCreateEvent},
+    crossing::{LevelCrossing, SpawnCrossingEvent},
     editor::{
         delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
         MousePosWorld, Selectable, Selection, SelectionState,
@@ -478,6 +479,7 @@ impl Track {
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             EventWriter<MarkerSpawnEvent>,
+            EventWriter<SpawnCrossingEvent>,
             ResMut<Connections>,
             ResMut<TrackBuildState>,
             EventWriter<SpawnConnectionEvent>,
@@ -488,6 +490,7 @@ impl Track {
             selection_state,
             _type_registry,
             mut marker_spawner,
+            mut crossing_spawner,
             mut connections,
             mut track_build_state,
             mut connection_spawner,
@@ -501,6 +504,13 @@ impl Track {
 
                         let marker = Marker::new(id, MarkerColor::Red);
                         marker_spawner.send(MarkerSpawnEvent(marker));
+                    }
+                }
+                if !entity_map.crossings.contains_key(&track.id) {
+                    if ui.button("Add Crossing").clicked() {
+                        let id = track.id.clone();
+                        let crossing = LevelCrossing::new(id);
+                        crossing_spawner.send(SpawnCrossingEvent::new(crossing));
                     }
                 }
                 ui.separator();

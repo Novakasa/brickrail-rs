@@ -12,7 +12,7 @@ use crate::{
     layout_primitives::{HubID, HubPort, HubType},
     settings::Settings,
     switch::Switch,
-    switch_motor::SwitchMotor,
+    switch_motor::PulseMotor,
 };
 use bevy::ecs::system::SystemState;
 use bevy::{input::keyboard, prelude::*, utils::HashMap};
@@ -787,7 +787,7 @@ pub fn prepare_hubs(
 fn update_active_hubs(
     mut hubs: Query<&mut BLEHub>,
     q_ble_trains: Query<&BLETrain>,
-    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
 ) {
@@ -819,7 +819,7 @@ fn update_active_hubs(
 }
 
 fn get_hub_configs(
-    q_switch_motors: Query<(&SwitchMotor, &LayoutDevice)>,
+    q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_ble_trains: Query<&BLETrain>,
     mut q_hubs: Query<&mut BLEHub>,
     entity_map: Res<EntityMap>,

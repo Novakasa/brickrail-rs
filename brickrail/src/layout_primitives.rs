@@ -204,9 +204,8 @@ impl FromStr for HubID {
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
 pub enum LayoutDeviceType {
-    #[serde(alias = "Switch")]
-    SwitchMotor,
-    CrossingMotor,
+    #[serde(alias = "Switch", alias = "SwitchMotor")]
+    PulseMotor,
     Signal,
 }
 
