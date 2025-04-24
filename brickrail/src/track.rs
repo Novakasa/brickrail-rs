@@ -3,13 +3,14 @@ use crate::{
     crossing::{LevelCrossing, SpawnCrossingEvent},
     editor::{
         delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
-        MousePosWorld, Selectable, Selection, SelectionState,
+        MousePosWorld, Selection, SelectionState,
     },
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
+    selectable::{Selectable, SelectablePlugin},
     switch::{Switch, UpdateSwitchTurnsEvent},
     track_mesh::{MeshType, TrackMeshPlugin},
     train::{PlanRouteEvent, Train, TrainDragState},
@@ -878,6 +879,7 @@ impl Plugin for TrackPlugin {
         app.add_plugins(TrackMeshPlugin::<TrackShapeOuter>::default());
         app.add_plugins(TrackMeshPlugin::<TrackShapeInner>::default());
         app.add_plugins(TrackMeshPlugin::<TrackShapePath>::default());
+        app.add_plugins(SelectablePlugin::<Track>::new());
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();

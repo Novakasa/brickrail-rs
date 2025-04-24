@@ -11,11 +11,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::editor::{directory_panel, HoverState, Selection};
 use crate::materials::TrackPathMaterial;
+use crate::selectable::{Selectable, SelectablePlugin};
 use crate::track::{build_connection_path_extents, PATH_WIDTH};
 use crate::track_mesh::{MeshType, TrackMeshPlugin};
 use crate::{
     ble::{BLEHub, HubCommandEvent},
-    editor::{DespawnEvent, EditorState, GenericID, Selectable, SelectionState, SpawnHubEvent},
+    editor::{DespawnEvent, EditorState, GenericID, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_devices::{select_device_id, LayoutDevice},
     layout_primitives::*,
@@ -505,6 +506,7 @@ pub struct SwitchPlugin;
 
 impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Switch>::new());
         app.add_event::<SpawnSwitchEvent>();
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.add_event::<SetSwitchPositionEvent>();

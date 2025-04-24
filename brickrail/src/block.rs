@@ -1,11 +1,12 @@
 use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
-    delete_selection_shortcut, directory_panel, DespawnEvent, GenericID, HoverState, Selectable,
-    Selection, SelectionState,
+    delete_selection_shortcut, directory_panel, DespawnEvent, GenericID, HoverState, Selection,
+    SelectionState,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
 use crate::section::LogicalSection;
+use crate::selectable::{Selectable, SelectablePlugin};
 use crate::train::{SpawnTrainEvent, Train};
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
@@ -428,6 +429,7 @@ pub struct BlockPlugin;
 
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Block>::new());
         app.register_type::<Block>();
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();

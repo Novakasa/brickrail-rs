@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::HubCommandEvent,
-    editor::{EditorState, GenericID, Selectable},
+    editor::{EditorState, GenericID},
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{LayoutDeviceID, TrackID},
+    selectable::Selectable,
     switch_motor::{MotorPosition, PulseMotor},
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };

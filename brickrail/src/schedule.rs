@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     destination::Destination,
-    editor::{ControlState, ControlStateMode, GenericID, Selectable, SelectionState},
+    editor::{ControlState, ControlStateMode, GenericID, SelectionState},
     layout::EntityMap,
     layout_primitives::{DestinationID, ScheduleID},
+    selectable::Selectable,
     train::{set_train_route, PlanRouteEvent, QueuedDestination, TargetChoiceStrategy, WaitTime},
 };
 

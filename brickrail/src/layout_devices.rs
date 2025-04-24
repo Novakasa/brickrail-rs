@@ -1,8 +1,9 @@
 use crate::{
     ble::BLEHub,
-    editor::{DespawnEvent, Selectable, SelectionState, SpawnHubEvent},
+    editor::{DespawnEvent, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::*,
+    selectable::Selectable,
     switch::Switch,
     switch_motor::SpawnPulseMotorEvent,
 };

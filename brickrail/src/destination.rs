@@ -1,7 +1,8 @@
 use crate::{
-    editor::{GenericID, Selectable},
+    editor::GenericID,
     layout::EntityMap,
     layout_primitives::{BlockDirection, BlockID, DestinationID, Facing},
+    selectable::Selectable,
 };
 use bevy::{ecs::system::SystemParam, prelude::*};
 use serde::{Deserialize, Serialize};

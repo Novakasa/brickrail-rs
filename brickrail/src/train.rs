@@ -11,6 +11,7 @@ use crate::{
     route::{build_route, LegState, Route, TrainState},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
+    selectable::{Selectable, SelectablePlugin},
     switch::{SetSwitchPositionEvent, Switch},
     track::LAYOUT_SCALE,
 };
@@ -1089,6 +1090,7 @@ pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Train>::new());
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();

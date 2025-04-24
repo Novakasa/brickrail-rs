@@ -20,6 +20,7 @@ mod materials;
 mod route;
 mod schedule;
 mod section;
+mod selectable;
 mod settings;
 mod switch;
 mod switch_motor;

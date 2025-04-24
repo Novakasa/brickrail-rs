@@ -12,6 +12,7 @@ use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
+use crate::selectable::Selectable;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{PulseMotor, SpawnPulseMotorEvent};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
@@ -156,99 +157,6 @@ pub enum Selection {
     Multi(Vec<GenericID>),
     Section(DirectedSection),
 }
-
-pub trait Selectable {
-    type SpawnEvent: Event;
-    type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug + Send + Sync;
-
-    fn generic_id(&self) -> GenericID;
-
-    fn id(&self) -> Self::ID;
-
-    fn get_depth(&self) -> f32 {
-        -100.0
-    }
-
-    fn get_distance(
-        &self,
-        _pos: Vec2,
-        _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
-    ) -> f32 {
-        100.0
-    }
-
-    fn name(&self) -> String {
-        format!("{:}", self.generic_id())
-    }
-
-    fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
-        None
-    }
-
-    fn selector_option(
-        query: &Query<(&Self, Option<&Name>)>,
-        ui: &mut egui::Ui,
-        value: &mut Option<Self::ID>,
-    ) where
-        Self: Component + Sized,
-    {
-        let selected_text = Self::label_from_query(value, query);
-        ComboBox::from_id_salt("selector")
-            .selected_text(selected_text)
-            .show_ui(ui, |ui| {
-                ui.selectable_value(value, None, "None".to_string());
-                for (selectable, name) in query.iter() {
-                    ui.selectable_value(
-                        value,
-                        Some(selectable.id()),
-                        name.map_or(selectable.generic_id().to_string(), |v| v.to_string()),
-                    );
-                }
-            });
-    }
-
-    fn selector(query: &Query<(&Self, Option<&Name>)>, ui: &mut egui::Ui, value: &mut Self::ID)
-    where
-        Self: Component + Sized,
-    {
-        let selected_text = Self::label_from_query(&Some(value.clone()), query);
-        ComboBox::from_id_salt("selector")
-            .selected_text(selected_text)
-            .show_ui(ui, |ui| {
-                for (selectable, name) in query.iter() {
-                    ui.selectable_value(
-                        value,
-                        selectable.id(),
-                        name.map_or(selectable.generic_id().to_string(), |v| v.to_string()),
-                    );
-                }
-            });
-    }
-
-    fn label_from_query(
-        value: &Option<<Self as Selectable>::ID>,
-        query: &Query<(&Self, Option<&Name>)>,
-    ) -> String
-    where
-        Self: Component + Sized,
-    {
-        let selected_text = value.map_or("None".to_string(), |v| {
-            query
-                .iter()
-                .find_map(|(selectable, name)| {
-                    if selectable.id() == v {
-                        Some(name.map_or(selectable.generic_id().to_string(), |v| v.to_string()))
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or("Not found!!".to_string())
-        });
-        selected_text
-    }
-}
-
 #[derive(Resource, Debug, Default)]
 pub struct SelectionState {
     pub selection: Selection,
@@ -584,7 +492,7 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn((Camera2d::default(), pancam));
 }
 
-fn init_hover(mut hover_state: ResMut<HoverState>) {
+pub fn init_hover(mut hover_state: ResMut<HoverState>) {
     hover_state.min_dist = f32::INFINITY;
     hover_state.hover_depth = f32::NEG_INFINITY;
     hover_state.candidate = None;
@@ -1015,11 +923,6 @@ impl Plugin for EditorPlugin {
             (
                 (
                     init_hover,
-                    update_hover::<Track>,
-                    update_hover::<Block>,
-                    update_hover::<Marker>,
-                    update_hover::<Switch>,
-                    update_hover::<TrainWagon>,
                     finish_hover,
                     init_select,
                     extend_selection,

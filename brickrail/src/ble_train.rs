@@ -8,10 +8,11 @@ use itertools::Itertools;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
+use crate::selectable::Selectable;
 use crate::train::SpawnTrainEvent;
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandEvent, HubConfiguration, HubMessageEvent},
-    editor::{GenericID, Selectable, SelectionState, SpawnHubEvent},
+    editor::{GenericID, SelectionState, SpawnHubEvent},
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},

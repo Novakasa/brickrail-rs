@@ -8,6 +8,7 @@ use bevy_prototype_lyon::draw::Stroke;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
+use crate::selectable::{Selectable, SelectablePlugin};
 use crate::{
     editor::*,
     layout::{EntityMap, MarkerMap},
@@ -313,6 +314,7 @@ pub struct MarkerPlugin;
 
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Marker>::new());
         app.add_event::<MarkerSpawnEvent>();
         app.add_event::<DespawnEvent<Marker>>();
         app.add_systems(
