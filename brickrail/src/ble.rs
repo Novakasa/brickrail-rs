@@ -10,7 +10,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
-    selectable::Selectable,
+    selectable::{Selectable, SelectablePlugin},
     settings::Settings,
     switch::Switch,
     switch_motor::PulseMotor,
@@ -904,9 +904,9 @@ pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<BLEHub>::new());
         app.add_event::<HubEvent>();
         app.add_event::<HubCommandEvent>();
-        app.add_event::<DespawnEvent<BLEHub>>();
         app.add_systems(
             Update,
             (

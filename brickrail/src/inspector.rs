@@ -8,7 +8,6 @@ use crate::layout::EntityMap;
 use crate::schedule::TrainSchedule;
 use crate::{
     ble::BLEHub,
-    ble_train::BLETrain,
     block::Block,
     editor::*,
     marker::Marker,
@@ -51,7 +50,6 @@ pub fn inspector_system_world(world: &mut World) {
                 name_editor(ui, world);
                 ui.separator();
                 Train::inspector(ui, world);
-                BLETrain::inspector(ui, world);
                 BLEHub::inspector(ui, world);
                 Block::inspector(ui, world);
                 Track::inspector(ui, world);

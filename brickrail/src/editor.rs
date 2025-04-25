@@ -16,7 +16,7 @@ use crate::selectable::Selectable;
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{PulseMotor, SpawnPulseMotorEvent};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
-use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train, TrainWagon};
+use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train};
 
 use bevy::color::palettes::css::BLUE;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
@@ -905,8 +905,6 @@ impl Plugin for EditorPlugin {
         app.init_state::<EditorState>();
         app.add_computed_state::<ControlState>();
         app.add_sub_state::<ControlStateMode>();
-        app.add_event::<SpawnTrainEvent>();
-        app.add_event::<SpawnHubEvent>();
         app.add_event::<LoadLayoutEvent>();
         app.add_event::<SaveLayoutEvent>();
         app.add_event::<NewLayoutEvent>();

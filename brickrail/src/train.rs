@@ -332,6 +332,8 @@ impl Train {
             }
         }
         state.apply(world);
+
+        BLETrain::inspector(ui, world);
     }
 
     pub fn update_wagon_entities(
@@ -1091,10 +1093,10 @@ pub struct TrainPlugin;
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Train>::new());
+        app.add_plugins(SelectablePlugin::<TrainWagon>::new());
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();
-        app.add_event::<DespawnEvent<Train>>();
         app.add_observer(assign_destination_route);
         app.add_observer(update_routes);
         app.add_systems(

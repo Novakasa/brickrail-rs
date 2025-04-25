@@ -331,18 +331,6 @@ impl BLETrain {
     }
 }
 
-impl Selectable for BLETrain {
-    type SpawnEvent = SpawnTrainEvent;
-    type ID = TrainID;
-
-    fn generic_id(&self) -> GenericID {
-        GenericID::Train(self.train_id)
-    }
-    fn id(&self) -> Self::ID {
-        self.train_id
-    }
-}
-
 pub struct HubCommands {
     pub hub_events: Vec<HubCommandEvent>,
 }

@@ -5,7 +5,7 @@ use bevy_inspector_egui::egui::{self, ComboBox};
 use bevy_prototype_lyon::draw::Stroke;
 
 use crate::{
-    editor::{finish_hover, init_hover, update_hover, GenericID},
+    editor::{finish_hover, init_hover, update_hover, DespawnEvent, GenericID},
     layout::EntityMap,
 };
 
@@ -23,6 +23,8 @@ impl<T: Selectable> SelectablePlugin<T> {
 
 impl<T: Selectable> Plugin for SelectablePlugin<T> {
     fn build(&self, app: &mut App) {
+        app.add_event::<T::SpawnEvent>();
+        app.add_event::<DespawnEvent<T>>();
         app.add_systems(
             Update,
             update_hover::<T>.after(init_hover).before(finish_hover),
