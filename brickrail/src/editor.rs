@@ -12,7 +12,7 @@ use crate::layout_primitives::*;
 use crate::marker::{Marker, MarkerSpawnEvent};
 use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
 use crate::section::DirectedSection;
-use crate::selectable::Selectable;
+use crate::selectable::{Selectable, SelectableType};
 use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
 use crate::switch_motor::{PulseMotor, SpawnPulseMotorEvent};
 use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
@@ -125,6 +125,21 @@ impl GenericID {
             GenericID::Hub(_) => false,
             GenericID::Track(_) => false,
             _ => true,
+        }
+    }
+
+    pub fn get_type(&self) -> Option<SelectableType> {
+        match self {
+            GenericID::Track(_) => Some(SelectableType::Track),
+            GenericID::Block(_) => Some(SelectableType::Block),
+            GenericID::Train(_) => Some(SelectableType::Train),
+            GenericID::Switch(_) => Some(SelectableType::Switch),
+            GenericID::Hub(_) => Some(SelectableType::Hub),
+            GenericID::Destination(_) => Some(SelectableType::Destination),
+            GenericID::Schedule(_) => Some(SelectableType::Schedule),
+            GenericID::Crossing(_) => Some(SelectableType::Crossing),
+            GenericID::Marker(_) => Some(SelectableType::Marker),
+            _ => None,
         }
     }
 }
@@ -530,7 +545,7 @@ fn update_world_mouse_pos(
     }
 }
 
-pub fn update_hover<T: Selectable + Component>(
+pub fn update_hover<T: Selectable>(
     mouse_world_pos: Res<MousePosWorld>,
     q_selectable: Query<(&mut T, Option<&Transform>, Option<&Stroke>)>,
     mut hover_state: ResMut<HoverState>,

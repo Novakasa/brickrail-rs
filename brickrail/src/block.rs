@@ -6,7 +6,7 @@ use crate::editor::{
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
 use crate::section::LogicalSection;
-use crate::selectable::{Selectable, SelectablePlugin};
+use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainEvent, Train};
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
@@ -205,6 +205,10 @@ impl Block {
 impl Selectable for Block {
     type SpawnEvent = BlockSpawnEvent;
     type ID = BlockID;
+
+    fn get_type() -> SelectableType {
+        SelectableType::Block
+    }
 
     fn get_depth(&self) -> f32 {
         0.0

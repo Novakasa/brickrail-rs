@@ -68,6 +68,10 @@ impl Selectable for LayoutDevice {
     type ID = LayoutDeviceID;
     type SpawnEvent = SpawnPulseMotorEvent;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::LayoutDevice
+    }
+
     fn id(&self) -> LayoutDeviceID {
         self.id
     }

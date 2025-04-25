@@ -8,7 +8,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{LayoutDeviceID, TrackID},
-    selectable::Selectable,
+    selectable::{Selectable, SelectableType},
     switch_motor::{MotorPosition, PulseMotor},
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };
@@ -43,6 +43,10 @@ impl LevelCrossing {
 impl Selectable for LevelCrossing {
     type ID = TrackID;
     type SpawnEvent = SpawnCrossingEvent;
+
+    fn get_type() -> SelectableType {
+        SelectableType::Crossing
+    }
 
     fn id(&self) -> Self::ID {
         self.id

@@ -571,6 +571,10 @@ impl Selectable for Track {
     type SpawnEvent = SpawnTrackEvent;
     type ID = TrackID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Track
+    }
+
     fn get_depth(&self) -> f32 {
         1.0
     }

@@ -189,6 +189,10 @@ impl Selectable for Switch {
     type SpawnEvent = SpawnSwitchEvent;
     type ID = DirectedTrackID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Switch
+    }
+
     fn generic_id(&self) -> GenericID {
         GenericID::Switch(self.id)
     }

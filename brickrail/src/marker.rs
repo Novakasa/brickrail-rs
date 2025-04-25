@@ -196,6 +196,10 @@ impl Selectable for Marker {
     type SpawnEvent = MarkerSpawnEvent;
     type ID = TrackID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Marker
+    }
+
     fn generic_id(&self) -> GenericID {
         GenericID::Marker(self.track)
     }

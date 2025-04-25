@@ -10,7 +10,7 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
-    selectable::{Selectable, SelectablePlugin},
+    selectable::{Selectable, SelectablePlugin, SelectableType},
     settings::Settings,
     switch::Switch,
     switch_motor::PulseMotor,
@@ -144,6 +144,10 @@ impl BLEHub {
 impl Selectable for BLEHub {
     type SpawnEvent = SpawnHubEvent;
     type ID = HubID;
+
+    fn get_type() -> SelectableType {
+        SelectableType::Hub
+    }
 
     fn generic_id(&self) -> GenericID {
         GenericID::Hub(self.id)

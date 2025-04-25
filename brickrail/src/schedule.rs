@@ -210,6 +210,10 @@ impl Selectable for TrainSchedule {
     type SpawnEvent = SpawnScheduleEvent;
     type ID = ScheduleID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Schedule
+    }
+
     fn generic_id(&self) -> GenericID {
         GenericID::Schedule(self.id)
     }

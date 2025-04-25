@@ -92,6 +92,10 @@ impl Selectable for Destination {
     type SpawnEvent = SpawnDestinationEvent;
     type ID = DestinationID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Destination
+    }
+
     fn generic_id(&self) -> GenericID {
         GenericID::Destination(self.id)
     }

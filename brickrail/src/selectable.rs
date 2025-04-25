@@ -32,9 +32,24 @@ impl<T: Selectable> Plugin for SelectablePlugin<T> {
     }
 }
 
+pub enum SelectableType {
+    Track,
+    Block,
+    Train,
+    Switch,
+    Hub,
+    Destination,
+    Schedule,
+    LayoutDevice,
+    Marker,
+    Crossing,
+}
+
 pub trait Selectable: Sync + Send + 'static + Component {
     type SpawnEvent: Event;
     type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug + Send + Sync;
+
+    fn get_type() -> SelectableType;
 
     fn generic_id(&self) -> GenericID;
 

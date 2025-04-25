@@ -54,6 +54,10 @@ impl Selectable for TrainWagon {
     type SpawnEvent = SpawnTrainEvent;
     type ID = WagonID;
 
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Train
+    }
+
     fn generic_id(&self) -> GenericID {
         GenericID::Train(self.id.train)
     }
@@ -362,6 +366,10 @@ impl Train {
 impl Selectable for Train {
     type SpawnEvent = SpawnTrainEvent;
     type ID = TrainID;
+
+    fn get_type() -> crate::selectable::SelectableType {
+        crate::selectable::SelectableType::Train
+    }
 
     fn id(&self) -> Self::ID {
         self.id
