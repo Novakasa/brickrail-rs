@@ -189,6 +189,10 @@ impl Selectable for Switch {
     type SpawnEvent = SpawnSwitchEvent;
     type ID = DirectedTrackID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Switch::inspector(ui, world);
+    }
+
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Switch
     }

@@ -145,6 +145,10 @@ impl Selectable for BLEHub {
     type SpawnEvent = SpawnHubEvent;
     type ID = HubID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        BLEHub::inspector(ui, world);
+    }
+
     fn get_type() -> SelectableType {
         SelectableType::Hub
     }

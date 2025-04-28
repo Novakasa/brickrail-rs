@@ -185,6 +185,13 @@ impl SelectionState {
             _ => None,
         }
     }
+
+    pub fn selected_type(&self) -> Option<SelectableType> {
+        match &self.selection {
+            Selection::Single(id) => id.get_type(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -952,12 +959,7 @@ impl Plugin for EditorPlugin {
         app.add_systems(
             Update,
             (
-                (
-                    inspector_system_world,
-                    directory_panel.after(finish_hover),
-                    top_panel,
-                )
-                    .chain(),
+                (directory_panel.after(finish_hover), top_panel).chain(),
                 hub_status_window
                     .after(top_panel)
                     .run_if(in_state(EditorState::PreparingDeviceControl)),

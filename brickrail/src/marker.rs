@@ -196,6 +196,10 @@ impl Selectable for Marker {
     type SpawnEvent = MarkerSpawnEvent;
     type ID = TrackID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Marker::inspector(ui, world);
+    }
+
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Marker
     }

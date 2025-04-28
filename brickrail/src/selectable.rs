@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
-use bevy_inspector_egui::egui::{self, ComboBox};
+use bevy_inspector_egui::egui::{self, ComboBox, Ui};
 use bevy_prototype_lyon::draw::Stroke;
 
 use crate::{
-    editor::{finish_hover, init_hover, update_hover, DespawnEvent, GenericID},
+    editor::{finish_hover, init_hover, update_hover, DespawnEvent, GenericID, SelectionState},
+    inspector::inspector_system_world,
     layout::EntityMap,
 };
 
@@ -27,11 +28,19 @@ impl<T: Selectable> Plugin for SelectablePlugin<T> {
         app.add_event::<DespawnEvent<T>>();
         app.add_systems(
             Update,
-            update_hover::<T>.after(init_hover).before(finish_hover),
+            (
+                update_hover::<T>.after(init_hover).before(finish_hover),
+                inspector_system_world::<T>.run_if(type_selected::<T>),
+            ),
         );
     }
 }
 
+fn type_selected<T: Selectable>(selection: Res<SelectionState>) -> bool {
+    selection.selected_type() == Some(T::get_type())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelectableType {
     Track,
     Block,
@@ -75,6 +84,8 @@ pub trait Selectable: Sync + Send + 'static + Component {
     fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
         None
     }
+
+    fn inspector(ui: &mut Ui, world: &mut World) {}
 
     fn selector_option(
         query: &Query<(&Self, Option<&Name>)>,
