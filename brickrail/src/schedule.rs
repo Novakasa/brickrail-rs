@@ -210,6 +210,10 @@ impl Selectable for TrainSchedule {
     type SpawnEvent = SpawnScheduleEvent;
     type ID = ScheduleID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Self::inspector(ui, world);
+    }
+
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Schedule
     }

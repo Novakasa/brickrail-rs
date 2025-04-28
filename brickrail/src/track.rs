@@ -571,6 +571,10 @@ impl Selectable for Track {
     type SpawnEvent = SpawnTrackEvent;
     type ID = TrackID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Track::inspector(ui, world);
+    }
+
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Track
     }

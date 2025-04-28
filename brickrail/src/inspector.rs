@@ -4,17 +4,9 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
+use crate::editor::*;
 use crate::layout::EntityMap;
-use crate::schedule::TrainSchedule;
-use crate::{
-    ble::BLEHub,
-    block::Block,
-    editor::*,
-    marker::Marker,
-    switch::Switch,
-    track::{track_section_inspector, Track},
-    train::Train,
-};
+use crate::selectable::Selectable;
 
 fn name_editor(ui: &mut egui::Ui, world: &mut World) {
     let mut state =
@@ -40,7 +32,7 @@ fn name_editor(ui: &mut egui::Ui, world: &mut World) {
     state.apply(world);
 }
 
-pub fn inspector_system_world(world: &mut World) {
+pub fn inspector_system_world<T: Selectable>(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
     if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
@@ -49,14 +41,7 @@ pub fn inspector_system_world(world: &mut World) {
             {
                 name_editor(ui, world);
                 ui.separator();
-                Train::inspector(ui, world);
-                BLEHub::inspector(ui, world);
-                Block::inspector(ui, world);
-                Track::inspector(ui, world);
-                Marker::inspector(ui, world);
-                Switch::inspector(ui, world);
-                TrainSchedule::inspector(ui, world);
-                track_section_inspector(ui, world);
+                T::inspector(ui, world);
             };
             ui.set_min_width(200.0);
         });

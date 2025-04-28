@@ -367,6 +367,10 @@ impl Selectable for Train {
     type SpawnEvent = SpawnTrainEvent;
     type ID = TrainID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Train::inspector(ui, world);
+    }
+
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Train
     }

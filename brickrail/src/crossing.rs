@@ -44,6 +44,8 @@ impl Selectable for LevelCrossing {
     type ID = TrackID;
     type SpawnEvent = SpawnCrossingEvent;
 
+    fn inspector(ui: &mut bevy_inspector_egui::egui::Ui, world: &mut World) {}
+
     fn get_type() -> SelectableType {
         SelectableType::Crossing
     }

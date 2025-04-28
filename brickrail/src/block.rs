@@ -206,6 +206,10 @@ impl Selectable for Block {
     type SpawnEvent = BlockSpawnEvent;
     type ID = BlockID;
 
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        Block::inspector(ui, world);
+    }
+
     fn get_type() -> SelectableType {
         SelectableType::Block
     }
