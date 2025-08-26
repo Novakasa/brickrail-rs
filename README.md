@@ -20,3 +20,4 @@ This project does not require a seperate python process to be running in paralle
 - Overall polish is not yet a focus of this project, so visuals and user experience is not as clean (yet)
 - Level crossings not implemented yet (will be added)
 - Documentation (wiki) missing entirely (for now)
+- We are investigating using an advertising mode to communicate with stationary hubs, allowing to push beyond the usual 7-8 max connection limit of bluetooth.
