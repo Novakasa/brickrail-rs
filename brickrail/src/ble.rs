@@ -15,8 +15,8 @@ use crate::{
     switch::Switch,
     switch_motor::PulseMotor,
 };
-use bevy::ecs::system::SystemState;
-use bevy::{input::keyboard, prelude::*, utils::HashMap};
+use bevy::{ecs::system::SystemState, platform::collections::HashMap};
+use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::bevy_egui::egui::{self, widgets::Button, Grid, Ui};
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;

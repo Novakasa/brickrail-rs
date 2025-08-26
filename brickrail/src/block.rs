@@ -18,7 +18,6 @@ use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
     entity::ShapeBundle,
-    path::PathBuilder,
     prelude::{LineCap, StrokeOptions},
 };
 use serde::{Deserialize, Serialize};
