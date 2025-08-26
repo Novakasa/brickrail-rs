@@ -14,9 +14,9 @@ This project does not require a seperate python process to be running in paralle
 - More intuitive marker placements. Dropped requirement for manually defining "Reverse entry markers". Each marker that precedes a block "in" marker is automatically considered as the "enter" marker.
 - Multiple motors per train with configurable polarity/direction.  
 - Puppet hubs for trains. This allows for double-headed trains, mostly useful for adding more motors and distributed power.
+- Schedule system. Allows train to follow a schedule that travels between "Destinations" which can comprise of multiple blocks, modeling the concept of "station platforms".
 
 ### Missing features (Roadmap)
 - Overall polish is not yet a focus of this project, so visuals and user experience is not as clean (yet)
 - Level crossings not implemented yet (will be added)
-- Random targets mode not implemented yet (will be added)
 - Documentation (wiki) missing entirely (for now)
