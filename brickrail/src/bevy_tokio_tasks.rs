@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use bevy::prelude::*;
-
 use tokio::{runtime::Runtime, task::JoinHandle};
 
 /// An internal struct keeping track of how many ticks have elapsed since the start of the program.
