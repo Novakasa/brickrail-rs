@@ -25,10 +25,9 @@ use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
-    entity::{Shape, ShapeBundle},
+    entity::Shape,
     path::ShapePath,
     prelude::{LineCap, ShapeBuilder, ShapeBuilderBase, StrokeOptions},
-    shapes::Line,
 };
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};

@@ -43,9 +43,7 @@ fn main() {
         }))
         .add_plugins(ShapePlugin)
         .add_plugins(bevy_framepace::FramepacePlugin)
-        .add_plugins(bevy_egui::EguiPlugin {
-            enable_multipass_for_primary_context: true,
-        })
+        .add_plugins(bevy_egui::EguiPlugin::default())
         .add_plugins(editor::EditorPlugin)
         .add_plugins(settings::SettingsPlugin)
         .add_plugins(layout::LayoutPlugin)

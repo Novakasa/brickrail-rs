@@ -290,7 +290,7 @@ impl MeshType for TrackShapeOuter {
                 Mesh::ATTRIBUTE_COLOR,
                 vec![vec4(1.0, 1.0, 1.0, 1.0); circle.get_vertex_size() as usize],
             );
-            mesh.merge(&circle);
+            mesh.merge(&circle).unwrap();
         }
         mesh
     }

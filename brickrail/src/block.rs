@@ -395,14 +395,14 @@ pub fn despawn_block(
 }
 
 fn update_block_color(
-    mut q_strokes: Query<(&Block, &mut Shape)>,
+    q_strokes: Query<(&Block, &Shape)>,
     selection_state: Res<SelectionState>,
     hover_state: Res<HoverState>,
 ) {
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
-    for (block, mut shape) in q_strokes.iter_mut() {
+    for (block, shape) in q_strokes.iter() {
         if let Some(GenericID::Block(block_id)) = &hover_state.hover {
             if block.id == *block_id {
                 shape.stroke.unwrap().color = Color::from(RED);

@@ -323,7 +323,7 @@ pub fn update_switch_turns(
                     .positions
                     .contains(&connection.connection.to_track.get_switch_position())
                 {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
             }
         }
@@ -504,7 +504,7 @@ pub fn despawn_switch(
 ) {
     for despawn_event in events.read() {
         if let Some(entity) = entity_map.switches.get(&despawn_event.0) {
-            commands.entity(*entity).despawn_recursive();
+            commands.entity(*entity).despawn();
             entity_map.remove_switch(despawn_event.0);
         }
     }

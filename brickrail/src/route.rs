@@ -200,19 +200,19 @@ impl Route {
             && self.get_current_leg().get_leg_state() == LegState::Completed
     }
 
-    pub fn iter_legs(&self) -> std::slice::Iter<RouteLeg> {
+    pub fn iter_legs(&self) -> std::slice::Iter<'_, RouteLeg> {
         self.legs.iter()
     }
 
-    pub fn iter_legs_mut(&mut self) -> std::slice::IterMut<RouteLeg> {
+    pub fn iter_legs_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, RouteLeg> {
         self.legs.iter_mut()
     }
 
-    pub fn iter_legs_remaining(&self) -> std::slice::Iter<RouteLeg> {
+    pub fn iter_legs_remaining<'a>(&'a self) -> std::slice::Iter<'a, RouteLeg> {
         self.legs[self.leg_index..].iter()
     }
 
-    pub fn iter_legs_remaining_mut(&mut self) -> std::slice::IterMut<RouteLeg> {
+    pub fn iter_legs_remaining_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, RouteLeg> {
         self.legs[self.leg_index..].iter_mut()
     }
 

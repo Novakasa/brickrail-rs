@@ -307,7 +307,7 @@ pub fn despawn_marker(
     for event in marker_events.read() {
         let track_id = event.0;
         let entity = entity_map.markers.get(&track_id).unwrap().clone();
-        commands.entity(entity.clone()).despawn_recursive();
+        commands.entity(entity.clone()).despawn();
         entity_map.remove_marker(track_id);
         marker_map.remove_marker(track_id);
     }

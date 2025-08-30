@@ -86,9 +86,9 @@ impl TrackLocks {
         section: &LogicalSection,
         entity_map: &EntityMap,
         switches: &Query<&Switch>,
-        crossings: &Query<&LevelCrossing>,
+        _crossings: &Query<&LevelCrossing>,
         set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
-        set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
+        _set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
     ) {
         for track in section.tracks.iter() {
             if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
@@ -195,16 +195,16 @@ impl EntityMap {
         &'a self,
         query: &'a Query<D, F>,
         id: &GenericID,
-    ) -> Option<<<D as QueryData>::ReadOnly as QueryData>::Item<'_>> {
+    ) -> Option<<<D as QueryData>::ReadOnly as QueryData>::Item<'a>> {
         let entity = self.get_entity(id)?;
         query.get(entity).ok()
     }
 
-    pub fn query_get_mut<'a, D: QueryData, F: QueryFilter>(
+    pub fn query_get_mut<'a, 'b, D: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'a mut Query<D, F>,
+        query: &'b mut Query<D, F>,
         id: &GenericID,
-    ) -> Option<<D as QueryData>::Item<'_>> {
+    ) -> Option<<D as QueryData>::Item<'b>> {
         let entity = self.get_entity(id)?;
         query.get_mut(entity).ok()
     }

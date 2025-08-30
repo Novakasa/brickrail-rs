@@ -85,7 +85,7 @@ pub trait Selectable: Sync + Send + 'static + Component {
         None
     }
 
-    fn inspector(ui: &mut Ui, world: &mut World) {}
+    fn inspector(_ui: &mut Ui, _world: &mut World) {}
 
     fn selector_option(
         query: &Query<(&Self, Option<&Name>)>,
