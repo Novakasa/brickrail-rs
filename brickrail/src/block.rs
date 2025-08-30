@@ -15,12 +15,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::egui::Ui;
 use bevy_inspector_egui::egui::Grid;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
-use bevy_prototype_lyon::{
-    draw::Stroke,
-    entity::ShapeBundle,
-    path::PathBuilder,
-    prelude::{LineCap, StrokeOptions},
-};
+use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub const BLOCK_WIDTH: f32 = 20.0;
@@ -124,7 +119,7 @@ impl Block {
                         ui,
                         &type_registry.read(),
                     ) {
-                        update_reverse_connections.send(UpdateReverseConnectios {
+                        update_reverse_connections.write(UpdateReverseConnectios {
                             block_id: block.id,
                             disallow_reversing: block.settings.disallow_reversing,
                         });
@@ -138,7 +133,7 @@ impl Block {
                         .id
                         .to_logical(BlockDirection::Aligned, Facing::Forward);
                     let train = Train::at_block_id(train_id, logical_block_id);
-                    train_spawner.send(SpawnTrainEvent {
+                    train_spawner.write(SpawnTrainEvent {
                         train: train,
                         ble_train: None,
                         name: None,
@@ -192,7 +187,7 @@ impl Block {
                         id: dest_id,
                         blocks: vec![(block.id, BlockDirectionFilter::Any, None)],
                     };
-                    destination_spawner.send(SpawnDestinationEvent {
+                    destination_spawner.write(SpawnDestinationEvent {
                         dest: dest,
                         name: None,
                     });
@@ -226,7 +221,7 @@ impl Selectable for Block {
         &self,
         pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _shape: Option<&Shape>,
     ) -> f32 {
         let block_dist = self.distance_to(pos) - BLOCK_WIDTH / LAYOUT_SCALE;
         block_dist
@@ -239,8 +234,7 @@ impl Selectable for Block {
 
 #[derive(Bundle)]
 pub struct BlockBundle {
-    shape: ShapeBundle,
-    stroke: Stroke,
+    shape: Shape,
     block: Block,
 }
 
@@ -251,43 +245,35 @@ impl BlockBundle {
 
     pub fn from_block(block: Block) -> Self {
         let shape = generate_block_shape(&block.section);
-        let stroke = {
-            let stroke = Stroke {
+
+        let shape = ShapeBuilder::with(&shape)
+            .stroke(Stroke {
                 color: Color::from(GREEN),
                 options: StrokeOptions::default()
-                    .with_line_width(BLOCK_WIDTH)
+                    .with_line_width(BLOCK_WIDTH * LAYOUT_SCALE)
                     .with_line_cap(LineCap::Round),
-            };
-            stroke
-        };
+            })
+            .build();
 
         Self {
             shape: shape,
-            stroke: stroke,
             block: block,
         }
     }
 }
 
-fn generate_block_shape(section: &DirectedSection) -> ShapeBundle {
-    let mut path_builder = PathBuilder::new();
-    path_builder.move_to(section.interpolate_pos(0.0) * LAYOUT_SCALE);
+fn generate_block_shape(section: &DirectedSection) -> ShapePath {
+    let mut path = ShapePath::new();
+    path = path.move_to(section.interpolate_pos(0.0) * LAYOUT_SCALE);
 
     let num_segments = 10 * section.len();
     let length = section.length();
 
     for i in 1..(num_segments + 1) {
         let dist = i as f32 * length / num_segments as f32;
-        path_builder.line_to(section.interpolate_pos(dist) * LAYOUT_SCALE);
+        path = path.line_to(section.interpolate_pos(dist) * LAYOUT_SCALE);
     }
-
-    let path = path_builder.build();
-
-    let shape = ShapeBundle {
-        path: path,
-        ..Default::default()
-    };
-    shape
+    path
 }
 
 fn update_reverse_connections(
@@ -349,7 +335,7 @@ fn create_block(
 ) {
     for BlockCreateEvent(block) in create_events.read() {
         let block_id = block.id;
-        block_event_writer.send(BlockSpawnEvent {
+        block_event_writer.write(BlockSpawnEvent {
             block: block.clone(),
             name: None,
         });
@@ -357,7 +343,7 @@ fn create_block(
             let in_track = logical_id.default_in_marker_track();
             if logical_id.facing == Facing::Forward {
                 let marker = Marker::new(in_track.track(), MarkerColor::Any);
-                marker_event_writer.send(MarkerSpawnEvent(marker));
+                marker_event_writer.write(MarkerSpawnEvent(marker));
             }
             marker_map.register_marker(in_track, MarkerKey::In, logical_id);
         }
@@ -402,34 +388,34 @@ pub fn despawn_block(
             connections.disconnect_tracks(&in_track, &in_track.reversed());
         }
         let entity = entity_map.blocks.get(&block_id).unwrap().clone();
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
         entity_map.remove_block(block_id);
         marker_map.remove_block(block_id);
     }
 }
 
 fn update_block_color(
-    mut q_strokes: Query<(&Block, &mut Stroke)>,
+    mut q_strokes: Query<(&Block, &mut Shape)>,
     selection_state: Res<SelectionState>,
     hover_state: Res<HoverState>,
 ) {
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
-    for (block, mut stroke) in q_strokes.iter_mut() {
+    for (block, mut shape) in q_strokes.iter_mut() {
         if let Some(GenericID::Block(block_id)) = &hover_state.hover {
             if block.id == *block_id {
-                stroke.color = Color::from(RED);
+                shape.stroke.unwrap().color = Color::from(RED);
                 continue;
             }
         }
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             if block.id == *block_id {
-                stroke.color = Color::from(BLUE);
+                shape.stroke.unwrap().color = Color::from(BLUE);
                 continue;
             }
         }
-        stroke.color = Color::from(GREEN);
+        shape.stroke.unwrap().color = Color::from(GREEN);
     }
 }
 

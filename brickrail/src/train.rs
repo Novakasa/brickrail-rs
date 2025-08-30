@@ -25,9 +25,9 @@ use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use bevy_prototype_lyon::{
     draw::Stroke,
-    entity::ShapeBundle,
+    entity::{Shape, ShapeBundle},
     path::ShapePath,
-    prelude::{LineCap, StrokeOptions},
+    prelude::{LineCap, ShapeBuilder, ShapeBuilderBase, StrokeOptions},
     shapes::Line,
 };
 use rand::prelude::*;
@@ -70,13 +70,8 @@ impl Selectable for TrainWagon {
         3.0
     }
 
-    fn get_distance(
-        &self,
-        pos: Vec2,
-        transform: Option<&Transform>,
-        stroke: Option<&Stroke>,
-    ) -> f32 {
-        if stroke.unwrap().color.alpha() < 0.2 {
+    fn get_distance(&self, pos: Vec2, transform: Option<&Transform>, shape: Option<&Shape>) -> f32 {
+        if shape.unwrap().stroke.unwrap().color.alpha() < 0.2 {
             return 30.0;
         }
         let transform = transform.unwrap();
@@ -101,32 +96,24 @@ impl Selectable for TrainWagon {
 #[derive(Bundle)]
 struct TrainWagonBundle {
     wagon: TrainWagon,
-    shape: ShapeBundle,
-    stroke: Stroke,
+    shape: Shape,
 }
 
 impl TrainWagonBundle {
     fn new(id: WagonID) -> Self {
         let path = ShapePath::new()
-            .add(&Line(
-                -Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE,
-                Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE,
-            ))
-            .build();
+            .move_to(-Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE)
+            .line_to(Vec2::X * 0.5 * (WAGON_LENGTH - TRAIN_WIDTH) * LAYOUT_SCALE);
         let stroke = Stroke {
             color: Color::from(YELLOW),
             options: StrokeOptions::default()
                 .with_line_width(TRAIN_WIDTH * LAYOUT_SCALE)
                 .with_line_cap(LineCap::Round),
         };
-        let shape = ShapeBundle {
-            path: path,
-            ..default()
-        };
+        let shape = ShapeBuilder::with(&path).stroke(stroke).build();
         Self {
             wagon: TrainWagon { id },
             shape: shape,
-            stroke: stroke,
         }
     }
 }
@@ -437,7 +424,7 @@ impl TrainBundle {
 
 fn update_wagons(
     q_trains: Query<&Train>,
-    mut q_wagons: Query<(&mut Transform, &mut Stroke)>,
+    mut q_wagons: Query<(&mut Transform, &mut Shape)>,
     entity_map: Res<EntityMap>,
     hover_state: Res<HoverState>,
     selection_state: Res<SelectionState>,
@@ -452,7 +439,7 @@ fn update_wagons(
         }
         for wagon_id in &train.wagons {
             let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
-            let (mut transform, mut stroke) = q_wagons.get_mut(*wagon_entity).unwrap();
+            let (mut transform, shape) = q_wagons.get_mut(*wagon_entity).unwrap();
             let offset = -WAGON_DIST * (wagon_id.index as f32);
             let offset2 = offset + train.in_place_cycle * WAGON_DIST;
             let pos = train.get_route().interpolate_offset(offset2);
@@ -468,7 +455,7 @@ fn update_wagons(
             if wagon_id.index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
-            stroke.color = color.with_alpha(alpha.powi(1));
+            shape.stroke.unwrap().color = color.with_alpha(alpha.powi(1));
         }
     }
 }
@@ -518,7 +505,7 @@ fn exit_drag_train(
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
             if let Some(route) = train_drag_state.route.clone() {
-                set_train_route.send(SetTrainRouteEvent {
+                set_train_route.write(SetTrainRouteEvent {
                     train_id,
                     route: route,
                 });
@@ -618,7 +605,7 @@ fn assign_destination_route(
         }
 
         if let Some(route) = routes.first().cloned() {
-            set_train_route.send(SetTrainRouteEvent {
+            set_train_route.write(SetTrainRouteEvent {
                 train_id,
                 route: route,
             });
@@ -799,7 +786,7 @@ pub fn set_train_route(
             let commands = ble_train.download_route(&train.get_route());
             for input in commands.hub_events {
                 info!("Sending {:?}", input);
-                hub_commands.send(input);
+                hub_commands.write(input);
             }
         }
     }
@@ -817,7 +804,7 @@ fn create_train_shortcut(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.send(SpawnTrainEvent {
+            train_events.write(SpawnTrainEvent {
                 train,
                 ble_train: None,
                 name: None,
@@ -985,7 +972,7 @@ fn trigger_manual_sensor_advance(
             let route = train.get_route_mut();
             if route.get_current_leg().get_leg_state() != LegState::Completed {
                 println!("Advancing marker");
-                events.send(MarkerAdvanceEvent {
+                events.write(MarkerAdvanceEvent {
                     id: train_id,
                     index: route.get_current_leg().index + 1,
                 });
@@ -1040,7 +1027,7 @@ fn sensor_advance(
                 &entity_map,
                 &marker_map,
             );
-            set_train_route.send(SetTrainRouteEvent {
+            set_train_route.write(SetTrainRouteEvent {
                 train_id: train.id,
                 route: route,
             });
@@ -1094,7 +1081,7 @@ fn sync_intentions(
             );
             leg.intention_synced = true;
             for input in commands.hub_events {
-                hub_commands.send(input);
+                hub_commands.write(input);
             }
         }
     }

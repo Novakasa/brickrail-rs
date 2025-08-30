@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -66,7 +66,7 @@ impl Selectable for LevelCrossing {
         &self,
         pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _stroke: Option<&Shape>,
     ) -> f32 {
         self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
@@ -125,7 +125,7 @@ pub fn update_switch_position(
                     if editor_state.get().ble_commands_enabled() {
                         if let Some(command) = PulseMotor::switch_command(device, &position) {
                             println!("Sending switch command {:?}", command);
-                            hub_commands.send(command);
+                            hub_commands.write(command);
                         }
                     }
                     motor.position = position;

@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use crate::ble::{BLEHub, HubState};
 use crate::block::{Block, BlockSpawnEvent, BlockSpawnEventQuery};
 use crate::destination::{Destination, SpawnDestinationEvent, SpawnDestinationEventQuery};
-use crate::inspector::inspector_system_world;
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
@@ -19,6 +18,7 @@ use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
 use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train};
 
 use bevy::color::palettes::css::BLUE;
+use bevy::ecs::component::Mutable;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
@@ -303,7 +303,7 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
         if let Some(event) = T::default_spawn_event(&mut entity_map) {
             ui.separator();
             if ui.button("New").clicked() {
-                spawner.send(event);
+                spawner.write(event);
             }
         }
         ui.separator();
@@ -351,7 +351,7 @@ pub fn top_panel(
                         .add_filter("brickrail layouts", &["json"])
                         .save_file()
                     {
-                        save_events.send(SaveLayoutEvent { path: path });
+                        save_events.write(SaveLayoutEvent { path: path });
                     }
                 }
                 ui.separator();
@@ -538,8 +538,8 @@ fn update_world_mouse_pos(
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
-    let (camera, camera_transform) = q_camera.single();
-    let Ok(window) = q_window.get_single() else {
+    let (camera, camera_transform) = q_camera.single().unwrap();
+    let Ok(window) = q_window.single() else {
         return;
     };
 
@@ -554,27 +554,24 @@ fn update_world_mouse_pos(
 
 pub fn update_hover<T: Selectable>(
     mouse_world_pos: Res<MousePosWorld>,
-    q_selectable: Query<(&mut T, Option<&Transform>, Option<&Stroke>)>,
+    q_selectable: Query<(&T, Option<&Transform>, Option<&Shape>)>,
     mut hover_state: ResMut<HoverState>,
 ) {
-    for (selectable, transform, stroke) in q_selectable.iter() {
-        {
-            if !hover_state.filter.matches(&selectable.generic_id()) {
-                continue;
-            }
-            if selectable.get_depth() < hover_state.hover_depth {
-                continue;
-            }
-            let dist =
-                selectable.get_distance(mouse_world_pos.pos / LAYOUT_SCALE, transform, stroke);
-            if dist > 0.0 {
-                continue;
-            }
-            if dist < hover_state.min_dist || selectable.get_depth() > hover_state.hover_depth {
-                hover_state.candidate = Some(selectable.generic_id());
-                hover_state.min_dist = dist;
-                hover_state.hover_depth = selectable.get_depth();
-            }
+    for (selectable, transform, shape) in q_selectable.iter() {
+        if !hover_state.filter.matches(&selectable.generic_id()) {
+            continue;
+        }
+        if selectable.get_depth() < hover_state.hover_depth {
+            continue;
+        }
+        let dist = selectable.get_distance(mouse_world_pos.pos / LAYOUT_SCALE, transform, shape);
+        if dist > 0.0 {
+            continue;
+        }
+        if dist < hover_state.min_dist || selectable.get_depth() > hover_state.hover_depth {
+            hover_state.candidate = Some(selectable.generic_id());
+            hover_state.min_dist = dist;
+            hover_state.hover_depth = selectable.get_depth();
         }
     }
     if hover_state.candidate != hover_state.hover {
@@ -605,7 +602,7 @@ fn init_select(
     }
 }
 
-pub fn delete_selection_shortcut<T: Selectable + Component + Clone>(
+pub fn delete_selection_shortcut<T: Selectable + Component<Mutability = Mutable> + Clone>(
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
     mut selection_state: ResMut<SelectionState>,
     mut q_selectable: Query<&mut T>,
@@ -617,7 +614,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component + Clone>(
             Selection::Single(id) => {
                 let entity = entity_map.get_entity(id).unwrap();
                 if let Ok(component) = q_selectable.get_mut(entity) {
-                    despawn_events.send(DespawnEvent(component.id()));
+                    despawn_events.write(DespawnEvent(component.id()));
                     selection_state.selection = Selection::None;
                 }
             }
@@ -872,7 +869,7 @@ fn new_layout(
         let (entity_map, mut commands, mut events) = params.get_mut(world);
         events.clear();
         for entity in entity_map.iter_all_entities() {
-            commands.entity(*entity).despawn_recursive();
+            commands.entity(*entity).despawn();
         }
     }
     params.apply(world);
@@ -900,19 +897,19 @@ pub fn close_event(
 pub fn disconnect_finish(
     mut editor_info: ResMut<EditorInfo>,
     mut commands: Commands,
-    primary_window: Query<Entity, With<PrimaryWindow>>,
+    primary_window: Single<Entity, With<PrimaryWindow>>,
     mut load_events: EventWriter<LoadLayoutEvent>,
     mut new_events: EventWriter<NewLayoutEvent>,
 ) {
     match &editor_info.disconnect_action {
         DisconnectAction::Exit => {
-            commands.entity(primary_window.single()).despawn();
+            commands.entity(primary_window.into_inner()).despawn();
         }
         DisconnectAction::NewLayout => {
-            new_events.send(NewLayoutEvent {});
+            new_events.write(NewLayoutEvent {});
         }
         DisconnectAction::LoadLayout(path) => {
-            load_events.send(LoadLayoutEvent { path: path.clone() });
+            load_events.write(LoadLayoutEvent { path: path.clone() });
         }
         DisconnectAction::Nothing => {}
     }

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::egui::{self, ComboBox, Ui};
-use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::*;
 
 use crate::{
     editor::{finish_hover, init_hover, update_hover, DespawnEvent, GenericID, SelectionState},
@@ -72,7 +72,7 @@ pub trait Selectable: Sync + Send + 'static + Component {
         &self,
         _pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _shape: Option<&Shape>,
     ) -> f32 {
         100.0
     }

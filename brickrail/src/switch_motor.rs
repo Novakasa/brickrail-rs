@@ -4,7 +4,7 @@ use crate::{
     layout_devices::{DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
 };
-use bevy::{prelude::*, reflect::TypeRegistry, utils::hashbrown::HashMap};
+use bevy::{platform::collections::HashMap, prelude::*, reflect::TypeRegistry};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 

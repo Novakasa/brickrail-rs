@@ -17,12 +17,12 @@ use crate::{
     utils::bresenham_line,
 };
 use bevy::{
-    color::palettes::css::*, ecs::system::SystemState, math::vec4, utils::hashbrown::HashSet,
+    color::palettes::css::*, ecs::system::SystemState, math::vec4, platform::collections::HashSet,
 };
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
-use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::*;
 use lyon_tessellation::{
     math::Point,
     path::{BuilderWithAttributes, Path},
@@ -96,12 +96,12 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.send(SpawnTrackEvent(Track::from_id(track_id)));
+                    track_event_writer.write(SpawnTrackEvent(Track::from_id(track_id)));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !connections.has_connection(&connection_id) {
-                            connection_event_writer.send(SpawnConnectionEvent {
+                            connection_event_writer.write(SpawnConnectionEvent {
                                 id: connection_id,
                                 update_switches: true,
                             });
@@ -130,7 +130,7 @@ pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
         ui.separator();
         if ui.button("Create block").clicked() {
             let block = Block::new(section.clone());
-            spawn_events.send(BlockCreateEvent(block));
+            spawn_events.write(BlockCreateEvent(block));
         }
         ui.separator();
     }
@@ -225,7 +225,7 @@ pub fn spawn_connection(
                         .collect::<Vec<SwitchPosition>>(),
                 };
                 println!("{:?}", event);
-                switch_update_events.send(event);
+                switch_update_events.write(event);
             }
         }
     }
@@ -504,14 +504,14 @@ impl Track {
                         let id = track.id.clone();
 
                         let marker = Marker::new(id, MarkerColor::Red);
-                        marker_spawner.send(MarkerSpawnEvent(marker));
+                        marker_spawner.write(MarkerSpawnEvent(marker));
                     }
                 }
                 if !entity_map.crossings.contains_key(&track.id) {
                     if ui.button("Add Crossing").clicked() {
                         let id = track.id.clone();
                         let crossing = LevelCrossing::new(id);
-                        crossing_spawner.send(SpawnCrossingEvent::new(crossing));
+                        crossing_spawner.write(SpawnCrossingEvent::new(crossing));
                     }
                 }
                 ui.separator();
@@ -547,7 +547,7 @@ impl Track {
                                 if ui.button("Set as portal exit").clicked() {
                                     let connection_id = TrackConnectionID::new(entrance, directed);
                                     track_build_state.portal_entrance = None;
-                                    connection_spawner.send(SpawnConnectionEvent {
+                                    connection_spawner.write(SpawnConnectionEvent {
                                         id: connection_id,
                                         update_switches: true,
                                     });
@@ -595,7 +595,7 @@ impl Selectable for Track {
         &self,
         pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _stroke: Option<&Shape>,
     ) -> f32 {
         self.id.distance_to(pos) - TRACK_WIDTH * 0.5 / LAYOUT_SCALE
     }
@@ -837,7 +837,7 @@ fn despawn_track(
             .iter()
             .filter(|id| entity_map.switches.contains_key(*id))
         {
-            switch_despawn_events.send(DespawnEvent(*switch));
+            switch_despawn_events.write(DespawnEvent(*switch));
         }
 
         let mut other_dirtracks = vec![];
@@ -845,11 +845,11 @@ fn despawn_track(
         for (_, _, connection) in connections.connection_graph.edges(track_id) {
             for directed in connection.directed_connections() {
                 let outer = entity_map.connections_outer.get(&directed).unwrap().clone();
-                commands.entity(outer).despawn_recursive();
+                commands.entity(outer).despawn();
                 let inner = entity_map.connections_inner.get(&directed).unwrap().clone();
-                commands.entity(inner).despawn_recursive();
+                commands.entity(inner).despawn();
                 let path = entity_map.connections_path.get(&directed).unwrap().clone();
-                commands.entity(path).despawn_recursive();
+                commands.entity(path).despawn();
                 entity_map.remove_connection(directed);
                 for other in connection.tracks() {
                     if other.track != track_id {
@@ -860,7 +860,7 @@ fn despawn_track(
         }
 
         let entity = entity_map.tracks.get(&track_id).unwrap().clone();
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
         connections.remove_track(track_id);
         entity_map.remove_track(track_id);
 
@@ -874,7 +874,7 @@ fn despawn_track(
                     .collect::<Vec<SwitchPosition>>(),
             };
             println!("{:?}", event);
-            switch_update_events.send(event);
+            switch_update_events.write(event);
         }
     }
 }

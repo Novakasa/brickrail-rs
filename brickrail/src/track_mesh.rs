@@ -1,12 +1,12 @@
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use bevy::{
+    platform::collections::HashMap,
     prelude::*,
     render::{
         mesh::{Indices, PrimitiveTopology},
         render_asset::RenderAssetUsages,
     },
-    utils::hashbrown::HashMap,
 };
 use lyon_tessellation::{
     path::Path, BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex,

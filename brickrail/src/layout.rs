@@ -7,10 +7,10 @@ use crate::switch::{SetSwitchPositionEvent, Switch};
 use crate::switch_motor::MotorPosition;
 use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
 use bevy::color::palettes::css::{GOLD, GREEN, ORANGE};
-use bevy::ecs::query::{QueryData, QueryFilter, WorldQuery};
+use bevy::ecs::query::{QueryData, QueryFilter};
+use bevy::platform::collections::hash_map::OccupiedError;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::utils::hashbrown::hash_map::OccupiedError;
-use bevy::utils::HashMap;
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
@@ -119,12 +119,12 @@ impl TrackLocks {
                         }
                     }
                 }
-                set_switch_position.send(SetSwitchPositionEvent {
+                set_switch_position.write(SetSwitchPositionEvent {
                     id: directed_connection.from_track,
                     position,
                 });
             }
-            if let Some(entity) = entity_map
+            if let Some(_entity) = entity_map
                 .crossings
                 .get(&directed_connection.from_track.track)
             {}
@@ -195,7 +195,7 @@ impl EntityMap {
         &'a self,
         query: &'a Query<D, F>,
         id: &GenericID,
-    ) -> Option<<<D as QueryData>::ReadOnly as WorldQuery>::Item<'a>> {
+    ) -> Option<<<D as QueryData>::ReadOnly as QueryData>::Item<'_>> {
         let entity = self.get_entity(id)?;
         query.get(entity).ok()
     }
@@ -204,7 +204,7 @@ impl EntityMap {
         &'a self,
         query: &'a mut Query<D, F>,
         id: &GenericID,
-    ) -> Option<<D as WorldQuery>::Item<'a>> {
+    ) -> Option<<D as QueryData>::Item<'_>> {
         let entity = self.get_entity(id)?;
         query.get_mut(entity).ok()
     }

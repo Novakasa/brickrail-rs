@@ -1,10 +1,11 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::ecs::system::SystemState;
-use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect, utils::HashMap};
+use bevy::platform::collections::HashMap;
+use bevy::{gizmos::gizmos::Gizmos, prelude::*, reflect::Reflect};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
-use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
@@ -220,7 +221,7 @@ impl Selectable for Marker {
         &self,
         pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _stroke: Option<&Shape>,
     ) -> f32 {
         self.track
             .get_directed(TrackDirection::First)
@@ -241,7 +242,7 @@ fn create_marker(
     if keyboard.just_pressed(KeyCode::KeyM) {
         if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
             let marker = Marker::new(track_id, MarkerColor::Any);
-            marker_events.send(MarkerSpawnEvent(marker));
+            marker_events.write(MarkerSpawnEvent(marker));
         }
     }
 }

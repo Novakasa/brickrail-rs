@@ -1,7 +1,8 @@
 use std::iter;
 
 use bevy::ecs::system::SystemState;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::platform::collections::HashMap;
+use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui};
 use bevy_inspector_egui::reflect_inspector::ui_for_value;
 use itertools::Itertools;
@@ -375,12 +376,12 @@ fn handle_messages(
                     }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
-                        advance_events.send(MarkerAdvanceEvent {
+                        advance_events.write(MarkerAdvanceEvent {
                             id: ble_train.train_id,
                             index: index as usize,
                         });
                         for input in ble_train.advance_sensor().hub_events {
-                            ble_commands.send(input);
+                            ble_commands.write(input);
                         }
                     }
                     _ => warn!("Unhandled TrainData: {:?}", event.data),

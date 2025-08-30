@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{f32::consts::PI, str::FromStr};
 
-use bevy::{prelude::*, utils::hashbrown::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*};
 use strum_macros::{Display, EnumIter};
 
 use serde::{Deserialize, Serialize};

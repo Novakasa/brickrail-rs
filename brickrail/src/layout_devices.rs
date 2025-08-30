@@ -7,7 +7,7 @@ use crate::{
     switch::Switch,
     switch_motor::SpawnPulseMotorEvent,
 };
-use bevy::prelude::*;
+use bevy::{ecs::component::Mutable, prelude::*};
 use bevy_egui::egui::{self, Layout, Ui};
 use bevy_inspector_egui::bevy_egui;
 use serde::{Deserialize, Serialize};
@@ -91,7 +91,7 @@ pub trait SpawnDeviceID: Event {
     fn from_id(id: LayoutDeviceID) -> Self;
 }
 
-pub fn select_device_id<T: DeviceComponent>(
+pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
     ui: &mut Ui,
     selected_id: &mut Option<LayoutDeviceID>,
     devices: &mut Query<(&mut T, &mut LayoutDevice)>,
@@ -126,7 +126,7 @@ pub fn select_device_id<T: DeviceComponent>(
                         }
                         if ui.button("New").clicked() {
                             let id = T::new_id(entity_map);
-                            spawn_events.send(T::SpawnEvent::from_id(id));
+                            spawn_events.write(T::SpawnEvent::from_id(id));
                             *selected_id = Some(id);
                         }
                     });
@@ -135,7 +135,7 @@ pub fn select_device_id<T: DeviceComponent>(
                         if let Some(id) = selected_id.take() {
                             let entity = entity_map.layout_devices[&id];
                             let (_, device) = devices.get(entity).unwrap();
-                            despawn_events.send(DespawnEvent(device.id()));
+                            despawn_events.write(DespawnEvent(device.id()));
                         }
                     }
                 }
@@ -158,7 +158,7 @@ fn despawn_layout_device(
                 }
             }
             if let Some(entity) = entity_map.layout_devices.remove(&event.0) {
-                commands.entity(entity).despawn_recursive();
+                commands.entity(entity).despawn();
             }
             entity_map.remove_layout_device(event.0);
         }

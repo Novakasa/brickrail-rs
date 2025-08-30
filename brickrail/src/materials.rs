@@ -1,8 +1,8 @@
 use bevy::{
+    platform::collections::HashMap,
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{AlphaMode2d, Material2d, Material2dPlugin},
-    utils::hashbrown::HashMap,
 };
 
 #[derive(Debug, Resource, Default)]

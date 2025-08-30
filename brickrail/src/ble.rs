@@ -15,8 +15,8 @@ use crate::{
     switch::Switch,
     switch_motor::PulseMotor,
 };
-use bevy::ecs::system::SystemState;
-use bevy::{input::keyboard, prelude::*, utils::HashMap};
+use bevy::{ecs::system::SystemState, platform::collections::HashMap};
+use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::bevy_egui::egui::{self, widgets::Button, Grid, Ui};
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
@@ -192,7 +192,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::DiscoverName,
                     });
@@ -206,7 +206,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::Connect,
                     });
@@ -216,7 +216,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::Disconnect,
                     });
@@ -229,7 +229,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::DownloadProgram,
                     });
@@ -242,7 +242,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::StartProgram,
                     });
@@ -252,7 +252,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: id,
                         command: HubCommand::StopProgram,
                     });
@@ -347,7 +347,7 @@ impl BLEHub {
                     {
                         *selected = Some(entity_map.new_hub_id(kind));
                         let hub = BLEHub::new(selected.unwrap().clone());
-                        spawn_events.send(SpawnHubEvent { hub });
+                        spawn_events.write(SpawnHubEvent { hub });
                     };
                 });
             if let Some(hub_id) = selected {
@@ -379,7 +379,7 @@ fn create_hub(
     if keyboard_input.just_pressed(keyboard::KeyCode::KeyH) {
         let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
-        hub_event_writer.send(SpawnHubEvent { hub });
+        hub_event_writer.write(SpawnHubEvent { hub });
     }
 }
 
@@ -447,7 +447,7 @@ fn despawn_hub(
         }
 
         if let Some(entity) = entity_map.hubs.remove(&event.0) {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
         entity_map.remove_hub(event.0);
     }
@@ -683,7 +683,7 @@ fn handle_hub_events(
                         HubType::Train => {
                             if let Some(data) = TrainData::from_io_message(msg) {
                                 debug!("sending TrainData: {:?}", data);
-                                train_sender.send(HubMessageEvent { id: hub.id, data });
+                                train_sender.write(HubMessageEvent { id: hub.id, data });
                             }
                         }
                         _ => {
@@ -747,7 +747,7 @@ pub fn prepare_hubs(
             match hub.state {
                 HubState::Disconnected => {
                     prepared = false;
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: hub.id,
                         command: HubCommand::Connect,
                     });
@@ -755,12 +755,12 @@ pub fn prepare_hubs(
                 HubState::Connected => {
                     prepared = false;
                     if hub.downloaded {
-                        command_events.send(HubCommandEvent {
+                        command_events.write(HubCommandEvent {
                             hub_id: hub.id,
                             command: HubCommand::StartProgram,
                         });
                     } else {
-                        command_events.send(HubCommandEvent {
+                        command_events.write(HubCommandEvent {
                             hub_id: hub.id,
                             command: HubCommand::DownloadProgram,
                         });
@@ -768,7 +768,7 @@ pub fn prepare_hubs(
                 }
                 HubState::Running => {
                     prepared = false;
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: hub.id,
                         command: HubCommand::Configure,
                     });
@@ -870,7 +870,7 @@ fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<Hub
     for hub in q_hubs.iter() {
         if hub.active {
             if hub.state.is_running() {
-                command_events.send(HubCommandEvent {
+                command_events.write(HubCommandEvent {
                     hub_id: hub.id,
                     command: HubCommand::StopProgram,
                 });
@@ -890,12 +890,12 @@ pub fn disconnect_hubs(
             done = false;
             if !hub.state.is_busy() {
                 if hub.state.is_running() {
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: hub.id,
                         command: HubCommand::StopProgram,
                     });
                 } else {
-                    command_events.send(HubCommandEvent {
+                    command_events.write(HubCommandEvent {
                         hub_id: hub.id,
                         command: HubCommand::Disconnect,
                     });

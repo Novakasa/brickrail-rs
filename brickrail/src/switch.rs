@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::{color::palettes::css::RED, ecs::system::SystemState};
 use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
-use bevy_prototype_lyon::draw::Stroke;
+use bevy_prototype_lyon::prelude::*;
 use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
 use serde::{Deserialize, Serialize};
@@ -143,7 +143,7 @@ impl Switch {
                 ui.horizontal(|ui| {
                     for position in switch.positions.clone() {
                         if ui.button(position.to_string()).clicked() {
-                            set_switch_position.send(SetSwitchPositionEvent {
+                            set_switch_position.write(SetSwitchPositionEvent {
                                 id: switch.id,
                                 position,
                             });
@@ -213,7 +213,7 @@ impl Selectable for Switch {
         &self,
         pos: Vec2,
         _transform: Option<&Transform>,
-        _stroke: Option<&Stroke>,
+        _shape: Option<&Shape>,
     ) -> f32 {
         self.id
             .to_slot()
@@ -280,7 +280,7 @@ pub fn update_switch_position(
                     if editor_state.get().ble_commands_enabled() {
                         if let Some(command) = PulseMotor::switch_command(device, &position) {
                             println!("Sending switch command {:?}", command);
-                            hub_commands.send(command);
+                            hub_commands.write(command);
                         }
                     }
                     motor.position = position;
@@ -306,7 +306,7 @@ pub fn update_switch_turns(
                 let mut switch = switches.get_mut(*entity).unwrap();
                 switch.set_positions(update.positions.clone());
             } else {
-                switch_spawn_events.send(SpawnSwitchEvent {
+                switch_spawn_events.write(SpawnSwitchEvent {
                     switch: Switch::new(update.id, update.positions.clone()),
                     name: None,
                 });
@@ -314,7 +314,7 @@ pub fn update_switch_turns(
         } else {
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let switch = switches.get(entity.clone()).unwrap();
-                despawn_switch_events.send(DespawnEvent(switch.id()));
+                despawn_switch_events.write(DespawnEvent(switch.id()));
             }
         }
         for (entity, connection) in switch_connections.iter() {

@@ -378,7 +378,7 @@ impl Route {
     ) {
         if let Some(marker_index) = self.get_current_leg_mut().advance_distance(distance) {
             debug!("Sending advance event for marker {}", marker_index);
-            advance_events.send(MarkerAdvanceEvent {
+            advance_events.write(MarkerAdvanceEvent {
                 id: self.train_id.clone(),
                 index: marker_index,
             });
