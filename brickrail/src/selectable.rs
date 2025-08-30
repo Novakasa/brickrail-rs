@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
-use bevy_inspector_egui::egui::{self, ComboBox, Ui};
+use bevy_inspector_egui::{
+    bevy_egui::EguiPrimaryContextPass,
+    egui::{self, ComboBox, Ui},
+};
 use bevy_prototype_lyon::prelude::*;
 
 use crate::{
@@ -28,10 +31,11 @@ impl<T: Selectable> Plugin for SelectablePlugin<T> {
         app.add_event::<DespawnEvent<T>>();
         app.add_systems(
             Update,
-            (
-                update_hover::<T>.after(init_hover).before(finish_hover),
-                inspector_system_world::<T>.run_if(type_selected::<T>),
-            ),
+            update_hover::<T>.after(init_hover).before(finish_hover),
+        );
+        app.add_systems(
+            EguiPrimaryContextPass,
+            inspector_system_world::<T>.run_if(type_selected::<T>),
         );
     }
 }

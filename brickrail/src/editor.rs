@@ -25,7 +25,7 @@ use bevy::window::{PrimaryWindow, WindowCloseRequested};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
 use bevy_egui::{egui, EguiContexts};
-use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::bevy_egui::{self, EguiPrimaryContextPass};
 use bevy_inspector_egui::bevy_inspector::ui_for_all_assets;
 use bevy_inspector_egui::egui::ComboBox;
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -953,17 +953,17 @@ impl Plugin for EditorPlugin {
                 close_event.run_if(on_event::<WindowCloseRequested>),
             ),
         );
-        // app.add_systems(
-        //     Update,
-        //     (
-        //         (directory_panel.after(finish_hover), top_panel).chain(),
-        //         hub_status_window
-        //             .after(top_panel)
-        //             .run_if(in_state(EditorState::PreparingDeviceControl)),
-        //         hub_status_window
-        //             .after(top_panel)
-        //             .run_if(in_state(EditorState::Disconnecting)),
-        //     ),
-        // );
+        app.add_systems(
+            EguiPrimaryContextPass,
+            (
+                (directory_panel.after(finish_hover), top_panel).chain(),
+                hub_status_window
+                    .after(top_panel)
+                    .run_if(in_state(EditorState::PreparingDeviceControl)),
+                hub_status_window
+                    .after(top_panel)
+                    .run_if(in_state(EditorState::Disconnecting)),
+            ),
+        );
     }
 }
