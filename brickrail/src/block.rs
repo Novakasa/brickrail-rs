@@ -250,7 +250,7 @@ impl BlockBundle {
             .stroke(Stroke {
                 color: Color::from(GREEN),
                 options: StrokeOptions::default()
-                    .with_line_width(BLOCK_WIDTH * LAYOUT_SCALE)
+                    .with_line_width(BLOCK_WIDTH)
                     .with_line_cap(LineCap::Round),
             })
             .build();
