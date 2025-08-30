@@ -9,7 +9,7 @@ use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
 use serde::{Deserialize, Serialize};
 
-use crate::editor::{directory_panel, HoverState, Selection};
+use crate::editor::{finish_hover, HoverState, Selection};
 use crate::materials::TrackPathMaterial;
 use crate::selectable::{Selectable, SelectablePlugin};
 use crate::track::{build_connection_path_extents, PATH_WIDTH};
@@ -524,7 +524,7 @@ impl Plugin for SwitchPlugin {
             Update,
             (
                 spawn_switch.run_if(on_event::<SpawnSwitchEvent>),
-                update_switch_shapes.after(directory_panel),
+                update_switch_shapes.after(finish_hover),
                 update_switch_turns
                     .after(spawn_connection)
                     .run_if(on_event::<UpdateSwitchTurnsEvent>),

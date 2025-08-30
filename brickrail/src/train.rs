@@ -438,7 +438,7 @@ fn update_wagons(
         }
         for wagon_id in &train.wagons {
             let wagon_entity = entity_map.wagons.get(wagon_id).unwrap();
-            let (mut transform, shape) = q_wagons.get_mut(*wagon_entity).unwrap();
+            let (mut transform, mut shape) = q_wagons.get_mut(*wagon_entity).unwrap();
             let offset = -WAGON_DIST * (wagon_id.index as f32);
             let offset2 = offset + train.in_place_cycle * WAGON_DIST;
             let pos = train.get_route().interpolate_offset(offset2);
@@ -454,7 +454,7 @@ fn update_wagons(
             if wagon_id.index == train.settings.num_wagons {
                 alpha = train.in_place_cycle;
             }
-            shape.stroke.unwrap().color = color.with_alpha(alpha.powi(1));
+            shape.stroke.as_mut().unwrap().color = color.with_alpha(alpha.powi(1));
         }
     }
 }
@@ -1104,7 +1104,7 @@ impl Plugin for TrainPlugin {
                 delete_selection_shortcut::<Train>,
                 despawn_train.run_if(on_event::<DespawnEvent<Train>>),
                 draw_train,
-                update_wagons.after(directory_panel),
+                update_wagons.after(finish_hover),
                 // draw_train_route.after(draw_hover_route),
                 // draw_locked_tracks.after(draw_train_route),
                 // draw_hover_route,

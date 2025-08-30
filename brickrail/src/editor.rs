@@ -218,7 +218,7 @@ pub struct HoverState {
     min_dist: f32,
     hover_depth: f32,
     candidate: Option<GenericID>,
-    pub button_hover: bool,
+    pub button_candidate: Option<GenericID>,
 }
 
 fn update_editor_state(
@@ -235,6 +235,10 @@ fn update_editor_state(
 
 pub fn directory_panel(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
+    world
+        .get_resource_mut::<HoverState>()
+        .unwrap()
+        .button_candidate = None;
     let (mut egui_contexts,) = state.get_mut(world);
     if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::SidePanel::new(egui::panel::Side::Left, "Directory").show(ctx, |ui| {
@@ -312,8 +316,7 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
         selection_state.selection = Selection::Single(id);
     }
     if let Some(id) = hovered {
-        hover_state.hover = Some(id);
-        hover_state.button_hover = true;
+        hover_state.button_candidate = Some(id);
     }
 }
 
@@ -518,7 +521,6 @@ pub fn init_hover(mut hover_state: ResMut<HoverState>) {
     hover_state.min_dist = f32::INFINITY;
     hover_state.hover_depth = f32::NEG_INFINITY;
     hover_state.candidate = None;
-    hover_state.button_hover = false;
 }
 
 pub fn finish_hover(mut hover_state: ResMut<HoverState>) {
@@ -526,6 +528,9 @@ pub fn finish_hover(mut hover_state: ResMut<HoverState>) {
     hover_state.hover_depth = f32::NEG_INFINITY;
     hover_state.hover = hover_state.candidate;
     hover_state.candidate = None;
+    if hover_state.button_candidate.is_some() {
+        hover_state.hover = hover_state.button_candidate;
+    }
 }
 
 #[derive(Resource, Debug, Default)]

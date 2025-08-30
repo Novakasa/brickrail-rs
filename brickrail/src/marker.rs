@@ -331,7 +331,7 @@ impl Plugin for MarkerPlugin {
             (
                 create_marker,
                 delete_selection_shortcut::<Marker>,
-                set_marker_color,
+                set_marker_color.after(finish_hover),
             ),
         );
         app.add_systems(

@@ -1,6 +1,6 @@
 use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
-    delete_selection_shortcut, directory_panel, DespawnEvent, GenericID, HoverState, Selection,
+    delete_selection_shortcut, finish_hover, DespawnEvent, GenericID, HoverState, Selection,
     SelectionState,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
@@ -395,27 +395,27 @@ pub fn despawn_block(
 }
 
 fn update_block_color(
-    q_strokes: Query<(&Block, &Shape)>,
+    mut q_strokes: Query<(&Block, &mut Shape)>,
     selection_state: Res<SelectionState>,
     hover_state: Res<HoverState>,
 ) {
     if !selection_state.is_changed() && !hover_state.is_changed() {
         return;
     }
-    for (block, shape) in q_strokes.iter() {
+    for (block, mut shape) in q_strokes.iter_mut() {
         if let Some(GenericID::Block(block_id)) = &hover_state.hover {
             if block.id == *block_id {
-                shape.stroke.unwrap().color = Color::from(RED);
+                shape.stroke.as_mut().unwrap().color = Color::from(RED);
                 continue;
             }
         }
         if let Selection::Single(GenericID::Block(block_id)) = &selection_state.selection {
             if block.id == *block_id {
-                shape.stroke.unwrap().color = Color::from(BLUE);
+                shape.stroke.as_mut().unwrap().color = Color::from(BLUE);
                 continue;
             }
         }
-        shape.stroke.unwrap().color = Color::from(GREEN);
+        shape.stroke.as_mut().unwrap().color = Color::from(GREEN);
     }
 }
 
@@ -434,7 +434,7 @@ impl Plugin for BlockPlugin {
             (
                 create_block.run_if(on_event::<BlockCreateEvent>),
                 update_reverse_connections.run_if(on_event::<UpdateReverseConnectios>),
-                update_block_color.after(directory_panel),
+                update_block_color.after(finish_hover),
                 delete_selection_shortcut::<Block>,
             ),
         );
