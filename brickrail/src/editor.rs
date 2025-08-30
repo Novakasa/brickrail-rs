@@ -236,7 +236,7 @@ fn update_editor_state(
 pub fn directory_panel(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
-    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+    if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::SidePanel::new(egui::panel::Side::Left, "Directory").show(ctx, |ui| {
             ui.heading("Directory");
             {
@@ -329,7 +329,7 @@ pub fn top_panel(
     control_info: Res<ControlInfo>,
     mut save_events: EventWriter<SaveLayoutEvent>,
 ) {
-    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+    if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("New").clicked() {
@@ -430,7 +430,7 @@ pub fn hub_status_window(
     mut q_hubs: Query<&mut BLEHub>,
     mut editor_state: ResMut<NextState<EditorState>>,
 ) {
-    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+    if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::Window::new("Hub status")
             .movable(false)
             .collapsible(false)

@@ -438,7 +438,7 @@ impl<'a> Iterator for ConnectionIterator<'a> {
     }
 }
 
-#[derive(Resource, Default, Serialize, Deserialize, Clone)]
+#[derive(Resource, Default, Clone)]
 pub struct Connections {
     pub logical_graph: DiGraphMap<LogicalTrackID, ()>,
     pub connection_graph: UnGraphMap<TrackID, TrackConnectionID>,

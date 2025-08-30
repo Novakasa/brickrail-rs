@@ -35,7 +35,7 @@ fn name_editor(ui: &mut egui::Ui, world: &mut World) {
 pub fn inspector_system_world<T: Selectable>(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
-    if let Some(ctx) = &egui_contexts.try_ctx_mut().cloned() {
+    if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::SidePanel::new(egui::panel::Side::Right, "Inspector").show(ctx, |ui| {
             ui.heading("Inspector");
             {
