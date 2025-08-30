@@ -953,17 +953,17 @@ impl Plugin for EditorPlugin {
                 close_event.run_if(on_event::<WindowCloseRequested>),
             ),
         );
-        app.add_systems(
-            Update,
-            (
-                (directory_panel.after(finish_hover), top_panel).chain(),
-                hub_status_window
-                    .after(top_panel)
-                    .run_if(in_state(EditorState::PreparingDeviceControl)),
-                hub_status_window
-                    .after(top_panel)
-                    .run_if(in_state(EditorState::Disconnecting)),
-            ),
-        );
+        // app.add_systems(
+        //     Update,
+        //     (
+        //         (directory_panel.after(finish_hover), top_panel).chain(),
+        //         hub_status_window
+        //             .after(top_panel)
+        //             .run_if(in_state(EditorState::PreparingDeviceControl)),
+        //         hub_status_window
+        //             .after(top_panel)
+        //             .run_if(in_state(EditorState::Disconnecting)),
+        //     ),
+        // );
     }
 }
