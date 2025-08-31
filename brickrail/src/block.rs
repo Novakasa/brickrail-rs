@@ -1,10 +1,10 @@
 use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
 use crate::editor::{
-    delete_selection_shortcut, finish_hover, DespawnEvent, GenericID, HoverState, Selection,
-    SelectionState,
+    DespawnEvent, GenericID, HoverState, Selection, SelectionState, delete_selection_shortcut,
+    finish_hover,
 };
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{spawn_marker, Marker, MarkerColor, MarkerKey, MarkerSpawnEvent};
+use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnEvent, spawn_marker};
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainEvent, Train};
@@ -29,7 +29,7 @@ struct LogicalID {
 }
 
 #[derive(Debug, Clone, Event)]
-struct UpdateReverseConnectios {
+struct UpdateReverseConnections {
     block_id: BlockID,
     disallow_reversing: bool,
 }
@@ -94,7 +94,7 @@ impl Block {
             EventWriter<SpawnTrainEvent>,
             Query<(&mut Destination, &Name)>,
             EventWriter<SpawnDestinationEvent>,
-            EventWriter<UpdateReverseConnectios>,
+            EventWriter<UpdateReverseConnections>,
         )>::new(world);
         let (
             mut blocks,
@@ -119,7 +119,7 @@ impl Block {
                         ui,
                         &type_registry.read(),
                     ) {
-                        update_reverse_connections.write(UpdateReverseConnectios {
+                        update_reverse_connections.write(UpdateReverseConnections {
                             block_id: block.id,
                             disallow_reversing: block.settings.disallow_reversing,
                         });
@@ -277,10 +277,10 @@ fn generate_block_shape(section: &DirectedSection) -> ShapePath {
 }
 
 fn update_reverse_connections(
-    mut update_reverse_connections: EventReader<UpdateReverseConnectios>,
+    mut update_reverse_connections: EventReader<UpdateReverseConnections>,
     mut connections: ResMut<Connections>,
 ) {
-    for UpdateReverseConnectios {
+    for UpdateReverseConnections {
         block_id,
         disallow_reversing,
     } in update_reverse_connections.read()
@@ -428,12 +428,12 @@ impl Plugin for BlockPlugin {
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();
         app.add_event::<BlockCreateEvent>();
-        app.add_event::<UpdateReverseConnectios>();
+        app.add_event::<UpdateReverseConnections>();
         app.add_systems(
             Update,
             (
                 create_block.run_if(on_event::<BlockCreateEvent>),
-                update_reverse_connections.run_if(on_event::<UpdateReverseConnectios>),
+                update_reverse_connections.run_if(on_event::<UpdateReverseConnections>),
                 update_block_color.after(finish_hover),
                 delete_selection_shortcut::<Block>,
             ),
