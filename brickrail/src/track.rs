@@ -2,15 +2,16 @@ use crate::{
     block::{Block, BlockCreateEvent},
     crossing::{LevelCrossing, SpawnCrossingEvent},
     editor::{
-        delete_selection_shortcut, finish_hover, DespawnEvent, EditorState, GenericID, HoverState,
-        MousePosWorld, Selection, SelectionState,
+        DespawnEvent, EditorState, GenericID, HoverState, MousePosWorld, Selection, SelectionState,
+        delete_selection_shortcut, finish_hover,
     },
+    inspector::{Inspectable, InspectorPlugin},
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
     marker::{Marker, MarkerColor, MarkerSpawnEvent},
     materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
-    selectable::{Selectable, SelectablePlugin},
+    selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{Switch, UpdateSwitchTurnsEvent},
     track_mesh::{MeshType, TrackMeshPlugin},
     train::{PlanRouteEvent, Train, TrainDragState},
@@ -24,9 +25,9 @@ use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 use bevy_prototype_lyon::prelude::*;
 use lyon_tessellation::{
+    LineCap, StrokeOptions,
     math::Point,
     path::{BuilderWithAttributes, Path},
-    LineCap, StrokeOptions,
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -567,13 +568,19 @@ impl Track {
     }
 }
 
-impl Selectable for Track {
-    type SpawnEvent = SpawnTrackEvent;
-    type ID = TrackID;
-
+impl Inspectable for Track {
     fn inspector(ui: &mut Ui, world: &mut World) {
         Track::inspector(ui, world);
     }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Track)
+    }
+}
+
+impl Selectable for Track {
+    type SpawnEvent = SpawnTrackEvent;
+    type ID = TrackID;
 
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Track
@@ -879,6 +886,18 @@ fn despawn_track(
     }
 }
 
+struct TrackSectionSelection;
+
+impl Inspectable for TrackSectionSelection {
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        track_section_inspector(ui, world);
+    }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        matches!(selection_state.selection, Selection::Section(_))
+    }
+}
+
 pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
@@ -888,6 +907,8 @@ impl Plugin for TrackPlugin {
         app.add_plugins(TrackMeshPlugin::<TrackShapeInner>::default());
         app.add_plugins(TrackMeshPlugin::<TrackShapePath>::default());
         app.add_plugins(SelectablePlugin::<Track>::new());
+        app.add_plugins(InspectorPlugin::<Track>::new());
+        app.add_plugins(InspectorPlugin::<TrackSectionSelection>::new());
         app.add_event::<SpawnTrackEvent>();
         app.add_event::<SpawnConnectionEvent>();
         app.add_event::<DespawnEvent<Track>>();

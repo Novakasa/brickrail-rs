@@ -9,19 +9,20 @@ use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
 use serde::{Deserialize, Serialize};
 
-use crate::editor::{finish_hover, HoverState, Selection};
+use crate::editor::{HoverState, Selection, finish_hover};
+use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::materials::TrackPathMaterial;
-use crate::selectable::{Selectable, SelectablePlugin};
-use crate::track::{build_connection_path_extents, PATH_WIDTH};
+use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
+use crate::track::{PATH_WIDTH, build_connection_path_extents};
 use crate::track_mesh::{MeshType, TrackMeshPlugin};
 use crate::{
     ble::{BLEHub, HubCommandEvent},
     editor::{DespawnEvent, EditorState, GenericID, SelectionState, SpawnHubEvent},
     layout::EntityMap,
-    layout_devices::{select_device_id, LayoutDevice},
+    layout_devices::{LayoutDevice, select_device_id},
     layout_primitives::*,
     switch_motor::{MotorPosition, PulseMotor, SpawnPulseMotorEvent},
-    track::{spawn_connection, LAYOUT_SCALE, TRACK_WIDTH},
+    track::{LAYOUT_SCALE, TRACK_WIDTH, spawn_connection},
 };
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
@@ -185,13 +186,19 @@ impl Switch {
     }
 }
 
-impl Selectable for Switch {
-    type SpawnEvent = SpawnSwitchEvent;
-    type ID = DirectedTrackID;
-
+impl Inspectable for Switch {
     fn inspector(ui: &mut Ui, world: &mut World) {
         Switch::inspector(ui, world);
     }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Switch)
+    }
+}
+
+impl Selectable for Switch {
+    type SpawnEvent = SpawnSwitchEvent;
+    type ID = DirectedTrackID;
 
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Switch
@@ -515,6 +522,7 @@ pub struct SwitchPlugin;
 impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Switch>::new());
+        app.add_plugins(InspectorPlugin::<Switch>::new());
         app.add_event::<SpawnSwitchEvent>();
         app.add_event::<UpdateSwitchTurnsEvent>();
         app.add_event::<SetSwitchPositionEvent>();

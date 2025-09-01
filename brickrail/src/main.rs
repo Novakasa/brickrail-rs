@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use bevy::{prelude::*, render::diagnostic::RenderDiagnosticsPlugin};
-use bevy_inspector_egui::bevy_egui;
+use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_egui};
 use bevy_prototype_lyon::plugin::ShapePlugin;
 
 mod bevy_tokio_tasks;
@@ -52,7 +52,7 @@ fn main() {
         .add_plugins(train::TrainPlugin)
         .add_plugins(marker::MarkerPlugin)
         .add_plugins(crossing::CrossingPlugin)
-        .add_plugins(inspector::InspectorPlugin)
+        .add_plugins(DefaultInspectorConfigPlugin)
         .add_plugins(bevy_tokio_tasks::TokioTasksPlugin::default())
         .add_plugins(ble::BLEPlugin)
         .add_plugins(ble_train::BLETrainPlugin)

@@ -1,15 +1,11 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
-use bevy_inspector_egui::{
-    bevy_egui::EguiPrimaryContextPass,
-    egui::{self, ComboBox, Ui},
-};
+use bevy_inspector_egui::egui::{self, ComboBox};
 use bevy_prototype_lyon::prelude::*;
 
 use crate::{
-    editor::{finish_hover, init_hover, update_hover, DespawnEvent, GenericID, SelectionState},
-    inspector::inspector_system_world,
+    editor::{DespawnEvent, GenericID, finish_hover, init_hover, update_hover},
     layout::EntityMap,
 };
 
@@ -33,15 +29,7 @@ impl<T: Selectable> Plugin for SelectablePlugin<T> {
             Update,
             update_hover::<T>.after(init_hover).before(finish_hover),
         );
-        app.add_systems(
-            EguiPrimaryContextPass,
-            inspector_system_world::<T>.run_if(type_selected::<T>),
-        );
     }
-}
-
-fn type_selected<T: Selectable>(selection: Res<SelectionState>) -> bool {
-    selection.selected_type() == Some(T::get_type())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,8 +76,6 @@ pub trait Selectable: Sync + Send + 'static + Component {
     fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
         None
     }
-
-    fn inspector(_ui: &mut Ui, _world: &mut World) {}
 
     fn selector_option(
         query: &Query<(&Self, Option<&Name>)>,

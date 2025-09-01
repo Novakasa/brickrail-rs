@@ -4,9 +4,10 @@ use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     ble_train::{BLETrain, TrainData},
     editor::{
-        delete_selection_shortcut, DespawnEvent, EditorState, GenericID, Selection, SelectionState,
-        SpawnHubEvent,
+        DespawnEvent, EditorState, GenericID, Selection, SelectionState, SpawnHubEvent,
+        delete_selection_shortcut,
     },
+    inspector::{Inspectable, InspectorPlugin},
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
@@ -17,11 +18,11 @@ use crate::{
 };
 use bevy::{ecs::system::SystemState, platform::collections::HashMap};
 use bevy::{input::keyboard, prelude::*};
-use bevy_inspector_egui::bevy_egui::egui::{self, widgets::Button, Grid, Ui};
+use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui, widgets::Button};
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
 use pybricks_ble::pybricks_hub::HubStatus;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc::UnboundedSender, Mutex};
+use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub enum HubState {
@@ -141,13 +142,19 @@ impl BLEHub {
     }
 }
 
-impl Selectable for BLEHub {
-    type SpawnEvent = SpawnHubEvent;
-    type ID = HubID;
-
+impl Inspectable for BLEHub {
     fn inspector(ui: &mut Ui, world: &mut World) {
         BLEHub::inspector(ui, world);
     }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Hub)
+    }
+}
+
+impl Selectable for BLEHub {
+    type SpawnEvent = SpawnHubEvent;
+    type ID = HubID;
 
     fn get_type() -> SelectableType {
         SelectableType::Hub
@@ -913,6 +920,7 @@ pub struct BLEPlugin;
 impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<BLEHub>::new());
+        app.add_plugins(InspectorPlugin::<BLEHub>::new());
         app.add_event::<HubEvent>();
         app.add_event::<HubCommandEvent>();
         app.add_systems(

@@ -1,14 +1,16 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::egui::Ui;
 use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     ble::HubCommandEvent,
     editor::{EditorState, GenericID},
+    inspector::{Inspectable, InspectorPlugin},
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{LayoutDeviceID, TrackID},
-    selectable::{Selectable, SelectableType},
+    selectable::{Selectable, SelectablePlugin, SelectableType},
     switch_motor::{MotorPosition, PulseMotor},
     track::{LAYOUT_SCALE, TRACK_WIDTH},
 };
@@ -40,11 +42,19 @@ impl LevelCrossing {
     }
 }
 
+impl Inspectable for LevelCrossing {
+    fn inspector(ui: &mut Ui, world: &mut World) {
+        // LevelCrossing::inspector(ui, world);
+    }
+
+    fn run_condition(selection_state: Res<crate::editor::SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Crossing)
+    }
+}
+
 impl Selectable for LevelCrossing {
     type ID = TrackID;
     type SpawnEvent = SpawnCrossingEvent;
-
-    fn inspector(_ui: &mut bevy_inspector_egui::egui::Ui, _world: &mut World) {}
 
     fn get_type() -> SelectableType {
         SelectableType::Crossing
@@ -139,6 +149,8 @@ pub struct CrossingPlugin;
 
 impl Plugin for CrossingPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(InspectorPlugin::<LevelCrossing>::new());
+        app.add_plugins(SelectablePlugin::<LevelCrossing>::new());
         app.add_event::<SpawnCrossingEvent>();
         app.add_event::<SetCrossingPositionEvent>();
         app.add_systems(

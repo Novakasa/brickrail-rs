@@ -1,17 +1,18 @@
 use crate::{
     ble::HubCommandEvent,
     ble_train::BLETrain,
-    block::{spawn_block, Block},
+    block::{Block, spawn_block},
     crossing::{LevelCrossing, SetCrossingPositionEvent},
     destination::{BlockDirectionFilter, Destination},
     editor::*,
+    inspector::{Inspectable, InspectorPlugin},
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    route::{build_route, LegState, Route, TrainState},
+    route::{LegState, Route, TrainState, build_route},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
-    selectable::{Selectable, SelectablePlugin},
+    selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionEvent, Switch},
     track::LAYOUT_SCALE,
 };
@@ -349,13 +350,19 @@ impl Train {
     }
 }
 
-impl Selectable for Train {
-    type SpawnEvent = SpawnTrainEvent;
-    type ID = TrainID;
-
+impl Inspectable for Train {
     fn inspector(ui: &mut Ui, world: &mut World) {
         Train::inspector(ui, world);
     }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Train)
+    }
+}
+
+impl Selectable for Train {
+    type SpawnEvent = SpawnTrainEvent;
+    type ID = TrainID;
 
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Train
@@ -1092,6 +1099,7 @@ impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Train>::new());
         app.add_plugins(SelectablePlugin::<TrainWagon>::new());
+        app.add_plugins(InspectorPlugin::<Train>::new());
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
         app.add_event::<SetTrainRouteEvent>();

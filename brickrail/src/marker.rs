@@ -9,12 +9,13 @@ use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
-use crate::selectable::{Selectable, SelectablePlugin};
+use crate::inspector::{Inspectable, InspectorPlugin};
+use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::{
     editor::*,
     layout::{EntityMap, MarkerMap},
     layout_primitives::*,
-    track::{spawn_track, LAYOUT_SCALE},
+    track::{LAYOUT_SCALE, spawn_track},
 };
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
@@ -193,13 +194,19 @@ impl Marker {
     }
 }
 
+impl Inspectable for Marker {
+    fn inspector(ui: &mut bevy_egui::egui::Ui, world: &mut World) {
+        Marker::inspector(ui, world);
+    }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Marker)
+    }
+}
+
 impl Selectable for Marker {
     type SpawnEvent = MarkerSpawnEvent;
     type ID = TrackID;
-
-    fn inspector(ui: &mut Ui, world: &mut World) {
-        Marker::inspector(ui, world);
-    }
 
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::Marker
@@ -324,6 +331,7 @@ pub struct MarkerPlugin;
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Marker>::new());
+        app.add_plugins(InspectorPlugin::<Marker>::new());
         app.add_event::<MarkerSpawnEvent>();
         app.add_event::<DespawnEvent<Marker>>();
         app.add_systems(

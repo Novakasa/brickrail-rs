@@ -3,6 +3,7 @@ use crate::editor::{
     DespawnEvent, GenericID, HoverState, Selection, SelectionState, delete_selection_shortcut,
     finish_hover,
 };
+use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnEvent, spawn_marker};
 use crate::section::LogicalSection;
@@ -197,13 +198,19 @@ impl Block {
     }
 }
 
-impl Selectable for Block {
-    type SpawnEvent = BlockSpawnEvent;
-    type ID = BlockID;
-
+impl Inspectable for Block {
     fn inspector(ui: &mut Ui, world: &mut World) {
         Block::inspector(ui, world);
     }
+
+    fn run_condition(selection_state: Res<SelectionState>) -> bool {
+        selection_state.selected_type() == Some(SelectableType::Block)
+    }
+}
+
+impl Selectable for Block {
+    type SpawnEvent = BlockSpawnEvent;
+    type ID = BlockID;
 
     fn get_type() -> SelectableType {
         SelectableType::Block
@@ -424,6 +431,7 @@ pub struct BlockPlugin;
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Block>::new());
+        app.add_plugins(InspectorPlugin::<Block>::new());
         app.register_type::<Block>();
         app.add_event::<BlockSpawnEvent>();
         app.add_event::<DespawnEvent<Block>>();

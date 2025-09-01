@@ -1,12 +1,10 @@
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts};
-use bevy_inspector_egui::bevy_egui;
-use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use bevy_egui::{EguiContexts, egui};
+use bevy_inspector_egui::bevy_egui::{self, EguiPrimaryContextPass};
 
 use crate::editor::*;
 use crate::layout::EntityMap;
-use crate::selectable::Selectable;
 
 fn name_editor(ui: &mut egui::Ui, world: &mut World) {
     let mut state =
@@ -32,7 +30,7 @@ fn name_editor(ui: &mut egui::Ui, world: &mut World) {
     state.apply(world);
 }
 
-pub fn inspector_system_world<T: Selectable>(world: &mut World) {
+pub fn inspector_system_world<T: Inspectable>(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     let (mut egui_contexts,) = state.get_mut(world);
     if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
@@ -53,10 +51,29 @@ pub fn inspector_system_world<T: Selectable>(world: &mut World) {
     }
 }
 
-pub struct InspectorPlugin;
+pub trait Inspectable: Send + Sync + 'static {
+    fn inspector(ui: &mut egui::Ui, world: &mut World);
 
-impl Plugin for InspectorPlugin {
+    fn run_condition(selection_state: Res<SelectionState>) -> bool;
+}
+
+pub struct InspectorPlugin<T: Inspectable> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Inspectable> InspectorPlugin<T> {
+    pub fn new() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: Inspectable> Plugin for InspectorPlugin<T> {
     fn build(&self, app: &mut App) {
-        app.add_plugins(DefaultInspectorConfigPlugin);
+        app.add_systems(
+            EguiPrimaryContextPass,
+            inspector_system_world::<T>.run_if(T::run_condition),
+        );
     }
 }
