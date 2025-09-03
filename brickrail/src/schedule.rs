@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     destination::Destination,
     editor::{ControlState, ControlStateMode, GenericID, SelectionState},
-    inspector::Inspectable,
+    inspector::{Inspectable, InspectorPlugin},
     layout::EntityMap,
     layout_primitives::{DestinationID, ScheduleID},
-    selectable::{Selectable, SelectableType},
+    selectable::{Selectable, SelectablePlugin, SelectableType},
     train::{PlanRouteEvent, QueuedDestination, TargetChoiceStrategy, WaitTime, set_train_route},
 };
 
@@ -358,6 +358,8 @@ pub struct SchedulePlugin;
 impl Plugin for SchedulePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ControlInfo::default());
+        app.add_plugins(SelectablePlugin::<TrainSchedule>::new());
+        app.add_plugins(InspectorPlugin::<TrainSchedule>::new());
         app.add_event::<SpawnScheduleEvent>();
         app.add_systems(
             Update,
