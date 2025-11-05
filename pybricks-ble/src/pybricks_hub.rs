@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, u8, vec};
+use std::{collections::BTreeSet, error::Error, path::Path, pin::Pin, vec};
 
 use btleplug::{
     api::{
@@ -29,7 +29,7 @@ fn pack_u32(n: u32) -> Vec<u8> {
 
 bitflags::bitflags! {
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct HubStatus: u32 {
+    pub struct HubStatusFlags: u32 {
         const HIGH_CURRENT = 1;
         const BATTERY_LOW_VOLTAGE_SHUTDOWN = 2;
         const BATTERY_LOW_VOLTAGE_WARNING = 4;
@@ -39,7 +39,14 @@ bitflags::bitflags! {
         const PROGRAM_RUNNING = 64;
         const SHUTDOWN = 128;
         const SHUTDOWN_REQUESTED = 256;
+        const BLE_HOST_CONNECTED = 512;
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct HubStatus {
+    pub flags: HubStatusFlags,
+    pub running_program: u8,
 }
 
 pub trait DownloadProgress {
@@ -49,17 +56,24 @@ pub trait DownloadProgress {
 #[derive(Debug)]
 enum HubEvent {
     Status(HubStatus),
-    STDOUT(Vec<u8>),
+    Stdout(Vec<u8>),
+    WriteAppData(Vec<u8>),
 }
 
 impl HubEvent {
     fn from_bytes(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
         match data[0] {
-            0 => Ok(HubEvent::Status(
-                HubStatus::from_bits(unpack_u32_little(data[1..].to_vec())).unwrap(),
-            )),
-            1 => Ok(HubEvent::STDOUT(data[1..].to_vec())),
-            _ => Err("Unknown event".into()),
+            0 => {
+                assert!(data.len() == 6);
+                Ok(HubEvent::Status(HubStatus {
+                    flags: HubStatusFlags::from_bits(unpack_u32_little(data[1..5].to_vec()))
+                        .unwrap(),
+                    running_program: data[5],
+                }))
+            }
+            1 => Ok(HubEvent::Stdout(data[1..].to_vec())),
+            2 => Ok(HubEvent::WriteAppData(data[1..].to_vec())),
+            _ => panic!("Unknown event type {}", data[0]),
         }
     }
 }
@@ -68,6 +82,7 @@ struct HubCapabilities {
     max_write_size: u16,
     flags: u32,
     max_program_size: u32,
+    num_slots: u8,
 }
 
 impl HubCapabilities {
@@ -77,6 +92,7 @@ impl HubCapabilities {
             max_write_size: u16::from_le_bytes([data[0], data[1]]),
             flags: u32::from_le_bytes([data[2], data[3], data[4], data[5]]),
             max_program_size: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
+            num_slots: data[10],
         }
     }
 }
@@ -106,18 +122,14 @@ impl HubCharacteristics {
 }
 
 enum Command {
-    StopUserProgram,
-    StartUserProgram,
-    StartRepl,
-    WriteUserProgramMeta,
-    WriteUserRam,
-    RebootToUpdateMode,
-    WriteSTDIN,
-}
-
-enum Event {
-    StatusReport,
-    WriteSTDOUT,
+    StopUserProgram = 0,
+    StartUserProgram = 1,
+    StartRepl = 2,
+    WriteUserProgramMeta = 3,
+    WriteUserRam = 4,
+    RebootToUpdateMode = 5,
+    WriteSTDIN = 6,
+    CommandWriteAppData = 7,
 }
 
 enum StatusFlag {
@@ -197,6 +209,7 @@ fn is_named_pybricks_hub(
     }
     let properties = properties.unwrap();
     let this_name = properties.local_name;
+    println!("Found device {:?}", this_name);
     if name_filter.is_some() && this_name.as_deref() != name_filter {
         return false;
     }
@@ -206,7 +219,7 @@ fn is_named_pybricks_hub(
     if this_name.is_none() {
         return false;
     }
-    return true;
+    true
 }
 
 pub struct PybricksHub {
@@ -224,6 +237,12 @@ impl std::fmt::Display for PybricksHub {
             return write!(f, "{}", name);
         }
         write!(f, "{:?}", self.name)
+    }
+}
+
+impl Default for PybricksHub {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -386,23 +405,26 @@ async fn monitor_events(
             PYBRICKS_COMMAND_EVENT_UUID => {
                 if let Ok(event) = HubEvent::from_bytes(data.value) {
                     match event {
-                        HubEvent::STDOUT(data) => {
+                        HubEvent::Stdout(data) => {
                             for byte in data {
                                 if output_sender.send(byte).is_err() {
-                                    println!("Failed to send output byte {}", byte);
+                                    error!("Failed to send output byte {}", byte);
                                 }
                             }
                         }
                         HubEvent::Status(status) => {
                             if status_sender.send(status.clone()).is_err() {
-                                println!("Failed to send status {:?}", status);
+                                error!("Failed to send status {:?}", status);
                             }
+                        }
+                        HubEvent::WriteAppData(_) => {
+                            println!("got app data");
                         }
                     }
                 }
             }
             _ => {
-                error!("Unknown event");
+                error!("Unknown event {}", data.uuid);
             }
         }
     }
