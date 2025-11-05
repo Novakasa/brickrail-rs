@@ -82,7 +82,7 @@ struct HubCapabilities {
     max_write_size: u16,
     flags: u32,
     max_program_size: u32,
-    num_slots: u8,
+    num_slots: Option<u8>,
 }
 
 impl HubCapabilities {
@@ -92,7 +92,7 @@ impl HubCapabilities {
             max_write_size: u16::from_le_bytes([data[0], data[1]]),
             flags: u32::from_le_bytes([data[2], data[3], data[4], data[5]]),
             max_program_size: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
-            num_slots: data[10],
+            num_slots: data.get(10).copied(),
         }
     }
 }
@@ -129,7 +129,7 @@ enum Command {
     WriteUserRam = 4,
     RebootToUpdateMode = 5,
     WriteSTDIN = 6,
-    CommandWriteAppData = 7,
+    WriteAppData = 7,
 }
 
 enum StatusFlag {
@@ -209,7 +209,7 @@ fn is_named_pybricks_hub(
     }
     let properties = properties.unwrap();
     let this_name = properties.local_name;
-    println!("Found device {:?}", this_name);
+    // println!("Found device {:?}", this_name);
     if name_filter.is_some() && this_name.as_deref() != name_filter {
         return false;
     }
@@ -423,8 +423,11 @@ async fn monitor_events(
                     }
                 }
             }
+            PYBRICKS_HUB_CAPABILITIES_UUID => {
+                info!("Received capabilities notification, which is unexpected");
+            }
             _ => {
-                error!("Unknown event {}", data.uuid);
+                error!("Unknown event uuid {}", data.uuid);
             }
         }
     }

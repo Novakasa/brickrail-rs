@@ -20,7 +20,7 @@ use bevy::{ecs::system::SystemState, platform::collections::HashMap};
 use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui, widgets::Button};
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
-use pybricks_ble::pybricks_hub::HubStatus;
+use pybricks_ble::pybricks_hub::HubStatusFlags;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
@@ -704,8 +704,8 @@ fn handle_hub_events(
             }
             IOEvent::Status(status) => {
                 debug!("Status: {:?}", status);
-                let running_flag =
-                    status.clone() & HubStatus::PROGRAM_RUNNING == HubStatus::PROGRAM_RUNNING;
+                let running_flag = status.flags.clone() & HubStatusFlags::PROGRAM_RUNNING
+                    == HubStatusFlags::PROGRAM_RUNNING;
                 if running_flag {
                     if hub.state == HubState::StartingProgram {
                         hub.state = HubState::Running;
