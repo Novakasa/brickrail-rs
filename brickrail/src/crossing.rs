@@ -4,7 +4,7 @@ use bevy_prototype_lyon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::HubCommandEvent,
+    ble::HubCommandMessage,
     editor::{EditorState, GenericID},
     inspector::{Inspectable, InspectorPlugin},
     layout::EntityMap,
@@ -54,7 +54,7 @@ impl Inspectable for LevelCrossing {
 
 impl Selectable for LevelCrossing {
     type ID = TrackID;
-    type SpawnEvent = SpawnCrossingEvent;
+    type SpawnMessage = SpawnCrossingMessage;
 
     fn get_type() -> SelectableType {
         SelectableType::Crossing
@@ -82,13 +82,13 @@ impl Selectable for LevelCrossing {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SpawnCrossingEvent {
+#[derive(Serialize, Deserialize, Clone, Message)]
+pub struct SpawnCrossingMessage {
     pub switch: LevelCrossing,
     pub name: Option<String>,
 }
 
-impl SpawnCrossingEvent {
+impl SpawnCrossingMessage {
     pub fn new(switch: LevelCrossing) -> Self {
         Self { switch, name: None }
     }
@@ -96,7 +96,7 @@ impl SpawnCrossingEvent {
 
 pub fn spawn_crossing(
     mut commands: Commands,
-    mut events: EventReader<SpawnCrossingEvent>,
+    mut events: MessageReader<SpawnCrossingMessage>,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for event in events.read() {
@@ -106,18 +106,18 @@ pub fn spawn_crossing(
     }
 }
 
-#[derive(Debug, Event)]
-pub struct SetCrossingPositionEvent {
+#[derive(Debug, Message)]
+pub struct SetCrossingPositionMessage {
     pub id: TrackID,
     pub position: CrossingPosition,
 }
 
 pub fn update_switch_position(
-    mut events: EventReader<SetCrossingPositionEvent>,
+    mut events: MessageReader<SetCrossingPositionMessage>,
     crossings: Query<&LevelCrossing>,
     mut motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
-    mut hub_commands: EventWriter<HubCommandEvent>,
+    mut hub_commands: MessageWriter<HubCommandMessage>,
     editor_state: Res<State<EditorState>>,
 ) {
     for update in events.read() {
@@ -151,15 +151,15 @@ impl Plugin for CrossingPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(InspectorPlugin::<LevelCrossing>::new());
         app.add_plugins(SelectablePlugin::<LevelCrossing>::new());
-        app.add_event::<SpawnCrossingEvent>();
-        app.add_event::<SetCrossingPositionEvent>();
+        app.add_message::<SpawnCrossingMessage>();
+        app.add_message::<SetCrossingPositionMessage>();
         app.add_systems(
             Update,
-            update_switch_position.run_if(on_event::<SetCrossingPositionEvent>),
+            update_switch_position.run_if(on_message::<SetCrossingPositionMessage>),
         );
         app.add_systems(
             PostUpdate,
-            spawn_crossing.run_if(on_event::<SpawnCrossingEvent>),
+            spawn_crossing.run_if(on_message::<SpawnCrossingMessage>),
         );
     }
 }

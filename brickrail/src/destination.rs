@@ -7,21 +7,21 @@ use crate::{
 use bevy::{ecs::system::SystemParam, prelude::*};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Event)]
-pub struct SpawnDestinationEvent {
+#[derive(Debug, Serialize, Deserialize, Clone, Message)]
+pub struct SpawnDestinationMessage {
     pub dest: Destination,
     pub name: Option<String>,
 }
 
 #[derive(SystemParam)]
-pub struct SpawnDestinationEventQuery<'w, 's> {
+pub struct SpawnDestinationMessageQuery<'w, 's> {
     query: Query<'w, 's, (&'static Destination, &'static Name)>,
 }
-impl SpawnDestinationEventQuery<'_, '_> {
-    pub fn get(&self) -> Vec<SpawnDestinationEvent> {
+impl SpawnDestinationMessageQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnDestinationMessage> {
         self.query
             .iter()
-            .map(|(dest, name)| SpawnDestinationEvent {
+            .map(|(dest, name)| SpawnDestinationMessage {
                 dest: dest.clone(),
                 name: Some(name.to_string()),
             })
@@ -89,7 +89,7 @@ impl Destination {
 }
 
 impl Selectable for Destination {
-    type SpawnEvent = SpawnDestinationEvent;
+    type SpawnMessage = SpawnDestinationMessage;
     type ID = DestinationID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -100,8 +100,8 @@ impl Selectable for Destination {
         GenericID::Destination(self.id)
     }
 
-    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
-        Some(SpawnDestinationEvent {
+    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnMessage> {
+        Some(SpawnDestinationMessage {
             dest: Destination::new(entity_map.new_destination_id()),
             name: None,
         })
@@ -114,7 +114,7 @@ impl Selectable for Destination {
 
 fn spawn_destination(
     mut commands: Commands,
-    mut events: EventReader<SpawnDestinationEvent>,
+    mut events: MessageReader<SpawnDestinationMessage>,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for spawn_dest in events.read() {
@@ -133,11 +133,11 @@ pub struct DestinationPlugin;
 
 impl Plugin for DestinationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnDestinationEvent>();
+        app.add_message::<SpawnDestinationMessage>();
         app.register_type::<BlockDirectionFilter>();
         app.add_systems(
             Update,
-            spawn_destination.run_if(on_event::<SpawnDestinationEvent>),
+            spawn_destination.run_if(on_message::<SpawnDestinationMessage>),
         );
     }
 }

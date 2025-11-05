@@ -1,11 +1,11 @@
 use crate::{
     ble::BLEHub,
-    editor::{DespawnEvent, SelectionState, SpawnHubEvent},
+    editor::{DespawnMessage, SelectionState, SpawnHubMessage},
     layout::EntityMap,
     layout_primitives::*,
     selectable::Selectable,
     switch::Switch,
-    switch_motor::SpawnPulseMotorEvent,
+    switch_motor::SpawnPulseMotorMessage,
 };
 use bevy::{ecs::component::Mutable, prelude::*};
 use bevy_egui::egui::{self, Layout, Ui};
@@ -47,7 +47,7 @@ impl LayoutDevice {
         &mut self,
         ui: &mut Ui,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        spawn_events: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -66,7 +66,7 @@ impl LayoutDevice {
 
 impl Selectable for LayoutDevice {
     type ID = LayoutDeviceID;
-    type SpawnEvent = SpawnPulseMotorEvent;
+    type SpawnMessage = SpawnPulseMotorMessage;
 
     fn get_type() -> crate::selectable::SelectableType {
         crate::selectable::SelectableType::LayoutDevice
@@ -82,12 +82,12 @@ impl Selectable for LayoutDevice {
 }
 
 pub trait DeviceComponent: Component {
-    type SpawnEvent: SpawnDeviceID;
+    type SpawnMessage: SpawnDeviceID;
 
     fn new_id(entity_map: &mut EntityMap) -> LayoutDeviceID;
 }
 
-pub trait SpawnDeviceID: Event {
+pub trait SpawnDeviceID: Message {
     fn from_id(id: LayoutDeviceID) -> Self;
 }
 
@@ -95,8 +95,8 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
     ui: &mut Ui,
     selected_id: &mut Option<LayoutDeviceID>,
     devices: &mut Query<(&mut T, &mut LayoutDevice)>,
-    spawn_events: &mut EventWriter<T::SpawnEvent>,
-    despawn_events: &mut EventWriter<DespawnEvent<LayoutDevice>>,
+    spawn_events: &mut MessageWriter<T::SpawnMessage>,
+    despawn_events: &mut MessageWriter<DespawnMessage<LayoutDevice>>,
     entity_map: &mut ResMut<EntityMap>,
     hubs: &Query<&BLEHub>,
 ) {
@@ -126,7 +126,7 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
                         }
                         if ui.button("New").clicked() {
                             let id = T::new_id(entity_map);
-                            spawn_events.write(T::SpawnEvent::from_id(id));
+                            spawn_events.write(T::SpawnMessage::from_id(id));
                             *selected_id = Some(id);
                         }
                     });
@@ -135,7 +135,7 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
                         if let Some(id) = selected_id.take() {
                             let entity = entity_map.layout_devices[&id];
                             let (_, device) = devices.get(entity).unwrap();
-                            despawn_events.write(DespawnEvent(device.id()));
+                            despawn_events.write(DespawnMessage(device.id()));
                         }
                     }
                 }
@@ -145,7 +145,7 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
 }
 
 fn despawn_layout_device(
-    mut events: EventReader<DespawnEvent<LayoutDevice>>,
+    mut events: MessageReader<DespawnMessage<LayoutDevice>>,
     mut entity_map: ResMut<EntityMap>,
     mut commands: Commands,
     mut q_switches: Query<&mut Switch>,
@@ -169,10 +169,10 @@ pub struct LayoutDevicePlugin;
 
 impl Plugin for LayoutDevicePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<DespawnEvent<LayoutDevice>>();
+        app.add_message::<DespawnMessage<LayoutDevice>>();
         app.add_systems(
             Update,
-            despawn_layout_device.run_if(on_event::<DespawnEvent<LayoutDevice>>),
+            despawn_layout_device.run_if(on_message::<DespawnMessage<LayoutDevice>>),
         );
     }
 }

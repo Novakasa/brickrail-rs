@@ -1,16 +1,14 @@
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use bevy::{
+    asset::RenderAssetUsages,
+    mesh::{Indices, PrimitiveTopology},
     platform::collections::HashMap,
     prelude::*,
-    render::{
-        mesh::{Indices, PrimitiveTopology},
-        render_asset::RenderAssetUsages,
-    },
 };
 use lyon_tessellation::{
-    path::Path, BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex,
-    StrokeVertexConstructor, VertexBuffers,
+    BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex, StrokeVertexConstructor,
+    VertexBuffers, path::Path,
 };
 
 use crate::track::LAYOUT_SCALE;

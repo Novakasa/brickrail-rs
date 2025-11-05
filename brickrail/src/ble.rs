@@ -4,7 +4,7 @@ use crate::{
     bevy_tokio_tasks::TokioTasksRuntime,
     ble_train::{BLETrain, TrainData},
     editor::{
-        DespawnEvent, EditorState, GenericID, Selection, SelectionState, SpawnHubEvent,
+        DespawnMessage, EditorState, GenericID, Selection, SelectionState, SpawnHubMessage,
         delete_selection_shortcut,
     },
     inspector::{Inspectable, InspectorPlugin},
@@ -153,7 +153,7 @@ impl Inspectable for BLEHub {
 }
 
 impl Selectable for BLEHub {
-    type SpawnEvent = SpawnHubEvent;
+    type SpawnMessage = SpawnHubMessage;
     type ID = HubID;
 
     fn get_type() -> SelectableType {
@@ -164,8 +164,8 @@ impl Selectable for BLEHub {
         GenericID::Hub(self.id)
     }
 
-    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
-        Some(SpawnHubEvent {
+    fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnMessage> {
+        Some(SpawnHubMessage {
             hub: BLEHub::new(entity_map.new_hub_id(HubType::Layout)),
         })
     }
@@ -181,7 +181,7 @@ impl BLEHub {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<HubCommandEvent>,
+            MessageWriter<HubCommandMessage>,
         )>::new(world);
         let (hubs, entity_map, selection_state, _type_registry, mut command_events) =
             state.get_mut(world);
@@ -199,7 +199,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::DiscoverName,
                     });
@@ -213,7 +213,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::Connect,
                     });
@@ -223,7 +223,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::Disconnect,
                     });
@@ -236,7 +236,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::DownloadProgram,
                     });
@@ -249,7 +249,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::StartProgram,
                     });
@@ -259,7 +259,7 @@ impl BLEHub {
                     .clicked()
                 {
                     let id = hub.id.clone();
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: id,
                         command: HubCommand::StopProgram,
                     });
@@ -275,7 +275,7 @@ impl BLEHub {
         selected_port: &mut Option<HubPort>,
         kind: HubType,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        spawn_events: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -328,7 +328,7 @@ impl BLEHub {
         selected: &mut Option<HubID>,
         kind: HubType,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        spawn_events: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -354,7 +354,7 @@ impl BLEHub {
                     {
                         *selected = Some(entity_map.new_hub_id(kind));
                         let hub = BLEHub::new(selected.unwrap().clone());
-                        spawn_events.write(SpawnHubEvent { hub });
+                        spawn_events.write(SpawnHubMessage { hub });
                     };
                 });
             if let Some(hub_id) = selected {
@@ -379,20 +379,20 @@ fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
 }
 
 fn create_hub(
-    mut hub_event_writer: EventWriter<SpawnHubEvent>,
+    mut hub_event_writer: MessageWriter<SpawnHubMessage>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_input.just_pressed(keyboard::KeyCode::KeyH) {
         let id = entity_map.new_hub_id(HubType::Layout);
         let hub = BLEHub::new(id);
-        hub_event_writer.write(SpawnHubEvent { hub });
+        hub_event_writer.write(SpawnHubMessage { hub });
     }
 }
 
 fn spawn_hub(
     runtime: Res<TokioTasksRuntime>,
-    mut spawn_event_reader: EventReader<SpawnHubEvent>,
+    mut spawn_event_reader: MessageReader<SpawnHubMessage>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
     settings: Res<Settings>,
@@ -413,7 +413,7 @@ fn spawn_hub(
             println!("Listening for events on hub {:?}", hub_id);
             while let Ok(event) = event_receiver.recv().await {
                 ctx.run_on_main_thread(move |ctx| {
-                    ctx.world.send_event(HubEvent {
+                    ctx.world.write_message(HubMessage {
                         hub_id,
                         event: event,
                     })
@@ -425,7 +425,7 @@ fn spawn_hub(
 }
 
 fn despawn_hub(
-    mut hub_event_reader: EventReader<DespawnEvent<BLEHub>>,
+    mut hub_event_reader: MessageReader<DespawnMessage<BLEHub>>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
     mut q_ble_trains: Query<&mut BLETrain>,
@@ -477,7 +477,7 @@ impl HubConfiguration {
     }
 }
 
-#[derive(Event, Debug, Clone)]
+#[derive(Message, Debug, Clone)]
 pub enum HubCommand {
     DiscoverName,
     Connect,
@@ -489,13 +489,13 @@ pub enum HubCommand {
     Configure,
 }
 
-#[derive(Event, Debug)]
-pub struct HubCommandEvent {
+#[derive(Message, Debug)]
+pub struct HubCommandMessage {
     pub hub_id: HubID,
     pub command: HubCommand,
 }
 
-impl HubCommandEvent {
+impl HubCommandMessage {
     pub fn input(hub_id: HubID, input: IOInput) -> Self {
         Self {
             hub_id,
@@ -505,7 +505,7 @@ impl HubCommandEvent {
 }
 
 fn execute_hub_commands(
-    mut hub_command_reader: EventReader<HubCommandEvent>,
+    mut hub_command_reader: MessageReader<HubCommandMessage>,
     mut q_hubs: Query<&mut BLEHub>,
     entity_map: Res<EntityMap>,
     runtime: Res<TokioTasksRuntime>,
@@ -645,15 +645,15 @@ impl FromIOMessage for SysData {
     }
 }
 
-#[derive(Event, Debug)]
-pub struct HubMessageEvent<T: FromIOMessage> {
+#[derive(Message, Debug)]
+pub struct HubMessageMessage<T: FromIOMessage> {
     pub id: HubID,
     pub data: T,
 }
 
 fn handle_hub_events(
-    mut hub_event_reader: EventReader<HubEvent>,
-    mut train_sender: EventWriter<HubMessageEvent<TrainData>>,
+    mut hub_event_reader: MessageReader<HubMessage>,
+    mut train_sender: MessageWriter<HubMessageMessage<TrainData>>,
     mut q_hubs: Query<(&mut BLEHub, &mut Name)>,
     entity_map: Res<EntityMap>,
     settings: Res<Settings>,
@@ -690,7 +690,7 @@ fn handle_hub_events(
                         HubType::Train => {
                             if let Some(data) = TrainData::from_io_message(msg) {
                                 debug!("sending TrainData: {:?}", data);
-                                train_sender.write(HubMessageEvent { id: hub.id, data });
+                                train_sender.write(HubMessageMessage { id: hub.id, data });
                             }
                         }
                         _ => {
@@ -731,15 +731,15 @@ fn handle_hub_events(
     }
 }
 
-#[derive(Event, Debug)]
-struct HubEvent {
+#[derive(Message, Debug)]
+struct HubMessage {
     hub_id: HubID,
     event: IOEvent,
 }
 
 pub fn prepare_hubs(
     q_hubs: Query<&BLEHub>,
-    mut command_events: EventWriter<HubCommandEvent>,
+    mut command_events: MessageWriter<HubCommandMessage>,
     mut editor_state: ResMut<NextState<EditorState>>,
 ) {
     let mut prepared = true;
@@ -754,7 +754,7 @@ pub fn prepare_hubs(
             match hub.state {
                 HubState::Disconnected => {
                     prepared = false;
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: hub.id,
                         command: HubCommand::Connect,
                     });
@@ -762,12 +762,12 @@ pub fn prepare_hubs(
                 HubState::Connected => {
                     prepared = false;
                     if hub.downloaded {
-                        command_events.write(HubCommandEvent {
+                        command_events.write(HubCommandMessage {
                             hub_id: hub.id,
                             command: HubCommand::StartProgram,
                         });
                     } else {
-                        command_events.write(HubCommandEvent {
+                        command_events.write(HubCommandMessage {
                             hub_id: hub.id,
                             command: HubCommand::DownloadProgram,
                         });
@@ -775,7 +775,7 @@ pub fn prepare_hubs(
                 }
                 HubState::Running => {
                     prepared = false;
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: hub.id,
                         command: HubCommand::Configure,
                     });
@@ -873,11 +873,11 @@ fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<
     }
 }
 
-fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<HubCommandEvent>) {
+fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: MessageWriter<HubCommandMessage>) {
     for hub in q_hubs.iter() {
         if hub.active {
             if hub.state.is_running() {
-                command_events.write(HubCommandEvent {
+                command_events.write(HubCommandMessage {
                     hub_id: hub.id,
                     command: HubCommand::StopProgram,
                 });
@@ -888,7 +888,7 @@ fn stop_hub_programs(q_hubs: Query<&BLEHub>, mut command_events: EventWriter<Hub
 
 pub fn disconnect_hubs(
     q_hubs: Query<&BLEHub>,
-    mut command_events: EventWriter<HubCommandEvent>,
+    mut command_events: MessageWriter<HubCommandMessage>,
     mut next_state: ResMut<NextState<EditorState>>,
 ) {
     let mut done = true;
@@ -897,12 +897,12 @@ pub fn disconnect_hubs(
             done = false;
             if !hub.state.is_busy() {
                 if hub.state.is_running() {
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: hub.id,
                         command: HubCommand::StopProgram,
                     });
                 } else {
-                    command_events.write(HubCommandEvent {
+                    command_events.write(HubCommandMessage {
                         hub_id: hub.id,
                         command: HubCommand::Disconnect,
                     });
@@ -921,16 +921,16 @@ impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<BLEHub>::new());
         app.add_plugins(InspectorPlugin::<BLEHub>::new());
-        app.add_event::<HubEvent>();
-        app.add_event::<HubCommandEvent>();
+        app.add_message::<HubMessage>();
+        app.add_message::<HubCommandMessage>();
         app.add_systems(
             Update,
             (
-                spawn_hub.run_if(on_event::<SpawnHubEvent>),
-                despawn_hub.run_if(on_event::<DespawnEvent<BLEHub>>),
+                spawn_hub.run_if(on_message::<SpawnHubMessage>),
+                despawn_hub.run_if(on_message::<DespawnMessage<BLEHub>>),
                 delete_selection_shortcut::<BLEHub>,
-                handle_hub_events.run_if(on_event::<HubEvent>),
-                execute_hub_commands.run_if(on_event::<HubCommandEvent>),
+                handle_hub_events.run_if(on_message::<HubMessage>),
+                execute_hub_commands.run_if(on_message::<HubCommandMessage>),
                 create_hub,
                 prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                 monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),

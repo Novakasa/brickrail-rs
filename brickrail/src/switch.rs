@@ -16,12 +16,12 @@ use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::track::{PATH_WIDTH, build_connection_path_extents};
 use crate::track_mesh::{MeshType, TrackMeshPlugin};
 use crate::{
-    ble::{BLEHub, HubCommandEvent},
-    editor::{DespawnEvent, EditorState, GenericID, SelectionState, SpawnHubEvent},
+    ble::{BLEHub, HubCommandMessage},
+    editor::{DespawnMessage, EditorState, GenericID, SelectionState, SpawnHubMessage},
     layout::EntityMap,
     layout_devices::{LayoutDevice, select_device_id},
     layout_primitives::*,
-    switch_motor::{MotorPosition, PulseMotor, SpawnPulseMotorEvent},
+    switch_motor::{MotorPosition, PulseMotor, SpawnPulseMotorMessage},
     track::{LAYOUT_SCALE, TRACK_WIDTH, spawn_connection},
 };
 
@@ -119,11 +119,11 @@ impl Switch {
             ResMut<SelectionState>,
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
-            EventWriter<SpawnHubEvent>,
-            EventWriter<SpawnPulseMotorEvent>,
-            EventWriter<DespawnEvent<LayoutDevice>>,
+            MessageWriter<SpawnHubMessage>,
+            MessageWriter<SpawnPulseMotorMessage>,
+            MessageWriter<DespawnMessage<LayoutDevice>>,
             Query<(&mut PulseMotor, &mut LayoutDevice)>,
-            EventWriter<SetSwitchPositionEvent>,
+            MessageWriter<SetSwitchPositionMessage>,
         )>::new(world);
         let (
             mut switches,
@@ -144,7 +144,7 @@ impl Switch {
                 ui.horizontal(|ui| {
                     for position in switch.positions.clone() {
                         if ui.button(position.to_string()).clicked() {
-                            set_switch_position.write(SetSwitchPositionEvent {
+                            set_switch_position.write(SetSwitchPositionMessage {
                                 id: switch.id,
                                 position,
                             });
@@ -197,7 +197,7 @@ impl Inspectable for Switch {
 }
 
 impl Selectable for Switch {
-    type SpawnEvent = SpawnSwitchEvent;
+    type SpawnMessage = SpawnSwitchMessage;
     type ID = DirectedTrackID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -231,21 +231,21 @@ impl Selectable for Switch {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SpawnSwitchEvent {
+#[derive(Serialize, Deserialize, Clone, Message)]
+pub struct SpawnSwitchMessage {
     pub switch: Switch,
     pub name: Option<String>,
 }
 
 #[derive(SystemParam)]
-pub struct SpawnSwitchEventQuery<'w, 's> {
+pub struct SpawnSwitchMessageQuery<'w, 's> {
     query: Query<'w, 's, (&'static Switch, &'static Name)>,
 }
-impl SpawnSwitchEventQuery<'_, '_> {
-    pub fn get(&self) -> Vec<SpawnSwitchEvent> {
+impl SpawnSwitchMessageQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnSwitchMessage> {
         self.query
             .iter()
-            .map(|(switch, name)| SpawnSwitchEvent {
+            .map(|(switch, name)| SpawnSwitchMessage {
                 switch: switch.clone(),
                 name: Some(name.to_string()),
             })
@@ -253,24 +253,24 @@ impl SpawnSwitchEventQuery<'_, '_> {
     }
 }
 
-#[derive(Debug, Event)]
-pub struct UpdateSwitchTurnsEvent {
+#[derive(Debug, Message)]
+pub struct UpdateSwitchTurnsMessage {
     pub id: DirectedTrackID,
     pub positions: Vec<SwitchPosition>,
 }
 
-#[derive(Debug, Event)]
-pub struct SetSwitchPositionEvent {
+#[derive(Debug, Message)]
+pub struct SetSwitchPositionMessage {
     pub id: DirectedTrackID,
     pub position: SwitchPosition,
 }
 
 pub fn update_switch_position(
-    mut events: EventReader<SetSwitchPositionEvent>,
+    mut events: MessageReader<SetSwitchPositionMessage>,
     switches: Query<&Switch>,
     mut switch_motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
-    mut hub_commands: EventWriter<HubCommandEvent>,
+    mut hub_commands: MessageWriter<HubCommandMessage>,
     editor_state: Res<State<EditorState>>,
 ) {
     for update in events.read() {
@@ -298,9 +298,9 @@ pub fn update_switch_position(
 }
 
 pub fn update_switch_turns(
-    mut events: EventReader<UpdateSwitchTurnsEvent>,
-    mut switch_spawn_events: EventWriter<SpawnSwitchEvent>,
-    mut despawn_switch_events: EventWriter<DespawnEvent<Switch>>,
+    mut events: MessageReader<UpdateSwitchTurnsMessage>,
+    mut switch_spawn_events: MessageWriter<SpawnSwitchMessage>,
+    mut despawn_switch_events: MessageWriter<DespawnMessage<Switch>>,
     mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
     mut commands: Commands,
@@ -313,7 +313,7 @@ pub fn update_switch_turns(
                 let mut switch = switches.get_mut(*entity).unwrap();
                 switch.set_positions(update.positions.clone());
             } else {
-                switch_spawn_events.write(SpawnSwitchEvent {
+                switch_spawn_events.write(SpawnSwitchMessage {
                     switch: Switch::new(update.id, update.positions.clone()),
                     name: None,
                 });
@@ -321,7 +321,7 @@ pub fn update_switch_turns(
         } else {
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let switch = switches.get(entity.clone()).unwrap();
-                despawn_switch_events.write(DespawnEvent(switch.id()));
+                despawn_switch_events.write(DespawnMessage(switch.id()));
             }
         }
         for (entity, connection) in switch_connections.iter() {
@@ -371,7 +371,7 @@ pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
 
 pub fn spawn_switch(
     mut commands: Commands,
-    mut events: EventReader<SpawnSwitchEvent>,
+    mut events: MessageReader<SpawnSwitchMessage>,
     mut entity_map: ResMut<EntityMap>,
     mut switch_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
@@ -506,7 +506,7 @@ fn update_switch_shapes(
 
 pub fn despawn_switch(
     mut commands: Commands,
-    mut events: EventReader<DespawnEvent<Switch>>,
+    mut events: MessageReader<DespawnMessage<Switch>>,
     mut entity_map: ResMut<EntityMap>,
 ) {
     for despawn_event in events.read() {
@@ -523,22 +523,22 @@ impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Switch>::new());
         app.add_plugins(InspectorPlugin::<Switch>::new());
-        app.add_event::<SpawnSwitchEvent>();
-        app.add_event::<UpdateSwitchTurnsEvent>();
-        app.add_event::<SetSwitchPositionEvent>();
-        app.add_event::<DespawnEvent<Switch>>();
+        app.add_message::<SpawnSwitchMessage>();
+        app.add_message::<UpdateSwitchTurnsMessage>();
+        app.add_message::<SetSwitchPositionMessage>();
+        app.add_message::<DespawnMessage<Switch>>();
         app.add_plugins(TrackMeshPlugin::<SwitchConnection>::default());
         app.add_systems(
             Update,
             (
-                spawn_switch.run_if(on_event::<SpawnSwitchEvent>),
+                spawn_switch.run_if(on_message::<SpawnSwitchMessage>),
                 update_switch_shapes.after(finish_hover),
                 update_switch_turns
                     .after(spawn_connection)
-                    .run_if(on_event::<UpdateSwitchTurnsEvent>),
-                update_switch_position.run_if(on_event::<SetSwitchPositionEvent>),
+                    .run_if(on_message::<UpdateSwitchTurnsMessage>),
+                update_switch_position.run_if(on_message::<SetSwitchPositionMessage>),
                 // draw_switches,
-                despawn_switch.run_if(on_event::<DespawnEvent<Switch>>),
+                despawn_switch.run_if(on_message::<DespawnMessage<Switch>>),
             ),
         );
     }

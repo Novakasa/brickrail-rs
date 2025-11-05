@@ -7,11 +7,11 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-bevy = { version = "0.16", features = ["serialize"] }
-bevy-inspector-egui = "0.33"
-bevy_framepace = "0.19"
-bevy_pancam = "0.18"
-bevy_prototype_lyon = { git = "https://github.com/rparrett/bevy_prototype_lyon", branch = "fix-dynamic-examples" }
+bevy = { version = "0.17", features = ["serialize"] }
+bevy-inspector-egui = "0.35"
+bevy_framepace = "0.20"
+bevy_pancam = "0.19"
+bevy_prototype_lyon = "0.15"
 itertools = "0.14"
 petgraph = "0.8"
 serde = "1"

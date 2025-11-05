@@ -5,7 +5,7 @@ use bevy_inspector_egui::egui::{self, ComboBox};
 use bevy_prototype_lyon::prelude::*;
 
 use crate::{
-    editor::{DespawnEvent, GenericID, finish_hover, init_hover, update_hover},
+    editor::{DespawnMessage, GenericID, finish_hover, init_hover, update_hover},
     layout::EntityMap,
 };
 
@@ -23,8 +23,8 @@ impl<T: Selectable> SelectablePlugin<T> {
 
 impl<T: Selectable> Plugin for SelectablePlugin<T> {
     fn build(&self, app: &mut App) {
-        app.add_event::<T::SpawnEvent>();
-        app.add_event::<DespawnEvent<T>>();
+        app.add_message::<T::SpawnMessage>();
+        app.add_message::<DespawnMessage<T>>();
         app.add_systems(
             Update,
             update_hover::<T>.after(init_hover).before(finish_hover),
@@ -47,7 +47,7 @@ pub enum SelectableType {
 }
 
 pub trait Selectable: Sync + Send + 'static + Component {
-    type SpawnEvent: Event;
+    type SpawnMessage: Message;
     type ID: PartialEq + Eq + Clone + Copy + std::fmt::Debug + Send + Sync;
 
     fn get_type() -> SelectableType;
@@ -73,7 +73,7 @@ pub trait Selectable: Sync + Send + 'static + Component {
         format!("{:}", self.generic_id())
     }
 
-    fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnEvent> {
+    fn default_spawn_event(_entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnMessage> {
         None
     }
 

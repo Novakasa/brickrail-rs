@@ -1,18 +1,18 @@
 use crate::{
-    block::{Block, BlockCreateEvent},
-    crossing::{LevelCrossing, SpawnCrossingEvent},
+    block::{Block, BlockCreateMessage},
+    crossing::{LevelCrossing, SpawnCrossingMessage},
     editor::{
-        DespawnEvent, EditorState, GenericID, HoverState, MousePosWorld, Selection, SelectionState,
-        delete_selection_shortcut, finish_hover,
+        DespawnMessage, EditorState, GenericID, HoverState, MousePosWorld, Selection,
+        SelectionState, delete_selection_shortcut, finish_hover,
     },
     inspector::{Inspectable, InspectorPlugin},
     layout::{Connections, EntityMap, TrackLocks},
     layout_primitives::*,
-    marker::{Marker, MarkerColor, MarkerSpawnEvent},
+    marker::{Marker, MarkerColor, MarkerSpawnMessage},
     materials::{TrackBaseMaterial, TrackInnerMaterial, TrackPathMaterial},
     route::LegState,
     selectable::{Selectable, SelectablePlugin, SelectableType},
-    switch::{Switch, UpdateSwitchTurnsEvent},
+    switch::{Switch, UpdateSwitchTurnsMessage},
     track_mesh::{MeshType, TrackMeshPlugin},
     train::{PlanRouteEvent, Train, TrainDragState},
     utils::bresenham_line,
@@ -87,8 +87,8 @@ impl TrackBuildState {
     fn build(
         &mut self,
         connections: &mut Connections,
-        track_event_writer: &mut EventWriter<SpawnTrackEvent>,
-        connection_event_writer: &mut EventWriter<SpawnConnectionEvent>,
+        track_event_writer: &mut MessageWriter<SpawnTrackMessage>,
+        connection_message_writer: &mut MessageWriter<SpawnConnectionMessage>,
     ) {
         while self.hover_cells.len() > 2 {
             if let Some(track_id) = TrackID::from_cells(
@@ -97,12 +97,12 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.write(SpawnTrackEvent(Track::from_id(track_id)));
+                    track_event_writer.write(SpawnTrackMessage(Track::from_id(track_id)));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
                         if !connections.has_connection(&connection_id) {
-                            connection_event_writer.write(SpawnConnectionEvent {
+                            connection_message_writer.write(SpawnConnectionMessage {
                                 id: connection_id,
                                 update_switches: true,
                             });
@@ -121,7 +121,7 @@ pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
         Res<EntityMap>,
         Res<SelectionState>,
         Res<AppTypeRegistry>,
-        EventWriter<BlockCreateEvent>,
+        MessageWriter<BlockCreateMessage>,
     )>::new(world);
     let (_entity_map, selection_state, _type_registry, mut spawn_events) = state.get_mut(world);
     if let Selection::Section(section) = &selection_state.selection {
@@ -131,7 +131,7 @@ pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
         ui.separator();
         if ui.button("Create block").clicked() {
             let block = Block::new(section.clone());
-            spawn_events.write(BlockCreateEvent(block));
+            spawn_events.write(BlockCreateMessage(block));
         }
         ui.separator();
     }
@@ -141,7 +141,7 @@ pub fn spawn_track(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnTrackEvent>,
+    mut event_reader: MessageReader<SpawnTrackMessage>,
 ) {
     for request in event_reader.read() {
         let track = request.0.clone();
@@ -152,13 +152,13 @@ pub fn spawn_track(
     }
 }
 
-#[derive(Debug, Clone, Event)]
-pub struct SpawnConnectionEvent {
+#[derive(Debug, Clone, Message)]
+pub struct SpawnConnectionMessage {
     pub id: TrackConnectionID,
     pub update_switches: bool,
 }
 
-impl Serialize for SpawnConnectionEvent {
+impl Serialize for SpawnConnectionMessage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -167,7 +167,7 @@ impl Serialize for SpawnConnectionEvent {
     }
 }
 
-impl<'de> Deserialize<'de> for SpawnConnectionEvent {
+impl<'de> Deserialize<'de> for SpawnConnectionMessage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -183,8 +183,8 @@ pub fn spawn_connection(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<SpawnConnectionEvent>,
-    mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
+    mut event_reader: MessageReader<SpawnConnectionMessage>,
+    mut switch_update_events: MessageWriter<UpdateSwitchTurnsMessage>,
     mut base_materials: ResMut<Assets<TrackBaseMaterial>>,
     mut inner_materials: ResMut<Assets<TrackInnerMaterial>>,
     mut path_materials: ResMut<Assets<TrackPathMaterial>>,
@@ -218,7 +218,7 @@ pub fn spawn_connection(
         if spawn_connection.update_switches {
             for track_id in connection_id.tracks() {
                 let existing_connections = connections.get_directed_connections_from(track_id);
-                let event = UpdateSwitchTurnsEvent {
+                let event = UpdateSwitchTurnsMessage {
                     id: track_id,
                     positions: existing_connections
                         .iter()
@@ -430,10 +430,10 @@ impl<'de> Deserialize<'de> for TrackLogicalFilter {
     }
 }
 
-#[derive(Debug, Clone, Event)]
-pub struct SpawnTrackEvent(pub Track);
+#[derive(Debug, Clone, Message)]
+pub struct SpawnTrackMessage(pub Track);
 
-impl Serialize for SpawnTrackEvent {
+impl Serialize for SpawnTrackMessage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -446,7 +446,7 @@ impl Serialize for SpawnTrackEvent {
     }
 }
 
-impl<'de> Deserialize<'de> for SpawnTrackEvent {
+impl<'de> Deserialize<'de> for SpawnTrackMessage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -456,7 +456,7 @@ impl<'de> Deserialize<'de> for SpawnTrackEvent {
             Ok(id) => Track::from_id(id),
             Err(_) => serde_json::from_value::<Track>(value).unwrap(),
         };
-        Ok(SpawnTrackEvent(track))
+        Ok(SpawnTrackMessage(track))
     }
 }
 
@@ -480,11 +480,11 @@ impl Track {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<MarkerSpawnEvent>,
-            EventWriter<SpawnCrossingEvent>,
+            MessageWriter<MarkerSpawnMessage>,
+            MessageWriter<SpawnCrossingMessage>,
             ResMut<Connections>,
             ResMut<TrackBuildState>,
-            EventWriter<SpawnConnectionEvent>,
+            MessageWriter<SpawnConnectionMessage>,
         )>::new(world);
         let (
             mut tracks,
@@ -505,14 +505,14 @@ impl Track {
                         let id = track.id.clone();
 
                         let marker = Marker::new(id, MarkerColor::Red);
-                        marker_spawner.write(MarkerSpawnEvent(marker));
+                        marker_spawner.write(MarkerSpawnMessage(marker));
                     }
                 }
                 if !entity_map.crossings.contains_key(&track.id) {
                     if ui.button("Add Crossing").clicked() {
                         let id = track.id.clone();
                         let crossing = LevelCrossing::new(id);
-                        crossing_spawner.write(SpawnCrossingEvent::new(crossing));
+                        crossing_spawner.write(SpawnCrossingMessage::new(crossing));
                     }
                 }
                 ui.separator();
@@ -548,7 +548,7 @@ impl Track {
                                 if ui.button("Set as portal exit").clicked() {
                                     let connection_id = TrackConnectionID::new(entrance, directed);
                                     track_build_state.portal_entrance = None;
-                                    connection_spawner.write(SpawnConnectionEvent {
+                                    connection_spawner.write(SpawnConnectionMessage {
                                         id: connection_id,
                                         update_switches: true,
                                     });
@@ -579,7 +579,7 @@ impl Inspectable for Track {
 }
 
 impl Selectable for Track {
-    type SpawnEvent = SpawnTrackEvent;
+    type SpawnMessage = SpawnTrackMessage;
     type ID = TrackID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -666,8 +666,8 @@ fn update_draw_track(
     mut connections: ResMut<Connections>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
-    mut track_event_writer: EventWriter<SpawnTrackEvent>,
-    mut connection_event_writer: EventWriter<SpawnConnectionEvent>,
+    mut track_event_writer: MessageWriter<SpawnTrackMessage>,
+    mut connection_message_writer: MessageWriter<SpawnConnectionMessage>,
 ) {
     let last_cell = track_build_state.hover_cells.last();
     if last_cell.is_none() {
@@ -682,7 +682,7 @@ fn update_draw_track(
         track_build_state.build(
             &mut connections,
             &mut track_event_writer,
-            &mut connection_event_writer,
+            &mut connection_message_writer,
         );
     }
 }
@@ -716,7 +716,7 @@ fn draw_build_cells(
 }
 
 fn update_path_track(
-    _trigger: Trigger<PlanRouteEvent>,
+    _trigger: On<PlanRouteEvent>,
     mut query: Query<(
         &TrackShapePath,
         &mut Transform,
@@ -832,9 +832,9 @@ fn despawn_track(
     mut commands: Commands,
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
-    mut event_reader: EventReader<DespawnEvent<Track>>,
-    mut switch_update_events: EventWriter<UpdateSwitchTurnsEvent>,
-    mut switch_despawn_events: EventWriter<DespawnEvent<Switch>>,
+    mut event_reader: MessageReader<DespawnMessage<Track>>,
+    mut switch_update_events: MessageWriter<UpdateSwitchTurnsMessage>,
+    mut switch_despawn_events: MessageWriter<DespawnMessage<Switch>>,
 ) {
     for despawn_event in event_reader.read() {
         let track_id = despawn_event.0;
@@ -844,7 +844,7 @@ fn despawn_track(
             .iter()
             .filter(|id| entity_map.switches.contains_key(*id))
         {
-            switch_despawn_events.write(DespawnEvent(*switch));
+            switch_despawn_events.write(DespawnMessage(*switch));
         }
 
         let mut other_dirtracks = vec![];
@@ -873,7 +873,7 @@ fn despawn_track(
 
         for directed in other_dirtracks {
             let existing_connections = connections.get_directed_connections_from(directed);
-            let event = UpdateSwitchTurnsEvent {
+            let event = UpdateSwitchTurnsMessage {
                 id: directed,
                 positions: existing_connections
                     .iter()
@@ -909,9 +909,9 @@ impl Plugin for TrackPlugin {
         app.add_plugins(SelectablePlugin::<Track>::new());
         app.add_plugins(InspectorPlugin::<Track>::new());
         app.add_plugins(InspectorPlugin::<TrackSectionSelection>::new());
-        app.add_event::<SpawnTrackEvent>();
-        app.add_event::<SpawnConnectionEvent>();
-        app.add_event::<DespawnEvent<Track>>();
+        app.add_message::<SpawnTrackMessage>();
+        app.add_message::<SpawnConnectionMessage>();
+        app.add_message::<DespawnMessage<Track>>();
         app.add_observer(update_path_track);
         app.add_systems(
             Update,
@@ -928,9 +928,9 @@ impl Plugin for TrackPlugin {
         app.add_systems(
             PostUpdate,
             (
-                spawn_track.run_if(on_event::<SpawnTrackEvent>),
+                spawn_track.run_if(on_message::<SpawnTrackMessage>),
                 spawn_connection
-                    .run_if(on_event::<SpawnConnectionEvent>)
+                    .run_if(on_message::<SpawnConnectionMessage>)
                     .after(spawn_track),
             ),
         );

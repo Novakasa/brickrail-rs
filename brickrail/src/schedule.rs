@@ -218,7 +218,7 @@ impl Inspectable for TrainSchedule {
 }
 
 impl Selectable for TrainSchedule {
-    type SpawnEvent = SpawnScheduleEvent;
+    type SpawnMessage = SpawnScheduleMessage;
     type ID = ScheduleID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -235,29 +235,29 @@ impl Selectable for TrainSchedule {
 
     fn default_spawn_event(
         entity_map: &mut ResMut<crate::layout::EntityMap>,
-    ) -> Option<Self::SpawnEvent> {
-        Some(SpawnScheduleEvent {
+    ) -> Option<Self::SpawnMessage> {
+        Some(SpawnScheduleMessage {
             schedule: TrainSchedule::new(entity_map.new_schedule_id()),
             name: None,
         })
     }
 }
 
-#[derive(Debug, Event, Serialize, Deserialize, Clone)]
-pub struct SpawnScheduleEvent {
+#[derive(Debug, Message, Serialize, Deserialize, Clone)]
+pub struct SpawnScheduleMessage {
     pub schedule: TrainSchedule,
     pub name: Option<String>,
 }
 
 #[derive(SystemParam)]
-pub struct SpawnScheduleEventQuery<'w, 's> {
+pub struct SpawnScheduleMessageQuery<'w, 's> {
     query: Query<'w, 's, (&'static TrainSchedule, &'static Name)>,
 }
-impl SpawnScheduleEventQuery<'_, '_> {
-    pub fn get(&self) -> Vec<SpawnScheduleEvent> {
+impl SpawnScheduleMessageQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnScheduleMessage> {
         self.query
             .iter()
-            .map(|(schedule, name)| SpawnScheduleEvent {
+            .map(|(schedule, name)| SpawnScheduleMessage {
                 schedule: schedule.clone(),
                 name: Some(name.to_string()),
             })
@@ -304,7 +304,7 @@ fn assign_random_routes(
 
 fn spawn_schedule(
     mut commands: Commands,
-    mut events: EventReader<SpawnScheduleEvent>,
+    mut events: MessageReader<SpawnScheduleMessage>,
     mut entity_map: ResMut<crate::layout::EntityMap>,
 ) {
     for event in events.read() {
@@ -360,7 +360,7 @@ impl Plugin for SchedulePlugin {
         app.insert_resource(ControlInfo::default());
         app.add_plugins(SelectablePlugin::<TrainSchedule>::new());
         app.add_plugins(InspectorPlugin::<TrainSchedule>::new());
-        app.add_event::<SpawnScheduleEvent>();
+        app.add_message::<SpawnScheduleMessage>();
         app.add_systems(
             Update,
             (
@@ -371,7 +371,7 @@ impl Plugin for SchedulePlugin {
                 update_schedules
                     .run_if(in_state(ControlStateMode::Schedule))
                     .before(set_train_route),
-                spawn_schedule.run_if(on_event::<SpawnScheduleEvent>),
+                spawn_schedule.run_if(on_message::<SpawnScheduleMessage>),
             ),
         );
     }

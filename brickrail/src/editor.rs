@@ -3,19 +3,21 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use crate::ble::{BLEHub, HubState};
-use crate::block::{Block, BlockSpawnEvent, BlockSpawnEventQuery};
-use crate::destination::{Destination, SpawnDestinationEvent, SpawnDestinationEventQuery};
+use crate::block::{Block, BlockSpawnMessage, BlockSpawnMessageQuery};
+use crate::destination::{Destination, SpawnDestinationMessage, SpawnDestinationMessageQuery};
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
 use crate::layout_devices::LayoutDevice;
 use crate::layout_primitives::*;
-use crate::marker::{Marker, MarkerSpawnEvent};
-use crate::schedule::{ControlInfo, SpawnScheduleEvent, SpawnScheduleEventQuery, TrainSchedule};
+use crate::marker::{Marker, MarkerSpawnMessage};
+use crate::schedule::{
+    ControlInfo, SpawnScheduleMessage, SpawnScheduleMessageQuery, TrainSchedule,
+};
 use crate::section::DirectedSection;
 use crate::selectable::{Selectable, SelectableType};
-use crate::switch::{SpawnSwitchEvent, SpawnSwitchEventQuery, Switch};
-use crate::switch_motor::{PulseMotor, SpawnPulseMotorEvent};
-use crate::track::{SpawnConnectionEvent, SpawnTrackEvent, Track, LAYOUT_SCALE};
-use crate::train::{SpawnTrainEvent, SpawnTrainEventQuery, Train};
+use crate::switch::{SpawnSwitchMessage, SpawnSwitchMessageQuery, Switch};
+use crate::switch_motor::{PulseMotor, SpawnPulseMotorMessage};
+use crate::track::{LAYOUT_SCALE, SpawnConnectionMessage, SpawnTrackMessage, Track};
+use crate::train::{SpawnTrainMessage, SpawnTrainMessageQuery, Train};
 
 use bevy::color::palettes::css::BLUE;
 use bevy::ecs::component::Mutable;
@@ -24,7 +26,7 @@ use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowCloseRequested};
 use bevy_egui::egui::panel::TopBottomSide;
 use bevy_egui::egui::{Align, Align2, Layout};
-use bevy_egui::{egui, EguiContexts};
+use bevy_egui::{EguiContexts, egui};
 use bevy_inspector_egui::bevy_egui::{self, EguiPrimaryContextPass};
 use bevy_inspector_egui::bevy_inspector::ui_for_all_assets;
 use bevy_inspector_egui::egui::ComboBox;
@@ -276,7 +278,7 @@ pub fn directory_ui<T: Sized + Component + Selectable>(
         ResMut<SelectionState>,
         ResMut<HoverState>,
         ResMut<EntityMap>,
-        EventWriter<T::SpawnEvent>,
+        MessageWriter<T::SpawnMessage>,
     )>::new(world);
     let (query, mut selection_state, mut hover_state, mut entity_map, mut spawner) =
         state.get_mut(world);
@@ -330,7 +332,7 @@ pub fn top_panel(
     mut next_mode: ResMut<NextState<ControlStateMode>>,
     mut editor_info: ResMut<EditorInfo>,
     control_info: Res<ControlInfo>,
-    mut save_events: EventWriter<SaveLayoutEvent>,
+    mut save_events: MessageWriter<SaveLayoutMessage>,
 ) {
     if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
@@ -354,7 +356,7 @@ pub fn top_panel(
                         .add_filter("brickrail layouts", &["json"])
                         .save_file()
                     {
-                        save_events.write(SaveLayoutEvent { path: path });
+                        save_events.write(SaveLayoutMessage { path: path });
                     }
                 }
                 ui.separator();
@@ -611,7 +613,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component<Mutability = Mutable>
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
     mut selection_state: ResMut<SelectionState>,
     mut q_selectable: Query<&mut T>,
-    mut despawn_events: EventWriter<DespawnEvent<T>>,
+    mut despawn_events: MessageWriter<DespawnMessage<T>>,
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::Delete) {
@@ -619,7 +621,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component<Mutability = Mutable>
             Selection::Single(id) => {
                 let entity = entity_map.get_entity(id).unwrap();
                 if let Ok(component) = q_selectable.get_mut(entity) {
-                    despawn_events.write(DespawnEvent(component.id()));
+                    despawn_events.write(DespawnMessage(component.id()));
                     selection_state.selection = Selection::None;
                 }
             }
@@ -690,60 +692,60 @@ fn extend_selection(
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SpawnHubEvent {
+#[derive(Serialize, Deserialize, Clone, Message)]
+pub struct SpawnHubMessage {
     pub hub: BLEHub,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct SerializableLayout {
     marker_map: MarkerMap,
-    tracks: Vec<SpawnTrackEvent>,
-    connections: Vec<SpawnConnectionEvent>,
-    blocks: Vec<BlockSpawnEvent>,
+    tracks: Vec<SpawnTrackMessage>,
+    connections: Vec<SpawnConnectionMessage>,
+    blocks: Vec<BlockSpawnMessage>,
     markers: Vec<Marker>,
     #[serde(default)]
-    trains: Vec<SpawnTrainEvent>,
+    trains: Vec<SpawnTrainMessage>,
     #[serde(default)]
-    hubs: Vec<SpawnHubEvent>,
+    hubs: Vec<SpawnHubMessage>,
     #[serde(default)]
-    switches: Vec<SpawnSwitchEvent>,
+    switches: Vec<SpawnSwitchMessage>,
     #[serde(default)]
-    switch_motors: Vec<SpawnPulseMotorEvent>,
+    switch_motors: Vec<SpawnPulseMotorMessage>,
     #[serde(default)]
-    destinations: Vec<SpawnDestinationEvent>,
+    destinations: Vec<SpawnDestinationMessage>,
     #[serde(default)]
-    schedules: Vec<SpawnScheduleEvent>,
+    schedules: Vec<SpawnScheduleMessage>,
 }
 
 pub fn save_layout(
     marker_map: Res<MarkerMap>,
-    q_trains: SpawnTrainEventQuery,
-    q_switches: SpawnSwitchEventQuery,
-    q_blocks: BlockSpawnEventQuery,
+    q_trains: SpawnTrainMessageQuery,
+    q_switches: SpawnSwitchMessageQuery,
+    q_blocks: BlockSpawnMessageQuery,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
     q_hubs: Query<&BLEHub>,
     q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
-    q_destinations: SpawnDestinationEventQuery,
-    q_schedules: SpawnScheduleEventQuery,
+    q_destinations: SpawnDestinationMessageQuery,
+    q_schedules: SpawnScheduleMessageQuery,
     connections: Res<Connections>,
-    mut save_events: EventReader<SaveLayoutEvent>,
+    mut save_events: MessageReader<SaveLayoutMessage>,
 ) {
     for event in save_events.read() {
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
         let tracks = q_tracks
             .iter()
-            .map(|t| SpawnTrackEvent(t.clone()))
+            .map(|t| SpawnTrackMessage(t.clone()))
             .collect();
         let hubs = q_hubs
             .iter()
-            .map(|hub| SpawnHubEvent { hub: hub.clone() })
+            .map(|hub| SpawnHubMessage { hub: hub.clone() })
             .collect();
         let switch_motors = q_switch_motors
             .iter()
-            .map(|(motor, device)| SpawnPulseMotorEvent {
+            .map(|(motor, device)| SpawnPulseMotorMessage {
                 motor: motor.clone(),
                 device: device.clone(),
             })
@@ -751,7 +753,7 @@ pub fn save_layout(
         let connections = connections
             .connection_graph
             .all_edges()
-            .map(|(_, _, c)| SpawnConnectionEvent {
+            .map(|(_, _, c)| SpawnConnectionMessage {
                 id: c.clone(),
                 update_switches: false,
             })
@@ -774,25 +776,25 @@ pub fn save_layout(
     }
 }
 
-#[derive(Event)]
-pub struct DespawnEvent<T: Selectable>(pub T::ID);
+#[derive(Message)]
+pub struct DespawnMessage<T: Selectable>(pub T::ID);
 
-#[derive(Event)]
-pub struct LoadLayoutEvent {
+#[derive(Message)]
+pub struct LoadLayoutMessage {
     path: PathBuf,
 }
 
-#[derive(Event)]
-pub struct SaveLayoutEvent {
+#[derive(Message)]
+pub struct SaveLayoutMessage {
     path: PathBuf,
 }
 
-#[derive(Event)]
-pub struct NewLayoutEvent {}
+#[derive(Message)]
+pub struct NewLayoutMessage {}
 
 pub fn load_layout(
     world: &mut World,
-    params: &mut SystemState<(Commands, EventReader<LoadLayoutEvent>)>,
+    params: &mut SystemState<(Commands, MessageReader<LoadLayoutMessage>)>,
 ) {
     world.run_system_once(new_layout).unwrap();
     {
@@ -812,52 +814,52 @@ pub fn load_layout(
             // commands.insert_resource(connections);
             for track in layout_value.tracks {
                 commands.queue(|world: &mut World| {
-                    world.send_event(track);
+                    world.write_message(track);
                 });
             }
             for connection in layout_value.connections {
                 commands.queue(|world: &mut World| {
-                    world.send_event(connection);
+                    world.write_message(connection);
                 });
             }
             for block in layout_value.blocks {
                 commands.queue(|world: &mut World| {
-                    world.send_event(block);
+                    world.write_message(block);
                 });
             }
             for marker in layout_value.markers {
                 commands.queue(|world: &mut World| {
-                    world.send_event(MarkerSpawnEvent(marker));
+                    world.write_message(MarkerSpawnMessage(marker));
                 });
             }
             for serialized_train in layout_value.trains {
                 commands.queue(|world: &mut World| {
-                    world.send_event(serialized_train);
+                    world.write_message(serialized_train);
                 });
             }
             for serialized_hub in layout_value.hubs {
                 commands.queue(|world: &mut World| {
-                    world.send_event(serialized_hub);
+                    world.write_message(serialized_hub);
                 });
             }
             for serialized_switch in layout_value.switches {
                 commands.queue(|world: &mut World| {
-                    world.send_event(serialized_switch);
+                    world.write_message(serialized_switch);
                 });
             }
             for serialized_switch_motor in layout_value.switch_motors {
                 commands.queue(|world: &mut World| {
-                    world.send_event(serialized_switch_motor);
+                    world.write_message(serialized_switch_motor);
                 });
             }
             for destination in layout_value.destinations {
                 commands.queue(|world: &mut World| {
-                    world.send_event(destination);
+                    world.write_message(destination);
                 });
             }
             for schedule in layout_value.schedules {
                 commands.queue(|world: &mut World| {
-                    world.send_event(schedule);
+                    world.write_message(schedule);
                 });
             }
             commands.insert_resource(marker_map);
@@ -868,7 +870,7 @@ pub fn load_layout(
 
 fn new_layout(
     world: &mut World,
-    params: &mut SystemState<(Res<EntityMap>, Commands, EventReader<NewLayoutEvent>)>,
+    params: &mut SystemState<(Res<EntityMap>, Commands, MessageReader<NewLayoutMessage>)>,
 ) {
     {
         let (entity_map, mut commands, mut events) = params.get_mut(world);
@@ -890,7 +892,7 @@ fn new_layout(
 
 pub fn close_event(
     mut state: ResMut<NextState<EditorState>>,
-    mut closed: EventReader<WindowCloseRequested>,
+    mut closed: MessageReader<WindowCloseRequested>,
     mut editor_info: ResMut<EditorInfo>,
 ) {
     for _event in closed.read() {
@@ -903,18 +905,18 @@ pub fn disconnect_finish(
     mut editor_info: ResMut<EditorInfo>,
     mut commands: Commands,
     primary_window: Single<Entity, With<PrimaryWindow>>,
-    mut load_events: EventWriter<LoadLayoutEvent>,
-    mut new_events: EventWriter<NewLayoutEvent>,
+    mut load_events: MessageWriter<LoadLayoutMessage>,
+    mut new_events: MessageWriter<NewLayoutMessage>,
 ) {
     match &editor_info.disconnect_action {
         DisconnectAction::Exit => {
             commands.entity(primary_window.into_inner()).despawn();
         }
         DisconnectAction::NewLayout => {
-            new_events.write(NewLayoutEvent {});
+            new_events.write(NewLayoutMessage {});
         }
         DisconnectAction::LoadLayout(path) => {
-            load_events.write(LoadLayoutEvent { path: path.clone() });
+            load_events.write(LoadLayoutMessage { path: path.clone() });
         }
         DisconnectAction::Nothing => {}
     }
@@ -929,9 +931,9 @@ impl Plugin for EditorPlugin {
         app.init_state::<EditorState>();
         app.add_computed_state::<ControlState>();
         app.add_sub_state::<ControlStateMode>();
-        app.add_event::<LoadLayoutEvent>();
-        app.add_event::<SaveLayoutEvent>();
-        app.add_event::<NewLayoutEvent>();
+        app.add_message::<LoadLayoutMessage>();
+        app.add_message::<SaveLayoutMessage>();
+        app.add_message::<NewLayoutMessage>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
@@ -951,11 +953,11 @@ impl Plugin for EditorPlugin {
                     draw_selection,
                 )
                     .chain(),
-                save_layout.run_if(on_event::<SaveLayoutEvent>),
-                load_layout.run_if(on_event::<LoadLayoutEvent>),
-                new_layout.run_if(on_event::<NewLayoutEvent>),
+                save_layout.run_if(on_message::<SaveLayoutMessage>),
+                load_layout.run_if(on_message::<LoadLayoutMessage>),
+                new_layout.run_if(on_message::<NewLayoutMessage>),
                 update_editor_state,
-                close_event.run_if(on_event::<WindowCloseRequested>),
+                close_event.run_if(on_message::<WindowCloseRequested>),
             ),
         );
         app.add_systems(

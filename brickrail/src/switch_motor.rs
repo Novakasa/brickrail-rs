@@ -1,5 +1,5 @@
 use crate::{
-    ble::{HubCommandEvent, HubConfiguration},
+    ble::{HubCommandMessage, HubConfiguration},
     layout::EntityMap,
     layout_devices::{DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
@@ -9,7 +9,7 @@ use bevy_egui::egui::Ui;
 use bevy_inspector_egui::bevy_egui;
 
 use bevy_inspector_egui::{
-    inspector_options::ReflectInspectorOptions, reflect_inspector::ui_for_value, InspectorOptions,
+    InspectorOptions, inspector_options::ReflectInspectorOptions, reflect_inspector::ui_for_value,
 };
 use pybricks_ble::io_hub::Input;
 use serde::{Deserialize, Serialize};
@@ -82,12 +82,12 @@ impl PulseMotor {
     pub fn switch_command(
         device: &LayoutDevice,
         position: &MotorPosition,
-    ) -> Option<HubCommandEvent> {
+    ) -> Option<HubCommandMessage> {
         let input = Input::rpc(
             "device_execute",
             &vec![device.port?.to_u8(), 0, position.to_u8()],
         );
-        Some(HubCommandEvent::input(device.hub_id?, input))
+        Some(HubCommandMessage::input(device.hub_id?, input))
     }
 
     pub fn hub_configuration(&self, device: &LayoutDevice) -> HashMap<HubID, HubConfiguration> {
@@ -108,20 +108,20 @@ impl PulseMotor {
 }
 
 impl DeviceComponent for PulseMotor {
-    type SpawnEvent = SpawnPulseMotorEvent;
+    type SpawnMessage = SpawnPulseMotorMessage;
 
     fn new_id(entity_map: &mut EntityMap) -> LayoutDeviceID {
         entity_map.new_layout_device_id(LayoutDeviceType::PulseMotor)
     }
 }
 
-#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Event)]
-pub struct SpawnPulseMotorEvent {
+#[derive(Debug, Reflect, Serialize, Deserialize, Clone, Message)]
+pub struct SpawnPulseMotorMessage {
     pub device: LayoutDevice,
     pub motor: PulseMotor,
 }
 
-impl SpawnDeviceID for SpawnPulseMotorEvent {
+impl SpawnDeviceID for SpawnPulseMotorMessage {
     fn from_id(id: LayoutDeviceID) -> Self {
         Self {
             device: LayoutDevice::from_id(id),
@@ -131,7 +131,7 @@ impl SpawnDeviceID for SpawnPulseMotorEvent {
 }
 
 fn spawn_pulse_motor(
-    mut events: EventReader<SpawnPulseMotorEvent>,
+    mut events: MessageReader<SpawnPulseMotorMessage>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
 ) {
@@ -148,10 +148,10 @@ pub struct PulseMotorPlugin;
 
 impl Plugin for PulseMotorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnPulseMotorEvent>();
+        app.add_message::<SpawnPulseMotorMessage>();
         app.add_systems(
             Update,
-            spawn_pulse_motor.run_if(on_event::<SpawnPulseMotorEvent>),
+            spawn_pulse_motor.run_if(on_message::<SpawnPulseMotorMessage>),
         );
     }
 }

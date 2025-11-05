@@ -10,13 +10,13 @@ use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ble::{BLEHub, FromIOMessage, HubCommandEvent, HubConfiguration, HubMessageEvent},
-    editor::{SelectionState, SpawnHubEvent},
+    ble::{BLEHub, FromIOMessage, HubCommandMessage, HubConfiguration, HubMessageMessage},
+    editor::{SelectionState, SpawnHubMessage},
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
     marker::{MarkerColor, MarkerSpeed},
     route::{LegIntention, Route},
-    train::{MarkerAdvanceEvent, Train},
+    train::{MarkerAdvanceMessage, Train},
 };
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ impl TrainHub {
         &mut self,
         ui: &mut Ui,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut EventWriter<SpawnHubEvent>,
+        spawn_events: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
         type_registry: &Res<AppTypeRegistry>,
@@ -170,7 +170,7 @@ impl BLETrain {
 
     fn master_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
-        command.push(HubCommandEvent::input(
+        command.push(HubCommandMessage::input(
             self.master_hub.hub_id.unwrap(),
             input,
         ));
@@ -203,7 +203,7 @@ impl BLETrain {
     fn puppet_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
         for hub in self.iter_puppets() {
-            command.push(HubCommandEvent::input(*hub, input.clone()));
+            command.push(HubCommandMessage::input(*hub, input.clone()));
         }
         command
     }
@@ -211,10 +211,10 @@ impl BLETrain {
     fn all_command(&self, input: IOInput) -> HubCommands {
         let mut command = HubCommands::new();
         if let Some(hub_id) = self.master_hub.hub_id {
-            command.push(HubCommandEvent::input(hub_id, input.clone()));
+            command.push(HubCommandMessage::input(hub_id, input.clone()));
         }
         for hub in self.puppets.iter().filter_map(|id| id.hub_id.as_ref()) {
-            command.push(HubCommandEvent::input(*hub, input.clone()));
+            command.push(HubCommandMessage::input(*hub, input.clone()));
         }
         command
     }
@@ -249,7 +249,7 @@ impl BLETrain {
             ResMut<SelectionState>,
             Res<AppTypeRegistry>,
             Query<&BLEHub>,
-            EventWriter<SpawnHubEvent>,
+            MessageWriter<SpawnHubMessage>,
         )>::new(world);
         let (
             mut ble_trains,
@@ -331,7 +331,7 @@ impl BLETrain {
 }
 
 pub struct HubCommands {
-    pub hub_events: Vec<HubCommandEvent>,
+    pub hub_events: Vec<HubCommandMessage>,
 }
 
 impl HubCommands {
@@ -341,7 +341,7 @@ impl HubCommands {
         }
     }
 
-    fn push(&mut self, hub_input: HubCommandEvent) {
+    fn push(&mut self, hub_input: HubCommandMessage) {
         self.hub_events.push(hub_input);
     }
 
@@ -351,10 +351,10 @@ impl HubCommands {
 }
 
 fn handle_messages(
-    mut hub_message_events: EventReader<HubMessageEvent<TrainData>>,
+    mut hub_message_events: MessageReader<HubMessageMessage<TrainData>>,
     mut ble_trains: Query<(&BLETrain, &mut Train)>,
-    mut advance_events: EventWriter<MarkerAdvanceEvent>,
-    mut ble_commands: EventWriter<HubCommandEvent>,
+    mut advance_events: MessageWriter<MarkerAdvanceMessage>,
+    mut ble_commands: MessageWriter<HubCommandMessage>,
 ) {
     for event in hub_message_events.read() {
         for (ble_train, _train) in ble_trains.iter_mut() {
@@ -374,7 +374,7 @@ fn handle_messages(
                     }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
-                        advance_events.write(MarkerAdvanceEvent {
+                        advance_events.write(MarkerAdvanceMessage {
                             id: ble_train.train_id,
                             index: index as usize,
                         });
@@ -418,11 +418,11 @@ pub struct BLETrainPlugin;
 
 impl Plugin for BLETrainPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HubMessageEvent<TrainData>>();
-        app.add_event::<MarkerAdvanceEvent>();
+        app.add_message::<HubMessageMessage<TrainData>>();
+        app.add_message::<MarkerAdvanceMessage>();
         app.add_systems(
             Update,
-            handle_messages.run_if(on_event::<HubMessageEvent<TrainData>>),
+            handle_messages.run_if(on_message::<HubMessageMessage<TrainData>>),
         );
     }
 }

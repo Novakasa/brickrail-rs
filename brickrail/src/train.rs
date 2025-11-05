@@ -1,8 +1,8 @@
 use crate::{
-    ble::HubCommandEvent,
+    ble::HubCommandMessage,
     ble_train::BLETrain,
     block::{Block, spawn_block},
-    crossing::{LevelCrossing, SetCrossingPositionEvent},
+    crossing::{LevelCrossing, SetCrossingPositionMessage},
     destination::{BlockDirectionFilter, Destination},
     editor::*,
     inspector::{Inspectable, InspectorPlugin},
@@ -13,7 +13,7 @@ use crate::{
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
-    switch::{SetSwitchPositionEvent, Switch},
+    switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
 };
 use bevy::{
@@ -51,7 +51,7 @@ pub struct TrainWagon {
 }
 
 impl Selectable for TrainWagon {
-    type SpawnEvent = SpawnTrainEvent;
+    type SpawnMessage = SpawnTrainMessage;
     type ID = WagonID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -238,7 +238,11 @@ impl Train {
         self.seek_pos -= (self.seek_pos + (1.0 - self.in_place_cycle) * WAGON_DIST) % WAGON_DIST;
     }
 
-    fn traverse_route(&mut self, delta: f32, advance_events: &mut EventWriter<MarkerAdvanceEvent>) {
+    fn traverse_route(
+        &mut self,
+        delta: f32,
+        advance_events: &mut MessageWriter<MarkerAdvanceMessage>,
+    ) {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
         let dist = delta * self.speed;
@@ -361,7 +365,7 @@ impl Inspectable for Train {
 }
 
 impl Selectable for Train {
-    type SpawnEvent = SpawnTrainEvent;
+    type SpawnMessage = SpawnTrainMessage;
     type ID = TrainID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -382,7 +386,7 @@ impl Selectable for Train {
 }
 
 #[derive(SystemParam)]
-pub struct SpawnTrainEventQuery<'w, 's> {
+pub struct SpawnTrainMessageQuery<'w, 's> {
     trains: Query<
         'w,
         's,
@@ -395,11 +399,11 @@ pub struct SpawnTrainEventQuery<'w, 's> {
     >,
 }
 
-impl SpawnTrainEventQuery<'_, '_> {
-    pub fn get(&self) -> Vec<SpawnTrainEvent> {
+impl SpawnTrainMessageQuery<'_, '_> {
+    pub fn get(&self) -> Vec<SpawnTrainMessage> {
         self.trains
             .iter()
-            .map(|(train, ble_train, name, schedule)| SpawnTrainEvent {
+            .map(|(train, ble_train, name, schedule)| SpawnTrainMessage {
                 train: train.clone(),
                 ble_train: Some(ble_train.clone()),
                 name: Some(name.to_string()),
@@ -409,8 +413,8 @@ impl SpawnTrainEventQuery<'_, '_> {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Event)]
-pub struct SpawnTrainEvent {
+#[derive(Serialize, Deserialize, Clone, Message)]
+pub struct SpawnTrainMessage {
     pub train: Train,
     pub ble_train: Option<BLETrain>,
     pub name: Option<String>,
@@ -505,13 +509,13 @@ fn init_drag_train(
 fn exit_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
-    mut set_train_route: EventWriter<SetTrainRouteEvent>,
+    mut set_train_route: MessageWriter<SetTrainRouteMessage>,
     mut hover_state: ResMut<HoverState>,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
             if let Some(route) = train_drag_state.route.clone() {
-                set_train_route.write(SetTrainRouteEvent {
+                set_train_route.write(SetTrainRouteMessage {
                     train_id,
                     route: route,
                 });
@@ -530,7 +534,7 @@ pub struct LocksChangedEvent {}
 pub struct PlanRouteEvent {}
 
 fn assign_destination_route(
-    _trigger: Trigger<PlanRouteEvent>,
+    _trigger: On<PlanRouteEvent>,
     q_blocks: Query<&Block>,
     q_destinations: Query<&Destination>,
     entity_map: Res<EntityMap>,
@@ -540,7 +544,7 @@ fn assign_destination_route(
     q_markers: Query<&Marker>,
     switches: Query<&Switch>,
     marker_map: Res<MarkerMap>,
-    mut set_train_route: EventWriter<SetTrainRouteEvent>,
+    mut set_train_route: MessageWriter<SetTrainRouteMessage>,
 ) {
     for (train, queue) in q_trains.iter() {
         if !train.get_route().is_blocked() {
@@ -606,12 +610,12 @@ fn assign_destination_route(
                 routes.sort_by_key(|route| route.total_length());
             }
             TargetChoiceStrategy::Random => {
-                routes.shuffle(&mut rand::thread_rng());
+                routes.shuffle(&mut rand::rng());
             }
         }
 
         if let Some(route) = routes.first().cloned() {
-            set_train_route.write(SetTrainRouteEvent {
+            set_train_route.write(SetTrainRouteMessage {
                 train_id,
                 route: route,
             });
@@ -693,8 +697,8 @@ fn draw_hover_route(mut gizmos: Gizmos, train_drag_state: Res<TrainDragState>) {
     }
 }
 
-#[derive(Event)]
-pub struct MarkerAdvanceEvent {
+#[derive(Message)]
+pub struct MarkerAdvanceMessage {
     pub id: TrainID,
     pub index: usize,
 }
@@ -723,8 +727,8 @@ pub struct QueuedDestination {
     pub allow_locked: bool,
 }
 
-#[derive(Debug, Event)]
-pub struct SetTrainRouteEvent {
+#[derive(Debug, Message)]
+pub struct SetTrainRouteMessage {
     train_id: TrainID,
     route: Route,
 }
@@ -742,14 +746,14 @@ pub fn set_train_route(
     mut q_trains: Query<(&mut Train, &mut BLETrain)>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
-    mut route_events: EventReader<SetTrainRouteEvent>,
+    mut route_events: MessageReader<SetTrainRouteMessage>,
     mut track_locks: ResMut<TrackLocks>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
     editor_state: Res<State<EditorState>>,
-    mut hub_commands: EventWriter<HubCommandEvent>,
+    mut hub_commands: MessageWriter<HubCommandMessage>,
     mut commands: Commands,
     crossings: Query<&LevelCrossing>,
-    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
+    mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
     for event in route_events.read() {
         let mut route = event.route.clone();
@@ -800,7 +804,7 @@ pub fn set_train_route(
 
 fn create_train_shortcut(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    mut train_events: EventWriter<SpawnTrainEvent>,
+    mut train_events: MessageWriter<SpawnTrainMessage>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -810,7 +814,7 @@ fn create_train_shortcut(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.write(SpawnTrainEvent {
+            train_events.write(SpawnTrainMessage {
                 train,
                 ble_train: None,
                 name: None,
@@ -821,17 +825,17 @@ fn create_train_shortcut(
 }
 
 fn spawn_train(
-    mut train_events: EventReader<SpawnTrainEvent>,
+    mut train_events: MessageReader<SpawnTrainMessage>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
     mut entity_map: ResMut<EntityMap>,
     marker_map: Res<MarkerMap>,
     q_markers: Query<&Marker>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
     switches: Query<&Switch>,
     crossings: Query<&LevelCrossing>,
-    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
+    mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
     for spawn_train in train_events.read() {
         let serialized_train = spawn_train.clone();
@@ -911,7 +915,7 @@ fn block_route(
 fn despawn_train(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut despawn_events: EventReader<DespawnEvent<Train>>,
+    mut despawn_events: MessageReader<DespawnMessage<Train>>,
     mut track_locks: ResMut<TrackLocks>,
 ) {
     for event in despawn_events.read() {
@@ -926,7 +930,7 @@ fn despawn_train(
 fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
-    mut advance_events: EventWriter<MarkerAdvanceEvent>,
+    mut advance_events: MessageWriter<MarkerAdvanceMessage>,
 ) {
     for mut train in q_trains.iter_mut() {
         train.traverse_route(time.delta_secs(), &mut advance_events);
@@ -938,9 +942,9 @@ fn update_train_route(
     track_locks: &mut TrackLocks,
     switches: &Query<&Switch>,
     entity_map: &EntityMap,
-    set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
+    set_switch_position: &mut MessageWriter<SetSwitchPositionMessage>,
     crossings: &Query<&LevelCrossing>,
-    set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
+    set_crossing_position: &mut MessageWriter<SetCrossingPositionMessage>,
 ) -> bool {
     train
         .get_route_mut()
@@ -964,7 +968,7 @@ fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time
 }
 
 fn trigger_manual_sensor_advance(
-    mut events: EventWriter<MarkerAdvanceEvent>,
+    mut events: MessageWriter<MarkerAdvanceMessage>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
     mut trains: Query<&mut Train>,
@@ -978,7 +982,7 @@ fn trigger_manual_sensor_advance(
             let route = train.get_route_mut();
             if route.get_current_leg().get_leg_state() != LegState::Completed {
                 println!("Advancing marker");
-                events.write(MarkerAdvanceEvent {
+                events.write(MarkerAdvanceMessage {
                     id: train_id,
                     index: route.get_current_leg().index + 1,
                 });
@@ -992,15 +996,15 @@ fn sensor_advance(
     q_markers: Query<&Marker>,
     q_blocks: Query<&Block>,
     marker_map: Res<MarkerMap>,
-    mut ble_sensor_advance_events: EventReader<MarkerAdvanceEvent>,
+    mut ble_sensor_advance_events: MessageReader<MarkerAdvanceMessage>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
     mut commands: Commands,
     switches: Query<&Switch>,
-    mut set_train_route: EventWriter<SetTrainRouteEvent>,
+    mut set_train_route: MessageWriter<SetTrainRouteMessage>,
     crossings: Query<&LevelCrossing>,
-    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
+    mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
     for advance in ble_sensor_advance_events.read() {
         info!("Advancing sensor for train {:?}", advance.id);
@@ -1033,7 +1037,7 @@ fn sensor_advance(
                 &entity_map,
                 &marker_map,
             );
-            set_train_route.write(SetTrainRouteEvent {
+            set_train_route.write(SetTrainRouteMessage {
                 train_id: train.id,
                 route: route,
             });
@@ -1042,15 +1046,15 @@ fn sensor_advance(
 }
 
 fn update_routes(
-    _trigger: Trigger<LocksChangedEvent>,
+    _trigger: On<LocksChangedEvent>,
     mut q_trains: Query<&mut Train>,
     mut track_locks: ResMut<TrackLocks>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
-    mut set_switch_position: EventWriter<SetSwitchPositionEvent>,
+    mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
     mut commands: Commands,
     crossings: Query<&LevelCrossing>,
-    mut set_crossing_position: EventWriter<SetCrossingPositionEvent>,
+    mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
     for mut train in q_trains.iter_mut() {
         if update_train_route(
@@ -1072,7 +1076,7 @@ fn update_routes(
 
 fn sync_intentions(
     mut q_trains: Query<(&mut Train, &BLETrain)>,
-    mut hub_commands: EventWriter<HubCommandEvent>,
+    mut hub_commands: MessageWriter<HubCommandMessage>,
 ) {
     for (mut train, ble_train) in q_trains.iter_mut() {
         let route = train.get_route_mut();
@@ -1102,7 +1106,7 @@ impl Plugin for TrainPlugin {
         app.add_plugins(InspectorPlugin::<Train>::new());
         app.register_type::<Facing>();
         app.insert_resource(TrainDragState::default());
-        app.add_event::<SetTrainRouteEvent>();
+        app.add_message::<SetTrainRouteMessage>();
         app.add_observer(assign_destination_route);
         app.add_observer(update_routes);
         app.add_systems(
@@ -1110,7 +1114,7 @@ impl Plugin for TrainPlugin {
             (
                 create_train_shortcut,
                 delete_selection_shortcut::<Train>,
-                despawn_train.run_if(on_event::<DespawnEvent<Train>>),
+                despawn_train.run_if(on_message::<DespawnMessage<Train>>),
                 draw_train,
                 update_wagons.after(finish_hover),
                 // draw_train_route.after(draw_hover_route),
@@ -1119,7 +1123,7 @@ impl Plugin for TrainPlugin {
                 init_drag_train.after(finish_hover),
                 exit_drag_train,
                 tick_wait_time.run_if(in_state(ControlState)),
-                set_train_route.run_if(on_event::<SetTrainRouteEvent>),
+                set_train_route.run_if(on_message::<SetTrainRouteMessage>),
                 update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
@@ -1127,7 +1131,7 @@ impl Plugin for TrainPlugin {
                 update_virtual_trains_passive
                     .run_if(in_state(EditorState::DeviceControl))
                     .after(sensor_advance),
-                sensor_advance.run_if(on_event::<MarkerAdvanceEvent>),
+                sensor_advance.run_if(on_message::<MarkerAdvanceMessage>),
                 sync_intentions
                     .run_if(in_state(EditorState::DeviceControl))
                     .after(update_virtual_trains_passive),
@@ -1137,7 +1141,7 @@ impl Plugin for TrainPlugin {
         app.add_systems(
             PreUpdate,
             spawn_train
-                .run_if(on_event::<SpawnTrainEvent>)
+                .run_if(on_message::<SpawnTrainMessage>)
                 .after(spawn_block),
         );
     }

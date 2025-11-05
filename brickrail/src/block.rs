@@ -1,14 +1,14 @@
-use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationEvent};
+use crate::destination::{BlockDirectionFilter, Destination, SpawnDestinationMessage};
 use crate::editor::{
-    DespawnEvent, GenericID, HoverState, Selection, SelectionState, delete_selection_shortcut,
+    DespawnMessage, GenericID, HoverState, Selection, SelectionState, delete_selection_shortcut,
     finish_hover,
 };
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnEvent, spawn_marker};
+use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_marker};
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
-use crate::train::{SpawnTrainEvent, Train};
+use crate::train::{SpawnTrainMessage, Train};
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::{SystemParam, SystemState};
@@ -29,7 +29,7 @@ struct LogicalID {
     facing: Facing,
 }
 
-#[derive(Debug, Clone, Event)]
+#[derive(Debug, Clone, Message)]
 struct UpdateReverseConnections {
     block_id: BlockID,
     disallow_reversing: bool,
@@ -92,10 +92,10 @@ impl Block {
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
-            EventWriter<SpawnTrainEvent>,
+            MessageWriter<SpawnTrainMessage>,
             Query<(&mut Destination, &Name)>,
-            EventWriter<SpawnDestinationEvent>,
-            EventWriter<UpdateReverseConnections>,
+            MessageWriter<SpawnDestinationMessage>,
+            MessageWriter<UpdateReverseConnections>,
         )>::new(world);
         let (
             mut blocks,
@@ -134,7 +134,7 @@ impl Block {
                         .id
                         .to_logical(BlockDirection::Aligned, Facing::Forward);
                     let train = Train::at_block_id(train_id, logical_block_id);
-                    train_spawner.write(SpawnTrainEvent {
+                    train_spawner.write(SpawnTrainMessage {
                         train: train,
                         ble_train: None,
                         name: None,
@@ -188,7 +188,7 @@ impl Block {
                         id: dest_id,
                         blocks: vec![(block.id, BlockDirectionFilter::Any, None)],
                     };
-                    destination_spawner.write(SpawnDestinationEvent {
+                    destination_spawner.write(SpawnDestinationMessage {
                         dest: dest,
                         name: None,
                     });
@@ -209,7 +209,7 @@ impl Inspectable for Block {
 }
 
 impl Selectable for Block {
-    type SpawnEvent = BlockSpawnEvent;
+    type SpawnMessage = BlockSpawnMessage;
     type ID = BlockID;
 
     fn get_type() -> SelectableType {
@@ -284,7 +284,7 @@ fn generate_block_shape(section: &DirectedSection) -> ShapePath {
 }
 
 fn update_reverse_connections(
-    mut update_reverse_connections: EventReader<UpdateReverseConnections>,
+    mut update_reverse_connections: MessageReader<UpdateReverseConnections>,
     mut connections: ResMut<Connections>,
 ) {
     for UpdateReverseConnections {
@@ -309,21 +309,21 @@ fn update_reverse_connections(
     }
 }
 
-#[derive(Debug, Event, Clone, Serialize, Deserialize)]
-pub struct BlockSpawnEvent {
+#[derive(Debug, Message, Clone, Serialize, Deserialize)]
+pub struct BlockSpawnMessage {
     pub block: Block,
     pub name: Option<String>,
 }
 
 #[derive(SystemParam)]
-pub struct BlockSpawnEventQuery<'w, 's> {
+pub struct BlockSpawnMessageQuery<'w, 's> {
     query: Query<'w, 's, (&'static Block, &'static Name)>,
 }
-impl BlockSpawnEventQuery<'_, '_> {
-    pub fn get(&self) -> Vec<BlockSpawnEvent> {
+impl BlockSpawnMessageQuery<'_, '_> {
+    pub fn get(&self) -> Vec<BlockSpawnMessage> {
         self.query
             .iter()
-            .map(|(block, name)| BlockSpawnEvent {
+            .map(|(block, name)| BlockSpawnMessage {
                 block: block.clone(),
                 name: Some(name.to_string()),
             })
@@ -331,18 +331,18 @@ impl BlockSpawnEventQuery<'_, '_> {
     }
 }
 
-#[derive(Debug, Event, Clone, Serialize, Deserialize)]
-pub struct BlockCreateEvent(pub Block);
+#[derive(Debug, Message, Clone, Serialize, Deserialize)]
+pub struct BlockCreateMessage(pub Block);
 
 fn create_block(
-    mut create_events: EventReader<BlockCreateEvent>,
-    mut block_event_writer: EventWriter<BlockSpawnEvent>,
-    mut marker_event_writer: EventWriter<MarkerSpawnEvent>,
+    mut create_events: MessageReader<BlockCreateMessage>,
+    mut block_event_writer: MessageWriter<BlockSpawnMessage>,
+    mut marker_event_writer: MessageWriter<MarkerSpawnMessage>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
-    for BlockCreateEvent(block) in create_events.read() {
+    for BlockCreateMessage(block) in create_events.read() {
         let block_id = block.id;
-        block_event_writer.write(BlockSpawnEvent {
+        block_event_writer.write(BlockSpawnMessage {
             block: block.clone(),
             name: None,
         });
@@ -350,7 +350,7 @@ fn create_block(
             let in_track = logical_id.default_in_marker_track();
             if logical_id.facing == Facing::Forward {
                 let marker = Marker::new(in_track.track(), MarkerColor::Any);
-                marker_event_writer.write(MarkerSpawnEvent(marker));
+                marker_event_writer.write(MarkerSpawnMessage(marker));
             }
             marker_map.register_marker(in_track, MarkerKey::In, logical_id);
         }
@@ -360,7 +360,7 @@ fn create_block(
 pub fn spawn_block(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut block_event_reader: EventReader<BlockSpawnEvent>,
+    mut block_event_reader: MessageReader<BlockSpawnMessage>,
     mut connections: ResMut<Connections>,
 ) {
     for request in block_event_reader.read() {
@@ -383,7 +383,7 @@ pub fn spawn_block(
 pub fn despawn_block(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut block_event_reader: EventReader<DespawnEvent<Block>>,
+    mut block_event_reader: MessageReader<DespawnMessage<Block>>,
     mut marker_map: ResMut<MarkerMap>,
     mut connections: ResMut<Connections>,
 ) {
@@ -433,15 +433,15 @@ impl Plugin for BlockPlugin {
         app.add_plugins(SelectablePlugin::<Block>::new());
         app.add_plugins(InspectorPlugin::<Block>::new());
         app.register_type::<Block>();
-        app.add_event::<BlockSpawnEvent>();
-        app.add_event::<DespawnEvent<Block>>();
-        app.add_event::<BlockCreateEvent>();
-        app.add_event::<UpdateReverseConnections>();
+        app.add_message::<BlockSpawnMessage>();
+        app.add_message::<DespawnMessage<Block>>();
+        app.add_message::<BlockCreateMessage>();
+        app.add_message::<UpdateReverseConnections>();
         app.add_systems(
             Update,
             (
-                create_block.run_if(on_event::<BlockCreateEvent>),
-                update_reverse_connections.run_if(on_event::<UpdateReverseConnections>),
+                create_block.run_if(on_message::<BlockCreateMessage>),
+                update_reverse_connections.run_if(on_message::<UpdateReverseConnections>),
                 update_block_color.after(finish_hover),
                 delete_selection_shortcut::<Block>,
             ),
@@ -450,7 +450,7 @@ impl Plugin for BlockPlugin {
             PostUpdate,
             (
                 spawn_block
-                    .run_if(on_event::<BlockSpawnEvent>)
+                    .run_if(on_message::<BlockSpawnMessage>)
                     .after(spawn_marker),
                 despawn_block,
             ),

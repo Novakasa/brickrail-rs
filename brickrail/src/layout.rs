@@ -1,15 +1,15 @@
-use crate::crossing::{LevelCrossing, SetCrossingPositionEvent};
+use crate::crossing::{LevelCrossing, SetCrossingPositionMessage};
 use crate::editor::GenericID;
 use crate::layout_primitives::*;
 use crate::marker::MarkerKey;
 use crate::section::LogicalSection;
-use crate::switch::{SetSwitchPositionEvent, Switch};
+use crate::switch::{SetSwitchPositionMessage, Switch};
 use crate::switch_motor::MotorPosition;
-use crate::track::{TrackLogicalFilter, LAYOUT_SCALE};
+use crate::track::{LAYOUT_SCALE, TrackLogicalFilter};
 use bevy::color::palettes::css::{GOLD, GREEN, ORANGE};
 use bevy::ecs::query::{QueryData, QueryFilter};
-use bevy::platform::collections::hash_map::OccupiedError;
 use bevy::platform::collections::HashMap;
+use bevy::platform::collections::hash_map::OccupiedError;
 use bevy::prelude::*;
 use petgraph::graphmap::{DiGraphMap, UnGraphMap};
 use serde::{Deserialize, Serialize};
@@ -87,8 +87,8 @@ impl TrackLocks {
         entity_map: &EntityMap,
         switches: &Query<&Switch>,
         _crossings: &Query<&LevelCrossing>,
-        set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
-        _set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
+        set_switch_position: &mut MessageWriter<SetSwitchPositionMessage>,
+        _set_crossing_position: &mut MessageWriter<SetCrossingPositionMessage>,
     ) {
         for track in section.tracks.iter() {
             if let Some(locked_train) = self.locked_tracks.get(&track.track()) {
@@ -119,7 +119,7 @@ impl TrackLocks {
                         }
                     }
                 }
-                set_switch_position.write(SetSwitchPositionEvent {
+                set_switch_position.write(SetSwitchPositionMessage {
                     id: directed_connection.from_track,
                     position,
                 });
@@ -195,16 +195,19 @@ impl EntityMap {
         &'a self,
         query: &'a Query<D, F>,
         id: &GenericID,
-    ) -> Option<<<D as QueryData>::ReadOnly as QueryData>::Item<'a>> {
+    ) -> Option<<<D as QueryData>::ReadOnly as QueryData>::Item<'a, 'a>> {
         let entity = self.get_entity(id)?;
         query.get(entity).ok()
     }
 
     pub fn query_get_mut<'a, 'b, D: QueryData, F: QueryFilter>(
         &'a self,
-        query: &'b mut Query<D, F>,
+        query: &'b mut Query<'a, 'b, D, F>,
         id: &GenericID,
-    ) -> Option<<D as QueryData>::Item<'b>> {
+    ) -> Option<<D as QueryData>::Item<'a, 'b>>
+    where
+        'b: 'a,
+    {
         let entity = self.get_entity(id)?;
         query.get_mut(entity).ok()
     }
@@ -584,12 +587,14 @@ impl Connections {
 
     pub fn connect_tracks_simple(&mut self, connection: &TrackConnectionID) {
         println!("Connecting {:?}", connection);
-        assert!(self
-            .connection_graph
-            .contains_node(connection.track_a().track));
-        assert!(self
-            .connection_graph
-            .contains_node(connection.track_b().track));
+        assert!(
+            self.connection_graph
+                .contains_node(connection.track_a().track)
+        );
+        assert!(
+            self.connection_graph
+                .contains_node(connection.track_b().track)
+        );
         self.connection_graph.add_edge(
             connection.track_a().track,
             connection.track_b().track,

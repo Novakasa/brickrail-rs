@@ -6,17 +6,17 @@ use itertools::Itertools;
 
 use crate::block::Block;
 use crate::crossing::LevelCrossing;
-use crate::crossing::SetCrossingPositionEvent;
+use crate::crossing::SetCrossingPositionMessage;
 use crate::layout::EntityMap;
 use crate::layout::MarkerMap;
 use crate::layout::TrackLocks;
 use crate::layout_primitives::*;
 use crate::marker::*;
 use crate::section::LogicalSection;
-use crate::switch::SetSwitchPositionEvent;
+use crate::switch::SetSwitchPositionMessage;
 use crate::switch::Switch;
 use crate::track::LAYOUT_SCALE;
-use crate::train::MarkerAdvanceEvent;
+use crate::train::MarkerAdvanceMessage;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {
@@ -287,8 +287,8 @@ impl Route {
         &self,
         track_locks: &mut TrackLocks,
         entity_map: &EntityMap,
-        set_switch_position: &mut EventWriter<SetSwitchPositionEvent>,
-        set_crossing_position: &mut EventWriter<SetCrossingPositionEvent>,
+        set_switch_position: &mut MessageWriter<SetSwitchPositionMessage>,
+        set_crossing_position: &mut MessageWriter<SetCrossingPositionMessage>,
         switches: &Query<&Switch>,
         crossings: &Query<&LevelCrossing>,
     ) {
@@ -374,11 +374,11 @@ impl Route {
     pub fn advance_distance(
         &mut self,
         distance: f32,
-        advance_events: &mut EventWriter<MarkerAdvanceEvent>,
+        advance_events: &mut MessageWriter<MarkerAdvanceMessage>,
     ) {
         if let Some(marker_index) = self.get_current_leg_mut().advance_distance(distance) {
             debug!("Sending advance event for marker {}", marker_index);
-            advance_events.write(MarkerAdvanceEvent {
+            advance_events.write(MarkerAdvanceMessage {
                 id: self.train_id.clone(),
                 index: marker_index,
             });

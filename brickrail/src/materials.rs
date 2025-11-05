@@ -1,8 +1,9 @@
 use bevy::{
     platform::collections::HashMap,
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef},
-    sprite::{AlphaMode2d, Material2d, Material2dPlugin},
+    render::render_resource::AsBindGroup,
+    shader::ShaderRef,
+    sprite_render::{AlphaMode2d, Material2d, Material2dPlugin},
 };
 
 #[derive(Debug, Resource, Default)]
@@ -48,7 +49,7 @@ impl Material2d for TrackPathMaterial {
         "shaders/track_path.wgsl".into()
     }
 
-    fn alpha_mode(&self) -> bevy::sprite::AlphaMode2d {
+    fn alpha_mode(&self) -> AlphaMode2d {
         AlphaMode2d::Blend
     }
 }

@@ -205,7 +205,7 @@ impl Inspectable for Marker {
 }
 
 impl Selectable for Marker {
-    type SpawnEvent = MarkerSpawnEvent;
+    type SpawnMessage = MarkerSpawnMessage;
     type ID = TrackID;
 
     fn get_type() -> crate::selectable::SelectableType {
@@ -238,25 +238,25 @@ impl Selectable for Marker {
     }
 }
 
-#[derive(Debug, Event, Clone, Serialize, Deserialize)]
-pub struct MarkerSpawnEvent(pub Marker);
+#[derive(Debug, Message, Clone, Serialize, Deserialize)]
+pub struct MarkerSpawnMessage(pub Marker);
 
 fn create_marker(
     selection_state: Res<SelectionState>,
-    mut marker_events: EventWriter<MarkerSpawnEvent>,
+    mut marker_events: MessageWriter<MarkerSpawnMessage>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyM) {
         if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
             let marker = Marker::new(track_id, MarkerColor::Any);
-            marker_events.write(MarkerSpawnEvent(marker));
+            marker_events.write(MarkerSpawnMessage(marker));
         }
     }
 }
 
 pub fn spawn_marker(
     mut commands: Commands,
-    mut marker_events: EventReader<MarkerSpawnEvent>,
+    mut marker_events: MessageReader<MarkerSpawnMessage>,
     mut entity_map: ResMut<EntityMap>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -307,7 +307,7 @@ fn set_marker_color(
 
 pub fn despawn_marker(
     mut commands: Commands,
-    mut marker_events: EventReader<DespawnEvent<Marker>>,
+    mut marker_events: MessageReader<DespawnMessage<Marker>>,
     mut entity_map: ResMut<EntityMap>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
@@ -332,8 +332,8 @@ impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<Marker>::new());
         app.add_plugins(InspectorPlugin::<Marker>::new());
-        app.add_event::<MarkerSpawnEvent>();
-        app.add_event::<DespawnEvent<Marker>>();
+        app.add_message::<MarkerSpawnMessage>();
+        app.add_message::<DespawnMessage<Marker>>();
         app.add_systems(
             Update,
             (
@@ -346,7 +346,7 @@ impl Plugin for MarkerPlugin {
             PostUpdate,
             (
                 spawn_marker
-                    .run_if(on_event::<MarkerSpawnEvent>)
+                    .run_if(on_message::<MarkerSpawnMessage>)
                     .after(spawn_track),
                 despawn_marker,
             ),
