@@ -10,7 +10,7 @@ use tokio::{
 use tracing::{debug, error, info, trace};
 
 use crate::{
-    pybricks_hub::{BLEAdapter, DownloadProgress, HubStatus, HubStatusFlags, PybricksHub},
+    pybricks_hub::{BLEAdapter, DownloadProgress, HubStatus, PybricksHub},
     unpack_u16_little,
 };
 use std::{error::Error, path::Path, sync::Arc, time::Duration};
