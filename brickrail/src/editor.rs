@@ -332,7 +332,7 @@ pub fn top_panel(
     mut next_mode: ResMut<NextState<ControlStateMode>>,
     mut editor_info: ResMut<EditorInfo>,
     control_info: Res<ControlInfo>,
-    mut save_events: MessageWriter<SaveLayoutMessage>,
+    mut save_messages: MessageWriter<SaveLayoutMessage>,
 ) {
     if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::TopBottomPanel::new(TopBottomSide::Top, "Mode").show(ctx, |ui| {
@@ -356,7 +356,7 @@ pub fn top_panel(
                         .add_filter("brickrail layouts", &["json"])
                         .save_file()
                     {
-                        save_events.write(SaveLayoutMessage { path: path });
+                        save_messages.write(SaveLayoutMessage { path: path });
                     }
                 }
                 ui.separator();
@@ -613,7 +613,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component<Mutability = Mutable>
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
     mut selection_state: ResMut<SelectionState>,
     mut q_selectable: Query<&mut T>,
-    mut despawn_events: MessageWriter<DespawnMessage<T>>,
+    mut despawn_messages: MessageWriter<DespawnMessage<T>>,
     entity_map: Res<EntityMap>,
 ) {
     if keyboard_buttons.just_pressed(KeyCode::Delete) {
@@ -621,7 +621,7 @@ pub fn delete_selection_shortcut<T: Selectable + Component<Mutability = Mutable>
             Selection::Single(id) => {
                 let entity = entity_map.get_entity(id).unwrap();
                 if let Ok(component) = q_selectable.get_mut(entity) {
-                    despawn_events.write(DespawnMessage(component.id()));
+                    despawn_messages.write(DespawnMessage(component.id()));
                     selection_state.selection = Selection::None;
                 }
             }
@@ -730,9 +730,9 @@ pub fn save_layout(
     q_destinations: SpawnDestinationMessageQuery,
     q_schedules: SpawnScheduleMessageQuery,
     connections: Res<Connections>,
-    mut save_events: MessageReader<SaveLayoutMessage>,
+    mut save_messages: MessageReader<SaveLayoutMessage>,
 ) {
-    for event in save_events.read() {
+    for event in save_messages.read() {
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
         let tracks = q_tracks
@@ -798,8 +798,8 @@ pub fn load_layout(
 ) {
     world.run_system_once(new_layout).unwrap();
     {
-        let (mut commands, mut load_events) = params.get_mut(world);
-        for event in load_events.read() {
+        let (mut commands, mut load_messages) = params.get_mut(world);
+        for event in load_messages.read() {
             commands.remove_resource::<Connections>();
             commands.remove_resource::<EntityMap>();
             commands.remove_resource::<MarkerMap>();
@@ -810,7 +810,7 @@ pub fn load_layout(
             file.read_to_string(&mut json).unwrap();
             let layout_value: SerializableLayout = serde_json::from_str(&json).unwrap();
             let marker_map = layout_value.marker_map.clone();
-            println!("Sending spawn events");
+            println!("Sending spawn messages");
             // commands.insert_resource(connections);
             for track in layout_value.tracks {
                 commands.queue(|world: &mut World| {
@@ -873,8 +873,8 @@ fn new_layout(
     params: &mut SystemState<(Res<EntityMap>, Commands, MessageReader<NewLayoutMessage>)>,
 ) {
     {
-        let (entity_map, mut commands, mut events) = params.get_mut(world);
-        events.clear();
+        let (entity_map, mut commands, mut messages) = params.get_mut(world);
+        messages.clear();
         for entity in entity_map.iter_all_entities() {
             commands.entity(*entity).despawn();
         }
@@ -905,18 +905,18 @@ pub fn disconnect_finish(
     mut editor_info: ResMut<EditorInfo>,
     mut commands: Commands,
     primary_window: Single<Entity, With<PrimaryWindow>>,
-    mut load_events: MessageWriter<LoadLayoutMessage>,
-    mut new_events: MessageWriter<NewLayoutMessage>,
+    mut load_messages: MessageWriter<LoadLayoutMessage>,
+    mut new_messages: MessageWriter<NewLayoutMessage>,
 ) {
     match &editor_info.disconnect_action {
         DisconnectAction::Exit => {
             commands.entity(primary_window.into_inner()).despawn();
         }
         DisconnectAction::NewLayout => {
-            new_events.write(NewLayoutMessage {});
+            new_messages.write(NewLayoutMessage {});
         }
         DisconnectAction::LoadLayout(path) => {
-            load_events.write(LoadLayoutMessage { path: path.clone() });
+            load_messages.write(LoadLayoutMessage { path: path.clone() });
         }
         DisconnectAction::Nothing => {}
     }

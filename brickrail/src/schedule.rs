@@ -304,10 +304,10 @@ fn assign_random_routes(
 
 fn spawn_schedule(
     mut commands: Commands,
-    mut events: MessageReader<SpawnScheduleMessage>,
+    mut messages: MessageReader<SpawnScheduleMessage>,
     mut entity_map: ResMut<crate::layout::EntityMap>,
 ) {
-    for event in events.read() {
+    for event in messages.read() {
         let schedule = event.schedule.clone();
         let id = schedule.id;
         let name = Name::new(event.name.clone().unwrap_or(format!("{}", id)));

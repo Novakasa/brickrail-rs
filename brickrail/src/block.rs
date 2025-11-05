@@ -335,14 +335,14 @@ impl BlockSpawnMessageQuery<'_, '_> {
 pub struct BlockCreateMessage(pub Block);
 
 fn create_block(
-    mut create_events: MessageReader<BlockCreateMessage>,
-    mut block_event_writer: MessageWriter<BlockSpawnMessage>,
-    mut marker_event_writer: MessageWriter<MarkerSpawnMessage>,
+    mut create_messages: MessageReader<BlockCreateMessage>,
+    mut block_message_writer: MessageWriter<BlockSpawnMessage>,
+    mut marker_message_writer: MessageWriter<MarkerSpawnMessage>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
-    for BlockCreateMessage(block) in create_events.read() {
+    for BlockCreateMessage(block) in create_messages.read() {
         let block_id = block.id;
-        block_event_writer.write(BlockSpawnMessage {
+        block_message_writer.write(BlockSpawnMessage {
             block: block.clone(),
             name: None,
         });
@@ -350,7 +350,7 @@ fn create_block(
             let in_track = logical_id.default_in_marker_track();
             if logical_id.facing == Facing::Forward {
                 let marker = Marker::new(in_track.track(), MarkerColor::Any);
-                marker_event_writer.write(MarkerSpawnMessage(marker));
+                marker_message_writer.write(MarkerSpawnMessage(marker));
             }
             marker_map.register_marker(in_track, MarkerKey::In, logical_id);
         }

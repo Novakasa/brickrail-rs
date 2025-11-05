@@ -76,7 +76,7 @@ impl TrainHub {
         &mut self,
         ui: &mut Ui,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut MessageWriter<SpawnHubMessage>,
+        spawn_messages: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
         type_registry: &Res<AppTypeRegistry>,
@@ -88,7 +88,7 @@ impl TrainHub {
                 &mut self.hub_id,
                 HubType::Train,
                 &hubs,
-                spawn_events,
+                spawn_messages,
                 entity_map,
                 selection_state,
             );
@@ -257,7 +257,7 @@ impl BLETrain {
             mut selection_state,
             type_registry,
             hubs,
-            mut spawn_events,
+            mut spawn_messages,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok(mut ble_train) = ble_trains.get_mut(entity) {
@@ -265,7 +265,7 @@ impl BLETrain {
                 ble_train.master_hub.inspector_ui(
                     ui,
                     &hubs,
-                    &mut spawn_events,
+                    &mut spawn_messages,
                     &mut entity_map,
                     &mut selection_state,
                     &type_registry,
@@ -291,7 +291,7 @@ impl BLETrain {
                         hub.inspector_ui(
                             ui,
                             &hubs,
-                            &mut spawn_events,
+                            &mut spawn_messages,
                             &mut entity_map,
                             &mut selection_state,
                             &type_registry,
@@ -331,32 +331,32 @@ impl BLETrain {
 }
 
 pub struct HubCommands {
-    pub hub_events: Vec<HubCommandMessage>,
+    pub hub_messages: Vec<HubCommandMessage>,
 }
 
 impl HubCommands {
     fn new() -> Self {
         Self {
-            hub_events: Vec::new(),
+            hub_messages: Vec::new(),
         }
     }
 
     fn push(&mut self, hub_input: HubCommandMessage) {
-        self.hub_events.push(hub_input);
+        self.hub_messages.push(hub_input);
     }
 
     fn merge(&mut self, mut other: HubCommands) {
-        self.hub_events.append(&mut other.hub_events);
+        self.hub_messages.append(&mut other.hub_messages);
     }
 }
 
 fn handle_messages(
-    mut hub_message_events: MessageReader<HubMessageMessage<TrainData>>,
+    mut hub_message_messages: MessageReader<HubMessageMessage<TrainData>>,
     mut ble_trains: Query<(&BLETrain, &mut Train)>,
-    mut advance_events: MessageWriter<MarkerAdvanceMessage>,
+    mut advance_messages: MessageWriter<MarkerAdvanceMessage>,
     mut ble_commands: MessageWriter<HubCommandMessage>,
 ) {
-    for event in hub_message_events.read() {
+    for event in hub_message_messages.read() {
         for (ble_train, _train) in ble_trains.iter_mut() {
             if ble_train.master_hub.hub_id == Some(event.id) {
                 match event.data {
@@ -374,11 +374,11 @@ fn handle_messages(
                     }
                     TrainData::SensorAdvance(index) => {
                         info!("Train master hub {:?} sensor advance: {}", event.id, index);
-                        advance_events.write(MarkerAdvanceMessage {
+                        advance_messages.write(MarkerAdvanceMessage {
                             id: ble_train.train_id,
                             index: index as usize,
                         });
-                        for input in ble_train.advance_sensor().hub_events {
+                        for input in ble_train.advance_sensor().hub_messages {
                             ble_commands.write(input);
                         }
                     }

@@ -243,25 +243,25 @@ pub struct MarkerSpawnMessage(pub Marker);
 
 fn create_marker(
     selection_state: Res<SelectionState>,
-    mut marker_events: MessageWriter<MarkerSpawnMessage>,
+    mut marker_messages: MessageWriter<MarkerSpawnMessage>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyM) {
         if let Selection::Single(GenericID::Track(track_id)) = selection_state.selection {
             let marker = Marker::new(track_id, MarkerColor::Any);
-            marker_events.write(MarkerSpawnMessage(marker));
+            marker_messages.write(MarkerSpawnMessage(marker));
         }
     }
 }
 
 pub fn spawn_marker(
     mut commands: Commands,
-    mut marker_events: MessageReader<MarkerSpawnMessage>,
+    mut marker_messages: MessageReader<MarkerSpawnMessage>,
     mut entity_map: ResMut<EntityMap>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    for event in marker_events.read() {
+    for event in marker_messages.read() {
         let marker = event.0.clone();
         let track_id = marker.track;
         let mesh = Circle::new(0.05 * LAYOUT_SCALE).mesh().build();
@@ -307,11 +307,11 @@ fn set_marker_color(
 
 pub fn despawn_marker(
     mut commands: Commands,
-    mut marker_events: MessageReader<DespawnMessage<Marker>>,
+    mut marker_messages: MessageReader<DespawnMessage<Marker>>,
     mut entity_map: ResMut<EntityMap>,
     mut marker_map: ResMut<MarkerMap>,
 ) {
-    for event in marker_events.read() {
+    for event in marker_messages.read() {
         let track_id = event.0;
         let entity = entity_map.markers.get(&track_id).unwrap().clone();
         commands.entity(entity.clone()).despawn();

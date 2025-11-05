@@ -374,11 +374,11 @@ impl Route {
     pub fn advance_distance(
         &mut self,
         distance: f32,
-        advance_events: &mut MessageWriter<MarkerAdvanceMessage>,
+        advance_messages: &mut MessageWriter<MarkerAdvanceMessage>,
     ) {
         if let Some(marker_index) = self.get_current_leg_mut().advance_distance(distance) {
             debug!("Sending advance event for marker {}", marker_index);
-            advance_events.write(MarkerAdvanceMessage {
+            advance_messages.write(MarkerAdvanceMessage {
                 id: self.train_id.clone(),
                 index: marker_index,
             });

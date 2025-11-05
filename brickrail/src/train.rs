@@ -241,12 +241,12 @@ impl Train {
     fn traverse_route(
         &mut self,
         delta: f32,
-        advance_events: &mut MessageWriter<MarkerAdvanceMessage>,
+        advance_messages: &mut MessageWriter<MarkerAdvanceMessage>,
     ) {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
         let dist = delta * self.speed;
-        self.get_route_mut().advance_distance(dist, advance_events);
+        self.get_route_mut().advance_distance(dist, advance_messages);
         self.state = self.get_route().get_train_state();
         // self.speed = self.state.get_speed();
         // println!("Train state: {:?}, {:?}", self.state, self.speed);
@@ -746,7 +746,7 @@ pub fn set_train_route(
     mut q_trains: Query<(&mut Train, &mut BLETrain)>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
-    mut route_events: MessageReader<SetTrainRouteMessage>,
+    mut route_messages: MessageReader<SetTrainRouteMessage>,
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
     editor_state: Res<State<EditorState>>,
@@ -755,7 +755,7 @@ pub fn set_train_route(
     crossings: Query<&LevelCrossing>,
     mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
-    for event in route_events.read() {
+    for event in route_messages.read() {
         let mut route = event.route.clone();
 
         let train_entity = entity_map
@@ -794,7 +794,7 @@ pub fn set_train_route(
 
         if editor_state.get().ble_commands_enabled() {
             let commands = ble_train.download_route(&train.get_route());
-            for input in commands.hub_events {
+            for input in commands.hub_messages {
                 info!("Sending {:?}", input);
                 hub_commands.write(input);
             }
@@ -804,7 +804,7 @@ pub fn set_train_route(
 
 fn create_train_shortcut(
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    mut train_events: MessageWriter<SpawnTrainMessage>,
+    mut train_messages: MessageWriter<SpawnTrainMessage>,
     entity_map: Res<EntityMap>,
     selection_state: Res<SelectionState>,
 ) {
@@ -814,7 +814,7 @@ fn create_train_shortcut(
             let logical_block_id = block_id.to_logical(BlockDirection::Aligned, Facing::Forward);
             let train_id = entity_map.new_train_id();
             let train = Train::at_block_id(train_id, logical_block_id);
-            train_events.write(SpawnTrainMessage {
+            train_messages.write(SpawnTrainMessage {
                 train,
                 ble_train: None,
                 name: None,
@@ -825,7 +825,7 @@ fn create_train_shortcut(
 }
 
 fn spawn_train(
-    mut train_events: MessageReader<SpawnTrainMessage>,
+    mut train_messages: MessageReader<SpawnTrainMessage>,
     mut commands: Commands,
     q_blocks: Query<&Block>,
     mut track_locks: ResMut<TrackLocks>,
@@ -837,7 +837,7 @@ fn spawn_train(
     crossings: Query<&LevelCrossing>,
     mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
-    for spawn_train in train_events.read() {
+    for spawn_train in train_messages.read() {
         let serialized_train = spawn_train.clone();
         let mut train = serialized_train.train;
         let block_id = match train.position {
@@ -915,10 +915,10 @@ fn block_route(
 fn despawn_train(
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    mut despawn_events: MessageReader<DespawnMessage<Train>>,
+    mut despawn_messages: MessageReader<DespawnMessage<Train>>,
     mut track_locks: ResMut<TrackLocks>,
 ) {
-    for event in despawn_events.read() {
+    for event in despawn_messages.read() {
         let train_id = event.0;
         let entity = entity_map.trains.get(&train_id).unwrap();
         track_locks.unlock_all(&train_id);
@@ -930,10 +930,10 @@ fn despawn_train(
 fn update_virtual_trains(
     mut q_trains: Query<&mut Train>,
     time: Res<Time>,
-    mut advance_events: MessageWriter<MarkerAdvanceMessage>,
+    mut advance_messages: MessageWriter<MarkerAdvanceMessage>,
 ) {
     for mut train in q_trains.iter_mut() {
-        train.traverse_route(time.delta_secs(), &mut advance_events);
+        train.traverse_route(time.delta_secs(), &mut advance_messages);
     }
 }
 
@@ -968,7 +968,7 @@ fn update_virtual_trains_passive(mut q_trains: Query<&mut Train>, time: Res<Time
 }
 
 fn trigger_manual_sensor_advance(
-    mut events: MessageWriter<MarkerAdvanceMessage>,
+    mut messages: MessageWriter<MarkerAdvanceMessage>,
     keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
     selection_state: Res<SelectionState>,
     mut trains: Query<&mut Train>,
@@ -982,7 +982,7 @@ fn trigger_manual_sensor_advance(
             let route = train.get_route_mut();
             if route.get_current_leg().get_leg_state() != LegState::Completed {
                 println!("Advancing marker");
-                events.write(MarkerAdvanceMessage {
+                messages.write(MarkerAdvanceMessage {
                     id: train_id,
                     index: route.get_current_leg().index + 1,
                 });
@@ -996,7 +996,7 @@ fn sensor_advance(
     q_markers: Query<&Marker>,
     q_blocks: Query<&Block>,
     marker_map: Res<MarkerMap>,
-    mut ble_sensor_advance_events: MessageReader<MarkerAdvanceMessage>,
+    mut ble_sensor_advance_messages: MessageReader<MarkerAdvanceMessage>,
     entity_map: Res<EntityMap>,
     mut track_locks: ResMut<TrackLocks>,
     mut set_switch_position: MessageWriter<SetSwitchPositionMessage>,
@@ -1006,7 +1006,7 @@ fn sensor_advance(
     crossings: Query<&LevelCrossing>,
     mut set_crossing_position: MessageWriter<SetCrossingPositionMessage>,
 ) {
-    for advance in ble_sensor_advance_events.read() {
+    for advance in ble_sensor_advance_messages.read() {
         info!("Advancing sensor for train {:?}", advance.id);
         let train_entity = entity_map
             .get_entity(&GenericID::Train(advance.id))
@@ -1090,7 +1090,7 @@ fn sync_intentions(
                 leg_index, leg.intention
             );
             leg.intention_synced = true;
-            for input in commands.hub_events {
+            for input in commands.hub_messages {
                 hub_commands.write(input);
             }
         }

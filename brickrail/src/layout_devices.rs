@@ -47,7 +47,7 @@ impl LayoutDevice {
         &mut self,
         ui: &mut Ui,
         hubs: &Query<&BLEHub>,
-        spawn_events: &mut MessageWriter<SpawnHubMessage>,
+        spawn_messages: &mut MessageWriter<SpawnHubMessage>,
         entity_map: &mut ResMut<EntityMap>,
         selection_state: &mut ResMut<SelectionState>,
     ) {
@@ -57,7 +57,7 @@ impl LayoutDevice {
             &mut self.port,
             HubType::Layout,
             hubs,
-            spawn_events,
+            spawn_messages,
             entity_map,
             selection_state,
         )
@@ -95,8 +95,8 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
     ui: &mut Ui,
     selected_id: &mut Option<LayoutDeviceID>,
     devices: &mut Query<(&mut T, &mut LayoutDevice)>,
-    spawn_events: &mut MessageWriter<T::SpawnMessage>,
-    despawn_events: &mut MessageWriter<DespawnMessage<LayoutDevice>>,
+    spawn_messages: &mut MessageWriter<T::SpawnMessage>,
+    despawn_messages: &mut MessageWriter<DespawnMessage<LayoutDevice>>,
     entity_map: &mut ResMut<EntityMap>,
     hubs: &Query<&BLEHub>,
 ) {
@@ -126,7 +126,7 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
                         }
                         if ui.button("New").clicked() {
                             let id = T::new_id(entity_map);
-                            spawn_events.write(T::SpawnMessage::from_id(id));
+                            spawn_messages.write(T::SpawnMessage::from_id(id));
                             *selected_id = Some(id);
                         }
                     });
@@ -135,7 +135,7 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
                         if let Some(id) = selected_id.take() {
                             let entity = entity_map.layout_devices[&id];
                             let (_, device) = devices.get(entity).unwrap();
-                            despawn_events.write(DespawnMessage(device.id()));
+                            despawn_messages.write(DespawnMessage(device.id()));
                         }
                     }
                 }
@@ -145,12 +145,12 @@ pub fn select_device_id<T: DeviceComponent + Component<Mutability = Mutable>>(
 }
 
 fn despawn_layout_device(
-    mut events: MessageReader<DespawnMessage<LayoutDevice>>,
+    mut messages: MessageReader<DespawnMessage<LayoutDevice>>,
     mut entity_map: ResMut<EntityMap>,
     mut commands: Commands,
     mut q_switches: Query<&mut Switch>,
 ) {
-    for event in events.read() {
+    for event in messages.read() {
         for mut switch in q_switches.iter_mut() {
             for motor in switch.motors.iter_mut() {
                 if motor == &Some(event.0) {

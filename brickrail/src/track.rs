@@ -87,7 +87,7 @@ impl TrackBuildState {
     fn build(
         &mut self,
         connections: &mut Connections,
-        track_event_writer: &mut MessageWriter<SpawnTrackMessage>,
+        track_message_writer: &mut MessageWriter<SpawnTrackMessage>,
         connection_message_writer: &mut MessageWriter<SpawnConnectionMessage>,
     ) {
         while self.hover_cells.len() > 2 {
@@ -97,7 +97,7 @@ impl TrackBuildState {
                 self.hover_cells[2],
             ) {
                 if !connections.has_track(track_id) {
-                    track_event_writer.write(SpawnTrackMessage(Track::from_id(track_id)));
+                    track_message_writer.write(SpawnTrackMessage(Track::from_id(track_id)));
                 }
                 if let Some(track_b) = self.hover_track {
                     if let Some(connection_id) = track_b.get_connection_to(track_id) {
@@ -123,7 +123,7 @@ pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
         Res<AppTypeRegistry>,
         MessageWriter<BlockCreateMessage>,
     )>::new(world);
-    let (_entity_map, selection_state, _type_registry, mut spawn_events) = state.get_mut(world);
+    let (_entity_map, selection_state, _type_registry, mut spawn_messages) = state.get_mut(world);
     if let Selection::Section(section) = &selection_state.selection {
         ui.label("Section inspector");
         ui.separator();
@@ -131,7 +131,7 @@ pub fn track_section_inspector(ui: &mut Ui, world: &mut World) {
         ui.separator();
         if ui.button("Create block").clicked() {
             let block = Block::new(section.clone());
-            spawn_events.write(BlockCreateMessage(block));
+            spawn_messages.write(BlockCreateMessage(block));
         }
         ui.separator();
     }
@@ -184,7 +184,7 @@ pub fn spawn_connection(
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: MessageReader<SpawnConnectionMessage>,
-    mut switch_update_events: MessageWriter<UpdateSwitchTurnsMessage>,
+    mut switch_update_messages: MessageWriter<UpdateSwitchTurnsMessage>,
     mut base_materials: ResMut<Assets<TrackBaseMaterial>>,
     mut inner_materials: ResMut<Assets<TrackInnerMaterial>>,
     mut path_materials: ResMut<Assets<TrackPathMaterial>>,
@@ -226,7 +226,7 @@ pub fn spawn_connection(
                         .collect::<Vec<SwitchPosition>>(),
                 };
                 println!("{:?}", event);
-                switch_update_events.write(event);
+                switch_update_messages.write(event);
             }
         }
     }
@@ -666,7 +666,7 @@ fn update_draw_track(
     mut connections: ResMut<Connections>,
     mut track_build_state: ResMut<TrackBuildState>,
     mouse_world_pos: Res<MousePosWorld>,
-    mut track_event_writer: MessageWriter<SpawnTrackMessage>,
+    mut track_message_writer: MessageWriter<SpawnTrackMessage>,
     mut connection_message_writer: MessageWriter<SpawnConnectionMessage>,
 ) {
     let last_cell = track_build_state.hover_cells.last();
@@ -681,7 +681,7 @@ fn update_draw_track(
         // println!("{:?}", track_build_state.hover_cells);
         track_build_state.build(
             &mut connections,
-            &mut track_event_writer,
+            &mut track_message_writer,
             &mut connection_message_writer,
         );
     }
@@ -833,8 +833,8 @@ fn despawn_track(
     mut connections: ResMut<Connections>,
     mut entity_map: ResMut<EntityMap>,
     mut event_reader: MessageReader<DespawnMessage<Track>>,
-    mut switch_update_events: MessageWriter<UpdateSwitchTurnsMessage>,
-    mut switch_despawn_events: MessageWriter<DespawnMessage<Switch>>,
+    mut switch_update_messages: MessageWriter<UpdateSwitchTurnsMessage>,
+    mut switch_despawn_messages: MessageWriter<DespawnMessage<Switch>>,
 ) {
     for despawn_event in event_reader.read() {
         let track_id = despawn_event.0;
@@ -844,7 +844,7 @@ fn despawn_track(
             .iter()
             .filter(|id| entity_map.switches.contains_key(*id))
         {
-            switch_despawn_events.write(DespawnMessage(*switch));
+            switch_despawn_messages.write(DespawnMessage(*switch));
         }
 
         let mut other_dirtracks = vec![];
@@ -881,7 +881,7 @@ fn despawn_track(
                     .collect::<Vec<SwitchPosition>>(),
             };
             println!("{:?}", event);
-            switch_update_events.write(event);
+            switch_update_messages.write(event);
         }
     }
 }

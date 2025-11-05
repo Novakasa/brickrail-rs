@@ -131,7 +131,7 @@ impl Switch {
             mut selection_state,
             type_registry,
             hubs,
-            mut spawn_events,
+            mut spawn_messages,
             mut spawn_devices,
             mut despawn_devices,
             mut devices,
@@ -170,7 +170,7 @@ impl Switch {
                                     device.inspector(
                                         ui,
                                         &hubs,
-                                        &mut spawn_events,
+                                        &mut spawn_messages,
                                         &mut entity_map,
                                         &mut selection_state,
                                     );
@@ -266,14 +266,14 @@ pub struct SetSwitchPositionMessage {
 }
 
 pub fn update_switch_position(
-    mut events: MessageReader<SetSwitchPositionMessage>,
+    mut messages: MessageReader<SetSwitchPositionMessage>,
     switches: Query<&Switch>,
     mut switch_motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: MessageWriter<HubCommandMessage>,
     editor_state: Res<State<EditorState>>,
 ) {
-    for update in events.read() {
+    for update in messages.read() {
         if let Some(entity) = entity_map.switches.get(&update.id) {
             let switch = switches.get(*entity).unwrap();
             for (motor_id, position) in switch.iter_motor_positions(&update.position) {
@@ -298,22 +298,22 @@ pub fn update_switch_position(
 }
 
 pub fn update_switch_turns(
-    mut events: MessageReader<UpdateSwitchTurnsMessage>,
-    mut switch_spawn_events: MessageWriter<SpawnSwitchMessage>,
-    mut despawn_switch_events: MessageWriter<DespawnMessage<Switch>>,
+    mut messages: MessageReader<UpdateSwitchTurnsMessage>,
+    mut switch_spawn_messages: MessageWriter<SpawnSwitchMessage>,
+    mut despawn_switch_messages: MessageWriter<DespawnMessage<Switch>>,
     mut switches: Query<&mut Switch>,
     entity_map: Res<EntityMap>,
     mut commands: Commands,
     switch_connections: Query<(Entity, &SwitchConnection)>,
     mut switch_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
-    for update in events.read() {
+    for update in messages.read() {
         if update.positions.len() > 1 {
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let mut switch = switches.get_mut(*entity).unwrap();
                 switch.set_positions(update.positions.clone());
             } else {
-                switch_spawn_events.write(SpawnSwitchMessage {
+                switch_spawn_messages.write(SpawnSwitchMessage {
                     switch: Switch::new(update.id, update.positions.clone()),
                     name: None,
                 });
@@ -321,7 +321,7 @@ pub fn update_switch_turns(
         } else {
             if let Some(entity) = entity_map.switches.get(&update.id) {
                 let switch = switches.get(entity.clone()).unwrap();
-                despawn_switch_events.write(DespawnMessage(switch.id()));
+                despawn_switch_messages.write(DespawnMessage(switch.id()));
             }
         }
         for (entity, connection) in switch_connections.iter() {
@@ -371,11 +371,11 @@ pub fn draw_switches(mut gizmos: Gizmos, switches: Query<&Switch>) {
 
 pub fn spawn_switch(
     mut commands: Commands,
-    mut events: MessageReader<SpawnSwitchMessage>,
+    mut messages: MessageReader<SpawnSwitchMessage>,
     mut entity_map: ResMut<EntityMap>,
     mut switch_materials: ResMut<Assets<TrackPathMaterial>>,
 ) {
-    for spawn_event in events.read() {
+    for spawn_event in messages.read() {
         let switch = spawn_event.switch.clone();
         let name = Name::new(
             spawn_event
@@ -506,10 +506,10 @@ fn update_switch_shapes(
 
 pub fn despawn_switch(
     mut commands: Commands,
-    mut events: MessageReader<DespawnMessage<Switch>>,
+    mut messages: MessageReader<DespawnMessage<Switch>>,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for despawn_event in events.read() {
+    for despawn_event in messages.read() {
         if let Some(entity) = entity_map.switches.get(&despawn_event.0) {
             commands.entity(*entity).despawn();
             entity_map.remove_switch(despawn_event.0);

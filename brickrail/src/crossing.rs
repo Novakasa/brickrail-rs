@@ -43,7 +43,7 @@ impl LevelCrossing {
 }
 
 impl Inspectable for LevelCrossing {
-    fn inspector(ui: &mut Ui, world: &mut World) {
+    fn inspector(_ui: &mut Ui, _world: &mut World) {
         // LevelCrossing::inspector(ui, world);
     }
 
@@ -96,10 +96,10 @@ impl SpawnCrossingMessage {
 
 pub fn spawn_crossing(
     mut commands: Commands,
-    mut events: MessageReader<SpawnCrossingMessage>,
+    mut messages: MessageReader<SpawnCrossingMessage>,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for event in events.read() {
+    for event in messages.read() {
         let id = event.switch.id.clone();
         let entity = commands.spawn(event.switch.clone()).id();
         entity_map.add_crossing(id, entity);
@@ -113,14 +113,14 @@ pub struct SetCrossingPositionMessage {
 }
 
 pub fn update_switch_position(
-    mut events: MessageReader<SetCrossingPositionMessage>,
+    mut messages: MessageReader<SetCrossingPositionMessage>,
     crossings: Query<&LevelCrossing>,
     mut motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
     mut hub_commands: MessageWriter<HubCommandMessage>,
     editor_state: Res<State<EditorState>>,
 ) {
-    for update in events.read() {
+    for update in messages.read() {
         let position = update.position.to_motor_position();
         if let Some(entity) = entity_map.crossings.get(&update.id) {
             let crossing = crossings.get(*entity).unwrap();

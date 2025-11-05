@@ -114,10 +114,10 @@ impl Selectable for Destination {
 
 fn spawn_destination(
     mut commands: Commands,
-    mut events: MessageReader<SpawnDestinationMessage>,
+    mut messages: MessageReader<SpawnDestinationMessage>,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for spawn_dest in events.read() {
+    for spawn_dest in messages.read() {
         let name = Name::new(
             spawn_dest
                 .name

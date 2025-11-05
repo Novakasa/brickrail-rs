@@ -131,11 +131,11 @@ impl SpawnDeviceID for SpawnPulseMotorMessage {
 }
 
 fn spawn_pulse_motor(
-    mut events: MessageReader<SpawnPulseMotorMessage>,
+    mut messages: MessageReader<SpawnPulseMotorMessage>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
 ) {
-    for event in events.read() {
+    for event in messages.read() {
         let entity = commands
             .spawn((event.device.clone(), event.motor.clone()))
             .id();
