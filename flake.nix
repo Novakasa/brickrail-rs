@@ -52,6 +52,7 @@
               xorg.libXrandr
               libxkbcommon
               dbus.dev
+              uv
               wayland # provides wayland-client.pc
             ];
             RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
