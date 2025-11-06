@@ -6,7 +6,7 @@ import uselect
 
 
 from pybricks.hubs import ThisHub
-from pybricks.tools import wait, StopWatch
+from pybricks.tools import StopWatch
 from pybricks.parameters import Color
 
 # version x
@@ -72,8 +72,7 @@ class IOHub:
         self.output_retries = 0
         self.output_queue = []
         self.output_watch = StopWatch()
-        self.hub = ThisHub()
-        self.storage = {}
+        self.hub: ThisHub = ThisHub(broadcast_channel=0)
 
         for attr in dir(device):
             if attr[0] == "_":
@@ -82,8 +81,11 @@ class IOHub:
             attr_hash1 = xor_checksum(encoded)
             attr_hash2 = mod_checksum(encoded)
             attr_hash = bytes([attr_hash1, attr_hash2])
-            assert not attr_hash in self.device_attrs, "hash not unique"
+            assert attr_hash not in self.device_attrs, "hash not unique"
             self.device_attrs[attr_hash] = attr
+
+    def set_broadcast_data(self, data):
+        self.hub.ble.broadcast(data)
 
     def emit_msg(self, data):
         data = data + bytes([self.next_output_id])
@@ -208,17 +210,21 @@ class IOHub:
         if in_id == _IN_ID_STORE:
             address = msg[0]
             _type = msg[1]
-            data = msg[2:-1]
-            value = 0
-            for i, byte in enumerate(data):
-                value += byte << 8 * (len(data) - 1 - i)
-            print("storing:", address, value)
-            self.storage[address] = value
+            data = msg[2:6]
+            self.hub.system.storage(address * 4, write=data)
+            # print("store", address, self.get_storage(address), data)
             return
 
         assert False
 
-    def update_input(self, byte):
+    def get_storage(self, address) -> int:
+        data = self.hub.system.storage(address * 4, read=4)
+        value = 0
+        for i, byte in enumerate(data):
+            value += byte << (24 - 8 * i)
+        return value
+
+    def update_input(self, byte: int):
         if self.msg_len is None:
             self.msg_len = byte
             return

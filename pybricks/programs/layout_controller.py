@@ -1,11 +1,8 @@
 from micropython import const
 
-from uselect import poll
-from usys import stdin
-
 from pybricks.pupdevices import DCMotor, Motor
 from pybricks.parameters import Port
-from pybricks.tools import wait, StopWatch
+from pybricks.tools import StopWatch
 
 from io_hub_unfrozen import IOHub
 
@@ -64,7 +61,7 @@ class Crossing:
         self.device_type = _DEVICE_CROSSING
 
     def get_storage_val(self, i):
-        return io_hub.storage[8 + self.port * 16 + i]
+        return io_hub.get_storage(8 + self.port * 8 + i)
 
     def set_pos(self, position):
         sdir = -1
@@ -101,7 +98,7 @@ class Switch:
         self.device_type = _DEVICE_SWITCH
 
     def get_storage_val(self, i):
-        return io_hub.storage.get(8 + self.port * 16 + i, 100)
+        return io_hub.get_storage(8 + self.port * 8 + i)
 
     def switch(self, position):
         sdir = -1
@@ -130,7 +127,6 @@ class Switch:
 
 
 class Controller:
-
     def __init__(self):
         self.devices = {}
 

@@ -87,7 +87,7 @@ class TrainSensor:
 
     def get_marker_color(self):
         h, s, v = self.last_hsv.h, self.last_hsv.s, self.last_hsv.v
-        if s * v < io_hub.storage[_CONFIG_CHROMA_THRESHOLD]:
+        if s * v < io_hub.get_storage(_CONFIG_CHROMA_THRESHOLD):
             return None
         colorerr = 181
         found_color = None
@@ -179,7 +179,7 @@ class TrainMotor:
             if abs(self.speed) < self.target_speed:
                 self.speed = (
                     min(
-                        abs(self.speed) + delta * io_hub.storage[_CONFIG_MOTOR_ACC],
+                        abs(self.speed) + delta * io_hub.get_storage(_CONFIG_MOTOR_ACC),
                         self.target_speed,
                     )
                     * self.facing
@@ -187,17 +187,17 @@ class TrainMotor:
             if abs(self.speed) > self.target_speed:
                 self.speed = (
                     max(
-                        abs(self.speed) - delta * io_hub.storage[_CONFIG_MOTOR_DEC],
+                        abs(self.speed) - delta * io_hub.get_storage(_CONFIG_MOTOR_DEC),
                         self.target_speed,
                     )
                     * self.facing
                 )
         else:
-            self.speed += delta * io_hub.storage[_CONFIG_MOTOR_DEC] * self.facing
+            self.speed += delta * io_hub.get_storage(_CONFIG_MOTOR_DEC) * self.facing
 
         for i, motor in enumerate(self.motors):
             polarity = (
-                io_hub.storage[_CONFIG_MOTOR_INVERTED + self.motor_ports[i]] * -2
+                io_hub.get_storage(_CONFIG_MOTOR_INVERTED + self.motor_ports[i]) * -2
             ) + 1
             motor.dc(self.speed * polarity)
 
@@ -240,7 +240,6 @@ class Route:
         io_hub.emit_data(bytes((_DATA_LEG_ADVANCE, self.index)))
 
     def advance_sensor(self):
-
         current_leg = self.current_leg()
         current_leg.advance_sensor()
         if current_leg.is_complete():
@@ -368,7 +367,7 @@ class Train:
     def advance_sensor(self):
         self.route.advance_sensor()
         self.set_state(self.route.get_train_state())
-        if self.route.next_leg() == None and self.route.current_leg().is_complete():
+        if self.route.next_leg() is None and self.route.current_leg().is_complete():
             self.route = None
 
     def set_state(self, state):
@@ -381,7 +380,7 @@ class Train:
             self.motor.set_facing(1)
 
         if state & _STATE_FLAG_RUN:
-            self.motor.set_target(io_hub.storage[2 + (state & 0x0F)])
+            self.motor.set_target(io_hub.get_storage(2 + (state & 0x0F)))
 
     def new_route(self):
         self.route = Route()
@@ -413,11 +412,13 @@ class Train:
         if self.motor is not None:
             self.motor.update(delta)
 
+        io_hub.set_broadcast_data(self.motor.speed)
+
     def set_valid_colors(self, data):
         self.sensor.valid_colors = list(data)
 
     def dump_color_buffer(self):
-        chroma_threshold = io_hub.storage[_CONFIG_CHROMA_THRESHOLD]
+        chroma_threshold = io_hub.get_storage(_CONFIG_CHROMA_THRESHOLD)
         pack_into(
             ">HH", self.sensor.color_buf, 1000, chroma_threshold, self.sensor.buf_index
         )
@@ -427,7 +428,4 @@ class Train:
 assert VERSION != b"1.0.0"
 train = Train()
 io_hub = IOHub(train)
-for i in range(6):
-    io_hub.storage[_CONFIG_MOTOR_INVERTED + i] = 0
-
 io_hub.run_loop()

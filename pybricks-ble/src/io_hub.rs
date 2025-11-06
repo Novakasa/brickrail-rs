@@ -201,6 +201,9 @@ impl Input {
             data.insert(2, (value & 0xFF) as u8);
             value >>= 8;
         }
+        while data.len() < 6 {
+            data.insert(2, 0);
+        }
         Input {
             input_type: InputType::Store,
             data: data,

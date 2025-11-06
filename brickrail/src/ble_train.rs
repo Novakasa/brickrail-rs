@@ -231,9 +231,7 @@ impl BLETrain {
             config.add_value(0, self.chroma_threshold as u32);
             for port in HubPort::iter() {
                 let inverted = hub.inverted_ports.contains(&port) as u32;
-                if inverted != 0 {
-                    config.add_value(6 + port.to_u8(), inverted);
-                }
+                config.add_value(6 + port.to_u8(), inverted);
             }
             if let Some(hub_id) = hub.hub_id {
                 configs.insert(hub_id, config);

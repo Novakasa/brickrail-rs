@@ -1,9 +1,10 @@
 [project]
-name = "pybricks"
+name = "pybricks-programs"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pybricksdev>=1.2.0",
+    "pybricks>=3.6.1",
+    "pybricksdev>=2.3.0",
 ]
