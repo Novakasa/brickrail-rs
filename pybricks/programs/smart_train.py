@@ -1,7 +1,7 @@
 from micropython import const
 from ustruct import pack, pack_into
 
-from pybricks.pupdevices import ColorDistanceSensor, DCMotor, Motor
+from pybricks.pupdevices import ColorDistanceSensor, DCMotor, Motor, ColorSensor
 from pybricks.parameters import Port
 
 from io_hub_unfrozen import IOHub, VERSION
@@ -66,12 +66,15 @@ class TrainSensor:
     def __init__(self, marker_exit_callback):
         for port in ["A", "B", "C", "D", "E", "F"]:
             port = getattr(Port, port)
-            try:
-                self.sensor = ColorDistanceSensor(port)
-            except OSError:
-                continue
+            for sensor_cls in (ColorDistanceSensor, ColorSensor):
+                try:
+                    self.sensor = sensor_cls(port)
+                    break
+                except OSError:
+                    continue
             else:
-                break
+                continue  # try next port if both sensor types fail
+            break  # found a working sensor, stop searching
         self.marker_exit_callback = marker_exit_callback
 
         self.last_marker_color = None
