@@ -46,7 +46,9 @@ pub struct HubReady;
 pub struct BroadcasterHub;
 
 #[derive(Component, Debug)]
-pub struct ObserverHub;
+pub struct ObserverHub {
+    keep_connected: bool,
+}
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub enum HubBusy {
@@ -219,15 +221,22 @@ impl BLEHub {
                 Option<&HubRunningProgram>,
                 Option<&HubDownloaded>,
                 Option<&HubReady>,
-                Option<&ObserverHub>,
+                Option<&mut ObserverHub>,
             )>,
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             MessageWriter<HubCommandMessage>,
+            Commands,
         )>::new(world);
-        let (mut hubs, entity_map, selection_state, _type_registry, mut command_messages) =
-            state.get_mut(world);
+        let (
+            mut hubs,
+            entity_map,
+            selection_state,
+            _type_registry,
+            mut command_messages,
+            mut commands,
+        ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
             if let Ok((hub, busy, connected, running, downloaded, ready, maybe_observer)) =
                 hubs.get_mut(entity)
@@ -327,12 +336,16 @@ impl BLEHub {
                 let mut is_observer = maybe_observer.is_some();
                 if ui.checkbox(&mut is_observer, "Observer Hub").changed() {
                     let entity = entity_map.hubs[&hub.id];
-                    let mut commands = world.commands();
                     if is_observer {
-                        commands.entity(entity).insert(ObserverHub);
+                        commands.entity(entity).insert(ObserverHub {
+                            keep_connected: false,
+                        });
                     } else {
                         commands.entity(entity).remove::<ObserverHub>();
                     }
+                }
+                if let Some(mut observer) = maybe_observer {
+                    ui.checkbox(&mut observer.keep_connected, "Keep Connected");
                 }
             }
         }
@@ -844,7 +857,11 @@ fn handle_hub_messages(
                         }
                         _ => {
                             warn!("Hub reported running program, but was not starting");
-                            commands.entity(entity).insert(HubRunningProgram);
+                            commands.entity(entity).insert(HubBusy::Stopping); // to make sure prepare_hubs doesn't try to configure yet
+                            commands.write_message(HubCommandMessage {
+                                hub_id: hub.id.clone(),
+                                command: HubCommand::StopProgram,
+                            });
                         }
                     }
                 }
@@ -957,13 +974,15 @@ pub fn prepare_hubs(
             });
             return;
         }
-        if maybe_observer.is_some() {
-            info!("Observer hub disconnecting...");
-            command_messages.write(HubCommandMessage {
-                hub_id: hub.id,
-                command: HubCommand::Disconnect,
-            });
-            return;
+        if let Some(observer) = maybe_observer {
+            if !observer.keep_connected {
+                info!("Observer hub disconnecting...");
+                command_messages.write(HubCommandMessage {
+                    hub_id: hub.id,
+                    command: HubCommand::Disconnect,
+                });
+                return;
+            }
         }
     }
 }
@@ -1077,9 +1096,12 @@ fn check_hub_ready(
         //     "Checking hub {:?}: connected={:?}, busy={:?}, running={:?}",
         //     hub.id, maybe_connected, maybe_busy, maybe_running
         // );
-        if maybe_observer.is_some() {
+        if let Some(observer) = maybe_observer {
             if maybe_ready.is_some() {
-                if maybe_running.is_none() || maybe_configured.is_none() {
+                if maybe_running.is_none()
+                    || maybe_configured.is_none()
+                    || (maybe_connected.is_none() && observer.keep_connected)
+                {
                     warn!(
                         "Observer hub {:?} no longer ready",
                         hub.name.as_ref().unwrap()
@@ -1087,7 +1109,8 @@ fn check_hub_ready(
                     commands
                         .entity(entity)
                         .remove::<HubReady>()
-                        .remove::<HubConfigured>();
+                        .remove::<HubConfigured>()
+                        .remove::<HubRunningProgram>(); // forces us to re-start, which makes sense if we want to reconfigure
                 }
             } else {
                 // println!(
@@ -1100,7 +1123,7 @@ fn check_hub_ready(
                 // );
                 if maybe_running.is_some()
                     && maybe_configured.is_some()
-                    && maybe_connected.is_none()
+                    && (maybe_connected.is_none() || observer.keep_connected)
                     && maybe_busy.is_none()
                 {
                     info!("Observer hub {:?} is ready", hub.name.as_ref().unwrap());
@@ -1167,14 +1190,7 @@ fn stop_hub_programs(
 }
 
 pub fn disconnect_hubs(
-    q_hubs: Query<
-        &BLEHub,
-        (
-            With<HubConnected>,
-            Without<HubBusy>,
-            Without<HubRunningProgram>,
-        ),
-    >,
+    q_hubs: Query<(&BLEHub, Option<&HubRunningProgram>), (With<HubConnected>, Without<HubBusy>)>,
     q_hubs_busy: Query<&BLEHub, With<HubBusy>>,
     mut command_messages: MessageWriter<HubCommandMessage>,
 ) {
@@ -1182,7 +1198,14 @@ pub fn disconnect_hubs(
         // println!("Waiting for busy hubs to finish before disconnecting");
         return;
     }
-    for hub in q_hubs.iter() {
+    for (hub, running_program) in q_hubs.iter() {
+        if running_program.is_some() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::StopProgram,
+            });
+            return;
+        }
         command_messages.write(HubCommandMessage {
             hub_id: hub.id,
             command: HubCommand::Disconnect,
