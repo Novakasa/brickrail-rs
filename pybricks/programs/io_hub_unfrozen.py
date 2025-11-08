@@ -6,8 +6,8 @@ import uselect
 
 
 from pybricks.hubs import ThisHub
-from pybricks.tools import StopWatch
-from pybricks.parameters import Color
+from pybricks.tools import StopWatch, wait
+from pybricks.parameters import Color, Button
 
 # version x
 version = "x"
@@ -74,10 +74,11 @@ class IOHub:
         self.output_queue = []
         self.output_watch = StopWatch()
         self.hub: ThisHub = ThisHub(broadcast_channel=0, observe_channels=[0])
+        self.hub.system.set_stop_button(None)
         self.hub_name_id = mod_checksum(bytes(self.hub.system.info()["name"], "ascii"))
-        print("hub id:", self.hub_name_id)
         self.observer = False
         self.broadcaster = False
+        print("hub id:", self.hub_name_id)
         self.broadcast_ids = []
         self.broadcast_states = {}
 
@@ -143,6 +144,20 @@ class IOHub:
         self.output_watch.reset()
         self.output_retries += 1
 
+    def set_ready(self):
+        kind = self.get_storage(30)
+        if kind == 0:
+            self.hub.light.on(Color.GREEN)
+        if kind == 1:
+            self.observer = True
+            self.hub.light.on(Color.YELLOW)
+        if kind == 2:
+            self.broadcaster = True
+            self.hub.light.on(Color.MAGENTA)
+        self.ready = True
+        self.device.ready()
+        self.emit_sys_code(_SYS_CODE_READY)
+
     def handle_input(self):
         # print("handling input", self.input_buffer)
         in_id = self.input_buffer[0]
@@ -196,17 +211,8 @@ class IOHub:
             if code == _SYS_CODE_STOP:
                 self.running = False
             if code == _SYS_CODE_READY:
-                if msg[1] == 0:
-                    self.hub.light.on(Color.GREEN)
-                if msg[1] == 1:
-                    self.observer = True
-                    self.hub.light.on(Color.YELLOW)
-                if msg[1] == 2:
-                    self.broadcaster = True
-                    self.hub.light.on(Color.MAGENTA)
-                self.ready = True
-                self.device.ready()
-                self.emit_sys_code(_SYS_CODE_READY)
+                self.set_storage(30, msg[1])  # set hub kind
+                self.set_ready()
             return
 
         if in_id == _IN_ID_RPC:
@@ -255,6 +261,15 @@ class IOHub:
             value += byte << (24 - 8 * i)
         return value
 
+    def set_storage(self, address, value: int):
+        data = [
+            (value >> 24) & 0xFF,
+            (value >> 16) & 0xFF,
+            (value >> 8) & 0xFF,
+            value & 0xFF,
+        ]
+        self.hub.system.storage(address * 4, write=bytes(data))
+
     def update_input(self, byte: int):
         if self.msg_len is None:
             self.msg_len = byte
@@ -297,6 +312,11 @@ class IOHub:
                 byte = stdin.buffer.read(1)[0]
                 self.update_input(byte)
                 self.input_watch.reset()
+            if self.hub.buttons.pressed():
+                if not self.ready:
+                    self.set_ready()
+                    wait(500)  # the poor man's debounce
+                self.hub.system.set_stop_button(Button.CENTER)
             if self.msg_len is not None and self.input_watch.time() > 200:
                 print("input timeout", self.input_buffer)
                 self.emit_ack(False, 0)

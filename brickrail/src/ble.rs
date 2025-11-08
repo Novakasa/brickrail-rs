@@ -857,11 +857,7 @@ fn handle_hub_messages(
                         }
                         _ => {
                             warn!("Hub reported running program, but was not starting");
-                            commands.entity(entity).insert(HubBusy::Stopping); // to make sure prepare_hubs doesn't try to configure yet
-                            commands.write_message(HubCommandMessage {
-                                hub_id: hub.id.clone(),
-                                command: HubCommand::StopProgram,
-                            });
+                            commands.entity(entity).insert(HubRunningProgram); // to make sure prepare_hubs doesn't try to configure yet
                         }
                     }
                 }
