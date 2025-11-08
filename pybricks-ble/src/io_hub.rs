@@ -688,6 +688,7 @@ impl IOHub {
         event_sender: broadcast::Sender<IOEvent>,
     ) {
         while let Ok(event) = status_receiver.recv().await {
+            // TODO, probably can make sure io_state is still valid if the program was started by button or before connecting here by detecting the hub running state
             event_sender.send(IOEvent::Status(event)).unwrap();
         }
     }
@@ -737,7 +738,7 @@ impl IOHub {
 
     pub async fn start_program(&mut self) -> Result<(), Box<dyn Error>> {
         if self.io_state.is_some() {
-            self.reset_io_state().await?;
+            self.reset_io_state().await;
         }
 
         let hub = self.setup_io_state().await?;
@@ -772,20 +773,22 @@ impl IOHub {
     }
 
     pub async fn stop_program(&mut self) -> Result<(), Box<dyn Error>> {
-        self.reset_io_state().await?;
+        self.reset_io_state().await;
 
         let hub = self.hub.lock().await;
         hub.stop_program().await?;
         Ok(())
     }
 
-    async fn reset_io_state(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut io_state = self.io_state.as_ref().ok_or("No IOState!")?.lock().await;
-        io_state.tasks.abort_all();
-        drop(io_state);
+    async fn reset_io_state(&mut self) {
+        if let Some(io_state) = self.io_state.as_ref() {
+            let mut io_state = io_state.lock().await;
+            io_state.tasks.abort_all();
+            drop(io_state);
+        }
+
         self.io_state = None;
         self.input_queue_sender = None;
-        Ok(())
     }
 
     pub fn queue_input(&self, input: Input) -> Result<(), Box<dyn Error>> {
