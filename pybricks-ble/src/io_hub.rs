@@ -21,6 +21,7 @@ const IN_ID_RPC: u8 = 17;
 const IN_ID_SYS: u8 = 18;
 const IN_ID_STORE: u8 = 19;
 const IN_ID_MSG_ERR: u8 = 21;
+const IN_ID_BROADCAST_CMD: u8 = 22;
 
 const OUT_ID_END: u8 = 10;
 const OUT_ID_MSG_ACK: u8 = 6;
@@ -34,7 +35,7 @@ const SYS_CODE_READY: u8 = 1;
 const SYS_CODE_ALIVE: u8 = 2;
 const SYS_CODE_VERSION: u8 = 3;
 
-fn xor_checksum(data: &[u8]) -> u8 {
+pub fn xor_checksum(data: &[u8]) -> u8 {
     let mut checksum = 0xFF;
     for byte in data {
         checksum ^= byte;
@@ -42,7 +43,7 @@ fn xor_checksum(data: &[u8]) -> u8 {
     checksum
 }
 
-fn mod_checksum(data: &[u8]) -> u8 {
+pub fn mod_checksum(data: &[u8]) -> u8 {
     let mut checksum: u8 = 0x00;
     for byte in data {
         checksum = checksum.wrapping_add(*byte);
@@ -106,6 +107,7 @@ enum InputType {
     Sys,
     Store,
     MsgErr,
+    BroadcastCMD,
 }
 
 impl InputType {
@@ -116,6 +118,7 @@ impl InputType {
             InputType::Sys => IN_ID_SYS,
             InputType::Store => IN_ID_STORE,
             InputType::MsgErr => IN_ID_MSG_ERR,
+            InputType::BroadcastCMD => IN_ID_BROADCAST_CMD,
         }
     }
 }
@@ -216,6 +219,15 @@ impl Input {
         data.extend_from_slice(args);
         Input {
             input_type: InputType::Sys,
+            data,
+            simulated_error: SimulatedError::None,
+        }
+    }
+
+    pub fn broadcast_cmd(args: &[u8]) -> Self {
+        let data = args.to_vec();
+        Input {
+            input_type: InputType::BroadcastCMD,
             data,
             simulated_error: SimulatedError::None,
         }

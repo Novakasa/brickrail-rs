@@ -9,6 +9,7 @@ use bevy_prototype_lyon::prelude::{LineCap, StrokeOptions};
 use lyon_tessellation::path::Path;
 use serde::{Deserialize, Serialize};
 
+use crate::ble::HubDeviceStateMessage;
 use crate::editor::{HoverState, Selection, finish_hover};
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::materials::TrackPathMaterial;
@@ -16,7 +17,7 @@ use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::track::{PATH_WIDTH, build_connection_path_extents};
 use crate::track_mesh::{MeshType, TrackMeshPlugin};
 use crate::{
-    ble::{BLEHub, HubCommandMessage},
+    ble::BLEHub,
     editor::{DespawnMessage, EditorState, GenericID, SelectionState, SpawnHubMessage},
     layout::EntityMap,
     layout_devices::{LayoutDevice, select_device_id},
@@ -270,7 +271,7 @@ pub fn update_switch_position(
     switches: Query<&Switch>,
     mut switch_motors: Query<(&mut PulseMotor, &LayoutDevice)>,
     entity_map: Res<EntityMap>,
-    mut hub_commands: MessageWriter<HubCommandMessage>,
+    mut hub_commands: MessageWriter<HubDeviceStateMessage>,
     editor_state: Res<State<EditorState>>,
 ) {
     for update in messages.read() {
@@ -285,7 +286,7 @@ pub fn update_switch_position(
                     }
 
                     if editor_state.get().ble_commands_enabled() {
-                        if let Some(command) = PulseMotor::switch_command(device, &position) {
+                        if let Some(command) = PulseMotor::switch_hub_state(device, &position) {
                             println!("Sending switch command {:?}", command);
                             hub_commands.write(command);
                         }

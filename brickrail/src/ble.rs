@@ -19,7 +19,7 @@ use crate::{
 use bevy::{ecs::system::SystemState, platform::collections::HashMap};
 use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui, widgets::Button};
-use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode};
+use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode, mod_checksum};
 use pybricks_ble::pybricks_hub::HubStatusFlags;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
@@ -64,6 +64,60 @@ pub enum HubError {
     ProgramError,
 }
 
+#[derive(Message, Debug)]
+pub struct HubDeviceStateMessage {
+    pub hub_id: HubID,
+    pub state_id: u8,
+    pub state: u8,
+}
+
+fn handle_device_state_msgs(
+    mut device_state_reader: MessageReader<HubDeviceStateMessage>,
+    mut hub_command_writer: MessageWriter<HubCommandMessage>,
+    q_hubs: Query<&BLEHub, Without<ObserverHub>>,
+    entity_map: Res<EntityMap>,
+) {
+    for state_msg in device_state_reader.read() {
+        let hub_entity = entity_map.hubs.get(&state_msg.hub_id).unwrap();
+        if !q_hubs.contains(*hub_entity) {
+            continue;
+        }
+        let hub_msg = HubCommandMessage {
+            hub_id: state_msg.hub_id.clone(),
+            command: HubCommand::QueueInput(IOInput::rpc(
+                "set_device_state",
+                &[state_msg.state_id, state_msg.state],
+            )),
+        };
+        hub_command_writer.write(hub_msg);
+    }
+}
+
+fn handle_observer_device_state_msgs(
+    mut device_state_reader: MessageReader<HubDeviceStateMessage>,
+    mut hub_command_writer: MessageWriter<HubCommandMessage>,
+    observer_hubs: Query<&BLEHub, With<ObserverHub>>,
+    broadcaster: Option<Single<&BLEHub, With<BroadcasterHub>>>,
+    entity_map: Res<EntityMap>,
+) {
+    for state_msg in device_state_reader.read() {
+        let hub_entity = entity_map.hubs.get(&state_msg.hub_id).unwrap();
+        if !observer_hubs.contains(*hub_entity) {
+            continue;
+        }
+        let observer_hub = observer_hubs.get(*hub_entity).unwrap();
+        let hub_msg = HubCommandMessage {
+            hub_id: broadcaster.as_ref().unwrap().id.clone(),
+            command: HubCommand::QueueInput(IOInput::broadcast_cmd(&[
+                observer_hub.name_id().unwrap(),
+                state_msg.state_id,
+                state_msg.state,
+            ])),
+        };
+        hub_command_writer.write(hub_msg);
+    }
+}
+
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct BLEHub {
     pub id: HubID,
@@ -82,6 +136,11 @@ impl BLEHub {
             input_sender: None,
             name: None,
         }
+    }
+
+    pub fn name_id(&self) -> Option<u8> {
+        // checksum of the ascii bytes of the name
+        Some(mod_checksum(self.name.as_ref()?.as_bytes()))
     }
 
     pub fn get_program_path(&self) -> &'static Path {
@@ -178,6 +237,7 @@ impl BLEHub {
                     "Name: {}",
                     hub.name.as_deref().unwrap_or("Unknown")
                 ));
+                ui.label(format!("name id: {:?}", hub.name_id()));
                 ui.label(format!("{:?}", busy));
                 ui.label(format!("{:?}", connected));
                 ui.label(format!("{:?}", running));
@@ -793,8 +853,13 @@ fn handle_hub_messages(
                     if let Some(HubBusy::Stopping) = maybe_hub_busy {
                         commands.entity(entity).remove::<HubBusy>();
                     } else {
-                        warn!("Hub reported stopped program, but was not stopping");
                         commands.entity(entity).insert(HubError::ProgramError);
+                        if let Some(HubBusy::Configuring) = maybe_hub_busy {
+                            warn!("Hub reported program stopped while configuring");
+                            commands.entity(entity).remove::<HubBusy>();
+                        } else {
+                            warn!("Hub reported stopped program, but was not stopping");
+                        }
                     }
                 }
             }
@@ -1045,10 +1110,10 @@ fn check_hub_ready(
         } else {
             // regular or broadcaster hub
             if maybe_ready.is_some() {
-                if maybe_connected.is_none()
-                    || maybe_busy.is_some()
+                if maybe_busy.is_some()
                     || maybe_running.is_none()
                     || maybe_configured.is_none()
+                    || maybe_connected.is_none()
                 {
                     warn!("Hub {:?} no longer ready", hub.name.as_ref().unwrap());
                     commands
@@ -1165,6 +1230,7 @@ impl Plugin for BLEPlugin {
         app.add_plugins(InspectorPlugin::<BLEHub>::new());
         app.add_message::<HubMessage>();
         app.add_message::<HubCommandMessage>();
+        app.add_message::<HubDeviceStateMessage>();
         app.add_systems(
             Update,
             (
@@ -1173,6 +1239,8 @@ impl Plugin for BLEPlugin {
                 delete_selection_shortcut::<BLEHub>,
                 create_hub,
                 (
+                    handle_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
+                    handle_observer_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
                     handle_hub_messages.run_if(on_message::<HubMessage>),
                     monitor_non_ready_hubs.run_if(in_state(EditorState::DeviceControl)),
                     finalize_hub_preparation.run_if(in_state(EditorState::PreparingDeviceControl)),

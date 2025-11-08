@@ -415,8 +415,6 @@ class Train:
         if self.motor is not None:
             self.motor.update(delta)
 
-        io_hub.set_broadcast_data(self.motor.speed)
-
     def set_valid_colors(self, data):
         self.sensor.valid_colors = list(data)
 

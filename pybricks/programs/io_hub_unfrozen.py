@@ -22,6 +22,7 @@ _IN_ID_RPC = const(17)  # ASCII device control 1
 _IN_ID_SYS = const(18)  # ASCII device control 2
 _IN_ID_STORE = const(19)  # ASCII device control 3
 _IN_ID_MSG_ERR = const(21)  # ASCII nak
+_IN_ID_BROADCAST_CMD = const(22)
 
 # _IN_IDS = [_IN_ID_START, _IN_ID_END, _IN_ID_MSG_ACK, _IN_ID_RPC, _IN_ID_SYS, _IN_ID_SIGNAL, _IN_ID_MSG_ERR]
 
@@ -72,7 +73,13 @@ class IOHub:
         self.output_retries = 0
         self.output_queue = []
         self.output_watch = StopWatch()
-        self.hub: ThisHub = ThisHub(broadcast_channel=0)
+        self.hub: ThisHub = ThisHub(broadcast_channel=0, observe_channels=[0])
+        self.hub_name_id = mod_checksum(bytes(self.hub.system.info()["name"], "ascii"))
+        print("hub id:", self.hub_name_id)
+        self.observer = False
+        self.broadcaster = False
+        self.broadcast_ids = []
+        self.broadcast_states = {}
 
         for attr in dir(device):
             if attr[0] == "_":
@@ -189,9 +196,16 @@ class IOHub:
             if code == _SYS_CODE_STOP:
                 self.running = False
             if code == _SYS_CODE_READY:
+                if msg[1] == 0:
+                    self.hub.light.on(Color.GREEN)
+                if msg[1] == 1:
+                    self.observer = True
+                    self.hub.light.on(Color.YELLOW)
+                if msg[1] == 2:
+                    self.broadcaster = True
+                    self.hub.light.on(Color.MAGENTA)
                 self.ready = True
                 self.device.ready()
-                self.hub.light.on(Color.GREEN)
                 self.emit_sys_code(_SYS_CODE_READY)
             return
 
@@ -213,6 +227,23 @@ class IOHub:
             data = msg[2:6]
             self.hub.system.storage(address * 4, write=data)
             # print("store", address, self.get_storage(address), data)
+            return
+
+        if in_id == _IN_ID_BROADCAST_CMD:
+            assert self.broadcaster
+            # print("broadcast cmd", list(msg))
+            device_id = (msg[0] << 8) + msg[1]
+            self.broadcast_states[device_id] = msg[2]
+            self.broadcast_ids.append(device_id)
+            while len(self.broadcast_ids) > 8:
+                self.broadcast_ids.pop(0)
+            broadcast_data = []
+            for did in self.broadcast_ids:
+                state = self.broadcast_states[did]
+                broadcast_data += [did >> 8, did & 0xFF, state]
+            broadcast_data = bytes(broadcast_data)
+            # print("broadcasting:", list(broadcast_data))
+            self.hub.ble.broadcast(broadcast_data)
             return
 
         assert False
@@ -237,6 +268,15 @@ class IOHub:
         self.input_buffer.append(byte)
 
     def run_loop(self, max_delta=0.01):
+        self.hub.light.blink(
+            Color.ORANGE,
+            [
+                100,
+                500,
+                500,
+                100,
+            ],
+        )
         loop_watch = StopWatch()
         loop_watch.resume()
         self.input_watch = StopWatch()
@@ -268,9 +308,19 @@ class IOHub:
                 if self.last_output[1:3] == alive_data:
                     if self.output_retries > 5:
                         raise Exception("alive data timeout! Stopping program!")
-            if self.alive_watch.time() > 20000:
+            if self.alive_watch.time() > 20000 and not self.observer:
                 self.send_alive_data()
                 self.alive_watch.reset()
+            if self.observer:
+                data = self.hub.ble.observe(0)
+                # if data:
+                # print(data)
+                if isinstance(data, bytes):
+                    while len(data) >= 3:
+                        device_data = data[1:3]
+                        if data[0] == self.hub_name_id:
+                            self.device.set_device_state(device_data)
+                        data = data[3:]
             t = loop_watch.time()
             delta = (t - last_time) / 1000
             last_time = t

@@ -97,6 +97,11 @@ class Switch:
         self.switching = False
         self.device_type = _DEVICE_SWITCH
 
+    def set_state(self, state):
+        position = state
+        if self.position != position:
+            self.switch(position)
+
     def get_storage_val(self, i):
         return io_hub.get_storage(8 + self.port * 8 + i)
 
@@ -151,6 +156,9 @@ class Controller:
         port = data[0]
         device_type = get_device_from_command(data[1])
         self.ensure_device(port, device_type).execute(data[1:])
+
+    def set_device_state(self, data):
+        self.ensure_device(data[0], _DEVICE_SWITCH).set_state(data[1])
 
 
 controller = Controller()

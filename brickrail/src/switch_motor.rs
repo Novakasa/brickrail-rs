@@ -1,5 +1,5 @@
 use crate::{
-    ble::{HubCommandMessage, HubConfiguration},
+    ble::{HubCommandMessage, HubConfiguration, HubDeviceStateMessage},
     layout::EntityMap,
     layout_devices::{DeviceComponent, LayoutDevice, SpawnDeviceID},
     layout_primitives::*,
@@ -88,6 +88,17 @@ impl PulseMotor {
             &vec![device.port?.to_u8(), 0, position.to_u8()],
         );
         Some(HubCommandMessage::input(device.hub_id?, input))
+    }
+
+    pub fn switch_hub_state(
+        device: &LayoutDevice,
+        position: &MotorPosition,
+    ) -> Option<HubDeviceStateMessage> {
+        Some(HubDeviceStateMessage {
+            hub_id: device.hub_id?,
+            state_id: device.port?.to_u8(),
+            state: position.to_u8(),
+        })
     }
 
     pub fn hub_configuration(&self, device: &LayoutDevice) -> HashMap<HubID, HubConfiguration> {
