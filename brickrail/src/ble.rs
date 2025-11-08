@@ -160,6 +160,7 @@ impl BLEHub {
                 Option<&HubRunningProgram>,
                 Option<&HubDownloaded>,
                 Option<&HubReady>,
+                Option<&ObserverHub>,
             )>,
             Res<EntityMap>,
             Res<SelectionState>,
@@ -169,7 +170,9 @@ impl BLEHub {
         let (mut hubs, entity_map, selection_state, _type_registry, mut command_messages) =
             state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok((hub, busy, connected, running, downloaded, ready)) = hubs.get_mut(entity) {
+            if let Ok((hub, busy, connected, running, downloaded, ready, maybe_observer)) =
+                hubs.get_mut(entity)
+            {
                 ui.label(format!("BLE Hub {:?}", hub.id));
                 ui.label(format!(
                     "Name: {}",
@@ -261,6 +264,16 @@ impl BLEHub {
                     });
                 }
                 ui.separator();
+                let mut is_observer = maybe_observer.is_some();
+                if ui.checkbox(&mut is_observer, "Observer Hub").changed() {
+                    let entity = entity_map.hubs[&hub.id];
+                    let mut commands = world.commands();
+                    if is_observer {
+                        commands.entity(entity).insert(ObserverHub);
+                    } else {
+                        commands.entity(entity).remove::<ObserverHub>();
+                    }
+                }
             }
         }
         state.apply(world);
@@ -566,6 +579,7 @@ fn execute_hub_commands(
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     io_hub.lock().await.disconnect().await.unwrap();
+                    info!("Disconnected hub");
                     ctx.run_on_main_thread(move |ctx_main| {
                         let mut system_state: SystemState<Commands> =
                             SystemState::new(ctx_main.world);
@@ -879,10 +893,12 @@ pub fn prepare_hubs(
             return;
         }
         if maybe_observer.is_some() {
+            info!("Observer hub disconnecting...");
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::Disconnect,
             });
+            return;
         }
     }
 }
@@ -1009,6 +1025,14 @@ fn check_hub_ready(
                         .remove::<HubConfigured>();
                 }
             } else {
+                // println!(
+                //     "Observer hub {:?} checking ready: running={:?}, configured={:?}, connected={:?}, busy={:?}",
+                //     hub.name.as_ref().unwrap(),
+                //     maybe_running,
+                //     maybe_configured,
+                //     maybe_connected,
+                //     maybe_busy,
+                // );
                 if maybe_running.is_some()
                     && maybe_configured.is_some()
                     && maybe_connected.is_none()
@@ -1058,7 +1082,14 @@ fn monitor_non_ready_hubs(
 }
 
 fn stop_hub_programs(
-    q_hubs: Query<&BLEHub, (With<HubRunningProgram>, With<HubActive>)>,
+    q_hubs: Query<
+        &BLEHub,
+        (
+            With<HubRunningProgram>,
+            With<HubActive>,
+            Without<ObserverHub>,
+        ),
+    >,
     mut command_messages: MessageWriter<HubCommandMessage>,
 ) {
     info!("Stopping hub programs, because exiting Device Control mode");
@@ -1143,12 +1174,12 @@ impl Plugin for BLEPlugin {
                 create_hub,
                 (
                     handle_hub_messages.run_if(on_message::<HubMessage>),
-                    check_hub_ready,
                     monitor_non_ready_hubs.run_if(in_state(EditorState::DeviceControl)),
-                    prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                     finalize_hub_preparation.run_if(in_state(EditorState::PreparingDeviceControl)),
                     disconnect_hubs.run_if(in_state(EditorState::Disconnecting)),
                     finalize_disconnection.run_if(in_state(EditorState::Disconnecting)),
+                    check_hub_ready,
+                    prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                     execute_hub_commands.run_if(on_message::<HubCommandMessage>),
                 )
                     .chain(),
