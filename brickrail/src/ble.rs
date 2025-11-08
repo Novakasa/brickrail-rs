@@ -37,7 +37,16 @@ pub struct HubConnected;
 pub struct HubRunningProgram;
 
 #[derive(Component, Debug)]
+pub struct HubConfigured;
+
+#[derive(Component, Debug)]
 pub struct HubReady;
+
+#[derive(Component, Debug)]
+pub struct BroadcasterHub;
+
+#[derive(Component, Debug)]
+pub struct ObserverHub;
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub enum HubBusy {
@@ -468,6 +477,23 @@ impl HubConfiguration {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum HubCommType {
+    Observer,
+    Broadcaster,
+    Regular,
+}
+
+impl HubCommType {
+    fn to_u8(&self) -> u8 {
+        match self {
+            HubCommType::Observer => 0x01,
+            HubCommType::Broadcaster => 0x02,
+            HubCommType::Regular => 0x00,
+        }
+    }
+}
+
 #[derive(Message, Debug, Clone)]
 pub enum HubCommand {
     DiscoverName,
@@ -477,7 +503,7 @@ pub enum HubCommand {
     StartProgram,
     StopProgram,
     QueueInput(IOInput),
-    Configure,
+    Configure(HubCommType),
 }
 
 #[derive(Message, Debug)]
@@ -605,13 +631,15 @@ fn execute_hub_commands(
             HubCommand::QueueInput(input) => {
                 hub.input_sender.as_ref().unwrap().send(input).unwrap();
             }
-            HubCommand::Configure => {
+            HubCommand::Configure(comm_type) => {
                 commands.entity(entity).insert(HubBusy::Configuring);
                 let sender = hub.input_sender.as_ref().unwrap();
                 for (adress, value) in maybe_config.unwrap().data.iter() {
                     sender.send(IOInput::store_uint(*adress, *value)).unwrap();
                 }
-                sender.send(IOInput::sys(SysCode::Ready, &[])).unwrap();
+                sender
+                    .send(IOInput::sys(SysCode::Ready, &[comm_type.to_u8()]))
+                    .unwrap();
             }
         }
     }
@@ -695,11 +723,11 @@ fn handle_hub_messages(
                         info!("Received SysData: {:?}", data);
                         match data {
                             SysData::Ready => {
-                                commands.entity(entity).insert(HubReady);
+                                commands.entity(entity).insert(HubConfigured);
                                 if maybe_hub_busy == Some(&HubBusy::Configuring) {
                                     commands.entity(entity).remove::<HubBusy>();
                                 } else {
-                                    warn!("Hub reported ready, but was not configuring");
+                                    warn!("Hub reported configured, but was not configuring");
                                 }
                             }
                             _ => {}
@@ -779,6 +807,9 @@ pub fn prepare_hubs(
             Option<&HubConnected>,
             Option<&HubDownloaded>,
             Option<&HubRunningProgram>,
+            Option<&ObserverHub>,
+            Option<&BroadcasterHub>,
+            Option<&HubConfigured>,
         ),
         (
             Without<HubError>,
@@ -794,18 +825,29 @@ pub fn prepare_hubs(
     if !q_hubs_busy.is_empty() {
         return;
     }
-    for (hub, maybe_connected, maybe_downloaded, maybe_running) in q_hubs_not_busy.iter() {
+    for (
+        hub,
+        maybe_connected,
+        maybe_downloaded,
+        maybe_running,
+        maybe_observer,
+        maybe_broadcaster,
+        maybe_configured,
+    ) in q_hubs_not_busy.iter()
+    {
         if hub.name.is_none() {
+            error!("Hub {:?} has no name, cannot prepare", hub.id);
             continue;
         }
-        if maybe_connected.is_none() {
+
+        if maybe_connected.is_none() && maybe_running.is_none() {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::Connect,
             });
             return;
         }
-        if maybe_downloaded.is_none() {
+        if maybe_downloaded.is_none() && maybe_running.is_none() {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::DownloadProgram,
@@ -819,12 +861,29 @@ pub fn prepare_hubs(
             });
             return;
         }
-        // hub is connected, downloaded, and running and not ready
-        command_messages.write(HubCommandMessage {
-            hub_id: hub.id,
-            command: HubCommand::Configure,
-        });
-        return;
+        if maybe_configured.is_none() {
+            let comm_type = match (maybe_broadcaster.is_some(), maybe_observer.is_some()) {
+                (true, false) => HubCommType::Broadcaster,
+                (false, true) => HubCommType::Observer,
+                (false, false) => HubCommType::Regular,
+                (true, true) => {
+                    error!("Hub cannot be both broadcaster and observer, defaulting to regular");
+                    HubCommType::Regular
+                }
+            };
+
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::Configure(comm_type),
+            });
+            return;
+        }
+        if maybe_observer.is_some() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::Disconnect,
+            });
+        }
     }
 }
 
@@ -914,19 +973,75 @@ fn check_hub_ready(
             Option<&HubConnected>,
             Option<&HubBusy>,
             Option<&HubRunningProgram>,
+            Option<&ObserverHub>,
+            Option<&HubConfigured>,
+            Option<&HubReady>,
         ),
-        (With<HubActive>, With<HubReady>),
+        With<HubActive>,
     >,
     mut commands: Commands,
 ) {
-    for (entity, hub, maybe_connected, maybe_busy, maybe_running) in q_hubs.iter() {
+    for (
+        entity,
+        hub,
+        maybe_connected,
+        maybe_busy,
+        maybe_running,
+        maybe_observer,
+        maybe_configured,
+        maybe_ready,
+    ) in q_hubs.iter()
+    {
         // println!(
         //     "Checking hub {:?}: connected={:?}, busy={:?}, running={:?}",
         //     hub.id, maybe_connected, maybe_busy, maybe_running
         // );
-        if maybe_connected.is_none() || maybe_busy.is_some() || maybe_running.is_none() {
-            warn!("Hub {:?} no longer ready", hub.id);
-            commands.entity(entity).remove::<HubReady>();
+        if maybe_observer.is_some() {
+            if maybe_ready.is_some() {
+                if maybe_running.is_none() || maybe_configured.is_none() {
+                    warn!(
+                        "Observer hub {:?} no longer ready",
+                        hub.name.as_ref().unwrap()
+                    );
+                    commands
+                        .entity(entity)
+                        .remove::<HubReady>()
+                        .remove::<HubConfigured>();
+                }
+            } else {
+                if maybe_running.is_some()
+                    && maybe_configured.is_some()
+                    && maybe_connected.is_none()
+                    && maybe_busy.is_none()
+                {
+                    info!("Observer hub {:?} is ready", hub.name.as_ref().unwrap());
+                    commands.entity(entity).insert(HubReady);
+                }
+            }
+        } else {
+            // regular or broadcaster hub
+            if maybe_ready.is_some() {
+                if maybe_connected.is_none()
+                    || maybe_busy.is_some()
+                    || maybe_running.is_none()
+                    || maybe_configured.is_none()
+                {
+                    warn!("Hub {:?} no longer ready", hub.name.as_ref().unwrap());
+                    commands
+                        .entity(entity)
+                        .remove::<HubReady>()
+                        .remove::<HubConfigured>();
+                }
+            } else {
+                if maybe_connected.is_some()
+                    && maybe_busy.is_none()
+                    && maybe_running.is_some()
+                    && maybe_configured.is_some()
+                {
+                    info!("Hub {:?} is ready", hub.name.as_ref().unwrap());
+                    commands.entity(entity).insert(HubReady);
+                }
+            }
         }
     }
 }
@@ -995,6 +1110,22 @@ pub fn finalize_disconnection(
     }
 }
 
+pub fn ensure_broadcaster_hub(
+    mut commands: Commands,
+    normal_hubs: Query<(Entity, &BLEHub), (Without<BroadcasterHub>, Without<ObserverHub>)>,
+    broadcaster_hub: Option<Single<&BroadcasterHub, With<HubActive>>>,
+) {
+    if broadcaster_hub.is_none() {
+        if let Some((entity, hub)) = normal_hubs.iter().next() {
+            info!(
+                "Marking hub as broadcaster hub {:?}",
+                hub.name.as_ref().unwrap()
+            );
+            commands.entity(entity).insert(BroadcasterHub);
+        }
+    }
+}
+
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
@@ -1025,11 +1156,7 @@ impl Plugin for BLEPlugin {
         );
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
-            get_hub_configs,
-        );
-        app.add_systems(
-            OnEnter(EditorState::PreparingDeviceControl),
-            update_active_hubs,
+            (get_hub_configs, update_active_hubs, ensure_broadcaster_hub),
         );
         app.add_systems(OnExit(EditorState::DeviceControl), stop_hub_programs);
     }
