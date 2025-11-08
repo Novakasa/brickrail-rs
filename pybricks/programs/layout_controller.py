@@ -99,6 +99,7 @@ class Switch:
 
     def set_state(self, state):
         position = state
+        # print("self.position:", self.position, "position:", position)
         if self.position != position:
             self.switch(position)
 
@@ -106,6 +107,7 @@ class Switch:
         return io_hub.get_storage(8 + self.port * 8 + i)
 
     def switch(self, position):
+        # print("Switching to", position)
         sdir = -1
         if position == _SWITCH_POS_RIGHT:
             sdir = 1
@@ -158,6 +160,7 @@ class Controller:
         self.ensure_device(port, device_type).execute(data[1:])
 
     def set_device_state(self, data):
+        # print("set_device_state:", list(data))
         self.ensure_device(data[0], _DEVICE_SWITCH).set_state(data[1])
 
 

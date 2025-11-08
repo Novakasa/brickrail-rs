@@ -238,7 +238,7 @@ class IOHub:
             while len(self.broadcast_ids) > 8:
                 self.broadcast_ids.pop(0)
             broadcast_data = []
-            for did in self.broadcast_ids:
+            for did in set(self.broadcast_ids):
                 state = self.broadcast_states[did]
                 broadcast_data += [did >> 8, did & 0xFF, state]
             broadcast_data = bytes(broadcast_data)

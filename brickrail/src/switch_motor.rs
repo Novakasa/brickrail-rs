@@ -106,7 +106,7 @@ impl PulseMotor {
             return HashMap::new();
         }
 
-        let address_offset = 8 + device.port.unwrap().to_u8() * 16;
+        let address_offset = 8 + device.port.unwrap().to_u8() * 8;
         let mut config = HubConfiguration::default();
         config.add_value(address_offset + 0, self.pulse_strength as u32);
         config.add_value(address_offset + 1, self.pulse_duration as u32);
