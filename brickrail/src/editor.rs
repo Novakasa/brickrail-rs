@@ -2,7 +2,7 @@ use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::ble::{BLEHub, HubState};
+use crate::ble::{BLEHub, HubActive, HubBusy, HubConnected, HubError, HubReady, HubRunningProgram};
 use crate::block::{Block, BlockSpawnMessage, BlockSpawnMessageQuery};
 use crate::destination::{Destination, SpawnDestinationMessage, SpawnDestinationMessageQuery};
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
@@ -432,8 +432,18 @@ pub fn top_panel(
 pub fn hub_status_window(
     mut egui_contexts: EguiContexts,
     mut input_data: ResMut<InputData>,
-    mut q_hubs: Query<&mut BLEHub>,
+    q_hubs: Query<(
+        Entity,
+        &BLEHub,
+        Option<&HubReady>,
+        Option<&HubBusy>,
+        Option<&HubConnected>,
+        Option<&HubActive>,
+        Option<&HubError>,
+        Option<&HubRunningProgram>,
+    )>,
     mut editor_state: ResMut<NextState<EditorState>>,
+    mut commands: Commands,
 ) {
     if let Ok(ctx) = &egui_contexts.ctx_mut().cloned() {
         egui::Window::new("Hub status")
@@ -447,10 +457,12 @@ pub fn hub_status_window(
                 ui.set_width(ui.available_width());
                 ui.heading("Preparing hubs...");
                 ui.separator();
-                for mut hub in q_hubs.iter_mut() {
+                for (entity, hub, ready, busy, connected, active, maybe_error, maybe_running) in
+                    q_hubs.iter()
+                {
                     ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                         ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
-                        if hub.state == HubState::Ready || !hub.active {
+                        if ready.is_some() || active.is_none() {
                             // ui.heading("✔".to_string());
                             ui.label(
                                 egui::RichText::new("✔".to_string())
@@ -459,45 +471,27 @@ pub fn hub_status_window(
                             );
                         }
                     });
-                    if hub.active {
-                        ui.label("Active");
-                    } else {
-                        ui.label("Inactive");
-                    }
-                    match &hub.state {
-                        HubState::Downloading(progress) => {
-                            ui.horizontal(|ui| {
-                                ui.label("Downloading...");
-                                ui.add(egui::ProgressBar::new(*progress));
-                            });
-                        }
-                        HubState::Connecting => {
-                            ui.horizontal(|ui| {
-                                ui.label("Connecting...");
-                                ui.add(egui::Spinner::default());
-                            });
-                        }
-                        HubState::StartingProgram => {
-                            ui.horizontal(|ui| {
-                                ui.label("Starting program...");
-                                ui.add(egui::Spinner::default());
-                            });
-                        }
-                        HubState::Configuring => {
-                            ui.horizontal(|ui| {
-                                ui.label("Configuring...");
-                                ui.add(egui::Spinner::default());
-                            });
-                        }
-                        HubState::Ready => {}
-                        state => {
-                            ui.label(format!("{:?}", state));
+                    ui.label(format!("{:?} {:?} {:?}", active, connected, maybe_running));
+                    if let Some(busy) = busy {
+                        match busy {
+                            HubBusy::Downloading(progress) => {
+                                ui.horizontal(|ui| {
+                                    ui.label("Downloading...");
+                                    ui.add(egui::ProgressBar::new(*progress));
+                                });
+                            }
+                            _ => {
+                                ui.horizontal(|ui| {
+                                    ui.label(format!("Busy: {:?}", busy));
+                                    ui.add(egui::Spinner::default());
+                                });
+                            }
                         }
                     }
-                    if let Some(err) = &hub.error {
+                    if let Some(err) = maybe_error {
                         ui.label(format!("Error: {:?}", err));
                         if ui.button("Retry").clicked() {
-                            hub.error = None;
+                            commands.entity(entity).remove::<HubError>();
                         }
                     }
                     ui.separator();

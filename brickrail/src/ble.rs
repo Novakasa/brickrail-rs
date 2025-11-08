@@ -24,50 +24,32 @@ use pybricks_ble::pybricks_hub::HubStatusFlags;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub enum HubState {
-    #[default]
-    Disconnected,
+#[derive(Component, Debug)]
+pub struct HubActive;
+
+#[derive(Component, Debug)]
+pub struct HubDownloaded;
+
+#[derive(Component, Debug)]
+pub struct HubConnected;
+
+#[derive(Component, Debug)]
+pub struct HubRunningProgram;
+
+#[derive(Component, Debug)]
+pub struct HubReady;
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub enum HubBusy {
     Connecting,
-    Connected,
-    Downloading(f32),
-    StartingProgram,
-    Running,
-    Configuring,
-    Ready,
-    StoppingProgram,
     Disconnecting,
+    Downloading(f32),
+    Starting,
+    Stopping,
+    Configuring,
 }
 
-impl HubState {
-    pub fn is_running(&self) -> bool {
-        match self {
-            HubState::Running | HubState::Configuring | HubState::Ready => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_connected(&self) -> bool {
-        match self {
-            HubState::Disconnected | HubState::Connecting => false,
-            _ => true,
-        }
-    }
-
-    pub fn is_busy(&self) -> bool {
-        match self {
-            HubState::Connecting
-            | HubState::Downloading(_)
-            | HubState::StartingProgram
-            | HubState::Configuring
-            | HubState::StoppingProgram
-            | HubState::Disconnecting => true,
-            _ => false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub enum HubError {
     ConnectError,
     ProgramError,
@@ -81,16 +63,6 @@ pub struct BLEHub {
     #[serde(skip)]
     input_sender: Option<UnboundedSender<IOInput>>,
     pub name: Option<String>,
-    #[serde(skip)]
-    pub active: bool,
-    #[serde(skip)]
-    pub state: HubState,
-    #[serde(skip)]
-    pub error: Option<HubError>,
-    #[serde(skip)]
-    downloaded: bool,
-    #[serde(skip)]
-    config: HubConfiguration,
 }
 
 impl BLEHub {
@@ -100,11 +72,6 @@ impl BLEHub {
             hub: Arc::new(Mutex::new(IOHub::new())),
             input_sender: None,
             name: None,
-            active: false,
-            state: HubState::Disconnected,
-            error: None,
-            downloaded: false,
-            config: HubConfiguration::default(),
         }
     }
 
@@ -122,8 +89,8 @@ impl BLEHub {
         crate::utils::get_file_hash(path)
     }
 
-    pub fn set_downloaded_from_settings(&mut self, settings: &Res<Settings>) {
-        self.downloaded = if let Some(name) = self.name.as_ref() {
+    pub fn is_marked_downloaded_in_settings(&self, settings: &Res<Settings>) -> bool {
+        if let Some(name) = self.name.as_ref() {
             let hash = self.get_program_hash();
             match settings.program_hashes.get(name) {
                 Some(h) => h == &hash,
@@ -131,7 +98,7 @@ impl BLEHub {
             }
         } else {
             false
-        };
+        }
     }
 
     pub fn sync_settings_hash(&mut self, settings: &mut ResMut<Settings>) {
@@ -177,22 +144,33 @@ impl Selectable for BLEHub {
 impl BLEHub {
     pub fn inspector(ui: &mut Ui, world: &mut World) {
         let mut state = SystemState::<(
-            Query<&BLEHub>,
+            Query<(
+                &BLEHub,
+                Option<&HubBusy>,
+                Option<&HubConnected>,
+                Option<&HubRunningProgram>,
+                Option<&HubDownloaded>,
+                Option<&HubReady>,
+            )>,
             Res<EntityMap>,
             Res<SelectionState>,
             Res<AppTypeRegistry>,
             MessageWriter<HubCommandMessage>,
         )>::new(world);
-        let (hubs, entity_map, selection_state, _type_registry, mut command_messages) =
+        let (mut hubs, entity_map, selection_state, _type_registry, mut command_messages) =
             state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok(hub) = hubs.get(entity) {
+            if let Ok((hub, busy, connected, running, downloaded, ready)) = hubs.get_mut(entity) {
                 ui.label(format!("BLE Hub {:?}", hub.id));
                 ui.label(format!(
                     "Name: {}",
                     hub.name.as_deref().unwrap_or("Unknown")
                 ));
-                ui.label(format!("State: {:?}", hub.state));
+                ui.label(format!("{:?}", busy));
+                ui.label(format!("{:?}", connected));
+                ui.label(format!("{:?}", running));
+                ui.label(format!("{:?}", downloaded));
+                ui.label(format!("{:?}", ready));
                 if ui
                     .button("Discover Name")
                     .on_hover_text("Discover the name of the hub")
@@ -206,7 +184,7 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        hub.name.is_some() && hub.state == HubState::Disconnected,
+                        hub.name.is_some() && connected.is_none() && busy.is_none(),
                         Button::new("Connect"),
                     )
                     .on_hover_text("Connect to the hub")
@@ -219,7 +197,10 @@ impl BLEHub {
                     });
                 }
                 if ui
-                    .add_enabled(hub.state == HubState::Connected, Button::new("Disconnect"))
+                    .add_enabled(
+                        connected.is_some() && busy.is_none(),
+                        Button::new("Disconnect"),
+                    )
                     .clicked()
                 {
                     let id = hub.id.clone();
@@ -230,7 +211,7 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        hub.state == HubState::Connected,
+                        connected.is_some() && busy.is_none(),
                         Button::new("Download Program"),
                     )
                     .clicked()
@@ -243,7 +224,10 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        hub.state == HubState::Connected,
+                        downloaded.is_some()
+                            && busy.is_none()
+                            && connected.is_some()
+                            && running.is_none(),
                         Button::new("Start Program"),
                     )
                     .clicked()
@@ -255,7 +239,10 @@ impl BLEHub {
                     });
                 }
                 if ui
-                    .add_enabled(hub.state == HubState::Running, Button::new("Stop Program"))
+                    .add_enabled(
+                        connected.is_some() && busy.is_none() && running.is_some(),
+                        Button::new("Stop Program"),
+                    )
                     .clicked()
                 {
                     let id = hub.id.clone();
@@ -267,6 +254,7 @@ impl BLEHub {
                 ui.separator();
             }
         }
+        state.apply(world);
     }
 
     pub fn select_port_ui(
@@ -398,14 +386,17 @@ fn spawn_hub(
     settings: Res<Settings>,
 ) {
     for event in spawn_event_reader.read() {
-        let mut hub = event.hub.clone();
-        hub.set_downloaded_from_settings(&settings);
+        let hub = event.hub.clone();
         println!("name: {:?}", hub.name);
-        println!("downloaded: {:?}", hub.downloaded);
         let hub_id = hub.id;
         let hub_mutex = hub.hub.clone();
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
+        let is_marked_downloaded_in_settings = hub.is_marked_downloaded_in_settings(&settings);
         let entity = commands.spawn((name, hub)).id();
+
+        if is_marked_downloaded_in_settings {
+            commands.entity(entity).insert(HubDownloaded);
+        }
         entity_map.add_hub(hub_id, entity);
 
         runtime.spawn_background_task(move |mut ctx| async move {
@@ -460,7 +451,7 @@ fn despawn_hub(
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default)]
 pub struct HubConfiguration {
     data: HashMap<u8, u32>,
 }
@@ -506,13 +497,14 @@ impl HubCommandMessage {
 
 fn execute_hub_commands(
     mut hub_command_reader: MessageReader<HubCommandMessage>,
-    mut q_hubs: Query<&mut BLEHub>,
+    q_hubs: Query<(&BLEHub, Option<&HubConfiguration>)>,
     entity_map: Res<EntityMap>,
     runtime: Res<TokioTasksRuntime>,
+    mut commands: Commands,
 ) {
     for event in hub_command_reader.read() {
         let entity = entity_map.hubs[&event.hub_id];
-        let mut hub = q_hubs.get_mut(entity).unwrap();
+        let (hub, maybe_config) = q_hubs.get(entity).unwrap();
         match event.command.clone() {
             HubCommand::DiscoverName => {
                 let io_hub = hub.hub.clone();
@@ -521,58 +513,71 @@ fn execute_hub_commands(
                 });
             }
             HubCommand::Connect => {
-                hub.state = HubState::Connecting;
+                commands.entity(entity).insert(HubBusy::Connecting);
                 let io_hub = hub.hub.clone();
                 let name = hub.name.as_ref().unwrap().clone();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     if io_hub.lock().await.connect(&name).await.is_err() {
                         ctx.run_on_main_thread(move |ctx_main| {
-                            let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                            let mut system_state: SystemState<Commands> =
                                 SystemState::new(ctx_main.world);
-                            let mut query = system_state.get_mut(ctx_main.world);
-                            let mut hub = query.0.get_mut(entity).unwrap();
-                            hub.error = Some(HubError::ConnectError);
-                            hub.state = HubState::Disconnected;
+                            let mut commands = system_state.get_mut(ctx_main.world);
+                            commands
+                                .entity(entity)
+                                .insert(HubError::ConnectError)
+                                .remove::<HubBusy>();
+                            system_state.apply(ctx_main.world);
                         })
                         .await;
                     }
                 });
             }
             HubCommand::Disconnect => {
-                hub.state = HubState::Disconnecting;
+                commands
+                    .entity(entity)
+                    .insert(HubBusy::Disconnecting)
+                    .remove::<HubConnected>();
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     io_hub.lock().await.disconnect().await.unwrap();
                     ctx.run_on_main_thread(move |ctx_main| {
-                        let mut system_state: SystemState<(Query<&mut BLEHub>,)> =
+                        let mut system_state: SystemState<Commands> =
                             SystemState::new(ctx_main.world);
-                        let mut query = system_state.get_mut(ctx_main.world);
-                        let mut hub = query.0.get_mut(entity).unwrap();
-                        hub.state = HubState::Disconnected;
+                        let mut commands = system_state.get_mut(ctx_main.world);
+                        commands.entity(entity).remove::<HubBusy>();
+                        system_state.apply(ctx_main.world);
                     })
                     .await;
                 });
             }
             HubCommand::DownloadProgram => {
-                hub.state = HubState::Downloading(0.0);
+                commands.entity(entity).insert(HubBusy::Downloading(0.0));
                 let io_hub = hub.hub.clone();
                 let program = hub.get_program_path();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     io_hub.lock().await.download_program(program).await.unwrap();
                     ctx.run_on_main_thread(move |ctx_main| {
-                        let mut system_state: SystemState<(Query<&mut BLEHub>, ResMut<Settings>)> =
-                            SystemState::new(ctx_main.world);
-                        let (mut query, mut settings) = system_state.get_mut(ctx_main.world);
+                        let mut system_state: SystemState<(
+                            Query<&mut BLEHub>,
+                            ResMut<Settings>,
+                            Commands,
+                        )> = SystemState::new(ctx_main.world);
+                        let (mut query, mut settings, mut commands) =
+                            system_state.get_mut(ctx_main.world);
                         let mut hub = query.get_mut(entity).unwrap();
-                        hub.downloaded = true;
-                        hub.state = HubState::Connected;
+
+                        commands
+                            .entity(entity)
+                            .remove::<HubBusy>()
+                            .insert(HubDownloaded);
                         hub.sync_settings_hash(&mut settings);
+                        system_state.apply(ctx_main.world);
                     })
                     .await;
                 });
             }
             HubCommand::StartProgram => {
-                hub.state = HubState::StartingProgram;
+                commands.entity(entity).insert(HubBusy::Starting);
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |mut ctx| async move {
                     let mut hub_mut = io_hub.lock().await;
@@ -585,12 +590,13 @@ fn execute_hub_commands(
                         let mut query = system_state.get_mut(ctx_main.world);
                         let mut hub = query.0.get_mut(entity).unwrap();
                         hub.input_sender = input_sender;
+                        system_state.apply(ctx_main.world);
                     })
                     .await;
                 });
             }
             HubCommand::StopProgram => {
-                hub.state = HubState::StoppingProgram;
+                commands.entity(entity).insert(HubBusy::Stopping);
                 let io_hub = hub.hub.clone();
                 runtime.spawn_background_task(move |_| async move {
                     io_hub.lock().await.stop_program().await.unwrap();
@@ -600,10 +606,9 @@ fn execute_hub_commands(
                 hub.input_sender.as_ref().unwrap().send(input).unwrap();
             }
             HubCommand::Configure => {
-                hub.state = HubState::Configuring;
-                let config = hub.config.clone();
+                commands.entity(entity).insert(HubBusy::Configuring);
                 let sender = hub.input_sender.as_ref().unwrap();
-                for (adress, value) in config.data.iter() {
+                for (adress, value) in maybe_config.unwrap().data.iter() {
                     sender.send(IOInput::store_uint(*adress, *value)).unwrap();
                 }
                 sender.send(IOInput::sys(SysCode::Ready, &[])).unwrap();
@@ -652,19 +657,28 @@ pub struct HubMessageMessage<T: FromIOMessage> {
 }
 
 fn handle_hub_messages(
-    mut hub_event_reader: MessageReader<HubMessage>,
+    mut hub_message_reader: MessageReader<HubMessage>,
     mut train_sender: MessageWriter<HubMessageMessage<TrainData>>,
-    mut q_hubs: Query<(&mut BLEHub, &mut Name)>,
+    mut q_hubs: Query<(
+        &mut BLEHub,
+        &mut Name,
+        Option<&HubBusy>,
+        Option<&HubRunningProgram>,
+        Option<&HubConnected>,
+    )>,
     entity_map: Res<EntityMap>,
     settings: Res<Settings>,
+    mut commands: Commands,
 ) {
-    for event in hub_event_reader.read() {
-        let (mut hub, mut name_component) = q_hubs.get_mut(entity_map.hubs[&event.hub_id]).unwrap();
+    for event in hub_message_reader.read() {
+        let entity = entity_map.hubs[&event.hub_id];
+        let (mut hub, mut name_component, maybe_hub_busy, maybe_hub_running, maybe_connected) =
+            q_hubs.get_mut(entity).unwrap();
         match &event.event {
             IOEvent::NameDiscovered(name) => {
                 hub.name = Some(name.clone());
                 name_component.set(name.clone());
-                hub.set_downloaded_from_settings(&settings);
+                hub.is_marked_downloaded_in_settings(&settings);
                 return;
             }
             IOEvent::Message(msg) => {
@@ -681,7 +695,12 @@ fn handle_hub_messages(
                         info!("Received SysData: {:?}", data);
                         match data {
                             SysData::Ready => {
-                                hub.state = HubState::Ready;
+                                commands.entity(entity).insert(HubReady);
+                                if maybe_hub_busy == Some(&HubBusy::Configuring) {
+                                    commands.entity(entity).remove::<HubBusy>();
+                                } else {
+                                    warn!("Hub reported ready, but was not configuring");
+                                }
                             }
                             _ => {}
                         }
@@ -704,28 +723,44 @@ fn handle_hub_messages(
             }
             IOEvent::Status(status) => {
                 debug!("Status: {:?}", status);
+                if maybe_hub_busy == Some(&HubBusy::Connecting) {
+                    if maybe_connected.is_some() {
+                        error!("Was in connecting state but already connected");
+                    }
+                    commands.entity(entity).remove::<HubBusy>();
+                    commands.entity(entity).insert(HubConnected);
+                }
                 let running_flag = status.flags.clone() & HubStatusFlags::PROGRAM_RUNNING
                     == HubStatusFlags::PROGRAM_RUNNING;
-                if running_flag {
-                    if hub.state == HubState::StartingProgram {
-                        hub.state = HubState::Running;
+                if running_flag && maybe_hub_running.is_none() {
+                    match maybe_hub_busy {
+                        Some(HubBusy::Starting) => {
+                            commands
+                                .entity(entity)
+                                .remove::<HubBusy>()
+                                .insert(HubRunningProgram);
+                        }
+                        _ => {
+                            warn!("Hub reported running program, but was not starting");
+                            commands.entity(entity).insert(HubRunningProgram);
+                        }
                     }
-                } else {
-                    match hub.state {
-                        HubState::Running | HubState::Configuring | HubState::Ready => {
-                            hub.state = HubState::Connected;
-                            hub.error = Some(HubError::ProgramError);
-                        }
-                        HubState::StoppingProgram | HubState::Connecting => {
-                            hub.state = HubState::Connected;
-                        }
-                        _ => {}
+                }
+                if !running_flag && maybe_hub_running.is_some() {
+                    commands.entity(entity).remove::<HubRunningProgram>();
+                    if let Some(HubBusy::Stopping) = maybe_hub_busy {
+                        commands.entity(entity).remove::<HubBusy>();
+                    } else {
+                        warn!("Hub reported stopped program, but was not stopping");
+                        commands.entity(entity).insert(HubError::ProgramError);
                     }
                 }
             }
             IOEvent::DownloadProgress(progress) => {
-                info!("Download progress: {:?}", progress);
-                hub.state = HubState::Downloading(*progress);
+                // info!("Download progress: {:?}", progress);
+                commands
+                    .entity(entity)
+                    .insert(HubBusy::Downloading(*progress));
             }
         }
     }
@@ -738,62 +773,67 @@ struct HubMessage {
 }
 
 pub fn prepare_hubs(
-    q_hubs: Query<&BLEHub>,
+    q_hubs_not_busy: Query<
+        (
+            &BLEHub,
+            Option<&HubConnected>,
+            Option<&HubDownloaded>,
+            Option<&HubRunningProgram>,
+        ),
+        (
+            Without<HubError>,
+            With<HubActive>,
+            Without<HubBusy>,
+            Without<HubReady>,
+        ),
+    >,
+    q_hubs_busy: Query<&HubBusy>,
+
     mut command_messages: MessageWriter<HubCommandMessage>,
-    mut editor_state: ResMut<NextState<EditorState>>,
 ) {
-    let mut prepared = true;
-    for hub in q_hubs.iter() {
+    if !q_hubs_busy.is_empty() {
+        return;
+    }
+    for (hub, maybe_connected, maybe_downloaded, maybe_running) in q_hubs_not_busy.iter() {
         if hub.name.is_none() {
             continue;
         }
-        if hub.active {
-            if hub.error.is_some() {
-                return;
-            }
-            match hub.state {
-                HubState::Disconnected => {
-                    prepared = false;
-                    command_messages.write(HubCommandMessage {
-                        hub_id: hub.id,
-                        command: HubCommand::Connect,
-                    });
-                }
-                HubState::Connected => {
-                    prepared = false;
-                    if hub.downloaded {
-                        command_messages.write(HubCommandMessage {
-                            hub_id: hub.id,
-                            command: HubCommand::StartProgram,
-                        });
-                    } else {
-                        command_messages.write(HubCommandMessage {
-                            hub_id: hub.id,
-                            command: HubCommand::DownloadProgram,
-                        });
-                    }
-                }
-                HubState::Running => {
-                    prepared = false;
-                    command_messages.write(HubCommandMessage {
-                        hub_id: hub.id,
-                        command: HubCommand::Configure,
-                    });
-                }
-                HubState::Ready => {}
-                _ => {
-                    prepared = false;
-                }
-            }
-
-            if !prepared {
-                // don't parallelize ble stuff, because downloading is slow otherwise
-                // this only makes sense if the query iteration order is deterministic, which it honestly might not be i dunno
-                return;
-            }
+        if maybe_connected.is_none() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::Connect,
+            });
+            return;
         }
+        if maybe_downloaded.is_none() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::DownloadProgram,
+            });
+            return;
+        }
+        if maybe_running.is_none() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::StartProgram,
+            });
+            return;
+        }
+        // hub is connected, downloaded, and running and not ready
+        command_messages.write(HubCommandMessage {
+            hub_id: hub.id,
+            command: HubCommand::Configure,
+        });
+        return;
     }
-    if prepared {
+}
+
+fn finalize_hub_preparation(
+    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubReady>)>,
+    mut editor_state: ResMut<NextState<EditorState>>,
+) {
+    if q_hubs.is_empty() {
+        // all hubs are ready
         println!("Hubs prepared");
         editor_state.set(EditorState::DeviceControl);
     }
@@ -801,11 +841,12 @@ pub fn prepare_hubs(
 
 // runs on enter prepare_control state
 fn update_active_hubs(
-    mut hubs: Query<&mut BLEHub>,
+    hubs: Query<(Entity, &BLEHub)>,
     q_ble_trains: Query<&BLETrain>,
     q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
+    mut commands: Commands,
 ) {
     let mut active_hub_ids = Vec::new();
     for ble_train in q_ble_trains.iter() {
@@ -829,92 +870,128 @@ fn update_active_hubs(
             }
         }
     }
-    for mut hub in hubs.iter_mut() {
-        hub.active = active_hub_ids.contains(&hub.id);
+    for (entity, hub) in hubs.iter() {
+        if active_hub_ids.contains(&hub.id) {
+            commands.entity(entity).insert(HubActive);
+        } else {
+            commands.entity(entity).remove::<HubActive>();
+        }
     }
 }
 
 fn get_hub_configs(
     q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_ble_trains: Query<&BLETrain>,
-    mut q_hubs: Query<&mut BLEHub>,
-    entity_map: Res<EntityMap>,
+    q_hubs: Query<(Entity, &BLEHub)>,
+    mut commands: Commands,
 ) {
-    for mut hub in q_hubs.iter_mut() {
-        hub.config = HubConfiguration::default();
+    let mut configs = HashMap::new();
+    for (_entity, hub) in q_hubs.iter() {
+        configs.insert(hub.id, HubConfiguration::default());
     }
     for (motor, device) in q_switch_motors.iter() {
         for (id, config) in motor.hub_configuration(device) {
-            let entity = entity_map.hubs[&id];
-            let mut hub = q_hubs.get_mut(entity).unwrap();
-            hub.config.merge(&config);
+            configs.get_mut(&id).unwrap().merge(&config);
         }
     }
     for ble_train in q_ble_trains.iter() {
         for (id, config) in ble_train.hubs_configuration() {
-            let entity = entity_map.hubs[&id];
-            let mut hub = q_hubs.get_mut(entity).unwrap();
-            hub.config.merge(&config);
+            configs.get_mut(&id).unwrap().merge(&config);
+        }
+    }
+    for (entity, hub) in q_hubs.iter() {
+        commands
+            .entity(entity)
+            .insert(configs.remove(&hub.id).unwrap());
+    }
+}
+
+fn check_hub_ready(
+    q_hubs: Query<
+        (
+            Entity,
+            &BLEHub,
+            Option<&HubConnected>,
+            Option<&HubBusy>,
+            Option<&HubRunningProgram>,
+        ),
+        (With<HubActive>, With<HubReady>),
+    >,
+    mut commands: Commands,
+) {
+    for (entity, hub, maybe_connected, maybe_busy, maybe_running) in q_hubs.iter() {
+        // println!(
+        //     "Checking hub {:?}: connected={:?}, busy={:?}, running={:?}",
+        //     hub.id, maybe_connected, maybe_busy, maybe_running
+        // );
+        if maybe_connected.is_none() || maybe_busy.is_some() || maybe_running.is_none() {
+            warn!("Hub {:?} no longer ready", hub.id);
+            commands.entity(entity).remove::<HubReady>();
         }
     }
 }
 
-fn monitor_hub_ready(q_hubs: Query<&BLEHub>, mut editor_state: ResMut<NextState<EditorState>>) {
+fn monitor_non_ready_hubs(
+    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubReady>)>,
+    mut editor_state: ResMut<NextState<EditorState>>,
+) {
     for hub in q_hubs.iter() {
-        if hub.active {
-            match hub.state {
-                HubState::Ready => {}
-                _ => {
-                    warn!("Hub {:?} not ready", hub.id);
-                    editor_state.set(EditorState::VirtualControl);
-                }
-            }
-        }
+        warn!("Hub {:?} not ready", hub.id);
+        editor_state.set(EditorState::VirtualControl);
+        return;
     }
 }
 
 fn stop_hub_programs(
-    q_hubs: Query<&BLEHub>,
+    q_hubs: Query<&BLEHub, (With<HubRunningProgram>, With<HubActive>)>,
     mut command_messages: MessageWriter<HubCommandMessage>,
 ) {
+    info!("Stopping hub programs, because exiting Device Control mode");
     for hub in q_hubs.iter() {
-        if hub.active {
-            if hub.state.is_running() {
-                command_messages.write(HubCommandMessage {
-                    hub_id: hub.id,
-                    command: HubCommand::StopProgram,
-                });
-            }
-        }
+        command_messages.write(HubCommandMessage {
+            hub_id: hub.id,
+            command: HubCommand::StopProgram,
+        });
     }
 }
 
 pub fn disconnect_hubs(
-    q_hubs: Query<&BLEHub>,
+    q_hubs: Query<
+        &BLEHub,
+        (
+            With<HubConnected>,
+            Without<HubBusy>,
+            Without<HubRunningProgram>,
+        ),
+    >,
+    q_hubs_busy: Query<&BLEHub, With<HubBusy>>,
     mut command_messages: MessageWriter<HubCommandMessage>,
+) {
+    if !q_hubs_busy.is_empty() {
+        // println!("Waiting for busy hubs to finish before disconnecting");
+        return;
+    }
+    for hub in q_hubs.iter() {
+        command_messages.write(HubCommandMessage {
+            hub_id: hub.id,
+            command: HubCommand::Disconnect,
+        });
+        return;
+    }
+}
+
+pub fn finalize_disconnection(
+    busy_hubs: Query<&BLEHub, With<HubBusy>>,
+    q_hubs: Query<&BLEHub, (With<HubConnected>, Without<HubBusy>)>,
     mut next_state: ResMut<NextState<EditorState>>,
 ) {
-    let mut done = true;
-    for hub in q_hubs.iter() {
-        if hub.state.is_connected() {
-            done = false;
-            if !hub.state.is_busy() {
-                if hub.state.is_running() {
-                    command_messages.write(HubCommandMessage {
-                        hub_id: hub.id,
-                        command: HubCommand::StopProgram,
-                    });
-                } else {
-                    command_messages.write(HubCommandMessage {
-                        hub_id: hub.id,
-                        command: HubCommand::Disconnect,
-                    });
-                }
-            }
-        }
+    if !busy_hubs.is_empty() {
+        // println!("Waiting for busy hubs to finish before finalizing disconnection");
+        return;
     }
-    if done {
-        next_state.set(EditorState::Edit);
+    if q_hubs.is_empty() {
+        println!("All hubs disconnected");
+        next_state.set(EditorState::VirtualControl);
     }
 }
 
@@ -932,12 +1009,18 @@ impl Plugin for BLEPlugin {
                 spawn_hub.run_if(on_message::<SpawnHubMessage>),
                 despawn_hub.run_if(on_message::<DespawnMessage<BLEHub>>),
                 delete_selection_shortcut::<BLEHub>,
-                handle_hub_messages.run_if(on_message::<HubMessage>),
-                execute_hub_commands.run_if(on_message::<HubCommandMessage>),
                 create_hub,
-                prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
-                monitor_hub_ready.run_if(in_state(EditorState::DeviceControl)),
-                disconnect_hubs.run_if(in_state(EditorState::Disconnecting)),
+                (
+                    handle_hub_messages.run_if(on_message::<HubMessage>),
+                    check_hub_ready,
+                    monitor_non_ready_hubs.run_if(in_state(EditorState::DeviceControl)),
+                    prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
+                    finalize_hub_preparation.run_if(in_state(EditorState::PreparingDeviceControl)),
+                    disconnect_hubs.run_if(in_state(EditorState::Disconnecting)),
+                    finalize_disconnection.run_if(in_state(EditorState::Disconnecting)),
+                    execute_hub_commands.run_if(on_message::<HubCommandMessage>),
+                )
+                    .chain(),
             ),
         );
         app.add_systems(
