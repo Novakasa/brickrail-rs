@@ -40,9 +40,6 @@ pub struct HubRunningProgram;
 pub struct HubConfigured;
 
 #[derive(Component, Debug)]
-pub struct HubOperating;
-
-#[derive(Component, Debug)]
 pub struct HubReady;
 
 #[derive(Component, Debug)]
