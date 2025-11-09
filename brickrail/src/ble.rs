@@ -933,6 +933,7 @@ struct HubMessage {
 pub fn prepare_hubs(
     q_hubs_not_busy: Query<
         (
+            Entity,
             &BLEHub,
             Option<&HubConnected>,
             Option<&HubDownloaded>,
@@ -955,7 +956,13 @@ pub fn prepare_hubs(
     if !q_hubs_busy.is_empty() {
         return;
     }
+    let mut entities = q_hubs_not_busy
+        .iter()
+        .map(|(entity, _, _, _, _, _, _, _)| entity)
+        .collect::<Vec<_>>();
+    entities.sort();
     for (
+        _entity,
         hub,
         maybe_connected,
         maybe_downloaded,
@@ -963,7 +970,9 @@ pub fn prepare_hubs(
         maybe_observer,
         maybe_configured,
         maybe_ready,
-    ) in q_hubs_not_busy.iter()
+    ) in entities
+        .iter()
+        .filter_map(|entity| q_hubs_not_busy.get(*entity).ok())
     {
         if hub.name.is_none() {
             error!("Hub {:?} has no name, cannot prepare", hub.id);
