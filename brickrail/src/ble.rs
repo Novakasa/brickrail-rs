@@ -11,8 +11,8 @@ use crate::{
     layout::EntityMap,
     layout_devices::LayoutDevice,
     layout_primitives::{HubID, HubPort, HubType},
+    persistent_hub_state::PersistentHubState,
     selectable::{Selectable, SelectablePlugin, SelectableType},
-    settings::Settings,
     switch::Switch,
     switch_motor::PulseMotor,
 };
@@ -38,6 +38,9 @@ pub struct HubRunningProgram;
 
 #[derive(Component, Debug)]
 pub struct HubConfigured;
+
+#[derive(Component, Debug)]
+pub struct HubOperating;
 
 #[derive(Component, Debug)]
 pub struct HubReady;
@@ -159,7 +162,10 @@ impl BLEHub {
         crate::utils::get_file_hash(path)
     }
 
-    pub fn is_marked_downloaded_in_settings(&self, settings: &Res<Settings>) -> bool {
+    pub fn is_marked_downloaded_in_persistent_cache(
+        &self,
+        settings: &Res<PersistentHubState>,
+    ) -> bool {
         if let Some(name) = self.name.as_ref() {
             let hash = self.get_program_hash();
             match settings.program_hashes.get(name) {
@@ -171,7 +177,10 @@ impl BLEHub {
         }
     }
 
-    pub fn sync_settings_hash(&mut self, settings: &mut ResMut<Settings>) {
+    pub fn sync_persistent_state_downloaded_program(
+        &mut self,
+        settings: &mut ResMut<PersistentHubState>,
+    ) {
         if let Some(name) = self.name.as_ref() {
             let hash = self.get_program_hash();
             settings.program_hashes.insert(name.clone(), hash);
@@ -478,7 +487,7 @@ fn spawn_hub(
     mut spawn_event_reader: MessageReader<SpawnHubMessage>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    settings: Res<Settings>,
+    settings: Res<PersistentHubState>,
 ) {
     for event in spawn_event_reader.read() {
         let hub = event.hub.clone();
@@ -486,7 +495,8 @@ fn spawn_hub(
         let hub_id = hub.id;
         let hub_mutex = hub.hub.clone();
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
-        let is_marked_downloaded_in_settings = hub.is_marked_downloaded_in_settings(&settings);
+        let is_marked_downloaded_in_settings =
+            hub.is_marked_downloaded_in_persistent_cache(&settings);
         let entity = commands.spawn((name, hub)).id();
 
         if is_marked_downloaded_in_settings {
@@ -546,19 +556,24 @@ fn despawn_hub(
     }
 }
 
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HubConfiguration {
     data: HashMap<u8, u32>,
 }
 
 impl HubConfiguration {
-    pub fn add_value(&mut self, port: u8, value: u32) {
-        self.data.insert(port, value);
+    pub fn add_value(&mut self, address: u8, value: u32) {
+        self.data.insert(address, value);
     }
 
     pub fn merge(&mut self, other: &Self) {
-        for (port, value) in other.data.iter() {
-            self.data.insert(*port, *value);
+        for (address, value) in other.data.iter() {
+            assert!(
+                !self.data.contains_key(address),
+                "Address {} already exists in HubConfiguration, cannot merge",
+                address
+            );
+            self.data.insert(*address, *value);
         }
     }
 }
@@ -571,6 +586,18 @@ pub enum HubCommType {
 }
 
 impl HubCommType {
+    fn from_query(
+        maybe_observer: Option<&ObserverHub>,
+        maybe_broadcaster: Option<&BroadcasterHub>,
+    ) -> Self {
+        match (maybe_observer.is_some(), maybe_broadcaster.is_some()) {
+            (true, false) => HubCommType::Observer,
+            (false, true) => HubCommType::Broadcaster,
+            (false, false) => HubCommType::Regular,
+            (true, true) => panic!("Hub cannot be both observer and broadcaster"),
+        }
+    }
+
     fn to_u8(&self) -> u8 {
         match self {
             HubCommType::Observer => 0x01,
@@ -589,7 +616,7 @@ pub enum HubCommand {
     StartProgram,
     StopProgram,
     QueueInput(IOInput),
-    Configure(HubCommType),
+    Configure,
 }
 
 #[derive(Message, Debug)]
@@ -613,6 +640,7 @@ fn execute_hub_commands(
     entity_map: Res<EntityMap>,
     runtime: Res<TokioTasksRuntime>,
     mut commands: Commands,
+    mut persistent_hub_state: ResMut<PersistentHubState>,
 ) {
     for event in hub_command_reader.read() {
         let entity = entity_map.hubs[&event.hub_id];
@@ -672,10 +700,10 @@ fn execute_hub_commands(
                     ctx.run_on_main_thread(move |ctx_main| {
                         let mut system_state: SystemState<(
                             Query<&mut BLEHub>,
-                            ResMut<Settings>,
+                            ResMut<PersistentHubState>,
                             Commands,
                         )> = SystemState::new(ctx_main.world);
-                        let (mut query, mut settings, mut commands) =
+                        let (mut query, mut persistent_hub_state, mut commands) =
                             system_state.get_mut(ctx_main.world);
                         let mut hub = query.get_mut(entity).unwrap();
 
@@ -683,7 +711,7 @@ fn execute_hub_commands(
                             .entity(entity)
                             .remove::<HubBusy>()
                             .insert(HubDownloaded);
-                        hub.sync_settings_hash(&mut settings);
+                        hub.sync_persistent_state_downloaded_program(&mut persistent_hub_state);
                         system_state.apply(ctx_main.world);
                     })
                     .await;
@@ -718,15 +746,15 @@ fn execute_hub_commands(
             HubCommand::QueueInput(input) => {
                 hub.input_sender.as_ref().unwrap().send(input).unwrap();
             }
-            HubCommand::Configure(comm_type) => {
+            HubCommand::Configure => {
                 commands.entity(entity).insert(HubBusy::Configuring);
                 let sender = hub.input_sender.as_ref().unwrap();
-                for (adress, value) in maybe_config.unwrap().data.iter() {
-                    sender.send(IOInput::store_uint(*adress, *value)).unwrap();
+                for (address, value) in maybe_config.unwrap().data.iter() {
+                    sender.send(IOInput::store_uint(*address, *value)).unwrap();
                 }
-                sender
-                    .send(IOInput::sys(SysCode::Ready, &[comm_type.to_u8()]))
-                    .unwrap();
+                persistent_hub_state
+                    .sync_configured_hub(hub.name.as_ref().unwrap(), maybe_config.unwrap());
+                sender.send(IOInput::sys(SysCode::Ready, &[])).unwrap();
             }
         }
     }
@@ -782,7 +810,7 @@ fn handle_hub_messages(
         Option<&HubConnected>,
     )>,
     entity_map: Res<EntityMap>,
-    settings: Res<Settings>,
+    settings: Res<PersistentHubState>,
     mut commands: Commands,
 ) {
     for event in hub_message_reader.read() {
@@ -793,7 +821,7 @@ fn handle_hub_messages(
             IOEvent::NameDiscovered(name) => {
                 hub.name = Some(name.clone());
                 name_component.set(name.clone());
-                hub.is_marked_downloaded_in_settings(&settings);
+                hub.is_marked_downloaded_in_persistent_cache(&settings);
                 return;
             }
             IOEvent::Message(msg) => {
@@ -900,7 +928,6 @@ pub fn prepare_hubs(
             Option<&HubDownloaded>,
             Option<&HubRunningProgram>,
             Option<&ObserverHub>,
-            Option<&BroadcasterHub>,
             Option<&HubConfigured>,
         ),
         (
@@ -917,15 +944,8 @@ pub fn prepare_hubs(
     if !q_hubs_busy.is_empty() {
         return;
     }
-    for (
-        hub,
-        maybe_connected,
-        maybe_downloaded,
-        maybe_running,
-        maybe_observer,
-        maybe_broadcaster,
-        maybe_configured,
-    ) in q_hubs_not_busy.iter()
+    for (hub, maybe_connected, maybe_downloaded, maybe_running, maybe_observer, maybe_configured) in
+        q_hubs_not_busy.iter()
     {
         if hub.name.is_none() {
             error!("Hub {:?} has no name, cannot prepare", hub.id);
@@ -954,19 +974,9 @@ pub fn prepare_hubs(
             return;
         }
         if maybe_configured.is_none() {
-            let comm_type = match (maybe_broadcaster.is_some(), maybe_observer.is_some()) {
-                (true, false) => HubCommType::Broadcaster,
-                (false, true) => HubCommType::Observer,
-                (false, false) => HubCommType::Regular,
-                (true, true) => {
-                    error!("Hub cannot be both broadcaster and observer, defaulting to regular");
-                    HubCommType::Regular
-                }
-            };
-
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
-                command: HubCommand::Configure(comm_type),
+                command: HubCommand::Configure,
             });
             return;
         }
@@ -1037,12 +1047,22 @@ fn update_active_hubs(
 fn get_hub_configs(
     q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_ble_trains: Query<&BLETrain>,
-    q_hubs: Query<(Entity, &BLEHub)>,
+    q_hubs: Query<(
+        Entity,
+        &BLEHub,
+        Option<&ObserverHub>,
+        Option<&BroadcasterHub>,
+    )>,
     mut commands: Commands,
 ) {
     let mut configs = HashMap::new();
-    for (_entity, hub) in q_hubs.iter() {
-        configs.insert(hub.id, HubConfiguration::default());
+    for (_entity, hub, maybe_observer, maybe_broadcaster) in q_hubs.iter() {
+        let mut config = HubConfiguration::default();
+        config.add_value(
+            30,
+            HubCommType::from_query(maybe_observer, maybe_broadcaster).to_u8() as u32,
+        );
+        configs.insert(hub.id, config);
     }
     for (motor, device) in q_switch_motors.iter() {
         for (id, config) in motor.hub_configuration(device) {
@@ -1054,7 +1074,7 @@ fn get_hub_configs(
             configs.get_mut(&id).unwrap().merge(&config);
         }
     }
-    for (entity, hub) in q_hubs.iter() {
+    for (entity, hub, _, _) in q_hubs.iter() {
         commands
             .entity(entity)
             .insert(configs.remove(&hub.id).unwrap());
@@ -1274,7 +1294,11 @@ impl Plugin for BLEPlugin {
         );
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
-            (get_hub_configs, update_active_hubs, ensure_broadcaster_hub),
+            (
+                get_hub_configs.after(ensure_broadcaster_hub),
+                update_active_hubs,
+                ensure_broadcaster_hub,
+            ),
         );
         app.add_systems(OnExit(EditorState::DeviceControl), stop_hub_programs);
     }

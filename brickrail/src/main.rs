@@ -17,11 +17,11 @@ mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod materials;
+mod persistent_hub_state;
 mod route;
 mod schedule;
 mod section;
 mod selectable;
-mod settings;
 mod switch;
 mod switch_motor;
 mod track;
@@ -45,7 +45,7 @@ fn main() {
         .add_plugins(bevy_framepace::FramepacePlugin)
         .add_plugins(bevy_egui::EguiPlugin::default())
         .add_plugins(editor::EditorPlugin)
-        .add_plugins(settings::SettingsPlugin)
+        .add_plugins(persistent_hub_state::SettingsPlugin)
         .add_plugins(layout::LayoutPlugin)
         .add_plugins(block::BlockPlugin)
         .add_plugins(track::TrackPlugin)

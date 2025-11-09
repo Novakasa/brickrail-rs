@@ -211,7 +211,6 @@ class IOHub:
             if code == _SYS_CODE_STOP:
                 self.running = False
             if code == _SYS_CODE_READY:
-                self.set_storage(30, msg[1])  # set hub kind
                 self.set_ready()
             return
 
