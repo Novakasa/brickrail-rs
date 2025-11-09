@@ -31,6 +31,13 @@ impl PersistentHubState {
     pub fn sync_configured_hub(&mut self, hub_name: &str, config: &HubConfiguration) {
         self.configs.insert(hub_name.to_string(), config.clone());
     }
+
+    pub fn config_matches(&self, hub_name: &str, config: &HubConfiguration) -> bool {
+        match self.configs.get(hub_name) {
+            Some(stored_config) => stored_config == config,
+            None => false,
+        }
+    }
 }
 
 impl Drop for PersistentHubState {

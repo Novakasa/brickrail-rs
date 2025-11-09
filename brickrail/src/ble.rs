@@ -488,7 +488,7 @@ fn spawn_hub(
     mut spawn_event_reader: MessageReader<SpawnHubMessage>,
     mut commands: Commands,
     mut entity_map: ResMut<EntityMap>,
-    settings: Res<PersistentHubState>,
+    persistent_hub_state: Res<PersistentHubState>,
 ) {
     for event in spawn_event_reader.read() {
         let hub = event.hub.clone();
@@ -497,7 +497,7 @@ fn spawn_hub(
         let hub_mutex = hub.hub.clone();
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
         let is_marked_downloaded_in_settings =
-            hub.is_marked_downloaded_in_persistent_cache(&settings);
+            hub.is_marked_downloaded_in_persistent_cache(&persistent_hub_state);
         let entity = commands.spawn((name, hub)).id();
 
         if is_marked_downloaded_in_settings {
@@ -1115,6 +1115,27 @@ fn get_hub_configs(
     }
 }
 
+fn check_already_configured_hubs(
+    q_hubs: Query<(Entity, &BLEHub, &HubConfiguration)>,
+    mut commands: Commands,
+    persistent_hub_state: Res<PersistentHubState>,
+) {
+    for (entity, hub, config) in q_hubs.iter() {
+        if persistent_hub_state.config_matches(hub.name.as_ref().unwrap(), config) {
+            info!(
+                "Hub {:?} configuration matches persistent state, marking as configured",
+                hub.name.as_ref().unwrap()
+            );
+            commands.entity(entity).insert(HubConfigured);
+        } else {
+            info!(
+                "Hub {:?} configuration does not match persistent state",
+                hub.name.as_ref().unwrap()
+            );
+        }
+    }
+}
+
 fn check_hub_prepared(
     q_hubs: Query<
         (
@@ -1175,8 +1196,7 @@ fn check_hub_prepared(
                 //     maybe_connected,
                 //     maybe_busy,
                 // );
-                if maybe_running.is_some()
-                    && maybe_configured.is_some()
+                if maybe_configured.is_some()
                     && (maybe_connected.is_none() || observer.keep_connected)
                     && maybe_busy.is_none()
                     && maybe_ready.is_some()
@@ -1204,7 +1224,6 @@ fn check_hub_prepared(
             } else {
                 if maybe_connected.is_some()
                     && maybe_busy.is_none()
-                    && maybe_running.is_some()
                     && maybe_configured.is_some()
                     && maybe_ready.is_some()
                 {
@@ -1336,11 +1355,13 @@ impl Plugin for BLEPlugin {
         );
         app.add_systems(
             OnEnter(EditorState::PreparingDeviceControl),
-            (
-                get_hub_configs.after(ensure_broadcaster_hub),
-                update_active_hubs,
+            ((
                 ensure_broadcaster_hub,
-            ),
+                get_hub_configs,
+                check_already_configured_hubs,
+                update_active_hubs,
+            )
+                .chain(),),
         );
         app.add_systems(OnExit(EditorState::DeviceControl), stop_hub_programs);
     }
