@@ -46,6 +46,9 @@ pub struct HubOperating;
 pub struct HubReady;
 
 #[derive(Component, Debug)]
+pub struct HubPrepared;
+
+#[derive(Component, Debug)]
 pub struct BroadcasterHub;
 
 #[derive(Component, Debug)]
@@ -61,6 +64,7 @@ pub enum HubBusy {
     Starting,
     Stopping,
     Configuring,
+    SettingReady,
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]
@@ -229,7 +233,7 @@ impl BLEHub {
                 Option<&HubConnected>,
                 Option<&HubRunningProgram>,
                 Option<&HubDownloaded>,
-                Option<&HubReady>,
+                Option<&HubPrepared>,
                 Option<&mut ObserverHub>,
             )>,
             Res<EntityMap>,
@@ -617,6 +621,7 @@ pub enum HubCommand {
     StopProgram,
     QueueInput(IOInput),
     Configure,
+    SetReady,
 }
 
 #[derive(Message, Debug)]
@@ -754,6 +759,14 @@ fn execute_hub_commands(
                 }
                 persistent_hub_state
                     .sync_configured_hub(hub.name.as_ref().unwrap(), maybe_config.unwrap());
+                commands
+                    .entity(entity)
+                    .remove::<HubBusy>()
+                    .insert(HubConfigured);
+            }
+            HubCommand::SetReady => {
+                commands.entity(entity).insert(HubBusy::SettingReady);
+                let sender = hub.input_sender.as_ref().unwrap();
                 sender.send(IOInput::sys(SysCode::Ready, &[])).unwrap();
             }
         }
@@ -838,11 +851,11 @@ fn handle_hub_messages(
                         info!("Received SysData: {:?}", data);
                         match data {
                             SysData::Ready => {
-                                commands.entity(entity).insert(HubConfigured);
-                                if maybe_hub_busy == Some(&HubBusy::Configuring) {
+                                commands.entity(entity).insert(HubReady);
+                                if maybe_hub_busy == Some(&HubBusy::SettingReady) {
                                     commands.entity(entity).remove::<HubBusy>();
                                 } else {
-                                    warn!("Hub reported configured, but was not configuring");
+                                    warn!("Hub reported ready, but was not setting ready");
                                 }
                             }
                             _ => {}
@@ -929,12 +942,13 @@ pub fn prepare_hubs(
             Option<&HubRunningProgram>,
             Option<&ObserverHub>,
             Option<&HubConfigured>,
+            Option<&HubReady>,
         ),
         (
             Without<HubError>,
             With<HubActive>,
             Without<HubBusy>,
-            Without<HubReady>,
+            Without<HubPrepared>,
         ),
     >,
     q_hubs_busy: Query<&HubBusy>,
@@ -944,8 +958,15 @@ pub fn prepare_hubs(
     if !q_hubs_busy.is_empty() {
         return;
     }
-    for (hub, maybe_connected, maybe_downloaded, maybe_running, maybe_observer, maybe_configured) in
-        q_hubs_not_busy.iter()
+    for (
+        hub,
+        maybe_connected,
+        maybe_downloaded,
+        maybe_running,
+        maybe_observer,
+        maybe_configured,
+        maybe_ready,
+    ) in q_hubs_not_busy.iter()
     {
         if hub.name.is_none() {
             error!("Hub {:?} has no name, cannot prepare", hub.id);
@@ -980,6 +1001,13 @@ pub fn prepare_hubs(
             });
             return;
         }
+        if maybe_ready.is_none() {
+            command_messages.write(HubCommandMessage {
+                hub_id: hub.id,
+                command: HubCommand::SetReady,
+            });
+            return;
+        }
         if let Some(observer) = maybe_observer {
             if !observer.keep_connected {
                 info!("Observer hub disconnecting...");
@@ -994,7 +1022,7 @@ pub fn prepare_hubs(
 }
 
 fn finalize_hub_preparation(
-    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubReady>)>,
+    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubPrepared>)>,
     mut editor_state: ResMut<NextState<EditorState>>,
 ) {
     if q_hubs.is_empty() {
@@ -1081,7 +1109,7 @@ fn get_hub_configs(
     }
 }
 
-fn check_hub_ready(
+fn check_hub_prepared(
     q_hubs: Query<
         (
             Entity,
@@ -1091,6 +1119,7 @@ fn check_hub_ready(
             Option<&HubRunningProgram>,
             Option<&ObserverHub>,
             Option<&HubConfigured>,
+            Option<&HubPrepared>,
             Option<&HubReady>,
         ),
         With<HubActive>,
@@ -1105,6 +1134,7 @@ fn check_hub_ready(
         maybe_running,
         maybe_observer,
         maybe_configured,
+        maybe_prepared,
         maybe_ready,
     ) in q_hubs.iter()
     {
@@ -1113,10 +1143,11 @@ fn check_hub_ready(
         //     hub.id, maybe_connected, maybe_busy, maybe_running
         // );
         if let Some(observer) = maybe_observer {
-            if maybe_ready.is_some() {
+            if maybe_prepared.is_some() {
                 if maybe_running.is_none()
                     || maybe_configured.is_none()
                     || (maybe_connected.is_none() && observer.keep_connected)
+                    || maybe_ready.is_none()
                 {
                     warn!(
                         "Observer hub {:?} no longer ready",
@@ -1124,9 +1155,10 @@ fn check_hub_ready(
                     );
                     commands
                         .entity(entity)
-                        .remove::<HubReady>()
+                        .remove::<HubPrepared>()
                         .remove::<HubConfigured>()
-                        .remove::<HubRunningProgram>(); // forces us to re-start, which makes sense if we want to reconfigure
+                        .remove::<HubRunningProgram>() // forces us to re-start, which makes sense if we want to reconfigure
+                        .remove::<HubReady>();
                 }
             } else {
                 // println!(
@@ -1141,41 +1173,45 @@ fn check_hub_ready(
                     && maybe_configured.is_some()
                     && (maybe_connected.is_none() || observer.keep_connected)
                     && maybe_busy.is_none()
+                    && maybe_ready.is_some()
                 {
                     info!("Observer hub {:?} is ready", hub.name.as_ref().unwrap());
-                    commands.entity(entity).insert(HubReady);
+                    commands.entity(entity).insert(HubPrepared);
                 }
             }
         } else {
             // regular or broadcaster hub
-            if maybe_ready.is_some() {
+            if maybe_prepared.is_some() {
                 if maybe_busy.is_some()
                     || maybe_running.is_none()
                     || maybe_configured.is_none()
                     || maybe_connected.is_none()
+                    || maybe_ready.is_none()
                 {
-                    warn!("Hub {:?} no longer ready", hub.name.as_ref().unwrap());
+                    warn!("Hub {:?} no longer prepared", hub.name.as_ref().unwrap());
                     commands
                         .entity(entity)
-                        .remove::<HubReady>()
-                        .remove::<HubConfigured>();
+                        .remove::<HubPrepared>()
+                        .remove::<HubConfigured>()
+                        .remove::<HubReady>();
                 }
             } else {
                 if maybe_connected.is_some()
                     && maybe_busy.is_none()
                     && maybe_running.is_some()
                     && maybe_configured.is_some()
+                    && maybe_ready.is_some()
                 {
-                    info!("Hub {:?} is ready", hub.name.as_ref().unwrap());
-                    commands.entity(entity).insert(HubReady);
+                    info!("Hub {:?} is prepared", hub.name.as_ref().unwrap());
+                    commands.entity(entity).insert(HubPrepared);
                 }
             }
         }
     }
 }
 
-fn monitor_non_ready_hubs(
-    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubReady>)>,
+fn monitor_non_prepared_hubs(
+    q_hubs: Query<&BLEHub, (With<HubActive>, Without<HubPrepared>)>,
     mut editor_state: ResMut<NextState<EditorState>>,
 ) {
     for hub in q_hubs.iter() {
@@ -1281,11 +1317,11 @@ impl Plugin for BLEPlugin {
                     handle_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
                     handle_observer_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
                     handle_hub_messages.run_if(on_message::<HubMessage>),
-                    monitor_non_ready_hubs.run_if(in_state(EditorState::DeviceControl)),
+                    monitor_non_prepared_hubs.run_if(in_state(EditorState::DeviceControl)),
                     finalize_hub_preparation.run_if(in_state(EditorState::PreparingDeviceControl)),
                     disconnect_hubs.run_if(in_state(EditorState::Disconnecting)),
                     finalize_disconnection.run_if(in_state(EditorState::Disconnecting)),
-                    check_hub_ready,
+                    check_hub_prepared,
                     prepare_hubs.run_if(in_state(EditorState::PreparingDeviceControl)),
                     execute_hub_commands.run_if(on_message::<HubCommandMessage>),
                 )

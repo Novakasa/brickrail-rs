@@ -2,7 +2,10 @@ use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::ble::{BLEHub, HubActive, HubBusy, HubConnected, HubError, HubReady, HubRunningProgram};
+use crate::ble::{
+    BLEHub, HubActive, HubBusy, HubConfigured, HubConnected, HubError, HubPrepared, HubReady,
+    HubRunningProgram,
+};
 use crate::block::{Block, BlockSpawnMessage, BlockSpawnMessageQuery};
 use crate::destination::{Destination, SpawnDestinationMessage, SpawnDestinationMessageQuery};
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
@@ -435,12 +438,14 @@ pub fn hub_status_window(
     q_hubs: Query<(
         Entity,
         &BLEHub,
-        Option<&HubReady>,
+        Option<&HubPrepared>,
         Option<&HubBusy>,
         Option<&HubConnected>,
         Option<&HubActive>,
         Option<&HubError>,
         Option<&HubRunningProgram>,
+        Option<&HubConfigured>,
+        Option<&HubReady>,
     )>,
     mut editor_state: ResMut<NextState<EditorState>>,
     mut commands: Commands,
@@ -457,12 +462,22 @@ pub fn hub_status_window(
                 ui.set_width(ui.available_width());
                 ui.heading("Preparing hubs...");
                 ui.separator();
-                for (entity, hub, ready, busy, connected, active, maybe_error, maybe_running) in
-                    q_hubs.iter()
+                for (
+                    entity,
+                    hub,
+                    prepared,
+                    busy,
+                    connected,
+                    active,
+                    maybe_error,
+                    maybe_running,
+                    maybe_configured,
+                    maybe_ready,
+                ) in q_hubs.iter()
                 {
                     ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                         ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
-                        if ready.is_some() || active.is_none() {
+                        if prepared.is_some() || active.is_none() {
                             // ui.heading("✔".to_string());
                             ui.label(
                                 egui::RichText::new("✔".to_string())
@@ -471,7 +486,10 @@ pub fn hub_status_window(
                             );
                         }
                     });
-                    ui.label(format!("{:?} {:?} {:?}", active, connected, maybe_running));
+                    ui.label(format!(
+                        "{:?} {:?} {:?} {:?} {:?}",
+                        active, connected, maybe_running, maybe_configured, maybe_ready
+                    ));
                     if let Some(busy) = busy {
                         match busy {
                             HubBusy::Downloading(progress) => {
