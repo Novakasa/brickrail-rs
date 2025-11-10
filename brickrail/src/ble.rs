@@ -1065,16 +1065,7 @@ struct HubMessage {
 
 pub fn prepare_hubs(
     q_hubs_not_busy: Query<
-        (
-            Entity,
-            &BLEHub,
-            Option<&HubConnected>,
-            Option<&HubDownloaded>,
-            Option<&HubRunningProgram>,
-            Option<&ObserverHub>,
-            Option<&HubConfigured>,
-            Option<&HubReady>,
-        ),
+        (Entity, &BLEHub, &HubState, Option<&ObserverHub>),
         (
             Without<HubError>,
             With<HubActive>,
@@ -1091,19 +1082,10 @@ pub fn prepare_hubs(
     }
     let mut entities = q_hubs_not_busy
         .iter()
-        .map(|(entity, _, _, _, _, _, _, _)| entity)
+        .map(|(entity, _, _, _)| entity)
         .collect::<Vec<_>>();
     entities.sort();
-    for (
-        _entity,
-        hub,
-        maybe_connected,
-        maybe_downloaded,
-        maybe_running,
-        maybe_observer,
-        maybe_configured,
-        maybe_ready,
-    ) in entities
+    for (_entity, hub, state, maybe_observer) in entities
         .iter()
         .filter_map(|entity| q_hubs_not_busy.get(*entity).ok())
     {
@@ -1112,35 +1094,35 @@ pub fn prepare_hubs(
             continue;
         }
 
-        if maybe_connected.is_none() && maybe_running.is_none() {
+        if !state.connected && !state.ready {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::Connect,
             });
             return;
         }
-        if maybe_downloaded.is_none() && maybe_running.is_none() {
+        if !state.downloaded && !state.ready {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::DownloadProgram,
             });
             return;
         }
-        if maybe_running.is_none() {
+        if !state.running_program && !state.ready {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::StartProgram,
             });
             return;
         }
-        if maybe_configured.is_none() {
+        if !state.configured && !state.ready {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::Configure,
             });
             return;
         }
-        if maybe_ready.is_none() {
+        if !state.ready {
             command_messages.write(HubCommandMessage {
                 hub_id: hub.id,
                 command: HubCommand::SetReady,
