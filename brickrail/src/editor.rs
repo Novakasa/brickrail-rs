@@ -2,7 +2,7 @@ use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::ble::{BLEHub, HubActive, HubBusy, HubError, HubState};
+use crate::ble::{BLEHub, BroadcasterHub, HubActive, HubBusy, HubError, HubState, ObserverHub};
 use crate::block::{Block, BlockSpawnMessage, BlockSpawnMessageQuery};
 use crate::destination::{Destination, SpawnDestinationMessage, SpawnDestinationMessageQuery};
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
@@ -669,6 +669,10 @@ fn extend_selection(
 #[derive(Serialize, Deserialize, Clone, Message)]
 pub struct SpawnHubMessage {
     pub hub: BLEHub,
+    #[serde(default)]
+    pub observer: Option<ObserverHub>,
+    #[serde(default)]
+    pub broadcaster: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -699,7 +703,7 @@ pub fn save_layout(
     q_blocks: BlockSpawnMessageQuery,
     q_markers: Query<&Marker>,
     q_tracks: Query<&Track>,
-    q_hubs: Query<&BLEHub>,
+    q_hubs: Query<(&BLEHub, Option<&BroadcasterHub>, Option<&ObserverHub>)>,
     q_switch_motors: Query<(&PulseMotor, &LayoutDevice)>,
     q_destinations: SpawnDestinationMessageQuery,
     q_schedules: SpawnScheduleMessageQuery,
@@ -707,6 +711,14 @@ pub fn save_layout(
     mut save_messages: MessageReader<SaveLayoutMessage>,
 ) {
     for event in save_messages.read() {
+        for (hub, maybe_broadcaster, maybe_observer) in q_hubs.iter() {
+            println!(
+                "Hub {:?} broadcaster: {:?} observer: {:?}",
+                hub.id(),
+                maybe_broadcaster.is_some(),
+                maybe_observer.is_some()
+            );
+        }
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
         let tracks = q_tracks
@@ -715,7 +727,11 @@ pub fn save_layout(
             .collect();
         let hubs = q_hubs
             .iter()
-            .map(|hub| SpawnHubMessage { hub: hub.clone() })
+            .map(|(hub, maybe_broadcaster, maybe_observer)| SpawnHubMessage {
+                hub: hub.clone(),
+                observer: maybe_observer.cloned(),
+                broadcaster: maybe_broadcaster.is_some(),
+            })
             .collect();
         let switch_motors = q_switch_motors
             .iter()

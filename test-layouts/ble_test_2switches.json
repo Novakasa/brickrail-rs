@@ -377,13 +377,19 @@
       "hub": {
         "id": "Train0",
         "name": "city_blue"
-      }
+      },
+      "observer": null,
+      "broadcaster": true
     },
     {
       "hub": {
         "id": "Layout0",
         "name": "technic_blue"
-      }
+      },
+      "observer": {
+        "keep_connected": false
+      },
+      "broadcaster": false
     }
   ],
   "switches": [

@@ -16,8 +16,8 @@ use crate::{
     switch::Switch,
     switch_motor::PulseMotor,
 };
+use bevy::prelude::*;
 use bevy::{ecs::system::SystemState, platform::collections::HashMap};
-use bevy::{input::keyboard, prelude::*};
 use bevy_inspector_egui::bevy_egui::egui::{self, Grid, Ui, widgets::Button};
 use pybricks_ble::io_hub::{IOEvent, IOHub, IOMessage, Input as IOInput, SysCode, mod_checksum};
 use pybricks_ble::pybricks_hub::HubStatusFlags;
@@ -39,12 +39,12 @@ impl HubState {
         // use checkboxes in new lines to show state
         format!(
             "Hub State:
-            [ {} ] Connected
-            [ {} ] Downloaded
-            [ {} ] Running Program
-            [ {} ] Prepared
-            [ {} ] Configured
-            [ {} ] Ready",
+            [{}] Connected
+            [{}] Downloaded
+            [{}] Running Program
+            [{}] Prepared
+            [{}] Configured
+            [{}] Ready",
             if self.connected { "x" } else { " " },
             if self.downloaded { "x" } else { " " },
             if self.running_program { "x" } else { " " },
@@ -184,10 +184,10 @@ pub struct HubReady;
 #[derive(Component, Debug)]
 pub struct HubPrepared;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct BroadcasterHub;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Serialize, Deserialize, Clone)]
 pub struct ObserverHub {
     keep_connected: bool,
 }
@@ -353,6 +353,8 @@ impl Selectable for BLEHub {
     fn default_spawn_event(entity_map: &mut ResMut<EntityMap>) -> Option<Self::SpawnMessage> {
         Some(SpawnHubMessage {
             hub: BLEHub::new(entity_map.new_hub_id(HubType::Layout)),
+            observer: None,
+            broadcaster: false,
         })
     }
     fn id(&self) -> Self::ID {
@@ -576,7 +578,11 @@ impl BLEHub {
                     {
                         *selected = Some(entity_map.new_hub_id(kind));
                         let hub = BLEHub::new(selected.unwrap().clone());
-                        spawn_messages.write(SpawnHubMessage { hub });
+                        spawn_messages.write(SpawnHubMessage {
+                            hub,
+                            observer: None,
+                            broadcaster: false,
+                        });
                     };
                 });
             if let Some(hub_id) = selected {
@@ -600,18 +606,6 @@ fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
     return format!("Unkown {:}", id);
 }
 
-fn create_hub(
-    mut hub_message_writer: MessageWriter<SpawnHubMessage>,
-    keyboard_input: Res<ButtonInput<keyboard::KeyCode>>,
-    entity_map: Res<EntityMap>,
-) {
-    if keyboard_input.just_pressed(keyboard::KeyCode::KeyH) {
-        let id = entity_map.new_hub_id(HubType::Layout);
-        let hub = BLEHub::new(id);
-        hub_message_writer.write(SpawnHubMessage { hub });
-    }
-}
-
 fn spawn_hub(
     runtime: Res<TokioTasksRuntime>,
     mut spawn_event_reader: MessageReader<SpawnHubMessage>,
@@ -627,7 +621,16 @@ fn spawn_hub(
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
         let is_marked_downloaded_in_settings =
             hub.is_marked_downloaded_in_persistent_cache(&persistent_hub_state);
-        let entity = commands.spawn((name, hub, HubState::default())).id();
+        let entity = commands
+            .spawn((name, hub.clone(), HubState::default()))
+            .id();
+
+        if let Some(observer) = event.observer.clone() {
+            commands.entity(entity).insert(observer);
+        }
+        if event.broadcaster {
+            commands.entity(entity).insert(BroadcasterHub);
+        }
 
         if is_marked_downloaded_in_settings {
             commands.entity(entity).insert(HubDownloaded);
@@ -708,7 +711,7 @@ impl HubConfiguration {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum HubCommType {
     Observer,
     Broadcaster,
@@ -1473,7 +1476,6 @@ impl Plugin for BLEPlugin {
                 spawn_hub.run_if(on_message::<SpawnHubMessage>),
                 despawn_hub.run_if(on_message::<DespawnMessage<BLEHub>>),
                 delete_selection_shortcut::<BLEHub>,
-                create_hub,
                 (
                     handle_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
                     handle_observer_device_state_msgs.run_if(on_message::<HubDeviceStateMessage>),
@@ -1500,5 +1502,21 @@ impl Plugin for BLEPlugin {
                 .chain(),),
         );
         app.add_systems(OnExit(EditorState::DeviceControl), stop_hub_programs);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+    struct EmptyStruct;
+
+    #[test]
+    fn test_serialization() {
+        let maybe_broadcaster = Some(EmptyStruct);
+        let serialized = serde_json::to_string(&maybe_broadcaster).unwrap();
+        let deserialized: Option<EmptyStruct> = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(maybe_broadcaster, deserialized);
     }
 }
