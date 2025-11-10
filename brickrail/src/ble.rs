@@ -24,6 +24,145 @@ use pybricks_ble::pybricks_hub::HubStatusFlags;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
+#[derive(Component, Debug, Clone, Default)]
+pub struct HubState {
+    pub downloaded: bool,
+    pub running_program: bool,
+    pub connected: bool,
+    pub prepared: bool,
+    pub configured: bool,
+    pub ready: bool,
+}
+
+impl HubState {
+    pub fn pretty_print(&self) -> String {
+        // use checkboxes in new lines to show state
+        format!(
+            "Hub State:
+            [ {} ] Connected
+            [ {} ] Downloaded
+            [ {} ] Running Program
+            [ {} ] Prepared
+            [ {} ] Configured
+            [ {} ] Ready",
+            if self.connected { "x" } else { " " },
+            if self.downloaded { "x" } else { " " },
+            if self.running_program { "x" } else { " " },
+            if self.prepared { "x" } else { " " },
+            if self.configured { "x" } else { " " },
+            if self.ready { "x" } else { " " },
+        )
+    }
+
+    pub fn ui(&self, ui: &mut Ui, busy: Option<&HubBusy>) {
+        ui.label("Hub State:");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.connected.clone(), "Connected");
+            if matches!(
+                busy,
+                Some(HubBusy::Connecting) | Some(HubBusy::Disconnecting)
+            ) {
+                ui.spinner();
+                ui.label(format!("{:?}...", busy.unwrap()));
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.downloaded.clone(), "Downloaded");
+            match busy {
+                Some(HubBusy::Downloading(progress)) => {
+                    ui.add(egui::ProgressBar::new(*progress));
+                }
+                _ => {}
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.running_program.clone(), "Running");
+            if matches!(busy, Some(HubBusy::Starting) | Some(HubBusy::Stopping)) {
+                ui.spinner();
+                ui.label(format!("{:?}...", busy.unwrap()));
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.configured.clone(), "Configured");
+            if matches!(busy, Some(HubBusy::Configuring)) {
+                ui.spinner();
+                ui.label(format!("{:?}...", busy.unwrap()));
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.ready.clone(), "Ready");
+            if matches!(busy, Some(HubBusy::SettingReady)) {
+                ui.spinner();
+                ui.label(format!("{:?}...", busy.unwrap()));
+            }
+        });
+        ui.checkbox(&mut self.prepared.clone(), "Prepared");
+    }
+}
+
+pub trait HubStateComponent {
+    fn mark_present(state: &mut HubState);
+
+    fn mark_absent(state: &mut HubState);
+}
+
+macro_rules! impl_hub_state_component_bool {
+    ($ty:ty, $field:ident) => {
+        impl HubStateComponent for $ty {
+            fn mark_present(state: &mut HubState) {
+                state.$field = true;
+            }
+            fn mark_absent(state: &mut HubState) {
+                state.$field = false;
+            }
+        }
+    };
+}
+
+fn state_component_added_observer<T: Component + HubStateComponent>(
+    trigger: On<Add, T>,
+    mut state_query: Query<&mut HubState>,
+) {
+    if let Ok(mut hub_state) = state_query.get_mut(trigger.entity) {
+        T::mark_present(&mut hub_state);
+    }
+}
+
+fn state_component_removed_observer<T: Component + HubStateComponent>(
+    trigger: On<Remove, T>,
+    mut state_query: Query<&mut HubState>,
+) {
+    if let Ok(mut hub_state) = state_query.get_mut(trigger.entity) {
+        T::mark_absent(&mut hub_state);
+    }
+}
+
+pub struct HubStateComponentPlugin<T: Component + HubStateComponent> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Component + HubStateComponent> HubStateComponentPlugin<T> {
+    pub fn new() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: Component + HubStateComponent> Plugin for HubStateComponentPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.add_observer(state_component_added_observer::<T>);
+        app.add_observer(state_component_removed_observer::<T>);
+    }
+}
+
+impl_hub_state_component_bool!(HubConnected, connected);
+impl_hub_state_component_bool!(HubDownloaded, downloaded);
+impl_hub_state_component_bool!(HubRunningProgram, running_program);
+impl_hub_state_component_bool!(HubConfigured, configured);
+impl_hub_state_component_bool!(HubReady, ready);
+impl_hub_state_component_bool!(HubPrepared, prepared);
+
 #[derive(Component, Debug)]
 pub struct HubActive;
 
@@ -226,11 +365,8 @@ impl BLEHub {
         let mut state = SystemState::<(
             Query<(
                 &BLEHub,
+                &HubState,
                 Option<&HubBusy>,
-                Option<&HubConnected>,
-                Option<&HubRunningProgram>,
-                Option<&HubDownloaded>,
-                Option<&HubPrepared>,
                 Option<&mut ObserverHub>,
             )>,
             Res<EntityMap>,
@@ -248,20 +384,16 @@ impl BLEHub {
             mut commands,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok((hub, busy, connected, running, downloaded, ready, maybe_observer)) =
-                hubs.get_mut(entity)
-            {
+            if let Ok((hub, state, busy, maybe_observer)) = hubs.get_mut(entity) {
                 ui.label(format!("BLE Hub {:?}", hub.id));
                 ui.label(format!(
                     "Name: {}",
                     hub.name.as_deref().unwrap_or("Unknown")
                 ));
                 ui.label(format!("name id: {:?}", hub.name_id()));
-                ui.label(format!("{:?}", busy));
-                ui.label(format!("{:?}", connected));
-                ui.label(format!("{:?}", running));
-                ui.label(format!("{:?}", downloaded));
-                ui.label(format!("{:?}", ready));
+                // ui.label(state.pretty_print());
+                state.ui(ui, busy);
+
                 if ui
                     .button("Discover Name")
                     .on_hover_text("Discover the name of the hub")
@@ -275,7 +407,7 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        hub.name.is_some() && connected.is_none() && busy.is_none(),
+                        hub.name.is_some() && state.connected && busy.is_none(),
                         Button::new("Connect"),
                     )
                     .on_hover_text("Connect to the hub")
@@ -288,10 +420,7 @@ impl BLEHub {
                     });
                 }
                 if ui
-                    .add_enabled(
-                        connected.is_some() && busy.is_none(),
-                        Button::new("Disconnect"),
-                    )
+                    .add_enabled(state.connected && busy.is_none(), Button::new("Disconnect"))
                     .clicked()
                 {
                     let id = hub.id.clone();
@@ -302,7 +431,7 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        connected.is_some() && busy.is_none(),
+                        state.connected && busy.is_none(),
                         Button::new("Download Program"),
                     )
                     .clicked()
@@ -315,10 +444,10 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        downloaded.is_some()
+                        state.downloaded
                             && busy.is_none()
-                            && connected.is_some()
-                            && running.is_none(),
+                            && state.connected
+                            && !state.running_program,
                         Button::new("Start Program"),
                     )
                     .clicked()
@@ -331,7 +460,7 @@ impl BLEHub {
                 }
                 if ui
                     .add_enabled(
-                        connected.is_some() && busy.is_none() && running.is_some(),
+                        state.connected && busy.is_none() && state.running_program,
                         Button::new("Stop Program"),
                     )
                     .clicked()
@@ -498,7 +627,7 @@ fn spawn_hub(
         let name = Name::new(hub.name.clone().unwrap_or(hub_id.to_string()));
         let is_marked_downloaded_in_settings =
             hub.is_marked_downloaded_in_persistent_cache(&persistent_hub_state);
-        let entity = commands.spawn((name, hub)).id();
+        let entity = commands.spawn((name, hub, HubState::default())).id();
 
         if is_marked_downloaded_in_settings {
             commands.entity(entity).insert(HubDownloaded);
@@ -579,10 +708,11 @@ impl HubConfiguration {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum HubCommType {
     Observer,
     Broadcaster,
+    #[default]
     Regular,
 }
 
@@ -1328,6 +1458,12 @@ impl Plugin for BLEPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(SelectablePlugin::<BLEHub>::new());
         app.add_plugins(InspectorPlugin::<BLEHub>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubConnected>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubDownloaded>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubRunningProgram>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubConfigured>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubReady>::new());
+        app.add_plugins(HubStateComponentPlugin::<HubPrepared>::new());
         app.add_message::<HubMessage>();
         app.add_message::<HubCommandMessage>();
         app.add_message::<HubDeviceStateMessage>();
