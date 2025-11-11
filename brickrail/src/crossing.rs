@@ -43,8 +43,8 @@ impl LevelCrossing {
 }
 
 impl Inspectable for LevelCrossing {
-    fn inspector(_ui: &mut Ui, _world: &mut World) {
-        // LevelCrossing::inspector(ui, world);
+    fn inspector(ui: &mut Ui, _world: &mut World) {
+        ui.label("Level Crossing");
     }
 
     fn run_condition(selection_state: Res<crate::editor::SelectionState>) -> bool {
@@ -112,7 +112,7 @@ pub struct SetCrossingPositionMessage {
     pub position: CrossingPosition,
 }
 
-pub fn update_switch_position(
+pub fn update_crossing_position(
     mut messages: MessageReader<SetCrossingPositionMessage>,
     crossings: Query<&LevelCrossing>,
     mut motors: Query<(&mut PulseMotor, &LayoutDevice)>,
@@ -155,7 +155,7 @@ impl Plugin for CrossingPlugin {
         app.add_message::<SetCrossingPositionMessage>();
         app.add_systems(
             Update,
-            update_switch_position.run_if(on_message::<SetCrossingPositionMessage>),
+            update_crossing_position.run_if(on_message::<SetCrossingPositionMessage>),
         );
         app.add_systems(
             PostUpdate,

@@ -187,6 +187,9 @@ pub struct HubPrepared;
 #[derive(Component, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct BroadcasterHub;
 
+#[derive(Component, Debug)]
+pub struct ManualReady;
+
 #[derive(Component, Debug, Serialize, Deserialize, Clone)]
 pub struct ObserverHub {
     keep_connected: bool,
@@ -1071,6 +1074,7 @@ pub fn prepare_hubs(
             With<HubActive>,
             Without<HubBusy>,
             Without<HubPrepared>,
+            Without<ManualReady>,
         ),
     >,
     q_hubs_busy: Query<&HubBusy>,
@@ -1292,7 +1296,7 @@ fn check_hub_prepared(
                     || maybe_ready.is_none()
                 {
                     warn!(
-                        "Observer hub {:?} no longer ready",
+                        "Observer hub {:?} no longer prepared",
                         hub.name.as_ref().unwrap()
                     );
                     commands
@@ -1437,6 +1441,17 @@ pub fn ensure_broadcaster_hub(
     }
 }
 
+pub fn apply_manual_ready_tag(
+    mut commands: Commands,
+    q_hubs: Query<(Entity, Option<&HubConfigured>), With<ObserverHub>>,
+) {
+    for (entity, maybe_configured) in q_hubs.iter() {
+        if let Some(_manual_ready) = maybe_configured {
+            commands.entity(entity).insert(ManualReady);
+        }
+    }
+}
+
 pub struct BLEPlugin;
 
 impl Plugin for BLEPlugin {
@@ -1480,6 +1495,7 @@ impl Plugin for BLEPlugin {
                 get_hub_configs,
                 check_already_configured_hubs,
                 update_active_hubs,
+                apply_manual_ready_tag,
             )
                 .chain(),),
         );

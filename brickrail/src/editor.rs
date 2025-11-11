@@ -2,7 +2,10 @@ use core::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::ble::{BLEHub, BroadcasterHub, HubActive, HubBusy, HubError, HubState, ObserverHub};
+use crate::ble::{
+    BLEHub, BroadcasterHub, HubActive, HubBusy, HubError, HubReady, HubRunningProgram, HubState,
+    ManualReady, ObserverHub,
+};
 use crate::block::{Block, BlockSpawnMessage, BlockSpawnMessageQuery};
 use crate::destination::{Destination, SpawnDestinationMessage, SpawnDestinationMessageQuery};
 use crate::layout::{Connections, EntityMap, MarkerMap, TrackLocks};
@@ -439,6 +442,7 @@ pub fn hub_status_window(
         Option<&HubActive>,
         &HubState,
         Option<&HubError>,
+        Option<&ManualReady>,
     )>,
     mut editor_state: ResMut<NextState<EditorState>>,
     mut commands: Commands,
@@ -455,7 +459,9 @@ pub fn hub_status_window(
                 ui.set_width(ui.available_width());
                 ui.heading("Preparing hubs...");
                 ui.separator();
-                for (entity, hub, busy, active, state, maybe_error) in q_hubs.iter() {
+                for (entity, hub, busy, active, state, maybe_error, maybe_manual_ready) in
+                    q_hubs.iter()
+                {
                     ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                         ui.heading(hub.name.clone().unwrap_or("Unknown".to_string()));
                         if state.prepared || active.is_none() {
@@ -472,6 +478,16 @@ pub fn hub_status_window(
                         ui.label(format!("Error: {:?}", err));
                         if ui.button("Retry").clicked() {
                             commands.entity(entity).remove::<HubError>();
+                        }
+                    }
+                    if let Some(_manual_ready) = maybe_manual_ready
+                        && !state.ready
+                    {
+                        if ui.button("Set Ready").clicked() {
+                            commands
+                                .entity(entity)
+                                .remove::<ManualReady>()
+                                .insert((HubReady, HubRunningProgram));
                         }
                     }
                     ui.separator();
