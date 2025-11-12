@@ -7,11 +7,13 @@
       "\"L(-7,7,0|WE>|→)\"": "LB[(-9,7,0|WE)>(-7,7,0|WE)]",
       "\"L(-7,7,0|EW<|←)\"": "LB[(-7,7,0|EW)<(-9,7,0|EW)]",
       "\"L(5,10,0|EW<|←)\"": "LB[(5,10,0|EW)<(3,10,0|EW)]",
+      "\"L(4,13,0|EW<|←)\"": "LB[(4,13,0|EW)<(2,13,0|EW)]",
       "\"L(5,11,0|EW<|←)\"": "LB[(5,11,0|EW)<(3,11,0|EW)]",
       "\"L(6,2,0|EW<|←)\"": "LB[(6,2,0|EW)<(4,2,0|EW)]",
       "\"L(3,3,0|WE>|→)\"": "LB[(1,3,0|WE)>(3,3,0|WE)]",
       "\"L(-9,7,0|EW>|←)\"": "LB[(-7,7,0|EW)>(-9,7,0|EW)]",
       "\"L(5,10,0|WE>|→)\"": "LB[(3,10,0|WE)>(5,10,0|WE)]",
+      "\"L(4,13,0|WE>|→)\"": "LB[(2,13,0|WE)>(4,13,0|WE)]",
       "\"L(-9,7,0|WE<|→)\"": "LB[(-9,7,0|WE)<(-7,7,0|WE)]",
       "\"L(3,3,0|EW<|←)\"": "LB[(3,3,0|EW)<(1,3,0|EW)]",
       "\"L(1,4,0|EW>|←)\"": "LB[(3,4,0|EW)>(1,4,0|EW)]",
@@ -29,6 +31,7 @@
       "\"L(5,8,0|EW<|←)\"": "LB[(5,8,0|EW)<(3,8,0|EW)]",
       "\"L(8,11,0|SN<|↑)\"": "LB[(8,11,0|SN)<(8,13,0|SW)]",
       "\"L(3,4,0|EW<|←)\"": "LB[(3,4,0|EW)<(1,4,0|EW)]",
+      "\"L(2,13,0|WE<|→)\"": "LB[(2,13,0|WE)<(4,13,0|WE)]",
       "\"L(4,2,0|EW>|←)\"": "LB[(6,2,0|EW)>(4,2,0|EW)]",
       "\"L(4,2,0|WE<|→)\"": "LB[(4,2,0|WE)<(6,2,0|WE)]",
       "\"L(-9,3,0|EW>|←)\"": "LB[(-7,3,0|EW)>(-9,3,0|EW)]",
@@ -44,6 +47,7 @@
       "\"L(3,11,0|EW>|←)\"": "LB[(5,11,0|EW)>(3,11,0|EW)]",
       "\"L(3,7,0|WE<|→)\"": "LB[(3,7,0|WE)<(5,7,0|WE)]",
       "\"L(3,10,0|WE<|→)\"": "LB[(3,10,0|WE)<(5,10,0|WE)]",
+      "\"L(2,13,0|EW>|←)\"": "LB[(4,13,0|EW)>(2,13,0|EW)]",
       "\"L(3,7,0|EW>|←)\"": "LB[(5,7,0|EW)>(3,7,0|EW)]"
     },
     "enter_markers": {}
@@ -480,8 +484,8 @@
           ]
         },
         "settings": {
-          "passthrough": false,
-          "disallow_reversing": false
+          "passthrough": true,
+          "disallow_reversing": true
         }
       },
       "name": "B[(4,2,0|WE)-(6,2,0|EW)]"
@@ -536,6 +540,23 @@
         }
       },
       "name": "B[(3,10,0|WE)-(5,10,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(2,13,0|WE)-(4,13,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(2,13,0|WE|→)",
+            "D(3,13,0|WE|→)",
+            "D(4,13,0|WE|→)"
+          ]
+        },
+        "settings": {
+          "passthrough": true,
+          "disallow_reversing": true
+        }
+      },
+      "name": "B[(2,13,0|WE)-(4,13,0|EW)]"
     }
   ],
   "markers": [
@@ -705,7 +726,7 @@
       "track": "T(1,6,0|EW|↔)",
       "color": "Any",
       "logical_data": {
-        "\"L(1,6,0|EW<|←)\"": {
+        "\"L(1,6,0|WE>|→)\"": {
           "speed": "Cruise"
         },
         "\"L(1,6,0|WE<|→)\"": {
@@ -714,7 +735,7 @@
         "\"L(1,6,0|EW>|←)\"": {
           "speed": "Cruise"
         },
-        "\"L(1,6,0|WE>|→)\"": {
+        "\"L(1,6,0|EW<|←)\"": {
           "speed": "Cruise"
         }
       }
@@ -885,10 +906,10 @@
       "track": "T(3,11,0|EW|↔)",
       "color": "Any",
       "logical_data": {
-        "\"L(3,11,0|EW>|←)\"": {
+        "\"L(3,11,0|WE<|→)\"": {
           "speed": "Cruise"
         },
-        "\"L(3,11,0|WE<|→)\"": {
+        "\"L(3,11,0|EW>|←)\"": {
           "speed": "Cruise"
         },
         "\"L(3,11,0|WE>|→)\"": {
@@ -934,9 +955,154 @@
           "speed": "Cruise"
         }
       }
+    },
+    {
+      "track": "T(4,13,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(4,13,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,13,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,13,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(4,13,0|EW>|←)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(2,13,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(2,13,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,13,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,13,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(2,13,0|EW<|←)\"": {
+          "speed": "Cruise"
+        }
+      }
     }
   ],
-  "trains": [],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(3,11,0|WE)>(5,11,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": "Forward"
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train0",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 1
+        },
+        "position": {
+          "Block": "LB[(5,7,0|EW)>(3,7,0|EW)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": "Forward"
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 1
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train1",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 2
+        },
+        "position": {
+          "Block": "LB[(5,8,0|EW)>(3,8,0|EW)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": "Forward"
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 2
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train2",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    }
+  ],
   "hubs": [],
   "switches": [
     {
