@@ -5,12 +5,11 @@ use crate::editor::{
 };
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{
-    Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, MarkerSpeed, spawn_marker,
-};
+use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_marker};
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainMessage, Train};
+use crate::train_components::TrainSpeed;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::{SystemParam, SystemState};
@@ -44,7 +43,7 @@ pub struct BlockSettings {
     #[serde(default)]
     pub disallow_reversing: bool,
     #[serde(default)]
-    pub speed: MarkerSpeed,
+    pub speed: TrainSpeed,
 }
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]

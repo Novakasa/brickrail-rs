@@ -9,12 +9,13 @@ use crate::{
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    route::{LegState, Route, TrainState, build_route},
+    route::{LegState, Route, build_route},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
+    train_components::TrainState,
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -246,7 +247,8 @@ impl Train {
         let target_speed = self.state.get_speed();
         self.speed += ((target_speed - self.speed) * 2.8 - self.speed * 0.5) * delta;
         let dist = delta * self.speed;
-        self.get_route_mut().advance_distance(dist, advance_messages);
+        self.get_route_mut()
+            .advance_distance(dist, advance_messages);
         self.state = self.get_route().get_train_state();
         // self.speed = self.state.get_speed();
         // println!("Train state: {:?}, {:?}", self.state, self.speed);

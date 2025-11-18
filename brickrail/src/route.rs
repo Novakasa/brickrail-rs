@@ -17,12 +17,14 @@ use crate::switch::SetSwitchPositionMessage;
 use crate::switch::Switch;
 use crate::track::LAYOUT_SCALE;
 use crate::train::MarkerAdvanceMessage;
+use crate::train_components::TrainSpeed;
+use crate::train_components::TrainState;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {
     pub track: LogicalTrackID,
     pub color: MarkerColor,
-    pub speed: MarkerSpeed,
+    pub speed: TrainSpeed,
     pub key: MarkerKey,
     pub position: f32,
 }
@@ -145,25 +147,6 @@ pub fn build_route(
         route.get_current_leg().markers
     );
     route
-}
-
-#[derive(Debug, Default, Clone)]
-pub enum TrainState {
-    #[default]
-    Stop,
-    Run {
-        facing: Facing,
-        speed: MarkerSpeed,
-    },
-}
-
-impl TrainState {
-    pub fn get_speed(&self) -> f32 {
-        match self {
-            TrainState::Stop => 0.0,
-            TrainState::Run { speed, facing } => facing.get_sign() * speed.get_speed(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -522,7 +505,7 @@ impl RouteLeg {
         return self.markers.len() - 2;
     }
 
-    fn set_enter_data(&mut self, block_speed: MarkerSpeed) {
+    fn set_enter_data(&mut self, block_speed: TrainSpeed) {
         let enter_index = self.get_enter_index();
         let enter_marker = &mut self.markers[enter_index];
         enter_marker.key = MarkerKey::Enter;
@@ -568,7 +551,7 @@ impl RouteLeg {
         }
 
         let speed = if (should_stop || will_turn) && leg_state == LegState::Entered {
-            MarkerSpeed::Slow
+            TrainSpeed::Slow
         } else {
             self.get_previous_marker().speed
         };

@@ -9,12 +9,13 @@ use itertools::Itertools;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
+use crate::train_components::TrainSpeed;
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandMessage, HubConfiguration, HubMessageMessage},
     editor::{SelectionState, SpawnHubMessage},
     layout::EntityMap,
     layout_primitives::{Facing, HubID, HubPort, HubType, TrainID},
-    marker::{MarkerColor, MarkerSpeed},
+    marker::MarkerColor,
     route::{LegIntention, Route},
     train::{MarkerAdvanceMessage, Train},
 };
@@ -157,7 +158,7 @@ impl BLETrain {
         self.master_hub.hub_id.iter().chain(self.iter_puppets())
     }
 
-    pub fn run_command(&self, facing: Facing, speed: MarkerSpeed) -> HubCommands {
+    pub fn run_command(&self, facing: Facing, speed: TrainSpeed) -> HubCommands {
         let arg: u8 = (facing.as_train_flag()) << 4 | speed.as_train_u8();
         let input = IOInput::rpc("run", &vec![arg]);
         self.all_command(input)

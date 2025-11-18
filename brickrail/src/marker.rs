@@ -11,9 +11,10 @@ use serde_json_any_key::any_key_map;
 
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
+use crate::train_components::TrainSpeed;
 use crate::{
     editor::*,
-    layout::{EntityMap, MarkerMap},
+    layout::EntityMap,
     layout_primitives::*,
     track::{LAYOUT_SCALE, spawn_track},
 };
@@ -35,45 +36,6 @@ impl MarkerKey {
             MarkerKey::In => 2,
             MarkerKey::Out => 0,
             MarkerKey::None => 0,
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    Reflect,
-)]
-pub enum MarkerSpeed {
-    Slow,
-    #[default]
-    Cruise,
-    Fast,
-}
-
-impl MarkerSpeed {
-    pub fn get_speed(&self) -> f32 {
-        match self {
-            MarkerSpeed::Slow => 2.0,
-            MarkerSpeed::Cruise => 4.0,
-            MarkerSpeed::Fast => 8.0,
-        }
-    }
-
-    pub fn as_train_u8(&self) -> u8 {
-        match self {
-            MarkerSpeed::Slow => 2,
-            MarkerSpeed::Cruise => 3,
-            MarkerSpeed::Fast => 1,
         }
     }
 }
@@ -127,7 +89,7 @@ impl MarkerColor {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct LogicalMarkerData {
-    pub speed: MarkerSpeed,
+    pub speed: TrainSpeed,
 }
 
 #[derive(Debug, Component, Serialize, Deserialize, Clone, Reflect)]
@@ -313,14 +275,12 @@ pub fn despawn_marker(
     mut commands: Commands,
     mut marker_messages: MessageReader<DespawnMessage<Marker>>,
     mut entity_map: ResMut<EntityMap>,
-    mut marker_map: ResMut<MarkerMap>,
 ) {
     for event in marker_messages.read() {
         let track_id = event.0;
         let entity = entity_map.markers.get(&track_id).unwrap().clone();
         commands.entity(entity.clone()).despawn();
         entity_map.remove_marker(track_id);
-        marker_map.remove_marker(track_id);
     }
 }
 

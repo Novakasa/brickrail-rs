@@ -27,6 +27,7 @@ mod switch_motor;
 mod track;
 mod track_mesh;
 mod train;
+mod train_components;
 mod utils;
 
 fn main() {
