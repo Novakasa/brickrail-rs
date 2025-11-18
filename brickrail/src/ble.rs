@@ -956,7 +956,6 @@ fn handle_hub_messages(
         Option<&HubConnected>,
     )>,
     entity_map: Res<EntityMap>,
-    settings: Res<PersistentHubState>,
     mut commands: Commands,
 ) {
     for event in hub_message_reader.read() {
@@ -967,7 +966,10 @@ fn handle_hub_messages(
             IOEvent::NameDiscovered(name) => {
                 hub.name = Some(name.clone());
                 name_component.set(name.clone());
-                hub.is_marked_downloaded_in_persistent_cache(&settings);
+                commands
+                    .entity(entity)
+                    .remove::<HubConfigured>()
+                    .remove::<HubReady>();
                 return;
             }
             IOEvent::Message(msg) => {
@@ -1251,6 +1253,19 @@ fn check_already_configured_hubs(
                 "Hub {:?} configuration does not match persistent state",
                 hub.name.as_ref().unwrap()
             );
+            commands.entity(entity).remove::<HubConfigured>();
+        }
+        if hub.is_marked_downloaded_in_persistent_cache(&persistent_hub_state) {
+            info!(
+                "Hub {:?} program hash matches persistent state, marking as downloaded",
+                hub.name.as_ref().unwrap()
+            )
+        } else {
+            info!(
+                "Hub {:?} program hash does not match persistent state",
+                hub.name.as_ref().unwrap()
+            );
+            commands.entity(entity).remove::<HubDownloaded>();
         }
     }
 }

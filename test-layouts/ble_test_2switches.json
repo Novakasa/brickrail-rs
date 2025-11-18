@@ -384,7 +384,7 @@
     {
       "hub": {
         "id": "Layout0",
-        "name": "technic_blue"
+        "name": "technic-yellow"
       },
       "observer": {
         "keep_connected": false
