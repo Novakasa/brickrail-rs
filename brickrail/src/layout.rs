@@ -1,3 +1,5 @@
+use std::panic;
+
 use crate::crossing::{LevelCrossing, SetCrossingPositionMessage};
 use crate::editor::GenericID;
 use crate::layout_primitives::*;
@@ -387,6 +389,9 @@ impl MarkerMap {
             }
             MarkerKey::Enter => {
                 self.enter_markers.insert(logical_track, logical_block);
+            }
+            MarkerKey::Out | MarkerKey::Exit => {
+                panic!("not implemented");
             }
             MarkerKey::None => {}
         }

@@ -104,6 +104,7 @@ pub fn build_route(
                 let position = travel_section
                     .length_to(&logical)
                     .unwrap_or_else(|_| travel_section.length_to(&logical.reversed()).unwrap());
+
                 let route_marker = RouteMarkerData {
                     track: logical.clone(),
                     color: marker.color,
@@ -130,6 +131,9 @@ pub fn build_route(
             intention_synced: false,
             greedy: target_block.settings.passthrough,
         };
+
+        let block_speed = target_block.settings.speed;
+        leg.set_enter_data(block_speed);
         leg.reset_pos_to_prev_marker();
         route.push_leg(leg);
         leg_index += 1;
@@ -516,6 +520,13 @@ impl RouteLeg {
             return 0;
         }
         return self.markers.len() - 2;
+    }
+
+    fn set_enter_data(&mut self, block_speed: MarkerSpeed) {
+        let enter_index = self.get_enter_index();
+        let enter_marker = &mut self.markers[enter_index];
+        enter_marker.key = MarkerKey::Enter;
+        enter_marker.speed = enter_marker.speed.min(block_speed);
     }
 
     fn advance_marker(&mut self) -> Result<(), ()> {

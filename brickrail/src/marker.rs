@@ -21,7 +21,9 @@ use crate::{
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
 pub enum MarkerKey {
     Enter,
+    Exit,
     In,
+    Out,
     None,
 }
 
@@ -29,7 +31,9 @@ impl MarkerKey {
     pub fn as_train_u8(&self) -> u8 {
         match self {
             MarkerKey::Enter => 1,
+            MarkerKey::Exit => 0,
             MarkerKey::In => 2,
+            MarkerKey::Out => 0,
             MarkerKey::None => 0,
         }
     }

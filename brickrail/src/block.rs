@@ -5,7 +5,9 @@ use crate::editor::{
 };
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
-use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_marker};
+use crate::marker::{
+    Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, MarkerSpeed, spawn_marker,
+};
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainMessage, Train};
@@ -41,6 +43,8 @@ pub struct BlockSettings {
     pub passthrough: bool,
     #[serde(default)]
     pub disallow_reversing: bool,
+    #[serde(default)]
+    pub speed: MarkerSpeed,
 }
 
 #[derive(Component, Debug, Reflect, Serialize, Deserialize, Clone)]
@@ -125,6 +129,8 @@ impl Block {
                             disallow_reversing: block.settings.disallow_reversing,
                         });
                     }
+                    ui.label("Speed");
+                    ui_for_value(&mut block.settings.speed, ui, &type_registry.read());
                     ui.end_row();
                 });
 

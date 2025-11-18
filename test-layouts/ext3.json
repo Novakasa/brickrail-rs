@@ -726,7 +726,7 @@
       "track": "T(1,6,0|EW|↔)",
       "color": "Any",
       "logical_data": {
-        "\"L(1,6,0|WE>|→)\"": {
+        "\"L(1,6,0|EW<|←)\"": {
           "speed": "Cruise"
         },
         "\"L(1,6,0|WE<|→)\"": {
@@ -735,7 +735,7 @@
         "\"L(1,6,0|EW>|←)\"": {
           "speed": "Cruise"
         },
-        "\"L(1,6,0|EW<|←)\"": {
+        "\"L(1,6,0|WE>|→)\"": {
           "speed": "Cruise"
         }
       }
@@ -906,10 +906,10 @@
       "track": "T(3,11,0|EW|↔)",
       "color": "Any",
       "logical_data": {
-        "\"L(3,11,0|WE<|→)\"": {
+        "\"L(3,11,0|EW>|←)\"": {
           "speed": "Cruise"
         },
-        "\"L(3,11,0|EW>|←)\"": {
+        "\"L(3,11,0|WE<|→)\"": {
           "speed": "Cruise"
         },
         "\"L(3,11,0|WE>|→)\"": {
@@ -997,10 +997,46 @@
     {
       "train": {
         "id": {
+          "id": 2
+        },
+        "position": {
+          "Block": "LB[(5,8,0|EW)>(3,8,0|EW)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": "Forward"
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 2
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train2",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    },
+    {
+      "train": {
+        "id": {
           "id": 0
         },
         "position": {
-          "Block": "LB[(3,11,0|WE)>(5,11,0|WE)]"
+          "Block": "LB[(-9,3,0|WE)>(-7,3,0|WE)]"
         },
         "settings": {
           "num_wagons": 3,
@@ -1062,43 +1098,9 @@
       },
       "name": "Train1",
       "schedule": {
-        "schedule_id": null,
-        "offset": 0.0
-      }
-    },
-    {
-      "train": {
-        "id": {
-          "id": 2
+        "schedule_id": {
+          "id": 0
         },
-        "position": {
-          "Block": "LB[(5,8,0|EW)>(3,8,0|EW)]"
-        },
-        "settings": {
-          "num_wagons": 3,
-          "home": null,
-          "prefer_facing": "Forward"
-        }
-      },
-      "ble_train": {
-        "master_hub": {
-          "hub_id": null,
-          "inverted_ports": []
-        },
-        "puppets": [],
-        "train_id": {
-          "id": 2
-        },
-        "slow_speed": 40,
-        "cruise_speed": 70,
-        "fast_speed": 100,
-        "acceleration": 40,
-        "deceleration": 90,
-        "chroma_threshold": 3500
-      },
-      "name": "Train2",
-      "schedule": {
-        "schedule_id": null,
         "offset": 0.0
       }
     }
@@ -1445,6 +1447,133 @@
     }
   ],
   "switch_motors": [],
-  "destinations": [],
-  "schedules": []
+  "destinations": [
+    {
+      "dest": {
+        "id": {
+          "Specific": 0
+        },
+        "blocks": [
+          [
+            "B[(-9,7,0|WE)-(-7,7,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-9,3,0|WE)-(-7,3,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination0"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 1
+        },
+        "blocks": [
+          [
+            "B[(3,11,0|WE)-(5,11,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(3,10,0|WE)-(5,10,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination1"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 2
+        },
+        "blocks": [
+          [
+            "B[(3,8,0|WE)-(5,8,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(3,7,0|WE)-(5,7,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(1,6,0|WE)-(3,6,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination2"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 3
+        },
+        "blocks": [
+          [
+            "B[(1,4,0|WE)-(3,4,0|EW)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(1,3,0|WE)-(3,3,0|EW)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination3"
+    }
+  ],
+  "schedules": [
+    {
+      "schedule": {
+        "id": {
+          "id": 0
+        },
+        "entries": [
+          {
+            "dest": {
+              "Specific": 0
+            },
+            "depart_time": 0.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 1
+            },
+            "depart_time": 30.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 2
+            },
+            "depart_time": 60.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 3
+            },
+            "depart_time": 90.0,
+            "min_wait": 4.0
+          }
+        ],
+        "cycle_length": 120.0,
+        "cycle_offset": 0.0
+      },
+      "name": "Schedule0"
+    }
+  ]
 }
