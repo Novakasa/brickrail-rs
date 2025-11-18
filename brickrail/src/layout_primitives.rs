@@ -338,6 +338,20 @@ impl FromStr for BlockID {
     }
 }
 
+pub struct DirectedBlockID {
+    pub id: BlockID,
+    pub direction: BlockDirection,
+}
+
+impl DirectedBlockID {
+    pub fn section_end_track(&self) -> DirectedTrackID {
+        match self.direction {
+            BlockDirection::Aligned => self.id.track2,
+            BlockDirection::Opposite => self.id.track1.opposite(),
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Reflect, SerializeDisplay, DeserializeFromStr,
 )]

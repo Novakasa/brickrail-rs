@@ -54,6 +54,65 @@ pub struct Block {
     pub settings: BlockSettings,
 }
 
+#[derive(Component)]
+pub struct DirectedBlock {
+    pub id: BlockID,
+    pub direction: BlockDirection,
+}
+
+#[derive(Component)]
+pub struct LogicalBlock {
+    pub id: BlockID,
+    pub direction: BlockDirection,
+    pub facing: Facing,
+}
+
+impl LogicalBlock {
+    pub fn to_logical_id(&self) -> LogicalBlockID {
+        LogicalBlockID {
+            block: self.id,
+            direction: self.direction,
+            facing: self.facing,
+        }
+    }
+
+    pub fn in_track(&self) -> LogicalTrackID {
+        self.to_logical_id().default_in_marker_track()
+    }
+}
+
+#[derive(Component)]
+#[relationship(relationship_target=DirectedVersions)]
+struct DirectedVersionOf(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship=DirectedVersionOf)]
+struct DirectedVersions(Vec<Entity>);
+
+#[derive(Component)]
+#[relationship(relationship_target=LogicalVersions)]
+struct LogicalVersionOf(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship=LogicalVersionOf)]
+struct LogicalVersions(Vec<Entity>);
+
+#[derive(Component)]
+#[relationship_target(relationship=BlockSectionEnd)]
+struct BlockSectionEndOf(Vec<Entity>);
+
+#[derive(Component)]
+#[relationship(relationship_target=BlockSectionEndOf)]
+struct BlockSectionEnd(Entity);
+
+#[derive(Component)]
+#[relationship(relationship_target=InTrackOf)]
+pub struct InTrack(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship=InTrack)]
+pub struct InTrackOf(Vec<Entity>);
+
 impl Block {
     pub fn new(section: DirectedSection) -> Self {
         let id = section.to_block_id();
@@ -375,14 +434,46 @@ pub fn spawn_block(
         let block_id = block.id;
         // println!("Spawning block {:?}", block_id);
         let name = Name::new(request.name.clone().unwrap_or(block_id.to_string()));
-        for logical_id in block_id.logical_block_ids() {
-            let in_track = logical_id.default_in_marker_track();
-            if !block.settings.disallow_reversing {
-                connections.connect_tracks(&in_track, &in_track.reversed());
+        let entity = commands
+            .spawn((BlockBundle::from_block(block.clone()), name))
+            .id();
+        entity_map.add_block(block_id, entity);
+        for direction in [BlockDirection::Aligned, BlockDirection::Opposite] {
+            let directed_id = DirectedBlockID {
+                id: block_id,
+                direction,
+            };
+            let end_track = directed_id.section_end_track();
+            let track_entity = entity_map.tracks.get(&end_track.track).unwrap();
+            let directed_entity = commands
+                .spawn((
+                    DirectedBlock {
+                        id: block_id,
+                        direction,
+                    },
+                    DirectedVersionOf(entity),
+                    BlockSectionEnd(*track_entity),
+                ))
+                .id();
+
+            for facing in [Facing::Forward, Facing::Backward] {
+                let logical_id = block_id.to_logical(direction, facing);
+                let in_track = logical_id.default_in_marker_track();
+                let in_track_entity = entity_map.tracks.get(&in_track.track()).unwrap();
+                commands.spawn((
+                    LogicalBlock {
+                        id: block_id,
+                        direction,
+                        facing,
+                    },
+                    LogicalVersionOf(directed_entity),
+                    InTrack(*in_track_entity),
+                ));
+                if !block.settings.disallow_reversing {
+                    connections.connect_tracks(&in_track, &in_track.reversed());
+                }
             }
         }
-        let entity = commands.spawn((BlockBundle::from_block(block), name)).id();
-        entity_map.add_block(block_id, entity);
     }
 }
 
