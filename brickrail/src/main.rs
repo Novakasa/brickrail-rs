@@ -17,6 +17,7 @@ mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod materials;
+mod new_route;
 mod persistent_hub_state;
 mod route;
 mod schedule;
@@ -27,7 +28,6 @@ mod switch_motor;
 mod track;
 mod track_mesh;
 mod train;
-mod train_components;
 mod utils;
 
 fn main() {
@@ -65,5 +65,6 @@ fn main() {
         // .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RenderDiagnosticsPlugin::default())
         .add_plugins(materials::MaterialsPlugin)
+        .add_plugins(new_route::NewRoutePlugin)
         .run();
 }

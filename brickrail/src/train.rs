@@ -9,17 +9,18 @@ use crate::{
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
+    new_route::{NewRoute, TrainState},
     route::{LegState, Route, build_route},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
-    train_components::TrainState,
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
     ecs::system::{SystemParam, SystemState},
+    picking::hover,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
@@ -513,6 +514,8 @@ fn exit_drag_train(
     mut train_drag_state: ResMut<TrainDragState>,
     mut set_train_route: MessageWriter<SetTrainRouteMessage>,
     mut hover_state: ResMut<HoverState>,
+    hover_route: Query<Entity, With<HoverRoute>>,
+    mut commands: Commands,
 ) {
     if mouse_buttons.just_released(MouseButton::Right) {
         if let Some(train_id) = train_drag_state.train_id {
@@ -526,6 +529,9 @@ fn exit_drag_train(
         train_drag_state.train_id = None;
         train_drag_state.route = None;
         hover_state.filter = HoverFilter::All;
+        for entity in hover_route.iter() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
@@ -628,6 +634,9 @@ fn assign_destination_route(
     }
 }
 
+#[derive(Component)]
+struct HoverRoute;
+
 fn update_drag_train(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut train_drag_state: ResMut<TrainDragState>,
@@ -641,7 +650,10 @@ fn update_drag_train(
     q_markers: Query<&Marker>,
     switches: Query<&Switch>,
     marker_map: Res<MarkerMap>,
+    mut commands: Commands,
+    hover_route: Query<Entity, With<HoverRoute>>,
 ) {
+    assert!(hover_route.iter().count() < 2);
     if train_drag_state.train_id.is_none() {
         return;
     }
@@ -668,6 +680,9 @@ fn update_drag_train(
             .get(entity_map.get_entity(&GenericID::Train(train_id)).unwrap())
             .unwrap();
         let start = train.get_logical_block_id();
+        for entity in hover_route.iter() {
+            commands.entity(entity).despawn();
+        }
         if let Some(logical_section) = connections.find_route_section(
             start,
             train_drag_state.target.unwrap(),
@@ -675,6 +690,12 @@ fn update_drag_train(
             train.settings.prefer_facing,
         ) {
             // println!("Section: {:?}", section);
+            commands.spawn((
+                NewRoute {
+                    logical_section: logical_section.clone(),
+                },
+                HoverRoute,
+            ));
             let route = build_route(
                 train_id,
                 &logical_section,
@@ -690,6 +711,9 @@ fn update_drag_train(
     } else {
         train_drag_state.target = None;
         train_drag_state.route = None;
+        for entity in hover_route.iter() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 

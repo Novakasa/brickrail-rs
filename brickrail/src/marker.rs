@@ -11,7 +11,7 @@ use serde_json_any_key::any_key_map;
 
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
-use crate::train_components::TrainSpeed;
+use crate::new_route::TrainSpeed;
 use crate::{
     editor::*,
     layout::EntityMap,

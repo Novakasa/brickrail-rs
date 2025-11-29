@@ -12,13 +12,13 @@ use crate::layout::MarkerMap;
 use crate::layout::TrackLocks;
 use crate::layout_primitives::*;
 use crate::marker::*;
+use crate::new_route::TrainSpeed;
+use crate::new_route::TrainState;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionMessage;
 use crate::switch::Switch;
 use crate::track::LAYOUT_SCALE;
 use crate::train::MarkerAdvanceMessage;
-use crate::train_components::TrainSpeed;
-use crate::train_components::TrainState;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {
@@ -61,7 +61,7 @@ pub fn build_route(
     marker_map: &MarkerMap,
 ) -> Route {
     let mut route = Route::new(train_id);
-    let in_tracks = marker_map.in_markers.keys().collect_vec();
+    let in_tracks = marker_map.in_markers.keys().cloned().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
     assert!(split.len() > 0);
     let mut leg_index = 0;

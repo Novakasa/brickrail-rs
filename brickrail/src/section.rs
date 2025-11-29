@@ -1,4 +1,4 @@
-use bevy::{math::Vec2, reflect::Reflect};
+use bevy::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ pub struct TrackSection {
     pub tracks: Vec<TrackID>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Component)]
 pub struct LogicalSection {
     pub tracks: Vec<LogicalTrackID>,
 }
@@ -33,7 +33,7 @@ impl LogicalSection {
 
     pub fn split_by_tracks_with_overlap(
         &self,
-        tracks: Vec<&LogicalTrackID>,
+        tracks: Vec<LogicalTrackID>,
     ) -> Vec<(LogicalSection, LogicalTrackID)> {
         let mut results = vec![];
         let mut current_section = LogicalSection::new();

@@ -9,7 +9,7 @@ use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_ma
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainMessage, Train};
-use crate::train_components::TrainSpeed;
+use crate::new_route::TrainSpeed;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::{SystemParam, SystemState};
@@ -467,6 +467,7 @@ pub fn spawn_block(
                     },
                     LogicalVersionOf(directed_entity),
                     InTrack(*in_track_entity),
+                    block.get_logical_section(logical_id),
                 ));
                 if !block.settings.disallow_reversing {
                     connections.connect_tracks(&in_track, &in_track.reversed());
