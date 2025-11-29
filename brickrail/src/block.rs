@@ -6,10 +6,10 @@ use crate::editor::{
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_marker};
+use crate::route_modular::TrainSpeed;
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainMessage, Train};
-use crate::new_route::TrainSpeed;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::{SystemParam, SystemState};

@@ -17,9 +17,9 @@ mod layout_devices;
 mod layout_primitives;
 mod marker;
 mod materials;
-mod new_route;
 mod persistent_hub_state;
 mod route;
+mod route_modular;
 mod schedule;
 mod section;
 mod selectable;
@@ -65,6 +65,6 @@ fn main() {
         // .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RenderDiagnosticsPlugin::default())
         .add_plugins(materials::MaterialsPlugin)
-        .add_plugins(new_route::NewRoutePlugin)
+        .add_plugins(route_modular::NewRoutePlugin)
         .run();
 }

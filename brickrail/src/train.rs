@@ -9,8 +9,8 @@ use crate::{
     layout::{Connections, EntityMap, MarkerMap, TrackLocks},
     layout_primitives::*,
     marker::Marker,
-    new_route::{NewRoute, TrainState},
     route::{LegState, Route, build_route},
+    route_modular::{ModularRoute, TrainState},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
@@ -20,7 +20,6 @@ use crate::{
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
     ecs::system::{SystemParam, SystemState},
-    picking::hover,
 };
 use bevy::{input::keyboard, prelude::*};
 use bevy_egui::egui::Ui;
@@ -691,7 +690,7 @@ fn update_drag_train(
         ) {
             // println!("Section: {:?}", section);
             commands.spawn((
-                NewRoute {
+                ModularRoute {
                     logical_section: logical_section.clone(),
                 },
                 HoverRoute,

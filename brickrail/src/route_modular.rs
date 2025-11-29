@@ -8,7 +8,7 @@ use crate::{
     marker::{Marker, MarkerKey},
     route::RouteMarkerData,
     section::LogicalSection,
-    track::{LAYOUT_SCALE, Track},
+    track::LAYOUT_SCALE,
 };
 
 #[derive(Component, Debug)]
@@ -57,12 +57,12 @@ struct LegStart(Entity);
 struct LegStartOf(Vec<Entity>);
 
 #[derive(Component, Debug)]
-pub struct NewRoute {
+pub struct ModularRoute {
     pub logical_section: LogicalSection,
 }
 
 #[derive(Component, Debug)]
-struct RouteLeg {
+struct RouteLegMarkers {
     pub markers: Vec<RouteMarkerData>,
 }
 
@@ -145,81 +145,98 @@ struct WagonOf(Entity);
 #[relationship_target(relationship=WagonOf)]
 struct Wagons(Vec<Entity>);
 
+#[derive(Component, Debug)]
+struct ModularRouteLeg {
+    section: LogicalSection,
+}
+
 fn build_route(
-    trigger: On<Add, NewRoute>,
-    routes: Query<&NewRoute>,
+    trigger: On<Add, ModularRoute>,
+    routes: Query<&ModularRoute>,
+    logical_blocks: Query<&LogicalBlock>,
     mut commands: Commands,
-    logical_blocks: Query<(Entity, &LogicalBlock, &LogicalSection, &InTrack)>,
-    tracks: Query<(&Track, Option<&InTrackOf>, Option<&Marker>)>,
-    entity_map: Res<EntityMap>,
 ) {
     let route_entity = trigger.entity;
     let route = routes.get(route_entity).unwrap();
     let split_tracks = logical_blocks
         .iter()
-        .map(|(_, block, _, _)| block.in_track())
+        .map(|block| block.in_track())
         .collect::<Vec<_>>();
-    for (critical_path, end_track) in route
+    for (critical_path, _end_track) in route
         .logical_section
         .split_by_tracks_with_overlap(split_tracks)
     {
-        let from_track = critical_path.tracks.first().unwrap().track();
-        let to_track = end_track.track();
-        let from_track_entity = entity_map.tracks[&from_track];
-        let to_track_entity = entity_map.tracks[&to_track];
-        let (_, from_in_track_of, _) = tracks.get(from_track_entity).unwrap();
-        let (_, to_in_track_of, _) = tracks.get(to_track_entity).unwrap();
-        let (from_block_entity, _from_block, from_section, _) = logical_blocks
-            .get(*from_in_track_of.unwrap().collection().first().unwrap())
-            .unwrap();
-        let (to_block_entity, _to_block, to_section, _) = logical_blocks
-            .get(*to_in_track_of.unwrap().collection().first().unwrap())
-            .unwrap();
-
-        let mut travel_section = LogicalSection::new();
-        debug!("critical path: {:?}", critical_path);
-        if critical_path.tracks.first().unwrap().facing
-            == critical_path.tracks.last().unwrap().facing
-        {
-            travel_section.extend_merge(&from_section);
-            travel_section.extend_merge(&critical_path);
-        }
-        travel_section.extend_merge(&to_section);
-        debug!("travel section: {:?}", travel_section);
-        let mut leg_markers = vec![];
-
-        for logical in critical_path.tracks.iter() {
-            debug!("  track: {:?}", logical);
-            let track_entity = entity_map.tracks[&logical.track()];
-            let (_, _, maybe_marker) = tracks.get(track_entity).unwrap();
-            if let Some(marker) = maybe_marker {
-                debug!("    marker: {:?}", marker);
-
-                let position = travel_section
-                    .length_to(&logical)
-                    .unwrap_or_else(|_| travel_section.length_to(&logical.reversed()).unwrap());
-
-                let route_marker = RouteMarkerData {
-                    track: logical.clone(),
-                    color: marker.color,
-                    speed: marker.logical_data.get(logical).unwrap().speed,
-                    key: MarkerKey::None,
-                    position: position,
-                };
-                leg_markers.push(route_marker);
-            }
-        }
-
         commands.spawn((
-            RouteLeg {
-                markers: leg_markers,
+            ModularRouteLeg {
+                section: critical_path,
             },
             RouteLegOf(route_entity),
-            travel_section,
-            LegTarget(to_block_entity),
-            LegStart(from_block_entity),
         ));
     }
+}
+
+fn build_route_leg(
+    trigger: On<Add, ModularRouteLeg>,
+    critical_paths: Query<&ModularRouteLeg>,
+    logical_blocks: Query<(Entity, &LogicalBlock, &LogicalSection, &InTrack)>,
+    mut commands: Commands,
+    tracks: Query<(Option<&InTrackOf>, Option<&Marker>)>,
+    entity_map: Res<EntityMap>,
+) {
+    let critical_path = &critical_paths.get(trigger.entity).unwrap().section;
+    let from_track = critical_path.tracks.first().unwrap().track();
+    let to_track = critical_path.tracks.last().unwrap().track();
+    let from_track_entity = entity_map.tracks[&from_track];
+    let to_track_entity = entity_map.tracks[&to_track];
+    let (from_in_track_of, _) = tracks.get(from_track_entity).unwrap();
+    let (to_in_track_of, _) = tracks.get(to_track_entity).unwrap();
+    let (from_block_entity, _from_block, from_section, _) = logical_blocks
+        .get(*from_in_track_of.unwrap().collection().first().unwrap())
+        .unwrap();
+    let (to_block_entity, _to_block, to_section, _) = logical_blocks
+        .get(*to_in_track_of.unwrap().collection().first().unwrap())
+        .unwrap();
+
+    let mut travel_section = LogicalSection::new();
+    debug!("critical path: {:?}", critical_path);
+    if critical_path.tracks.first().unwrap().facing == critical_path.tracks.last().unwrap().facing {
+        travel_section.extend_merge(&from_section);
+        travel_section.extend_merge(&critical_path);
+    }
+    travel_section.extend_merge(&to_section);
+    debug!("travel section: {:?}", travel_section);
+    let mut leg_markers = vec![];
+
+    for logical in critical_path.tracks.iter() {
+        debug!("  track: {:?}", logical);
+        let track_entity = entity_map.tracks[&logical.track()];
+        let (_, maybe_marker) = tracks.get(track_entity).unwrap();
+        if let Some(marker) = maybe_marker {
+            debug!("    marker: {:?}", marker);
+
+            let position = travel_section
+                .length_to(&logical)
+                .unwrap_or_else(|_| travel_section.length_to(&logical.reversed()).unwrap());
+
+            let route_marker = RouteMarkerData {
+                track: logical.clone(),
+                color: marker.color,
+                speed: marker.logical_data.get(logical).unwrap().speed,
+                key: MarkerKey::None,
+                position: position,
+            };
+            leg_markers.push(route_marker);
+        }
+    }
+
+    commands.entity(trigger.entity).insert((
+        RouteLegMarkers {
+            markers: leg_markers,
+        },
+        travel_section,
+        LegTarget(to_block_entity),
+        LegStart(from_block_entity),
+    ));
 }
 
 fn draw_route(travel_section: Query<&LogicalSection, With<RouteLegOf>>, mut gizmos: Gizmos) {
@@ -239,6 +256,7 @@ pub struct NewRoutePlugin;
 impl Plugin for NewRoutePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(build_route);
+        app.add_observer(build_route_leg);
         app.add_systems(Update, draw_route);
     }
 }
