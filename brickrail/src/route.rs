@@ -61,6 +61,7 @@ pub fn build_route(
     marker_map: &MarkerMap,
 ) -> Route {
     let mut route = Route::new(train_id);
+    route.critical_section = logical_section.clone();
     let in_tracks = marker_map.in_markers.keys().cloned().collect_vec();
     let split = logical_section.split_by_tracks_with_overlap(in_tracks);
     assert!(split.len() > 0);
@@ -154,6 +155,7 @@ pub struct Route {
     legs: Vec<RouteLeg>,
     train_id: TrainID,
     leg_index: usize,
+    pub critical_section: LogicalSection,
 }
 
 impl Route {
@@ -162,6 +164,7 @@ impl Route {
             legs: vec![],
             train_id: id,
             leg_index: 0,
+            critical_section: LogicalSection::new(),
         }
     }
 

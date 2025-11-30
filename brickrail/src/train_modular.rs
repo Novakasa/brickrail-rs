@@ -1,6 +1,6 @@
 use crate::{
     layout_primitives::*,
-    route_modular::{LegPosition, RouteLegAssigned, RouteLegTravelSection},
+    route_modular::{AssignedRouteLeg, LegPosition, RouteLegTravelSection},
     track::LAYOUT_SCALE,
 };
 use bevy::{color::palettes::tailwind::LIME_100, prelude::*};
@@ -69,7 +69,7 @@ impl TrainSpeed {
 }
 
 fn debug_draw_train(
-    train_query: Query<(&RouteLegAssigned, &LegPosition)>,
+    train_query: Query<(&AssignedRouteLeg, &LegPosition)>,
     legs: Query<&RouteLegTravelSection>,
     mut gizmos: Gizmos,
 ) {
@@ -81,6 +81,14 @@ fn debug_draw_train(
         }
     }
 }
+
+#[derive(Component, Debug)]
+#[relationship_target(relationship=ProxyTrainOf)]
+pub struct ProxyTrains(Vec<Entity>);
+
+#[derive(Component, Debug)]
+#[relationship(relationship_target=ProxyTrains)]
+pub struct ProxyTrainOf(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=Wagons)]

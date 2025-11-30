@@ -11,18 +11,18 @@ use crate::{
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteAssignedTo)]
-pub struct RouteAssigned(pub Entity);
+pub struct AssignedRoute(pub Entity);
 
 #[derive(Component, Debug)]
-#[relationship_target(relationship=RouteAssigned)]
+#[relationship_target(relationship=AssignedRoute)]
 pub struct RouteAssignedTo(Vec<Entity>);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteLegAssignedTo)]
-pub struct RouteLegAssigned(pub Entity);
+pub struct AssignedRouteLeg(pub Entity);
 
 #[derive(Component, Debug)]
-#[relationship_target(relationship=RouteLegAssigned)]
+#[relationship_target(relationship=AssignedRouteLeg)]
 pub struct RouteLegAssignedTo(Vec<Entity>);
 
 #[derive(Component, Debug)]
@@ -89,6 +89,7 @@ fn build_route(
     logical_blocks: Query<&LogicalBlock>,
     mut commands: Commands,
 ) {
+    println!("Building modular route...");
     let route_entity = trigger.entity;
     let route = routes.get(route_entity).unwrap();
     let split_tracks = logical_blocks
@@ -116,6 +117,7 @@ fn build_route_leg(
     tracks: Query<(Option<&InTrackOf>, Option<&Marker>)>,
     entity_map: Res<EntityMap>,
 ) {
+    println!("Building modular route leg...");
     let critical_path = &critical_paths.get(trigger.entity).unwrap().section;
     let from_track = critical_path.tracks.first().unwrap().track();
     let to_track = critical_path.tracks.last().unwrap().track();
@@ -174,6 +176,51 @@ fn build_route_leg(
     ));
 }
 
+fn assign_first_route_leg(
+    query: Query<(Entity, &AssignedRoute), Without<AssignedRouteLeg>>,
+    routes: Query<&RouteLegs>,
+    mut commands: Commands,
+) {
+    for (entity, route_assigned) in query.iter() {
+        println!("Assigning route legs to route...");
+        let route_entity = route_assigned.0;
+        let route_legs = routes.get(route_entity).unwrap();
+        // if the route legs aren't there  yet, will be assigned in build route
+        commands
+            .entity(entity)
+            .insert(AssignedRouteLeg(route_legs.collection()[0]));
+        commands.entity(entity).insert((RouteState {
+            current_leg_index: 0,
+            prev_marker_index: 0,
+            legs_free: 0,
+        },));
+    }
+}
+
+fn on_route_assigned(trigger: On<Insert, AssignedRoute>, mut commands: Commands) {
+    println!("Route assigned to train: {:?}", trigger.entity);
+    commands.entity(trigger.entity).remove::<AssignedRouteLeg>();
+}
+
+fn on_route_leg_assigned(
+    trigger: On<Insert, AssignedRouteLeg>,
+    old_pos: Query<&LegPosition>,
+    mut commands: Commands,
+) {
+    println!("Assigning LegPosition to route leg...");
+    let leg_entity = trigger.entity;
+    if let Ok(old_leg_pos) = old_pos.get(leg_entity) {
+        println!(
+            "LegPosition already exists on entity {:?}: {:?}",
+            leg_entity, old_leg_pos
+        );
+    }
+    commands.entity(leg_entity).insert(LegPosition {
+        position: 0.0,
+        prev_marker_index: 0,
+    });
+}
+
 fn draw_route(
     travel_section: Query<&RouteLegTravelSection, With<RouteLegAssignedTo>>,
     mut gizmos: Gizmos,
@@ -195,6 +242,8 @@ impl Plugin for ModularRoutePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(build_route);
         app.add_observer(build_route_leg);
-        app.add_systems(Update, draw_route);
+        app.add_observer(on_route_leg_assigned);
+        app.add_observer(on_route_assigned);
+        app.add_systems(Update, (draw_route, assign_first_route_leg));
     }
 }

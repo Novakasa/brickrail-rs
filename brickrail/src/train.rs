@@ -10,13 +10,13 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{LegState, Route, build_route},
-    route_modular::{LegPosition, ModularRoute, ModularRouteLeg, RouteLegAssigned},
+    route_modular::{AssignedRoute, AssignedRouteLeg, ModularRoute, ModularRouteLeg},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
-    train_modular::{ModularTrain, TrainState},
+    train_modular::{ModularTrain, ProxyTrainOf, ProxyTrains, TrainState},
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -769,7 +769,7 @@ fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
 }
 
 pub fn set_train_route(
-    mut q_trains: Query<(&mut Train, &mut BLETrain)>,
+    mut q_trains: Query<(&mut Train, &mut BLETrain, &ProxyTrains)>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
     mut route_messages: MessageReader<SetTrainRouteMessage>,
@@ -792,7 +792,7 @@ pub fn set_train_route(
         } else {
             commands.entity(train_entity).remove::<QueuedDestination>();
         }
-        let (mut train, ble_train) = q_trains.get_mut(train_entity).unwrap();
+        let (mut train, ble_train, proxy_trains) = q_trains.get_mut(train_entity).unwrap();
         // println!("Dropping train {:?} on block {:?}", train_id, block_id);
         route.pretty_print();
         route.get_current_leg_mut().set_signed_pos_from_last(
@@ -801,6 +801,16 @@ pub fn set_train_route(
                 .get_current_leg()
                 .get_signed_pos_from_last(),
         );
+        let route_entity = commands
+            .spawn(ModularRoute {
+                logical_section: route.critical_section.clone(),
+            })
+            .id();
+        for proxy_entity in proxy_trains.collection().iter() {
+            commands
+                .entity(*proxy_entity)
+                .insert(AssignedRoute(route_entity));
+        }
 
         // route.get_current_leg_mut().intention = LegIntention::Stop;
         train.position = Position::Route(route);
@@ -931,9 +941,9 @@ fn spawn_train(
         commands.spawn((
             ModularTrain,
             GenericID::Train(train_id),
-            RouteLegAssigned(leg_entity),
-            LegPosition::default(),
+            AssignedRouteLeg(leg_entity),
             TrainState::default(),
+            ProxyTrainOf(entity),
         ));
         entity_map.add_train(train_id, entity);
     }
