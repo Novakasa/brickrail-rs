@@ -10,13 +10,13 @@ use crate::{
     layout_primitives::*,
     marker::Marker,
     route::{LegState, Route, build_route},
-    route_modular::ModularRoute,
+    route_modular::{LegPosition, ModularRoute, ModularRouteLeg, RouteLegAssigned},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
-    train_modular::TrainState,
+    train_modular::{ModularTrain, TrainState},
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
@@ -875,6 +875,16 @@ fn spawn_train(
         };
         println!("spawning at block {:?}", block_id);
         let train_id = spawn_train.train.id;
+        let mut block_critical_path = LogicalSection::new();
+        block_critical_path
+            .tracks
+            .push(block_id.default_in_marker_track());
+
+        let leg_entity = commands
+            .spawn(ModularRouteLeg {
+                section: block_critical_path,
+            })
+            .id();
         let route = block_route(
             block_id,
             train_id,
@@ -918,6 +928,13 @@ fn spawn_train(
         let entity = commands
             .spawn((name, train, ble_train, WaitTime::new(), schedule))
             .id();
+        commands.spawn((
+            ModularTrain,
+            GenericID::Train(train_id),
+            RouteLegAssigned(leg_entity),
+            LegPosition::default(),
+            TrainState::default(),
+        ));
         entity_map.add_train(train_id, entity);
     }
 }

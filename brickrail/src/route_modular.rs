@@ -11,43 +11,43 @@ use crate::{
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteAssignedTo)]
-struct RouteAssigned(Entity);
+pub struct RouteAssigned(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship_target(relationship=RouteAssigned)]
-struct RouteAssignedTo(Vec<Entity>);
+pub struct RouteAssignedTo(Vec<Entity>);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteLegAssignedTo)]
-struct RouteLegAssigned(Entity);
+pub struct RouteLegAssigned(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship_target(relationship=RouteLegAssigned)]
-struct RouteLegAssignedTo(Vec<Entity>);
+pub struct RouteLegAssignedTo(Vec<Entity>);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteLegs)]
-struct RouteLegOf(Entity);
+pub struct RouteLegOf(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship_target(relationship=RouteLegOf)]
-struct RouteLegs(Vec<Entity>);
+pub struct RouteLegs(Vec<Entity>);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=LegTargetOf)]
-struct LegTarget(Entity);
+pub struct LegTarget(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship_target(relationship=LegTarget)]
-struct LegTargetOf(Vec<Entity>);
+pub struct LegTargetOf(Vec<Entity>);
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=LegStartOf)]
-struct LegStart(Entity);
+pub struct LegStart(pub Entity);
 
 #[derive(Component, Debug)]
 #[relationship_target(relationship=LegStart)]
-struct LegStartOf(Vec<Entity>);
+pub struct LegStartOf(Vec<Entity>);
 
 #[derive(Component, Debug)]
 pub struct ModularRoute {
@@ -60,24 +60,26 @@ struct RouteLegMarkers {
 }
 
 // probably on train
-#[derive(Component, Debug)]
-struct LegPosition {
+#[derive(Component, Debug, Default)]
+pub struct LegPosition {
     pub position: f32,
     pub prev_marker_index: usize,
 }
 
+#[derive(Component, Debug)]
 struct RouteState {
     pub current_leg_index: usize,
+    pub prev_marker_index: usize,
     pub legs_free: usize,
 }
 
 #[derive(Component, Debug)]
-struct ModularRouteLeg {
-    section: LogicalSection,
+pub struct ModularRouteLeg {
+    pub section: LogicalSection,
 }
 
 #[derive(Component, Debug)]
-struct RouteLegTravelSection {
+pub struct RouteLegTravelSection {
     pub section: LogicalSection,
 }
 
@@ -172,7 +174,10 @@ fn build_route_leg(
     ));
 }
 
-fn draw_route(travel_section: Query<&RouteLegTravelSection, With<RouteLegOf>>, mut gizmos: Gizmos) {
+fn draw_route(
+    travel_section: Query<&RouteLegTravelSection, With<RouteLegAssignedTo>>,
+    mut gizmos: Gizmos,
+) {
     for section in travel_section.iter() {
         for connection in section.section.directed_connection_iter() {
             let from_track = connection.from_track;
@@ -184,9 +189,9 @@ fn draw_route(travel_section: Query<&RouteLegTravelSection, With<RouteLegOf>>, m
     }
 }
 
-pub struct NewRoutePlugin;
+pub struct ModularRoutePlugin;
 
-impl Plugin for NewRoutePlugin {
+impl Plugin for ModularRoutePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(build_route);
         app.add_observer(build_route_leg);

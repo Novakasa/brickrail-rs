@@ -66,6 +66,7 @@ fn main() {
         // .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RenderDiagnosticsPlugin::default())
         .add_plugins(materials::MaterialsPlugin)
-        .add_plugins(route_modular::NewRoutePlugin)
+        .add_plugins(route_modular::ModularRoutePlugin)
+        .add_plugins(train_modular::ModularTrainPlugin)
         .run();
 }
