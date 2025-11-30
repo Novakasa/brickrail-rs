@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::inspector::{Inspectable, InspectorPlugin};
-use crate::route_modular::TrainSpeed;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
+use crate::train_modular::TrainSpeed;
 use crate::{
     editor::*,
     layout::EntityMap,

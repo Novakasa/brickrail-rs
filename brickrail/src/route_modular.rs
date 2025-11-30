@@ -1,20 +1,13 @@
 use bevy::{color::palettes::css::YELLOW, prelude::*};
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    block::{InTrack, InTrackOf, LogicalBlock},
+    block::{InTrack, InTrackOf, LogicalBlock, LogicalBlockSection},
     layout::EntityMap,
-    layout_primitives::*,
     marker::{Marker, MarkerKey},
     route::RouteMarkerData,
     section::LogicalSection,
     track::LAYOUT_SCALE,
 };
-
-#[derive(Component, Debug)]
-struct Train {
-    pub id: TrainID,
-}
 
 #[derive(Component, Debug)]
 #[relationship(relationship_target=RouteAssignedTo)]
@@ -78,76 +71,14 @@ struct RouteState {
     pub legs_free: usize,
 }
 
-#[derive(Debug, Default, Clone, Component)]
-pub enum TrainState {
-    #[default]
-    Stop,
-    Run {
-        facing: Facing,
-        speed: TrainSpeed,
-    },
-}
-
-impl TrainState {
-    pub fn get_speed(&self) -> f32 {
-        match self {
-            TrainState::Stop => 0.0,
-            TrainState::Run { speed, facing } => facing.get_sign() * speed.get_speed(),
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    PartialOrd,
-    Ord,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    Reflect,
-    Component,
-)]
-pub enum TrainSpeed {
-    Slow,
-    #[default]
-    Cruise,
-    Fast,
-}
-
-impl TrainSpeed {
-    pub fn get_speed(&self) -> f32 {
-        match self {
-            TrainSpeed::Slow => 2.0,
-            TrainSpeed::Cruise => 4.0,
-            TrainSpeed::Fast => 8.0,
-        }
-    }
-
-    pub fn as_train_u8(&self) -> u8 {
-        match self {
-            TrainSpeed::Slow => 2,
-            TrainSpeed::Cruise => 3,
-            TrainSpeed::Fast => 1,
-        }
-    }
-}
-
-#[derive(Component, Debug)]
-#[relationship(relationship_target=Wagons)]
-struct WagonOf(Entity);
-
-#[derive(Component, Debug)]
-#[relationship_target(relationship=WagonOf)]
-struct Wagons(Vec<Entity>);
-
 #[derive(Component, Debug)]
 struct ModularRouteLeg {
     section: LogicalSection,
+}
+
+#[derive(Component, Debug)]
+struct RouteLegTravelSection {
+    pub section: LogicalSection,
 }
 
 fn build_route(
@@ -178,7 +109,7 @@ fn build_route(
 fn build_route_leg(
     trigger: On<Add, ModularRouteLeg>,
     critical_paths: Query<&ModularRouteLeg>,
-    logical_blocks: Query<(Entity, &LogicalBlock, &LogicalSection, &InTrack)>,
+    logical_blocks: Query<(Entity, &LogicalBlock, &LogicalBlockSection, &InTrack)>,
     mut commands: Commands,
     tracks: Query<(Option<&InTrackOf>, Option<&Marker>)>,
     entity_map: Res<EntityMap>,
@@ -200,10 +131,10 @@ fn build_route_leg(
     let mut travel_section = LogicalSection::new();
     debug!("critical path: {:?}", critical_path);
     if critical_path.tracks.first().unwrap().facing == critical_path.tracks.last().unwrap().facing {
-        travel_section.extend_merge(&from_section);
+        travel_section.extend_merge(&from_section.section);
         travel_section.extend_merge(&critical_path);
     }
-    travel_section.extend_merge(&to_section);
+    travel_section.extend_merge(&to_section.section);
     debug!("travel section: {:?}", travel_section);
     let mut leg_markers = vec![];
 
@@ -233,15 +164,17 @@ fn build_route_leg(
         RouteLegMarkers {
             markers: leg_markers,
         },
-        travel_section,
+        RouteLegTravelSection {
+            section: travel_section,
+        },
         LegTarget(to_block_entity),
         LegStart(from_block_entity),
     ));
 }
 
-fn draw_route(travel_section: Query<&LogicalSection, With<RouteLegOf>>, mut gizmos: Gizmos) {
+fn draw_route(travel_section: Query<&RouteLegTravelSection, With<RouteLegOf>>, mut gizmos: Gizmos) {
     for section in travel_section.iter() {
-        for connection in section.directed_connection_iter() {
+        for connection in section.section.directed_connection_iter() {
             let from_track = connection.from_track;
             let to_track = connection.to_track;
             let from_pos = from_track.get_center_vec2() * LAYOUT_SCALE;

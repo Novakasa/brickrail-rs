@@ -9,7 +9,7 @@ use itertools::Itertools;
 use pybricks_ble::io_hub::{IOMessage, Input as IOInput};
 use serde::{Deserialize, Serialize};
 
-use crate::route_modular::TrainSpeed;
+use crate::train_modular::TrainSpeed;
 use crate::{
     ble::{BLEHub, FromIOMessage, HubCommandMessage, HubConfiguration, HubMessageMessage},
     editor::{SelectionState, SpawnHubMessage},

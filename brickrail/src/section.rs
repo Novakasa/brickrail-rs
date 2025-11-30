@@ -9,7 +9,7 @@ pub struct TrackSection {
     pub tracks: Vec<TrackID>,
 }
 
-#[derive(Debug, Clone, Component)]
+#[derive(Debug, Clone)]
 pub struct LogicalSection {
     pub tracks: Vec<LogicalTrackID>,
 }

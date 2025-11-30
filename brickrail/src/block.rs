@@ -6,10 +6,10 @@ use crate::editor::{
 use crate::inspector::{Inspectable, InspectorPlugin};
 use crate::layout::{Connections, EntityMap, MarkerMap};
 use crate::marker::{Marker, MarkerColor, MarkerKey, MarkerSpawnMessage, spawn_marker};
-use crate::route_modular::TrainSpeed;
 use crate::section::LogicalSection;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
 use crate::train::{SpawnTrainMessage, Train};
+use crate::train_modular::TrainSpeed;
 use crate::{layout_primitives::*, section::DirectedSection, track::LAYOUT_SCALE};
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::ecs::system::{SystemParam, SystemState};
@@ -78,6 +78,11 @@ impl LogicalBlock {
     pub fn in_track(&self) -> LogicalTrackID {
         self.to_logical_id().default_in_marker_track()
     }
+}
+
+#[derive(Component, Debug)]
+pub struct LogicalBlockSection {
+    pub section: LogicalSection,
 }
 
 #[derive(Component)]
@@ -467,7 +472,9 @@ pub fn spawn_block(
                     },
                     LogicalVersionOf(directed_entity),
                     InTrack(*in_track_entity),
-                    block.get_logical_section(logical_id),
+                    LogicalBlockSection {
+                        section: block.get_logical_section(logical_id),
+                    },
                 ));
                 if !block.settings.disallow_reversing {
                     connections.connect_tracks(&in_track, &in_track.reversed());
