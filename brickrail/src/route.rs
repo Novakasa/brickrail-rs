@@ -12,13 +12,13 @@ use crate::layout::MarkerMap;
 use crate::layout::TrackLocks;
 use crate::layout_primitives::*;
 use crate::marker::*;
+use crate::route_modular::TrainSpeed;
+use crate::route_modular::TrainState;
 use crate::section::LogicalSection;
 use crate::switch::SetSwitchPositionMessage;
 use crate::switch::Switch;
 use crate::track::LAYOUT_SCALE;
 use crate::train::MarkerAdvanceMessage;
-use crate::train_modular::TrainSpeed;
-use crate::train_modular::TrainState;
 
 #[derive(Debug, Clone)]
 pub struct RouteMarkerData {

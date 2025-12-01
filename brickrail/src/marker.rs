@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::inspector::{Inspectable, InspectorPlugin};
+use crate::route_modular::TrainSpeed;
 use crate::selectable::{Selectable, SelectablePlugin, SelectableType};
-use crate::train_modular::TrainSpeed;
 use crate::{
     editor::*,
     layout::EntityMap,
@@ -91,6 +91,14 @@ impl MarkerColor {
 pub struct LogicalMarkerData {
     pub speed: TrainSpeed,
 }
+
+#[derive(Debug, Component)]
+#[relationship(relationship_target=Markers)]
+pub struct MarkerAt(pub Entity);
+
+#[derive(Debug, Component)]
+#[relationship_target(relationship=MarkerAt)]
+pub struct Markers(Vec<Entity>);
 
 #[derive(Debug, Component, Serialize, Deserialize, Clone, Reflect)]
 pub struct Marker {
@@ -246,6 +254,7 @@ pub fn spawn_marker(
                 transform,
                 MeshMaterial2d(materials.add(material)),
                 marker,
+                MarkerAt(entity_map.tracks[&track_id]),
             ))
             .id();
         entity_map.add_marker(track_id, entity);

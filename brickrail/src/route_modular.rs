@@ -1,9 +1,14 @@
-use bevy::{color::palettes::css::YELLOW, prelude::*};
+use bevy::{
+    color::palettes::{css::YELLOW, tailwind::LIME_100},
+    prelude::*,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     block::{InTrack, InTrackOf, LogicalBlock, LogicalBlockSection},
     layout::EntityMap,
-    marker::{Marker, MarkerKey},
+    layout_primitives::Facing,
+    marker::{Marker, MarkerKey, Markers},
     route::RouteMarkerData,
     section::LogicalSection,
     track::LAYOUT_SCALE,
@@ -59,6 +64,24 @@ struct RouteLegMarkers {
     pub markers: Vec<RouteMarkerData>,
 }
 
+impl RouteLegMarkers {
+    pub fn get_speed(&self, index: usize) -> TrainSpeed {
+        self.markers.get(index).unwrap().speed
+    }
+
+    pub fn has_entered(&self, index: usize) -> bool {
+        index > self.markers.len().saturating_sub(2)
+    }
+
+    pub fn has_exited(&self, index: usize) -> bool {
+        index > 1
+    }
+
+    pub fn has_completed(&self, index: usize) -> bool {
+        index >= self.markers.len().saturating_sub(1)
+    }
+}
+
 // probably on train
 #[derive(Component, Debug, Default)]
 pub struct LegPosition {
@@ -73,9 +96,22 @@ struct RouteState {
     pub legs_free: usize,
 }
 
+impl RouteState {
+    pub fn can_pass(&self) -> bool {
+        true
+    }
+}
+
 #[derive(Component, Debug)]
 pub struct ModularRouteLeg {
     pub section: LogicalSection,
+}
+impl ModularRouteLeg {
+    pub fn is_turn(&self) -> bool {
+        let first_facing = self.section.tracks.first().unwrap().facing;
+        let last_facing = self.section.tracks.last().unwrap().facing;
+        first_facing != last_facing
+    }
 }
 
 #[derive(Component, Debug)]
@@ -114,8 +150,9 @@ fn build_route_leg(
     critical_paths: Query<&ModularRouteLeg>,
     logical_blocks: Query<(Entity, &LogicalBlock, &LogicalBlockSection, &InTrack)>,
     mut commands: Commands,
-    tracks: Query<(Option<&InTrackOf>, Option<&Marker>)>,
+    tracks: Query<(Option<&InTrackOf>, Option<&Markers>)>,
     entity_map: Res<EntityMap>,
+    markers_query: Query<&Marker>,
 ) {
     println!("Building modular route leg...");
     let critical_path = &critical_paths.get(trigger.entity).unwrap().section;
@@ -133,22 +170,24 @@ fn build_route_leg(
         .unwrap();
 
     let mut travel_section = LogicalSection::new();
-    debug!("critical path: {:?}", critical_path);
+    println!("critical path: {:?}", critical_path);
     if critical_path.tracks.first().unwrap().facing == critical_path.tracks.last().unwrap().facing {
         travel_section.extend_merge(&from_section.section);
         travel_section.extend_merge(&critical_path);
     }
     travel_section.extend_merge(&to_section.section);
-    debug!("travel section: {:?}", travel_section);
+    println!("travel section: {:?}", travel_section);
     let mut leg_markers = vec![];
 
     for logical in critical_path.tracks.iter() {
-        debug!("  track: {:?}", logical);
+        println!("  track: {:?}", logical);
         let track_entity = entity_map.tracks[&logical.track()];
         let (_, maybe_marker) = tracks.get(track_entity).unwrap();
-        if let Some(marker) = maybe_marker {
-            debug!("    marker: {:?}", marker);
-
+        if let Some(markers) = maybe_marker {
+            let marker = markers_query
+                .get(*markers.collection().first().unwrap())
+                .unwrap();
+            println!("    marker: {:?}", marker);
             let position = travel_section
                 .length_to(&logical)
                 .unwrap_or_else(|_| travel_section.length_to(&logical.reversed()).unwrap());
@@ -208,17 +247,74 @@ fn on_route_leg_assigned(
     mut commands: Commands,
 ) {
     println!("Assigning LegPosition to route leg...");
-    let leg_entity = trigger.entity;
-    if let Ok(old_leg_pos) = old_pos.get(leg_entity) {
+    let train_entity = trigger.entity;
+    if let Ok(old_leg_pos) = old_pos.get(train_entity) {
         println!(
             "LegPosition already exists on entity {:?}: {:?}",
-            leg_entity, old_leg_pos
+            train_entity, old_leg_pos
         );
     }
-    commands.entity(leg_entity).insert(LegPosition {
-        position: 0.0,
-        prev_marker_index: 0,
-    });
+    commands.entity(train_entity).insert((
+        LegPosition {
+            position: 0.0,
+            prev_marker_index: 0,
+        },
+        OutdatedState,
+    ));
+}
+
+#[derive(Component, Debug)]
+struct OutdatedState;
+
+fn update_train_state(
+    mut trains: Query<
+        (
+            Entity,
+            &AssignedRoute,
+            &AssignedRouteLeg,
+            &mut TrainState,
+            &RouteState,
+        ),
+        With<OutdatedState>,
+    >,
+    routes: Query<&RouteLegs>,
+    legs: Query<(&ModularRouteLeg, &RouteLegMarkers)>,
+    mut commands: Commands,
+) {
+    for (train_entity, assigned_route, assigned_leg, mut train_state, route_state) in
+        trains.iter_mut()
+    {
+        commands.entity(train_entity).remove::<OutdatedState>();
+        let (current_leg, leg_markers) = legs.get(assigned_leg.0).unwrap();
+        let will_stop = !route_state.can_pass();
+        if leg_markers.has_completed(route_state.prev_marker_index) && will_stop {
+            *train_state = TrainState::Stop;
+            println!(
+                "Train {:?} has completed its route leg and will stop.",
+                train_entity
+            );
+            return;
+        };
+        let route_legs = routes.get(assigned_route.0).unwrap();
+        let next_leg_entity = route_legs
+            .collection()
+            .get(route_state.current_leg_index + 1);
+        let will_turn = next_leg_entity
+            .map(|next_leg_entity| legs.get(*next_leg_entity).unwrap().0.is_turn())
+            .unwrap_or(false);
+
+        println!("markers: {:?}", leg_markers.markers);
+        let mut speed = leg_markers.get_speed(route_state.prev_marker_index);
+        if will_turn || will_stop {
+            speed = TrainSpeed::Slow;
+        }
+        let facing = current_leg.section.tracks.last().unwrap().facing;
+        *train_state = TrainState::Run { speed, facing };
+        println!(
+            "Train {:?} updated state to {:?}.",
+            train_entity, train_state
+        );
+    }
 }
 
 fn draw_route(
@@ -236,6 +332,115 @@ fn draw_route(
     }
 }
 
+fn move_trains(
+    mut trains: Query<(&mut LegPosition, &TrainState, &AssignedRouteLeg)>,
+    legs: Query<&ModularRouteLeg>,
+    time: Res<Time>,
+) {
+    for (mut position, state, assigned_leg) in trains.iter_mut() {
+        // println!(
+        //     "Moving train at position {:?} with state {:?}",
+        //     position,
+        //     state.get_speed(),
+        // );
+        let leg = legs.get(assigned_leg.0).unwrap();
+        let leg_facing = leg.section.tracks.last().unwrap().facing;
+        position.position += state.get_speed() * time.delta_secs() * leg_facing.get_sign();
+    }
+}
+
+#[derive(Component, Debug)]
+pub struct ModularTrain;
+
+#[derive(Debug, Default, Clone, Component)]
+pub enum TrainState {
+    #[default]
+    Stop,
+    Run {
+        facing: Facing,
+        speed: TrainSpeed,
+    },
+}
+
+impl TrainState {
+    pub fn get_speed(&self) -> f32 {
+        match self {
+            TrainState::Stop => 0.0,
+            TrainState::Run { speed, facing } => facing.get_sign() * speed.get_speed(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+    Component,
+)]
+pub enum TrainSpeed {
+    Slow,
+    #[default]
+    Cruise,
+    Fast,
+}
+
+impl TrainSpeed {
+    pub fn get_speed(&self) -> f32 {
+        match self {
+            TrainSpeed::Slow => 2.0,
+            TrainSpeed::Cruise => 4.0,
+            TrainSpeed::Fast => 8.0,
+        }
+    }
+
+    pub fn as_train_u8(&self) -> u8 {
+        match self {
+            TrainSpeed::Slow => 2,
+            TrainSpeed::Cruise => 3,
+            TrainSpeed::Fast => 1,
+        }
+    }
+}
+
+fn debug_draw_train(
+    train_query: Query<(&AssignedRouteLeg, &LegPosition)>,
+    legs: Query<&RouteLegTravelSection>,
+    mut gizmos: Gizmos,
+) {
+    for (leg_assigned, leg_position) in train_query.iter() {
+        let leg_entity = leg_assigned.0;
+        if let Ok(leg_section) = legs.get(leg_entity) {
+            let pos = leg_section.section.interpolate_pos(leg_position.position) * LAYOUT_SCALE;
+            gizmos.circle_2d(pos, 10.0, LIME_100);
+        }
+    }
+}
+
+#[derive(Component, Debug)]
+#[relationship_target(relationship=ProxyTrainOf)]
+pub struct ProxyTrains(Vec<Entity>);
+
+#[derive(Component, Debug)]
+#[relationship(relationship_target=ProxyTrains)]
+pub struct ProxyTrainOf(pub Entity);
+
+#[derive(Component, Debug)]
+#[relationship(relationship_target=Wagons)]
+struct WagonOf(Entity);
+
+#[derive(Component, Debug)]
+#[relationship_target(relationship=WagonOf)]
+struct Wagons(Vec<Entity>);
+
 pub struct ModularRoutePlugin;
 
 impl Plugin for ModularRoutePlugin {
@@ -244,6 +449,15 @@ impl Plugin for ModularRoutePlugin {
         app.add_observer(build_route_leg);
         app.add_observer(on_route_leg_assigned);
         app.add_observer(on_route_assigned);
-        app.add_systems(Update, (draw_route, assign_first_route_leg));
+        app.add_systems(
+            Update,
+            (
+                update_train_state,
+                move_trains,
+                draw_route,
+                assign_first_route_leg,
+                debug_draw_train,
+            ),
+        );
     }
 }

@@ -11,12 +11,12 @@ use crate::{
     marker::Marker,
     route::{LegState, Route, build_route},
     route_modular::{AssignedRoute, AssignedRouteLeg, ModularRoute, ModularRouteLeg},
+    route_modular::{ModularTrain, ProxyTrainOf, ProxyTrains, TrainState},
     schedule::{AssignedSchedule, ControlInfo, TrainSchedule},
     section::LogicalSection,
     selectable::{Selectable, SelectablePlugin, SelectableType},
     switch::{SetSwitchPositionMessage, Switch},
     track::LAYOUT_SCALE,
-    train_modular::{ModularTrain, ProxyTrainOf, ProxyTrains, TrainState},
 };
 use bevy::{
     color::palettes::css::{ORANGE, RED, YELLOW},
