@@ -925,6 +925,10 @@ impl DirectedTrackConnectionID {
         self.from_track == self.to_track.opposite()
     }
 
+    pub fn is_connected(&self) -> bool {
+        self.from_track.to_slot() == self.to_track.from_slot()
+    }
+
     pub fn draw_with_gizmos(&self, gizmos: &mut Gizmos, scale: f32, color: Color) {
         let start = self.from_track.get_center_vec2() + self.from_track.get_delta_vec() * 0.2;
         let end = self.to_track.get_center_vec2() - self.to_track.get_delta_vec() * 0.2;

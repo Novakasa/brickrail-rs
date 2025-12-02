@@ -156,27 +156,64 @@ fn build_route_leg(
 ) {
     println!("Building modular route leg...");
     let critical_path = &critical_paths.get(trigger.entity).unwrap().section;
-    let from_track = critical_path.tracks.first().unwrap().track();
-    let to_track = critical_path.tracks.last().unwrap().track();
-    let from_track_entity = entity_map.tracks[&from_track];
-    let to_track_entity = entity_map.tracks[&to_track];
-    let (from_in_track_of, _) = tracks.get(from_track_entity).unwrap();
-    let (to_in_track_of, _) = tracks.get(to_track_entity).unwrap();
-    let (from_block_entity, _from_block, from_section, _) = logical_blocks
-        .get(*from_in_track_of.unwrap().collection().first().unwrap())
+    let from_track = critical_path.tracks.first().unwrap();
+    let to_track = critical_path.tracks.last().unwrap();
+    let from_track_entity = entity_map.tracks[&from_track.track()];
+    let to_track_entity = entity_map.tracks[&to_track.track()];
+    let (Some(from_in_track_of), _) = tracks.get(from_track_entity).unwrap() else {
+        panic!("From track does not have InTrackOf");
+    };
+    let (Some(to_in_track_of), _) = tracks.get(to_track_entity).unwrap() else {
+        panic!("To track does not have InTrackOf");
+    };
+    assert!(from_in_track_of.collection().len() == 2);
+    assert!(to_in_track_of.collection().len() == 2);
+    let (from_block_entity, from_block, from_section, _) = from_in_track_of
+        .collection()
+        .iter()
+        .find_map(|block_entity| {
+            let components = logical_blocks.get(*block_entity).unwrap();
+            if &components.1.to_logical_id().default_in_marker_track() == from_track {
+                Some(components)
+            } else {
+                None
+            }
+        })
         .unwrap();
-    let (to_block_entity, _to_block, to_section, _) = logical_blocks
-        .get(*to_in_track_of.unwrap().collection().first().unwrap())
+    let (to_block_entity, to_block, to_section, _) = to_in_track_of
+        .collection()
+        .iter()
+        .find_map(|block_entity| {
+            let components = logical_blocks.get(*block_entity).unwrap();
+            if &components.1.to_logical_id().default_in_marker_track() == to_track {
+                Some(components)
+            } else {
+                None
+            }
+        })
         .unwrap();
+
+    println!("from block: {:?}", from_block);
+    println!("to block: {:?}", to_block);
 
     let mut travel_section = LogicalSection::new();
     println!("critical path: {:?}", critical_path);
+    assert!(
+        &to_block.to_logical_id().default_in_marker_track() == critical_path.tracks.last().unwrap()
+    );
+    assert!(
+        &from_block.to_logical_id().default_in_marker_track()
+            == critical_path.tracks.first().unwrap()
+    );
+
     if critical_path.tracks.first().unwrap().facing == critical_path.tracks.last().unwrap().facing {
         travel_section.extend_merge(&from_section.section);
         travel_section.extend_merge(&critical_path);
     }
     travel_section.extend_merge(&to_section.section);
     println!("travel section: {:?}", travel_section);
+    println!();
+    assert!(travel_section.is_connected());
     let mut leg_markers = vec![];
 
     for logical in critical_path.tracks.iter() {

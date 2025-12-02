@@ -59,7 +59,7 @@ pub struct DirectedBlock {
     pub direction: BlockDirection,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct LogicalBlock {
     pub id: BlockID,
     pub direction: BlockDirection,

@@ -100,6 +100,15 @@ impl LogicalSection {
         }
         return last_connection.interpolate_pos(last_pos);
     }
+
+    pub fn is_connected(&self) -> bool {
+        for connection in self.directed_connection_iter() {
+            if !connection.is_connected() {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 #[derive(Debug, Clone, Reflect, PartialEq, Eq, Serialize, Deserialize)]
