@@ -87,13 +87,54 @@ impl RouteLegMarkers {
     pub fn has_completed(&self, index: usize) -> bool {
         index >= self.markers.len().saturating_sub(1)
     }
+
+    pub fn final_facing(&self) -> Facing {
+        self.markers.last().unwrap().track.facing
+    }
+    pub fn final_position(&self) -> f32 {
+        self.markers.last().unwrap().position
+    }
+    pub fn first_position(&self) -> f32 {
+        self.markers.first().unwrap().position
+    }
 }
 
 // probably on train
 #[derive(Component, Debug, Default)]
 pub struct LegPosition {
     pub position: f32,
-    pub prev_marker_index: usize,
+    pub facing: Facing,
+    pub start_pos: f32,
+    pub end_pos: f32,
+}
+
+impl LegPosition {
+    pub fn from_preceding(
+        preceding: &LegPosition,
+        leg_facing: Facing,
+        start_pos: f32,
+        end_pos: f32,
+    ) -> Self {
+        let mut position = LegPosition {
+            position: preceding.position,
+            facing: leg_facing,
+            start_pos,
+            end_pos,
+        };
+        position.set_signed_pos_from(
+            preceding.get_signed_pos_from(preceding.end_pos),
+            position.start_pos,
+        );
+        position
+    }
+
+    pub fn set_signed_pos_from(&mut self, from: f32, dist: f32) {
+        self.position = from + dist * self.facing.get_sign();
+    }
+
+    pub fn get_signed_pos_from(&self, from: f32) -> f32 {
+        (self.position - from) * self.facing.get_sign()
+    }
 }
 
 #[derive(Component, Debug)]
@@ -284,23 +325,34 @@ fn on_route_assigned(trigger: On<Insert, AssignedRoute>, mut commands: Commands)
 fn on_route_leg_assigned(
     trigger: On<Insert, AssignedRouteLeg>,
     old_pos: Query<&LegPosition>,
+    trains: Query<&AssignedRouteLeg>,
+    legs: Query<&RouteLegMarkers>,
     mut commands: Commands,
 ) {
     println!("Assigning LegPosition to route leg...");
     let train_entity = trigger.entity;
-    if let Ok(old_leg_pos) = old_pos.get(train_entity) {
+    let assigned_leg = trains.get(train_entity).unwrap();
+    let leg_markers = legs.get(assigned_leg.0).unwrap();
+    let pos = if let Ok(old_leg_pos) = old_pos.get(train_entity) {
         println!(
             "LegPosition already exists on entity {:?}: {:?}",
             train_entity, old_leg_pos
         );
-    }
-    commands.entity(train_entity).insert((
+        LegPosition::from_preceding(
+            old_leg_pos,
+            leg_markers.final_facing(),
+            leg_markers.first_position(),
+            leg_markers.final_position(),
+        )
+    } else {
         LegPosition {
             position: 0.0,
-            prev_marker_index: 0,
-        },
-        OutdatedState,
-    ));
+            facing: leg_markers.final_facing(),
+            start_pos: leg_markers.first_position(),
+            end_pos: leg_markers.final_position(),
+        }
+    };
+    commands.entity(train_entity).insert((pos, OutdatedState));
 }
 
 #[derive(Component, Debug)]
