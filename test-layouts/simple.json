@@ -1,0 +1,320 @@
+{
+  "marker_map": {
+    "in_markers": {
+      "\"L(-2,12,0|WE>|→)\"": "LB[(-4,12,0|WE)>(-2,12,0|WE)]",
+      "\"L(-2,9,0|EW<|←)\"": "LB[(-2,9,0|EW)<(-4,9,0|EW)]",
+      "\"L(-4,12,0|EW>|←)\"": "LB[(-2,12,0|EW)>(-4,12,0|EW)]",
+      "\"L(-4,9,0|EW>|←)\"": "LB[(-2,9,0|EW)>(-4,9,0|EW)]",
+      "\"L(-2,12,0|EW<|←)\"": "LB[(-2,12,0|EW)<(-4,12,0|EW)]",
+      "\"L(-2,8,0|WE>|→)\"": "LB[(-4,8,0|WE)>(-2,8,0|WE)]",
+      "\"L(-4,12,0|WE<|→)\"": "LB[(-4,12,0|WE)<(-2,12,0|WE)]",
+      "\"L(-4,8,0|EW>|←)\"": "LB[(-2,8,0|EW)>(-4,8,0|EW)]",
+      "\"L(-4,8,0|WE<|→)\"": "LB[(-4,8,0|WE)<(-2,8,0|WE)]",
+      "\"L(-2,9,0|WE>|→)\"": "LB[(-4,9,0|WE)>(-2,9,0|WE)]",
+      "\"L(-4,9,0|WE<|→)\"": "LB[(-4,9,0|WE)<(-2,9,0|WE)]",
+      "\"L(-2,8,0|EW<|←)\"": "LB[(-2,8,0|EW)<(-4,8,0|EW)]"
+    },
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(-5,12,0|EW|↔)",
+    "T(-7,9,0|NE|⤡)",
+    "T(-3,12,0|EW|↔)",
+    "T(-3,9,0|EW|↔)",
+    "T(-1,12,0|EW|↔)",
+    "T(0,12,0|SW|⤡)",
+    "T(0,11,0|NS|↕)",
+    "T(0,10,0|NS|↕)",
+    "T(0,9,0|NS|↕)",
+    "T(0,8,0|NW|⤢)",
+    "T(-1,8,0|EW|↔)",
+    "T(-5,9,0|EW|↔)",
+    "T(-3,8,0|EW|↔)",
+    "T(-6,9,0|EW|↔)",
+    "T(-5,8,0|EW|↔)",
+    "T(-6,8,0|EW|↔)",
+    "T(-7,8,0|NE|⤡)",
+    "T(-7,9,0|NS|↕)",
+    "T(-7,10,0|NS|↕)",
+    "T(-7,11,0|NS|↕)",
+    "T(-7,12,0|SE|⤢)",
+    "T(-6,12,0|EW|↔)",
+    "T(0,9,0|NW|⤢)",
+    "T(-1,9,0|EW|↔)",
+    "T(-2,9,0|EW|↔)",
+    "T(-4,9,0|EW|↔)",
+    "T(-2,8,0|EW|↔)",
+    "T(-4,8,0|EW|↔)",
+    "T(-2,12,0|EW|↔)",
+    "T(-4,12,0|EW|↔)"
+  ],
+  "connections": [
+    "C(-5,12,0|WE><-4,12,0|EW)",
+    "C(-4,12,0|WE><-3,12,0|EW)",
+    "C(-3,12,0|WE><-2,12,0|EW)",
+    "C(-2,12,0|WE><-1,12,0|EW)",
+    "C(-1,12,0|WE><0,12,0|SW)",
+    "C(0,12,0|WS><0,11,0|SN)",
+    "C(0,11,0|NS><0,10,0|SN)",
+    "C(0,10,0|NS><0,9,0|SN)",
+    "C(0,9,0|NS><0,8,0|WN)",
+    "C(0,8,0|NW><-1,8,0|WE)",
+    "C(-1,8,0|EW><-2,8,0|WE)",
+    "C(-2,8,0|EW><-3,8,0|WE)",
+    "C(-3,8,0|EW><-4,8,0|WE)",
+    "C(-4,8,0|EW><-5,8,0|WE)",
+    "C(-5,8,0|EW><-6,8,0|WE)",
+    "C(-6,8,0|EW><-7,8,0|NE)",
+    "C(-7,8,0|EN><-7,9,0|NS)",
+    "C(-7,9,0|SN><-7,10,0|NS)",
+    "C(-7,10,0|SN><-7,11,0|NS)",
+    "C(-7,11,0|SN><-7,12,0|ES)",
+    "C(-7,12,0|SE><-6,12,0|EW)",
+    "C(-6,12,0|WE><-5,12,0|EW)",
+    "C(0,9,0|NW><-1,9,0|WE)",
+    "C(-1,9,0|EW><-2,9,0|WE)",
+    "C(-2,9,0|EW><-3,9,0|WE)",
+    "C(-3,9,0|EW><-4,9,0|WE)",
+    "C(-4,9,0|EW><-5,9,0|WE)",
+    "C(-5,9,0|EW><-6,9,0|WE)",
+    "C(-6,9,0|EW><-7,9,0|NE)",
+    "C(-7,9,0|EN><-7,10,0|NS)",
+    "C(0,10,0|NS><0,9,0|WN)"
+  ],
+  "blocks": [
+    {
+      "block": {
+        "id": "B[(-4,9,0|WE)-(-2,9,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,9,0|WE|→)",
+            "D(-3,9,0|WE|→)",
+            "D(-2,9,0|WE|→)"
+          ]
+        },
+        "settings": {
+          "passthrough": false,
+          "disallow_reversing": false,
+          "speed": "Cruise"
+        }
+      },
+      "name": "B[(-4,9,0|WE)-(-2,9,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-4,8,0|WE)-(-2,8,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,8,0|WE|→)",
+            "D(-3,8,0|WE|→)",
+            "D(-2,8,0|WE|→)"
+          ]
+        },
+        "settings": {
+          "passthrough": false,
+          "disallow_reversing": false,
+          "speed": "Cruise"
+        }
+      },
+      "name": "B[(-4,8,0|WE)-(-2,8,0|EW)]"
+    },
+    {
+      "block": {
+        "id": "B[(-4,12,0|WE)-(-2,12,0|EW)]",
+        "section": {
+          "tracks": [
+            "D(-4,12,0|WE|→)",
+            "D(-3,12,0|WE|→)",
+            "D(-2,12,0|WE|→)"
+          ]
+        },
+        "settings": {
+          "passthrough": false,
+          "disallow_reversing": false,
+          "speed": "Cruise"
+        }
+      },
+      "name": "B[(-4,12,0|WE)-(-2,12,0|EW)]"
+    }
+  ],
+  "markers": [
+    {
+      "track": "T(-2,9,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,9,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,9,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,9,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,9,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,9,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,9,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,9,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,9,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,9,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-2,8,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,8,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,8,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,8,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,8,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,8,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,8,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,8,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,8,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,8,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-2,12,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-2,12,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,12,0|WE<|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,12,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-2,12,0|WE>|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    },
+    {
+      "track": "T(-4,12,0|EW|↔)",
+      "color": "Any",
+      "logical_data": {
+        "\"L(-4,12,0|WE>|→)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,12,0|EW>|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,12,0|EW<|←)\"": {
+          "speed": "Cruise"
+        },
+        "\"L(-4,12,0|WE<|→)\"": {
+          "speed": "Cruise"
+        }
+      }
+    }
+  ],
+  "trains": [
+    {
+      "train": {
+        "id": {
+          "id": 0
+        },
+        "position": {
+          "Block": "LB[(-4,12,0|WE)>(-2,12,0|WE)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": null
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": null,
+          "inverted_ports": []
+        },
+        "puppets": [],
+        "train_id": {
+          "id": 0
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train0",
+      "schedule": {
+        "schedule_id": null,
+        "offset": 0.0
+      }
+    }
+  ],
+  "hubs": [],
+  "switches": [
+    {
+      "switch": {
+        "id": "D(-7,10,0|NS|↓)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(-7,10,0|NS|↓)"
+    },
+    {
+      "switch": {
+        "id": "D(0,10,0|NS|↓)",
+        "positions": [
+          "Center",
+          "Right"
+        ],
+        "motors": [
+          null
+        ]
+      },
+      "name": "D(0,10,0|NS|↓)"
+    }
+  ],
+  "switch_motors": [],
+  "destinations": [],
+  "schedules": []
+}
