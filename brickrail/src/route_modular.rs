@@ -100,7 +100,7 @@ impl RouteLegMarkers {
 }
 
 // probably on train
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug)]
 pub struct LegPosition {
     pub position: f32,
     pub facing: Facing,
@@ -109,25 +109,6 @@ pub struct LegPosition {
 }
 
 impl LegPosition {
-    pub fn from_preceding(
-        preceding: &LegPosition,
-        leg_facing: Facing,
-        start_pos: f32,
-        end_pos: f32,
-    ) -> Self {
-        let mut position = LegPosition {
-            position: preceding.position,
-            facing: leg_facing,
-            start_pos,
-            end_pos,
-        };
-        position.set_signed_pos_from(
-            preceding.get_signed_pos_from(preceding.end_pos),
-            position.start_pos,
-        );
-        position
-    }
-
     pub fn set_signed_pos_from(&mut self, from: f32, dist: f32) {
         self.position = from + dist * self.facing.get_sign();
     }
@@ -333,25 +314,22 @@ fn on_route_leg_assigned(
     let train_entity = trigger.entity;
     let assigned_leg = trains.get(train_entity).unwrap();
     let leg_markers = legs.get(assigned_leg.0).unwrap();
-    let pos = if let Ok(old_leg_pos) = old_pos.get(train_entity) {
+    let mut pos = LegPosition {
+        position: 0.0,
+        facing: leg_markers.final_facing(),
+        start_pos: leg_markers.first_position(),
+        end_pos: leg_markers.final_position(),
+    };
+    if let Ok(old_leg_pos) = old_pos.get(train_entity) {
         println!(
             "LegPosition already exists on entity {:?}: {:?}",
             train_entity, old_leg_pos
         );
-        LegPosition::from_preceding(
-            old_leg_pos,
-            leg_markers.final_facing(),
-            leg_markers.first_position(),
-            leg_markers.final_position(),
-        )
-    } else {
-        LegPosition {
-            position: 0.0,
-            facing: leg_markers.final_facing(),
-            start_pos: leg_markers.first_position(),
-            end_pos: leg_markers.final_position(),
-        }
-    };
+        pos.set_signed_pos_from(
+            pos.start_pos,
+            old_leg_pos.get_signed_pos_from(old_leg_pos.end_pos),
+        );
+    }
     commands.entity(train_entity).insert((pos, OutdatedState));
 }
 
