@@ -769,7 +769,7 @@ fn tick_wait_time(mut q_times: Query<&mut WaitTime>, time: Res<Time>) {
 }
 
 pub fn set_train_route(
-    mut q_trains: Query<(&mut Train, &mut BLETrain, &ProxyTrains)>,
+    mut q_trains: Query<(&mut Train, &mut BLETrain, Option<&ProxyTrains>)>,
     switches: Query<&Switch>,
     entity_map: Res<EntityMap>,
     mut route_messages: MessageReader<SetTrainRouteMessage>,
@@ -806,10 +806,12 @@ pub fn set_train_route(
                 logical_section: route.critical_section.clone(),
             })
             .id();
-        for proxy_entity in proxy_trains.collection().iter() {
-            commands
-                .entity(*proxy_entity)
-                .insert(AssignedRoute(route_entity));
+        if let Some(proxy_trains) = proxy_trains {
+            for proxy_entity in proxy_trains.collection().iter() {
+                commands
+                    .entity(*proxy_entity)
+                    .insert(AssignedRoute(route_entity));
+            }
         }
 
         // route.get_current_leg_mut().intention = LegIntention::Stop;
@@ -938,13 +940,13 @@ fn spawn_train(
         let entity = commands
             .spawn((name, train, ble_train, WaitTime::new(), schedule))
             .id();
-        commands.spawn((
-            ModularTrain,
-            GenericID::Train(train_id),
-            AssignedRouteLeg(leg_entity),
-            TrainState::default(),
-            ProxyTrainOf(entity),
-        ));
+        // commands.spawn((
+        //     ModularTrain,
+        //     GenericID::Train(train_id),
+        //     AssignedRouteLeg(leg_entity),
+        //     TrainState::default(),
+        //     ProxyTrainOf(entity),
+        // ));
         entity_map.add_train(train_id, entity);
     }
 }
