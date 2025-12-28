@@ -61,7 +61,7 @@ class Crossing:
         self.device_type = _DEVICE_CROSSING
 
     def get_storage_val(self, i):
-        return io_hub.get_storage(8 + self.port * 8 + i)
+        return io_hub.get_storage(8 + self.port * 4 + i)
 
     def set_pos(self, position):
         sdir = -1
@@ -104,7 +104,7 @@ class Switch:
             self.switch(position)
 
     def get_storage_val(self, i):
-        return io_hub.get_storage(8 + self.port * 8 + i)
+        return io_hub.get_storage(8 + self.port * 4 + i)
 
     def switch(self, position):
         # print("Switching to", position)

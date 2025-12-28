@@ -1,0 +1,116 @@
+{
+  "marker_map": {
+    "in_markers": {},
+    "enter_markers": {}
+  },
+  "tracks": [
+    "T(1,1,0|NS|↕)",
+    "T(1,2,0|NS|↕)",
+    "T(1,3,0|NS|↕)",
+    "T(1,4,0|NS|↕)",
+    "T(1,5,0|NS|↕)",
+    "T(1,6,0|SW|⤡)",
+    "T(0,6,0|EW|↔)",
+    "T(-1,6,0|EW|↔)",
+    "T(1,6,0|NS|↕)",
+    "T(1,7,0|NS|↕)",
+    "T(1,4,0|SW|⤡)",
+    "T(0,4,0|EW|↔)",
+    "T(-1,4,0|EW|↔)"
+  ],
+  "connections": [
+    "C(1,1,0|SN><1,2,0|NS)",
+    "C(1,2,0|SN><1,3,0|NS)",
+    "C(1,3,0|SN><1,4,0|NS)",
+    "C(1,4,0|SN><1,5,0|NS)",
+    "C(1,5,0|SN><1,6,0|WS)",
+    "C(1,6,0|SW><0,6,0|WE)",
+    "C(0,6,0|EW><-1,6,0|WE)",
+    "C(1,5,0|SN><1,6,0|NS)",
+    "C(1,6,0|SN><1,7,0|NS)",
+    "C(1,3,0|SN><1,4,0|WS)",
+    "C(1,4,0|SW><0,4,0|WE)",
+    "C(0,4,0|EW><-1,4,0|WE)"
+  ],
+  "blocks": [],
+  "markers": [],
+  "trains": [],
+  "hubs": [
+    {
+      "hub": {
+        "id": "Layout0",
+        "name": "technic-gray"
+      },
+      "observer": null,
+      "broadcaster": true
+    }
+  ],
+  "switches": [
+    {
+      "switch": {
+        "id": "D(1,5,0|SN|↑)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          {
+            "id": 0,
+            "kind": "PulseMotor"
+          }
+        ]
+      },
+      "name": "D(1,5,0|SN|↑)"
+    },
+    {
+      "switch": {
+        "id": "D(1,3,0|SN|↑)",
+        "positions": [
+          "Left",
+          "Center"
+        ],
+        "motors": [
+          {
+            "id": 1,
+            "kind": "PulseMotor"
+          }
+        ]
+      },
+      "name": "D(1,3,0|SN|↑)"
+    }
+  ],
+  "switch_motors": [
+    {
+      "device": {
+        "id": {
+          "id": 0,
+          "kind": "PulseMotor"
+        },
+        "hub_id": "Layout0",
+        "port": "B"
+      },
+      "motor": {
+        "pulse_duration": 300,
+        "pulse_strength": 60,
+        "polarity": "Normal"
+      }
+    },
+    {
+      "device": {
+        "id": {
+          "id": 1,
+          "kind": "PulseMotor"
+        },
+        "hub_id": "Layout0",
+        "port": "A"
+      },
+      "motor": {
+        "pulse_duration": 300,
+        "pulse_strength": 60,
+        "polarity": "Inverted"
+      }
+    }
+  ],
+  "destinations": [],
+  "schedules": []
+}

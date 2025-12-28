@@ -231,7 +231,6 @@ class IOHub:
             _type = msg[1]
             data = msg[2:6]
             self.hub.system.storage(address * 4, write=data)
-            # print("store", address, self.get_storage(address), data)
             return
 
         if in_id == _IN_ID_BROADCAST_CMD:

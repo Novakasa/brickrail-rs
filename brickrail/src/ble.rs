@@ -1045,10 +1045,10 @@ fn handle_hub_messages(
                         commands.entity(entity).insert(HubError::ProgramError);
                         if let Some(HubBusy::Configuring) = maybe_hub_busy {
                             warn!("Hub reported program stopped while configuring");
-                            commands.entity(entity).remove::<HubBusy>();
                         } else {
                             warn!("Hub reported stopped program, but was not stopping");
                         }
+                        commands.entity(entity).remove::<HubBusy>();
                     }
                 }
             }

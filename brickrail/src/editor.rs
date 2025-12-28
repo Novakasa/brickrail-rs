@@ -226,18 +226,6 @@ pub struct HoverState {
     pub button_candidate: Option<GenericID>,
 }
 
-fn update_editor_state(
-    mut editor_state: ResMut<NextState<EditorState>>,
-    keyboard_buttons: Res<ButtonInput<KeyCode>>,
-) {
-    if keyboard_buttons.just_pressed(KeyCode::Digit1) {
-        editor_state.set(EditorState::Edit);
-    }
-    if keyboard_buttons.just_pressed(KeyCode::Digit2) {
-        editor_state.set(EditorState::PreparingDeviceControl);
-    }
-}
-
 pub fn directory_panel(world: &mut World) {
     let mut state = SystemState::<(EguiContexts,)>::new(world);
     world
@@ -962,7 +950,6 @@ impl Plugin for EditorPlugin {
                 save_layout.run_if(on_message::<SaveLayoutMessage>),
                 load_layout.run_if(on_message::<LoadLayoutMessage>),
                 new_layout.run_if(on_message::<NewLayoutMessage>),
-                update_editor_state,
                 close_event.run_if(on_message::<WindowCloseRequested>),
             ),
         );
