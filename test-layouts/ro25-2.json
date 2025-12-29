@@ -57,6 +57,58 @@
     "enter_markers": {}
   },
   "tracks": [
+    "T(-11,3,0|NS|↕)",
+    "T(-11,1,0|NS|↕)",
+    "T(-10,3,0|NS|↕)",
+    "T(-10,1,0|NS|↕)",
+    "T(-9,3,0|NS|↕)",
+    "T(-9,1,0|NS|↕)",
+    "T(-6,4,0|NS|↕)",
+    "T(-6,2,0|NS|↕)",
+    "T(-5,4,0|NS|↕)",
+    "T(-5,2,0|NS|↕)",
+    "T(-13,3,0|NS|↕)",
+    "T(-13,1,0|NS|↕)",
+    "T(-14,3,0|NS|↕)",
+    "T(-14,1,0|NS|↕)",
+    "T(-15,3,0|NS|↕)",
+    "T(-15,1,0|NS|↕)",
+    "T(-7,-6,0|EW|↔)",
+    "T(-9,-6,0|EW|↔)",
+    "T(-7,-7,0|EW|↔)",
+    "T(-9,-7,0|EW|↔)",
+    "T(-15,-3,0|NS|↕)",
+    "T(-15,-5,0|NS|↕)",
+    "T(-11,-2,0|NS|↕)",
+    "T(-11,-4,0|NS|↕)",
+    "T(-10,-2,0|NS|↕)",
+    "T(-10,-4,0|NS|↕)",
+    "T(-8,-6,0|EW|↔)",
+    "T(-13,4,0|NS|↕)",
+    "T(-15,4,0|NS|↕)",
+    "T(-5,1,0|NS|↕)",
+    "T(-15,2,0|NS|↕)",
+    "T(-6,3,0|NS|↕)",
+    "T(-15,-2,0|NS|↕)",
+    "T(-15,-1,0|SE|⤢)",
+    "T(-11,-5,0|NS|↕)",
+    "T(-13,0,0|NE|⤡)",
+    "T(-15,-6,0|NS|↕)",
+    "T(-13,6,0|SE|⤢)",
+    "T(-13,2,0|NS|↕)",
+    "T(-6,5,0|SW|⤡)",
+    "T(-7,0,0|NS|↕)",
+    "T(-14,2,0|NS|↕)",
+    "T(-8,-7,0|EW|↔)",
+    "T(-14,4,0|NS|↕)",
+    "T(-11,-7,0|EW|↔)",
+    "T(-14,6,0|SE|⤢)",
+    "T(-11,6,0|EW|↔)",
+    "T(-12,6,0|EW|↔)",
+    "T(-13,6,0|EW|↔)",
+    "T(-14,6,0|EW|↔)",
+    "T(-15,6,0|SE|⤢)",
+    "T(-15,-4,0|NS|↕)",
     "T(-6,-7,0|EW|↔)",
     "T(-10,5,0|EW|↔)",
     "T(-11,5,0|SE|⤢)",
@@ -107,58 +159,6 @@
     "T(-12,-1,0|EW|↔)",
     "T(-13,-1,0|EW|↔)",
     "T(-14,-1,0|EW|↔)",
-    "T(-15,-1,0|SE|⤢)",
-    "T(-15,-2,0|NS|↕)",
-    "T(-6,3,0|NS|↕)",
-    "T(-15,2,0|NS|↕)",
-    "T(-5,1,0|NS|↕)",
-    "T(-15,4,0|NS|↕)",
-    "T(-13,4,0|NS|↕)",
-    "T(-8,-6,0|EW|↔)",
-    "T(-15,-4,0|NS|↕)",
-    "T(-15,6,0|SE|⤢)",
-    "T(-14,6,0|EW|↔)",
-    "T(-13,6,0|EW|↔)",
-    "T(-12,6,0|EW|↔)",
-    "T(-11,6,0|EW|↔)",
-    "T(-14,6,0|SE|⤢)",
-    "T(-11,-7,0|EW|↔)",
-    "T(-14,4,0|NS|↕)",
-    "T(-8,-7,0|EW|↔)",
-    "T(-14,2,0|NS|↕)",
-    "T(-7,0,0|NS|↕)",
-    "T(-6,5,0|SW|⤡)",
-    "T(-13,2,0|NS|↕)",
-    "T(-13,6,0|SE|⤢)",
-    "T(-15,-6,0|NS|↕)",
-    "T(-13,0,0|NE|⤡)",
-    "T(-11,-5,0|NS|↕)",
-    "T(-11,3,0|NS|↕)",
-    "T(-11,1,0|NS|↕)",
-    "T(-10,3,0|NS|↕)",
-    "T(-10,1,0|NS|↕)",
-    "T(-9,3,0|NS|↕)",
-    "T(-9,1,0|NS|↕)",
-    "T(-6,4,0|NS|↕)",
-    "T(-6,2,0|NS|↕)",
-    "T(-5,4,0|NS|↕)",
-    "T(-5,2,0|NS|↕)",
-    "T(-13,3,0|NS|↕)",
-    "T(-13,1,0|NS|↕)",
-    "T(-14,3,0|NS|↕)",
-    "T(-14,1,0|NS|↕)",
-    "T(-15,3,0|NS|↕)",
-    "T(-15,1,0|NS|↕)",
-    "T(-7,-6,0|EW|↔)",
-    "T(-9,-6,0|EW|↔)",
-    "T(-7,-7,0|EW|↔)",
-    "T(-9,-7,0|EW|↔)",
-    "T(-15,-3,0|NS|↕)",
-    "T(-15,-5,0|NS|↕)",
-    "T(-11,-2,0|NS|↕)",
-    "T(-11,-4,0|NS|↕)",
-    "T(-10,-2,0|NS|↕)",
-    "T(-10,-4,0|NS|↕)",
     "T(-12,0,0|EW|↔)",
     "T(-7,5,0|EW|↔)",
     "T(-7,6,0|EW|↔)",
@@ -1141,7 +1141,7 @@
           "id": 0
         },
         "position": {
-          "Block": "LB[(-10,-4,0|SN)>(-10,-2,0|SN)]"
+          "Block": "LB[(-11,-4,0|SN)>(-11,-2,0|SN)]"
         },
         "settings": {
           "num_wagons": 3,
@@ -1177,29 +1177,68 @@
         "schedule_id": null,
         "offset": 0.0
       }
+    },
+    {
+      "train": {
+        "id": {
+          "id": 1
+        },
+        "position": {
+          "Block": "LB[(-10,-4,0|SN)>(-10,-2,0|SN)]"
+        },
+        "settings": {
+          "num_wagons": 3,
+          "home": null,
+          "prefer_facing": "Forward"
+        }
+      },
+      "ble_train": {
+        "master_hub": {
+          "hub_id": "Train2",
+          "inverted_ports": []
+        },
+        "puppets": [
+          {
+            "hub_id": "Train3",
+            "inverted_ports": [
+              "A"
+            ]
+          }
+        ],
+        "train_id": {
+          "id": 1
+        },
+        "slow_speed": 40,
+        "cruise_speed": 70,
+        "fast_speed": 100,
+        "acceleration": 40,
+        "deceleration": 90,
+        "chroma_threshold": 3500
+      },
+      "name": "Train1",
+      "schedule": {
+        "schedule_id": {
+          "id": 0
+        },
+        "offset": 0.0
+      }
     }
   ],
   "hubs": [
     {
       "hub": {
-        "id": "Train1",
-        "name": "city-orange"
+        "id": "Layout2",
+        "name": "technic-yellow"
       },
-      "observer": null,
+      "observer": {
+        "keep_connected": false
+      },
       "broadcaster": false
     },
     {
       "hub": {
-        "id": "Train0",
-        "name": "city-orange1"
-      },
-      "observer": null,
-      "broadcaster": true
-    },
-    {
-      "hub": {
-        "id": "Layout2",
-        "name": "technic-yellow"
+        "id": "Layout1",
+        "name": "technic_blue"
       },
       "observer": {
         "keep_connected": false
@@ -1218,13 +1257,35 @@
     },
     {
       "hub": {
-        "id": "Layout1",
-        "name": "technic_blue"
+        "id": "Train3",
+        "name": "city-red-puppet"
       },
-      "observer": {
-        "keep_connected": false
-      },
+      "observer": null,
       "broadcaster": false
+    },
+    {
+      "hub": {
+        "id": "Train2",
+        "name": "city-red-master"
+      },
+      "observer": null,
+      "broadcaster": false
+    },
+    {
+      "hub": {
+        "id": "Train1",
+        "name": "city-orange"
+      },
+      "observer": null,
+      "broadcaster": false
+    },
+    {
+      "hub": {
+        "id": "Train0",
+        "name": "city-orange1"
+      },
+      "observer": null,
+      "broadcaster": true
     }
   ],
   "switches": [
@@ -1541,6 +1602,104 @@
       }
     }
   ],
-  "destinations": [],
-  "schedules": []
+  "destinations": [
+    {
+      "dest": {
+        "id": {
+          "Specific": 0
+        },
+        "blocks": [
+          [
+            "B[(-15,1,0|SN)-(-15,3,0|NS)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-14,1,0|SN)-(-14,3,0|NS)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-13,1,0|SN)-(-13,3,0|NS)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination0"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 1
+        },
+        "blocks": [
+          [
+            "B[(-11,1,0|SN)-(-11,3,0|NS)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-10,1,0|SN)-(-10,3,0|NS)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-9,1,0|SN)-(-9,3,0|NS)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination1"
+    },
+    {
+      "dest": {
+        "id": {
+          "Specific": 2
+        },
+        "blocks": [
+          [
+            "B[(-10,-4,0|SN)-(-10,-2,0|NS)]",
+            "Any",
+            null
+          ],
+          [
+            "B[(-11,-4,0|SN)-(-11,-2,0|NS)]",
+            "Any",
+            null
+          ]
+        ]
+      },
+      "name": "Destination2"
+    }
+  ],
+  "schedules": [
+    {
+      "schedule": {
+        "id": {
+          "id": 0
+        },
+        "entries": [
+          {
+            "dest": {
+              "Specific": 1
+            },
+            "depart_time": 0.0,
+            "min_wait": 4.0
+          },
+          {
+            "dest": {
+              "Specific": 2
+            },
+            "depart_time": 30.0,
+            "min_wait": 4.0
+          }
+        ],
+        "cycle_length": 60.0,
+        "cycle_offset": 0.0
+      },
+      "name": "Schedule0"
+    }
+  ]
 }
