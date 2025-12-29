@@ -615,10 +615,10 @@
       "track": "T(-9,1,0|NS|↕)",
       "color": "Any",
       "logical_data": {
-        "\"L(-9,1,0|NS>|↓)\"": {
+        "\"L(-9,1,0|SN<|↑)\"": {
           "speed": "Cruise"
         },
-        "\"L(-9,1,0|SN<|↑)\"": {
+        "\"L(-9,1,0|NS>|↓)\"": {
           "speed": "Cruise"
         },
         "\"L(-9,1,0|SN>|↑)\"": {
@@ -658,7 +658,7 @@
           "speed": "Slow"
         },
         "\"L(-6,2,0|NS>|↓)\"": {
-          "speed": "Fast"
+          "speed": "Cruise"
         },
         "\"L(-6,2,0|SN<|↑)\"": {
           "speed": "Slow"
@@ -694,7 +694,7 @@
           "speed": "Slow"
         },
         "\"L(-5,2,0|NS>|↓)\"": {
-          "speed": "Fast"
+          "speed": "Cruise"
         },
         "\"L(-5,2,0|NS<|↓)\"": {
           "speed": "Cruise"
@@ -723,7 +723,7 @@
       "track": "T(-13,1,0|NS|↕)",
       "color": "Any",
       "logical_data": {
-        "\"L(-13,1,0|NS<|↓)\"": {
+        "\"L(-13,1,0|SN>|↑)\"": {
           "speed": "Cruise"
         },
         "\"L(-13,1,0|SN<|↑)\"": {
@@ -732,7 +732,7 @@
         "\"L(-13,1,0|NS>|↓)\"": {
           "speed": "Cruise"
         },
-        "\"L(-13,1,0|SN>|↑)\"": {
+        "\"L(-13,1,0|NS<|↓)\"": {
           "speed": "Cruise"
         }
       }
@@ -1101,10 +1101,10 @@
       "track": "T(-7,5,0|EW|↔)",
       "color": "Blue",
       "logical_data": {
-        "\"L(-7,5,0|WE>|→)\"": {
+        "\"L(-7,5,0|EW>|←)\"": {
           "speed": "Cruise"
         },
-        "\"L(-7,5,0|EW>|←)\"": {
+        "\"L(-7,5,0|WE>|→)\"": {
           "speed": "Cruise"
         },
         "\"L(-7,5,0|WE<|→)\"": {
@@ -1194,22 +1194,16 @@
         "name": "city-orange1"
       },
       "observer": null,
-      "broadcaster": false
-    },
-    {
-      "hub": {
-        "id": "Layout1",
-        "name": "technic_blue"
-      },
-      "observer": null,
-      "broadcaster": false
+      "broadcaster": true
     },
     {
       "hub": {
         "id": "Layout2",
         "name": "technic-yellow"
       },
-      "observer": null,
+      "observer": {
+        "keep_connected": false
+      },
       "broadcaster": false
     },
     {
@@ -1217,8 +1211,20 @@
         "id": "Layout0",
         "name": "technic-gray"
       },
-      "observer": null,
-      "broadcaster": true
+      "observer": {
+        "keep_connected": false
+      },
+      "broadcaster": false
+    },
+    {
+      "hub": {
+        "id": "Layout1",
+        "name": "technic_blue"
+      },
+      "observer": {
+        "keep_connected": false
+      },
+      "broadcaster": false
     }
   ],
   "switches": [
