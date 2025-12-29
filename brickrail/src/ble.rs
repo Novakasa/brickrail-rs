@@ -373,6 +373,7 @@ impl BLEHub {
                 &HubState,
                 Option<&HubBusy>,
                 Option<&mut ObserverHub>,
+                Option<&BroadcasterHub>,
             )>,
             Res<EntityMap>,
             Res<SelectionState>,
@@ -389,7 +390,8 @@ impl BLEHub {
             mut commands,
         ) = state.get_mut(world);
         if let Some(entity) = selection_state.get_entity(&entity_map) {
-            if let Ok((hub, state, busy, maybe_observer)) = hubs.get_mut(entity) {
+            if let Ok((hub, state, busy, maybe_observer, maybe_broadcaster)) = hubs.get_mut(entity)
+            {
                 ui.label(format!("BLE Hub {:?}", hub.id));
                 ui.label(format!(
                     "Name: {}",
@@ -486,6 +488,17 @@ impl BLEHub {
                         });
                     } else {
                         commands.entity(entity).remove::<ObserverHub>();
+                    }
+                }
+                if ui
+                    .checkbox(&mut maybe_broadcaster.is_some(), "Broadcaster Hub")
+                    .changed()
+                {
+                    let entity = entity_map.hubs[&hub.id];
+                    if maybe_broadcaster.is_none() {
+                        commands.entity(entity).insert(BroadcasterHub);
+                    } else {
+                        commands.entity(entity).remove::<BroadcasterHub>();
                     }
                 }
                 if let Some(mut observer) = maybe_observer {
@@ -597,6 +610,18 @@ impl BLEHub {
     }
 }
 
+fn on_inserted_broadcaster(
+    trigger: On<Insert, BroadcasterHub>,
+    broadcasters: Query<Entity, With<BroadcasterHub>>,
+    mut commands: Commands,
+) {
+    for broadcaster_entity in broadcasters.iter() {
+        if broadcaster_entity != trigger.entity {
+            commands.entity(trigger.entity).remove::<BroadcasterHub>();
+            warn!("Only one BroadcasterHub is allowed. Removing duplicate.");
+        }
+    }
+}
 fn get_hub_label(hubs: &Query<&BLEHub>, id: &HubID) -> String {
     for hub in hubs.iter() {
         if &hub.id == id {
@@ -1482,6 +1507,7 @@ impl Plugin for BLEPlugin {
         app.add_message::<HubMessage>();
         app.add_message::<HubCommandMessage>();
         app.add_message::<HubDeviceStateMessage>();
+        app.add_observer(on_inserted_broadcaster);
         app.add_systems(
             Update,
             (

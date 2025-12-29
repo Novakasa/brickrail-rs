@@ -67,8 +67,8 @@ impl Default for PulseMotor {
     fn default() -> Self {
         Self {
             position: MotorPosition::Unknown,
-            pulse_duration: 500,
-            pulse_strength: 100,
+            pulse_duration: 300,
+            pulse_strength: 60,
             polarity: MotorPolarity::Normal,
         }
     }
