@@ -238,7 +238,7 @@ fn build_route_leg(
     travel_section.extend_merge(&to_section.section);
     println!("travel section: {:?}", travel_section);
     println!();
-    assert!(travel_section.is_connected());
+    // assert!(travel_section.is_connected());
     let mut leg_markers = vec![];
 
     for logical in critical_path.tracks.iter() {

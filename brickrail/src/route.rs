@@ -136,7 +136,7 @@ pub fn build_route(
         };
 
         let block_speed = target_block.settings.speed;
-        leg.set_enter_data(block_speed);
+        // leg.set_enter_data(block_speed);
         leg.reset_pos_to_prev_marker();
         route.push_leg(leg);
         leg_index += 1;
