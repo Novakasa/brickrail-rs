@@ -9,7 +9,9 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::utils::distance_to_segment;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash, PartialOrd, Ord,
+)]
 pub struct ScheduleID {
     pub id: usize,
 }
@@ -26,7 +28,9 @@ impl fmt::Display for ScheduleID {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, Hash, Ord, PartialOrd,
+)]
 pub enum DestinationID {
     Random,
     Specific(usize),
@@ -213,14 +217,18 @@ impl FromStr for HubID {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum LayoutDeviceType {
     #[serde(alias = "Switch", alias = "SwitchMotor")]
     PulseMotor,
     Signal,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub struct LayoutDeviceID {
     pub id: usize,
     pub kind: LayoutDeviceType,

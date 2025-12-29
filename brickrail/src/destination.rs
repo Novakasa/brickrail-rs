@@ -19,13 +19,16 @@ pub struct SpawnDestinationMessageQuery<'w, 's> {
 }
 impl SpawnDestinationMessageQuery<'_, '_> {
     pub fn get(&self) -> Vec<SpawnDestinationMessage> {
-        self.query
+        let mut result = self
+            .query
             .iter()
             .map(|(dest, name)| SpawnDestinationMessage {
                 dest: dest.clone(),
                 name: Some(name.to_string()),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        result.sort_by_key(|d| d.dest.id);
+        result
     }
 }
 

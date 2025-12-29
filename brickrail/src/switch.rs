@@ -244,13 +244,16 @@ pub struct SpawnSwitchMessageQuery<'w, 's> {
 }
 impl SpawnSwitchMessageQuery<'_, '_> {
     pub fn get(&self) -> Vec<SpawnSwitchMessage> {
-        self.query
+        let mut result = self
+            .query
             .iter()
             .map(|(switch, name)| SpawnSwitchMessage {
                 switch: switch.clone(),
                 name: Some(name.to_string()),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        result.sort_by_key(|s| s.switch.id);
+        result
     }
 }
 

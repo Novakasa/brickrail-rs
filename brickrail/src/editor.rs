@@ -725,37 +725,44 @@ pub fn save_layout(
         }
         println!("Saving layout");
         let mut file = std::fs::File::create(event.path.clone()).unwrap();
-        let tracks = q_tracks
+        let mut tracks = q_tracks
             .iter()
             .map(|t| SpawnTrackMessage(t.clone()))
-            .collect();
-        let hubs = q_hubs
+            .collect::<Vec<_>>();
+        tracks.sort_by_key(|t| t.0.id);
+        let mut hubs = q_hubs
             .iter()
             .map(|(hub, maybe_broadcaster, maybe_observer)| SpawnHubMessage {
                 hub: hub.clone(),
                 observer: maybe_observer.cloned(),
                 broadcaster: maybe_broadcaster.is_some(),
             })
-            .collect();
-        let switch_motors = q_switch_motors
+            .collect::<Vec<_>>();
+        hubs.sort_by_key(|h| h.hub.id);
+        let mut switch_motors = q_switch_motors
             .iter()
             .map(|(motor, device)| SpawnPulseMotorMessage {
                 motor: motor.clone(),
                 device: device.clone(),
             })
-            .collect();
-        let connections = connections
+            .collect::<Vec<_>>();
+        switch_motors.sort_by_key(|m| m.device.id);
+        let mut connections = connections
             .connection_graph
             .all_edges()
             .map(|(_, _, c)| SpawnConnectionMessage {
                 id: c.clone(),
                 update_switches: false,
             })
-            .collect();
+            .collect::<Vec<_>>();
+        connections.sort_by_key(|c| c.id);
+        let mut markers = q_markers.iter().map(|m| m.clone()).collect::<Vec<_>>();
+        markers.sort_by_key(|m| m.track);
+
         let layout_val = SerializableLayout {
             marker_map: marker_map.clone(),
             blocks: q_blocks.get(),
-            markers: q_markers.iter().map(|m| m.clone()).collect(),
+            markers: markers,
             tracks,
             connections,
             trains: q_trains.get(),
@@ -765,7 +772,9 @@ pub fn save_layout(
             destinations: q_destinations.get(),
             schedules: q_schedules.get(),
         };
-        let json = serde_json::to_string_pretty(&layout_val).unwrap();
+        let mut val = serde_json::to_value(&layout_val).unwrap();
+        val.sort_all_objects();
+        let json = serde_json::to_string_pretty(&val).unwrap();
         file.write(json.as_bytes()).unwrap();
     }
 }

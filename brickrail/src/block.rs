@@ -390,13 +390,16 @@ pub struct BlockSpawnMessageQuery<'w, 's> {
 }
 impl BlockSpawnMessageQuery<'_, '_> {
     pub fn get(&self) -> Vec<BlockSpawnMessage> {
-        self.query
+        let mut result = self
+            .query
             .iter()
             .map(|(block, name)| BlockSpawnMessage {
                 block: block.clone(),
                 name: Some(name.to_string()),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        result.sort_by_key(|msg| msg.block.id);
+        result
     }
 }
 

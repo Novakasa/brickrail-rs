@@ -255,13 +255,16 @@ pub struct SpawnScheduleMessageQuery<'w, 's> {
 }
 impl SpawnScheduleMessageQuery<'_, '_> {
     pub fn get(&self) -> Vec<SpawnScheduleMessage> {
-        self.query
+        let mut result = self
+            .query
             .iter()
             .map(|(schedule, name)| SpawnScheduleMessage {
                 schedule: schedule.clone(),
                 name: Some(name.to_string()),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        result.sort_by_key(|s| s.schedule.id);
+        result
     }
 }
 

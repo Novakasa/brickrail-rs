@@ -404,7 +404,8 @@ pub struct SpawnTrainMessageQuery<'w, 's> {
 
 impl SpawnTrainMessageQuery<'_, '_> {
     pub fn get(&self) -> Vec<SpawnTrainMessage> {
-        self.trains
+        let mut trains = self
+            .trains
             .iter()
             .map(|(train, ble_train, name, schedule)| SpawnTrainMessage {
                 train: train.clone(),
@@ -412,7 +413,9 @@ impl SpawnTrainMessageQuery<'_, '_> {
                 name: Some(name.to_string()),
                 schedule: schedule.cloned(),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        trains.sort_by_key(|msg| msg.train.id);
+        trains
     }
 }
 
