@@ -7,11 +7,11 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-bevy = { version = "0.17", features = ["serialize"] }
-bevy-inspector-egui = "0.35"
-bevy_framepace = "0.20"
-bevy_pancam = "0.19"
-bevy_prototype_lyon = "0.15"
+bevy = { version = "0.18", features = ["serialize"] }
+bevy-inspector-egui = "0.36"
+bevy_framepace = "0.21"
+bevy_pancam = "0.20"
+bevy_prototype_lyon = "0.16"
 itertools = "0.14"
 petgraph = "0.8"
 serde = "1"
