@@ -23,6 +23,7 @@ mod route_modular;
 mod schedule;
 mod section;
 mod selectable;
+mod serial_broadcaster;
 mod switch;
 mod switch_motor;
 mod track;
@@ -66,5 +67,6 @@ fn main() {
         .add_plugins(RenderDiagnosticsPlugin::default())
         .add_plugins(materials::MaterialsPlugin)
         .add_plugins(route_modular::ModularRoutePlugin)
+        // .add_plugins(serial_broadcaster::SerialBroadcasterPlugin)
         .run();
 }

@@ -1,16 +1,20 @@
 # Bibliotheken laden
+import sys
 from time import sleep
 
 from machine import Pin
 
-# Initialisierung der Onboard-LED
 led_onboard = Pin("LED", Pin.OUT)
 
-# LED einschalten
-led_onboard.on()
-
-# 5 Sekunden warten
-sleep(5)
-
-# LED ausschalten
-led_onboard.off()
+while True:
+    print("Waiting for input (type 'on' or 'off')...")
+    line = sys.stdin.readline().strip()
+    print(f"Received input: '{line}'")
+    if not line:
+        continue
+    if "on" in line:
+        led_onboard.on()
+    elif "off" in line:
+        led_onboard.off()
+    else:
+        print("Invalid input. Please type 'on' or 'off'.")
