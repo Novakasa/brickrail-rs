@@ -67,6 +67,6 @@ fn main() {
         .add_plugins(RenderDiagnosticsPlugin::default())
         .add_plugins(materials::MaterialsPlugin)
         .add_plugins(route_modular::ModularRoutePlugin)
-        // .add_plugins(serial_broadcaster::SerialBroadcasterPlugin)
+        .add_plugins(serial_broadcaster::SerialBroadcasterPlugin)
         .run();
 }
