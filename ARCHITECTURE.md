@@ -10,12 +10,12 @@ The system has three tiers of data with different lifetimes and ownership:
 
 - **Static layout** — tracks, blocks, switches, markers, train definitions, destinations, schedules, home blocks. Serialized in the layout JSON format. Frozen during control mode. Cannot be modified while the simulation is running.
 - **Persistent state** — survives across simulation runs and app modes, but is not part of the static layout. Primarily train block positions. Initialized from home blocks on first spawn, updated during control mode via simulation events, preserved on exit. Used by the client for rendering in edit mode (when no simulation is running). Cached to disk separately from the layout — more cache than save file.
-- **Control state** — track locks, current route legs, wait times, marker advance progress. Owned entirely by the core simulation. Only mutable via explicit commands. Initialized fresh when entering control mode (seeded from persistent state where applicable, e.g. train block positions).
+- **Control state** — track locks, current route legs, wait times, marker advance progress. Owned entirely by the server. Only mutable via explicit commands. Initialized fresh when entering control mode (seeded from persistent state where applicable, e.g. train block positions).
 
 ### Application Modes
 
 - **Edit mode** — entirely client-side. The user manipulates the static layout. No server/simulation needed.
-- **Control mode** — the static layout is serialized and handed to the core simulation. The simulation manages all control state. The client renders and sends commands.
+- **Control mode** — the static layout is serialized and handed to the server. The server manages all control state. The client renders and sends commands.
 
 ## Communication Protocol
 
@@ -37,8 +37,8 @@ Simulation state is event-sourced. The server holds the authoritative simulation
 
 State events describe **resulting state changes**, not causes. The server's simulation logic decides what happens (e.g. "train passed a marker, so it advances to the next route leg and releases the lock on the previous section"); the emitted events describe the outcome ("train is now in block Y", "track Z is now unlocked"). This keeps the mutation logic trivial — the client applies state deltas mechanically without understanding simulation logic.
 
-- The simulation data types live in `brickrail-types` (shared)
-- The event→state mutation logic also lives in `brickrail-types` — but it is trivial (set fields), not simulation logic
+- The simulation data types live in `brickrail-common` (shared)
+- The event→state mutation logic also lives in `brickrail-common` — but it is trivial (set fields), not simulation logic
 - The server's simulation plugins contain all domain logic and decide which events to emit
 - **The server also applies state mutations via the shared event path** — simulation plugins never write to simulation state directly, they emit events. This guarantees the event stream is complete: if it's sufficient to keep the server's own state correct, it automatically keeps clients in sync
 - Client rendering systems query the simulation state directly — same queries work on both sides
@@ -88,7 +88,7 @@ A generic `Registry<T>` resource per element type replaces the current monolithi
 
 ### 2. Simulation State Plugin (shared, per-type)
 
-Manages simulation state for a given type. Lives in `brickrail-types`. Included by both server and client. The state is event-controlled: it is only mutated by applying state events through shared mutation logic. Both server and client run this plugin — the difference is who produces the events.
+Manages simulation state for a given type. Lives in `brickrail-common`. Included by both server and client. The state is event-controlled: it is only mutated by applying state events through shared mutation logic. Both server and client run this plugin — the difference is who produces the events.
 
 Responsibilities:
 - Define simulation data components for the type
@@ -156,7 +156,7 @@ The server spawns its own separate entities from the serialized layout. In the c
 
 Four crates in a Cargo workspace:
 
-**`brickrail-types`** (lib) — shared types and generic infrastructure. Both server and client depend on this.
+**`brickrail-common`** (lib) — shared types and generic infrastructure. Both server and client depend on this.
 - Layout data components
 - Simulation data components, state event types, and event→state mutation logic (simulation state plugins)
 - Command message types
@@ -165,11 +165,11 @@ Four crates in a Cargo workspace:
 - Type-specific lifecycle plugins (structural side effects like `Connections`)
 - Registry types
 
-**`brickrail-server`** (lib) — server-side plugins. Depends on `brickrail-types`.
+**`brickrail-server`** (lib) — server-side plugins. Depends on `brickrail-common`.
 - Simulation plugins that decide which state events to emit (route logic, scheduling, block locking, train state machine)
 - Hardware plugins (BLE, serial broadcaster)
 
-**`brickrail-client`** (lib) — client-side plugins. Depends on `brickrail-types`.
+**`brickrail-client`** (lib) — client-side plugins. Depends on `brickrail-common`.
 - Editor plugins (rendering, selection, inspector, input handling)
 - Position interpolation from route events
 - Communication relay (for remote mode)
