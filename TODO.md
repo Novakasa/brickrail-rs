@@ -2,6 +2,8 @@
 
 High-level work items for brickrail-rs.
 
+## Features / Refactors
+
 - [ ] Finish refactor of trains and routes to be more ECS-native
   - In-progress in `brickrail/src/route_modular.rs`
   - Route is split into fine-grained ECS entities (route legs, markers, positions) linked via relationships rather than a monolithic struct — much more ECS-native
@@ -25,7 +27,12 @@ High-level work items for brickrail-rs.
   - An out-of-process layer can be inserted later that simply forwards those events through a socket (WebSocket or similar), making the multi-client story possible without committing to it upfront
   - The event schema crossing the boundary needs to be serializable; versioning becomes important once external clients exist
   - The engine plugin group (routing, collision avoidance, scheduling, hardware comms) runs headlessly with `MinimalPlugins`; the front-end plugin group is optional and just subscribes to the same events
-- [ ] Figure out testing
+## Bugs
+
+- [ ] File dialog crashes randomly — needs a more robust solution
+- [ ] "New layout" button leaves the layout in virtual run state instead of edit state
+
+## Features / Refactors
   - Prefer integration tests over unit tests
   - The communication boundary above is the key enabler: tests plug in at the event level, no front-end or renderer needed
   - Use Bevy's `App::update()` loop with `MinimalPlugins` for headless test runs; inject inputs via `world.send_event(...)`
