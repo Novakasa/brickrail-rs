@@ -19,6 +19,7 @@ High-level work items for brickrail-rs.
   - Pi Zero will likely also run MicroPython, so most of `io_hub_unfrozen.py` can be reused or adapted with minimal changes
   - Start with the same buffering logic as the hub (keep last 8 device IDs + states, rebroadcast on each command) — move buffering/prioritization to the CPU side only if testing reveals it's necessary
 - [ ] Establish a clear communication boundary between layout/hardware execution and the front-end (rendering and layout editing)
+  - **Definition of done:** at least one headless integration test passes that exercises core logic (e.g. train gets assigned a route and advances through its legs) without any front-end/renderer plugins loaded — the refactoring scope is whatever the friction of writing that test reveals
   - Primary motivation: allow the engine to act as a server for external clients that render/control the layout independently
   - Boundary is Bevy-event-based in-process — the engine exposes a set of events that cross the boundary in both directions
   - An out-of-process layer can be inserted later that simply forwards those events through a socket (WebSocket or similar), making the multi-client story possible without committing to it upfront
