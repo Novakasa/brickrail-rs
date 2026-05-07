@@ -1,0 +1,11 @@
+[package]
+name = "brickrail-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+brickrail-common = { path = "../brickrail-common" }
+bevy = { version = "0.18", default-features = false, features = ["serialize"] }
+
+[dev-dependencies]
+bevy = { version = "0.18", default-features = false, features = ["serialize", "bevy_state"] }

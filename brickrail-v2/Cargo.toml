@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["brickrail-common"]
+members = ["brickrail-common", "brickrail-server"]
 
 [profile.dev]
 opt-level = 1

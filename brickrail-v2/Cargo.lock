@@ -1145,6 +1145,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "brickrail-server"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "brickrail-common",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
