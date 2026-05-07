@@ -1,4 +1,4 @@
-/target
-settings.json
+target/
+/settings.json
 hub_state.json
 .direnv/
