@@ -605,11 +605,20 @@ impl Plugin for ModularRoutePlugin {
             Update,
             (
                 move_trains,
-                draw_route,
                 assign_first_route_leg,
-                debug_draw_train,
                 (advance_route_leg, advance_marker_index, update_train_state).chain(),
             ),
+        );
+    }
+}
+
+pub struct ModularRouteEditorPlugin;
+
+impl Plugin for ModularRouteEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (draw_route, debug_draw_train),
         );
     }
 }

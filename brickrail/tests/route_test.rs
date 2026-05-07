@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use brickrail_rs::{
-    editor::{EditorPlugin, LoadLayoutMessage},
+    editor::{EditorCorePlugin, LoadLayoutMessage},
     layout::LayoutPlugin,
     block::BlockPlugin,
     track::TrackPlugin,
@@ -21,7 +21,7 @@ fn make_app() -> App {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.add_plugins(bevy::asset::AssetPlugin::default());
-    app.add_plugins(EditorPlugin);
+    app.add_plugins(EditorCorePlugin);
     app.add_plugins(SettingsPlugin);
     app.add_plugins(LayoutPlugin);
     app.add_plugins(BlockPlugin);
@@ -43,7 +43,7 @@ fn train_advances_through_route_legs() {
     let mut app = make_app();
 
     let layout_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/layouts/simple-single-train.json");
+        .join("tests/layouts/simple.json");
 
     app.world_mut().write_message(LoadLayoutMessage { path: layout_path });
 

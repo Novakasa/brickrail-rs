@@ -902,6 +902,30 @@ pub struct TrackPlugin;
 
 impl Plugin for TrackPlugin {
     fn build(&self, app: &mut App) {
+        app.add_message::<SpawnTrackMessage>();
+        app.add_message::<SpawnConnectionMessage>();
+        app.add_message::<DespawnMessage<Track>>();
+        app.add_observer(update_path_track);
+        app.add_systems(
+            Update,
+            (despawn_track,),
+        );
+        app.add_systems(
+            PostUpdate,
+            (
+                spawn_track.run_if(on_message::<SpawnTrackMessage>),
+                spawn_connection
+                    .run_if(on_message::<SpawnConnectionMessage>)
+                    .after(spawn_track),
+            ),
+        );
+    }
+}
+
+pub struct TrackEditorPlugin;
+
+impl Plugin for TrackEditorPlugin {
+    fn build(&self, app: &mut App) {
         app.insert_resource(TrackBuildState::default());
         app.add_plugins(TrackMeshPlugin::<TrackShapeOuter>::default());
         app.add_plugins(TrackMeshPlugin::<TrackShapeInner>::default());
@@ -909,10 +933,6 @@ impl Plugin for TrackPlugin {
         app.add_plugins(SelectablePlugin::<Track>::new());
         app.add_plugins(InspectorPlugin::<Track>::new());
         app.add_plugins(InspectorPlugin::<TrackSectionSelection>::new());
-        app.add_message::<SpawnTrackMessage>();
-        app.add_message::<SpawnConnectionMessage>();
-        app.add_message::<DespawnMessage<Track>>();
-        app.add_observer(update_path_track);
         app.add_systems(
             Update,
             (
@@ -922,16 +942,6 @@ impl Plugin for TrackPlugin {
                 update_inner_track.after(finish_hover),
                 draw_build_cells.run_if(in_state(EditorState::Edit)),
                 delete_selection_shortcut::<Track>.run_if(in_state(EditorState::Edit)),
-                despawn_track,
-            ),
-        );
-        app.add_systems(
-            PostUpdate,
-            (
-                spawn_track.run_if(on_message::<SpawnTrackMessage>),
-                spawn_connection
-                    .run_if(on_message::<SpawnConnectionMessage>)
-                    .after(spawn_track),
             ),
         );
     }

@@ -1159,30 +1159,19 @@ pub struct TrainPlugin;
 
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SelectablePlugin::<Train>::new());
-        app.add_plugins(SelectablePlugin::<TrainWagon>::new());
-        app.add_plugins(InspectorPlugin::<Train>::new());
         app.register_type::<Facing>();
-        app.insert_resource(TrainDragState::default());
+        app.add_message::<SpawnTrainMessage>();
+        app.add_message::<DespawnMessage<Train>>();
+        app.add_message::<MarkerAdvanceMessage>();
         app.add_message::<SetTrainRouteMessage>();
         app.add_observer(assign_destination_route);
         app.add_observer(update_routes);
         app.add_systems(
             Update,
             (
-                create_train_shortcut,
-                delete_selection_shortcut::<Train>,
                 despawn_train.run_if(on_message::<DespawnMessage<Train>>),
-                draw_train,
-                update_wagons.after(finish_hover),
-                // draw_train_route.after(draw_hover_route),
-                // draw_locked_tracks.after(draw_train_route),
-                // draw_hover_route,
-                init_drag_train.after(finish_hover),
-                exit_drag_train,
                 tick_wait_time.run_if(in_state(ControlState)),
                 set_train_route.run_if(on_message::<SetTrainRouteMessage>),
-                update_drag_train.after(finish_hover),
                 update_virtual_trains
                     .run_if(in_state(EditorState::VirtualControl))
                     .after(sensor_advance),
@@ -1193,7 +1182,6 @@ impl Plugin for TrainPlugin {
                 sync_intentions
                     .run_if(in_state(EditorState::DeviceControl))
                     .after(update_virtual_trains_passive),
-                trigger_manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
             ),
         );
         app.add_systems(
@@ -1201,6 +1189,30 @@ impl Plugin for TrainPlugin {
             spawn_train
                 .run_if(on_message::<SpawnTrainMessage>)
                 .after(spawn_block),
+        );
+    }
+}
+
+pub struct TrainEditorPlugin;
+
+impl Plugin for TrainEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Train>::new());
+        app.add_plugins(SelectablePlugin::<TrainWagon>::new());
+        app.add_plugins(InspectorPlugin::<Train>::new());
+        app.insert_resource(TrainDragState::default());
+        app.add_systems(
+            Update,
+            (
+                create_train_shortcut,
+                delete_selection_shortcut::<Train>,
+                draw_train,
+                update_wagons.after(finish_hover),
+                init_drag_train.after(finish_hover),
+                exit_drag_train,
+                update_drag_train.after(finish_hover),
+                trigger_manual_sensor_advance.run_if(in_state(EditorState::DeviceControl)),
+            ),
         );
     }
 }

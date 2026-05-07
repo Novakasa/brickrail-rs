@@ -36,6 +36,17 @@ High-level work items for brickrail-rs.
   - The event schema crossing the boundary needs to be serializable; versioning becomes important once external clients exist
   - The engine plugin group (routing, collision avoidance, scheduling, hardware comms) runs headlessly with `MinimalPlugins`; the front-end plugin group is optional and just subscribes to the same events
   - **Entity ownership:** backend and editor plugins must maintain separate ECS entities — backend owns logic entities, editor spawns its own rendering entities keyed by stable domain IDs (e.g. `BlockID`). The current `add_block_shape` observer that patches the backend entity is a temporary in-process shortcut, not the end state.
+  - **Static layout vs. control state:** the communication boundary maps onto a clean data split:
+    - *Static layout* — tracks, blocks, switches, markers, train definitions, destinations, schedules. Frozen at control time; serialized in the layout JSON. The client hands this to the server (as a serialized snapshot) when switching from edit → control mode.
+    - *Control state* — track locks, train positions, current route legs, wait times, marker advance progress. Owned entirely by the core; only mutable via explicit commands. Not part of the layout format.
+    - *Commands* — valid during control time: set train speed, assign destination, emergency stop, etc. Adding/removing tracks or trains is not a valid command — requires dropping back to edit mode.
+    - Edit mode is entirely client-side; no server is needed until the user switches to control mode.
+  - **Mixed static/runtime types to resolve:** several component types currently straddle the boundary using `#[serde(skip)]` as a band-aid. When the boundary is formalized these will need to be split into separate components or have their runtime fields freshly initialized on server startup:
+    - `AssignedSchedule` — `schedule_id`/`offset` are static layout; `current_stop_index` is control state (already skipped)
+    - `TrackLocks` — pure control state, but lives in `LayoutPlugin` alongside layout instantiation data
+    - `WaitTime`, `QueuedDestination` — control state components attached to statically-spawned train entities
+    - `BLEHub` — hub ID/address are static layout; `HubState`/`HubActive`/`HubReady` etc. are runtime connection state
+    - `PulseMotor` — motor definition is static layout; in-progress pulse state is runtime
 
 - [ ] Figure out testing
   - Prefer integration tests over unit tests

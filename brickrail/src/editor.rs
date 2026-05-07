@@ -926,17 +926,31 @@ pub fn disconnect_finish(
     editor_info.disconnect_action = DisconnectAction::Nothing;
 }
 
+pub struct EditorCorePlugin;
+
+impl Plugin for EditorCorePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_state::<EditorState>();
+        app.add_computed_state::<ControlState>();
+        app.add_sub_state::<ControlStateMode>();
+        app.add_message::<LoadLayoutMessage>();
+        app.add_message::<NewLayoutMessage>();
+        app.add_systems(
+            Update,
+            (
+                load_layout.run_if(on_message::<LoadLayoutMessage>),
+                new_layout.run_if(on_message::<NewLayoutMessage>),
+            ),
+        );
+    }
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(PanCamPlugin);
-        app.init_state::<EditorState>();
-        app.add_computed_state::<ControlState>();
-        app.add_sub_state::<ControlStateMode>();
-        app.add_message::<LoadLayoutMessage>();
         app.add_message::<SaveLayoutMessage>();
-        app.add_message::<NewLayoutMessage>();
         app.insert_resource(HoverState::default());
         app.insert_resource(SelectionState::default());
         app.insert_resource(InputData::default());
@@ -957,8 +971,6 @@ impl Plugin for EditorPlugin {
                 )
                     .chain(),
                 save_layout.run_if(on_message::<SaveLayoutMessage>),
-                load_layout.run_if(on_message::<LoadLayoutMessage>),
-                new_layout.run_if(on_message::<NewLayoutMessage>),
                 close_event.run_if(on_message::<WindowCloseRequested>),
             ),
         );

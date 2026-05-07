@@ -232,14 +232,10 @@ pub fn spawn_marker(
     mut commands: Commands,
     mut marker_messages: MessageReader<MarkerSpawnMessage>,
     mut entity_map: ResMut<EntityMap>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for event in marker_messages.read() {
         let marker = event.0.clone();
         let track_id = marker.track;
-        let mesh = Circle::new(0.05 * LAYOUT_SCALE).mesh().build();
-        let material = ColorMaterial::from(marker.color.get_display_color());
         let transform = Transform::from_translation(
             (marker
                 .track
@@ -250,15 +246,29 @@ pub fn spawn_marker(
         );
         let entity = commands
             .spawn((
-                Mesh2d(meshes.add(mesh).into()),
                 transform,
-                MeshMaterial2d(materials.add(material)),
                 marker,
                 MarkerAt(entity_map.tracks[&track_id]),
             ))
             .id();
         entity_map.add_marker(track_id, entity);
     }
+}
+
+fn add_marker_mesh(
+    trigger: On<Add, Marker>,
+    markers: Query<&Marker>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let marker = markers.get(trigger.entity).unwrap();
+    let mesh = Circle::new(0.05 * LAYOUT_SCALE).mesh().build();
+    let material = ColorMaterial::from(marker.color.get_display_color());
+    commands.entity(trigger.entity).insert((
+        Mesh2d(meshes.add(mesh).into()),
+        MeshMaterial2d(materials.add(material)),
+    ));
 }
 
 fn set_marker_color(
@@ -303,18 +313,8 @@ pub struct MarkerPlugin;
 
 impl Plugin for MarkerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SelectablePlugin::<Marker>::new());
-        app.add_plugins(InspectorPlugin::<Marker>::new());
         app.add_message::<MarkerSpawnMessage>();
         app.add_message::<DespawnMessage<Marker>>();
-        app.add_systems(
-            Update,
-            (
-                create_marker,
-                delete_selection_shortcut::<Marker>,
-                set_marker_color.after(finish_hover),
-            ),
-        );
         app.add_systems(
             PostUpdate,
             (
@@ -322,6 +322,24 @@ impl Plugin for MarkerPlugin {
                     .run_if(on_message::<MarkerSpawnMessage>)
                     .after(spawn_track),
                 despawn_marker,
+            ),
+        );
+    }
+}
+
+pub struct MarkerEditorPlugin;
+
+impl Plugin for MarkerEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Marker>::new());
+        app.add_plugins(InspectorPlugin::<Marker>::new());
+        app.add_observer(add_marker_mesh);
+        app.add_systems(
+            Update,
+            (
+                create_marker,
+                delete_selection_shortcut::<Marker>,
+                set_marker_color.after(finish_hover),
             ),
         );
     }

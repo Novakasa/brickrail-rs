@@ -361,9 +361,8 @@ pub struct SchedulePlugin;
 impl Plugin for SchedulePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ControlInfo::default());
-        app.add_plugins(SelectablePlugin::<TrainSchedule>::new());
-        app.add_plugins(InspectorPlugin::<TrainSchedule>::new());
         app.add_message::<SpawnScheduleMessage>();
+        app.add_message::<crate::editor::DespawnMessage<TrainSchedule>>();
         app.add_systems(
             Update,
             (
@@ -377,5 +376,14 @@ impl Plugin for SchedulePlugin {
                 spawn_schedule.run_if(on_message::<SpawnScheduleMessage>),
             ),
         );
+    }
+}
+
+pub struct ScheduleEditorPlugin;
+
+impl Plugin for ScheduleEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<TrainSchedule>::new());
+        app.add_plugins(InspectorPlugin::<TrainSchedule>::new());
     }
 }

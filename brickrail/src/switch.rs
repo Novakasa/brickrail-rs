@@ -525,25 +525,34 @@ pub struct SwitchPlugin;
 
 impl Plugin for SwitchPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SelectablePlugin::<Switch>::new());
-        app.add_plugins(InspectorPlugin::<Switch>::new());
         app.add_message::<SpawnSwitchMessage>();
         app.add_message::<UpdateSwitchTurnsMessage>();
         app.add_message::<SetSwitchPositionMessage>();
         app.add_message::<DespawnMessage<Switch>>();
-        app.add_plugins(TrackMeshPlugin::<SwitchConnection>::default());
         app.add_systems(
             Update,
             (
                 spawn_switch.run_if(on_message::<SpawnSwitchMessage>),
-                update_switch_shapes.after(finish_hover),
                 update_switch_turns
                     .after(spawn_connection)
                     .run_if(on_message::<UpdateSwitchTurnsMessage>),
                 update_switch_position.run_if(on_message::<SetSwitchPositionMessage>),
-                // draw_switches,
                 despawn_switch.run_if(on_message::<DespawnMessage<Switch>>),
             ),
+        );
+    }
+}
+
+pub struct SwitchEditorPlugin;
+
+impl Plugin for SwitchEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Switch>::new());
+        app.add_plugins(InspectorPlugin::<Switch>::new());
+        app.add_plugins(TrackMeshPlugin::<SwitchConnection>::default());
+        app.add_systems(
+            Update,
+            (update_switch_shapes.after(finish_hover),),
         );
     }
 }
