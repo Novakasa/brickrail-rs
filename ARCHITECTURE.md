@@ -9,7 +9,7 @@ This document describes the target architecture for brickrail-rs, independent of
 The system has three tiers of data with different lifetimes and ownership:
 
 - **Static layout** — tracks, blocks, switches, markers, train definitions, destinations, schedules, home blocks. Serialized in the layout JSON format. Frozen during control mode. Cannot be modified while the simulation is running.
-- **Persistent state** — data that survives across simulation runs but is not part of the static layout. Primarily: which block each train is currently sitting at. Cached separately so the user doesn't have to manually reposition trains after restarting a run. The static layout defines "home blocks" (where trains start from scratch); persistent state overrides these with the actual last-known positions.
+- **Persistent state** — survives across simulation runs and app modes, but is not part of the static layout. Primarily train block positions. Initialized from home blocks on first spawn, updated during control mode via simulation events, preserved on exit. Used by the client for rendering in edit mode (when no simulation is running). Cached to disk separately from the layout — more cache than save file.
 - **Control state** — track locks, current route legs, wait times, marker advance progress. Owned entirely by the core simulation. Only mutable via explicit commands. Initialized fresh when entering control mode (seeded from persistent state where applicable, e.g. train block positions).
 
 ### Application Modes
@@ -117,6 +117,27 @@ Responsibilities:
 - Inspector UI for modifying layout properties
 - Keyboard/mouse shortcuts for creating/deleting elements
 
+## App Layer
+
+Both server and client need an app-level plugin that manages mode transitions and controls which plugins are active. This replaces the current `EditorState` which conflates editor and simulation concerns.
+
+**Server app plugin:**
+- Receives "enter control mode" command with serialized layout
+- Loads layout via lifecycle plugins
+- Activates simulation state + simulation logic plugins
+- On "exit control mode": persists persistent state, tears down simulation state
+- Simpler state machine: idle → running → idle
+
+**Client app plugin:**
+- Manages the full edit ↔ control transition
+- Edit mode: lifecycle + editor plugins active
+- Enter control mode: serializes layout + persistent state, sends to server (or to local server plugins in combined binary), activates simulation state plugin (to receive state updates), deactivates editor mutation systems
+- Exit control mode: tears down simulation state, re-enables editor mutation systems
+
+The client keeps its layout entities throughout both modes — they're needed for rendering the static layout. On transition to control mode, the client serializes the layout and sends it to the server, disables editor mutation systems, and starts receiving simulation state events. The client's entities are not despawned, just frozen. Simulation state (train positions, lock colors, etc.) is applied to client entities via state events from the server.
+
+The server spawns its own separate entities from the serialized layout. In the combined binary, both sets of entities exist in the same Bevy world but are distinct — client entities for rendering, server entities for simulation. The transition still goes through full serialization to ensure the round-trip is exercised every time. The only difference from out-of-process is the transport (direct message vs. network).
+
 ## Crate Structure
 
 Four crates in a Cargo workspace:
@@ -166,6 +187,6 @@ No component should contain both `#[serde(skip)]` runtime fields and serialized 
 ## Open Questions
 
 - Event schema and versioning for the client-server boundary
-- Persistent state storage format and location (alongside the layout JSON? separate file?)
+- Persistent state storage format and location — stored separately from the layout, serialized, auto-cached to disk to survive app restarts but not considered as permanent as the layout itself (more like a cache than a save file)
 - How does the client handle reconnecting mid-simulation? (needs to reconstruct render state from a snapshot)
 - Exact scope of "persistent state" — just train block positions, or anything else?
