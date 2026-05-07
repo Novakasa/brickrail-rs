@@ -784,7 +784,7 @@ pub struct DespawnMessage<T: Selectable>(pub T::ID);
 
 #[derive(Message)]
 pub struct LoadLayoutMessage {
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 #[derive(Message)]

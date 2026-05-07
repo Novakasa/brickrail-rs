@@ -23,6 +23,7 @@ fn main() {
         .add_plugins(persistent_hub_state::SettingsPlugin)
         .add_plugins(layout::LayoutPlugin)
         .add_plugins(block::BlockPlugin)
+        .add_plugins(block::BlockEditorPlugin)
         .add_plugins(track::TrackPlugin)
         .add_plugins(train::TrainPlugin)
         .add_plugins(marker::MarkerPlugin)

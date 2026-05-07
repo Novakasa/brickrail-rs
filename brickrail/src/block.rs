@@ -127,10 +127,14 @@ impl Block {
         };
         let block = Block {
             id: section.to_block_id(),
-            section: section,
+            section,
             settings: BlockSettings::default(),
         };
         block
+    }
+
+    pub fn section(&self) -> &DirectedSection {
+        &self.section
     }
 
     pub fn distance_to(&self, pos: Vec2) -> f32 {
@@ -441,9 +445,7 @@ pub fn spawn_block(
         let block_id = block.id;
         // println!("Spawning block {:?}", block_id);
         let name = Name::new(request.name.clone().unwrap_or(block_id.to_string()));
-        let entity = commands
-            .spawn((BlockBundle::from_block(block.clone()), name))
-            .id();
+        let entity = commands.spawn((block.clone(), name)).id();
         entity_map.add_block(block_id, entity);
         for direction in [BlockDirection::Aligned, BlockDirection::Opposite] {
             let directed_id = DirectedBlockID {
@@ -537,8 +539,6 @@ pub struct BlockPlugin;
 
 impl Plugin for BlockPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SelectablePlugin::<Block>::new());
-        app.add_plugins(InspectorPlugin::<Block>::new());
         app.register_type::<Block>();
         app.add_message::<BlockSpawnMessage>();
         app.add_message::<DespawnMessage<Block>>();
@@ -549,8 +549,6 @@ impl Plugin for BlockPlugin {
             (
                 create_block.run_if(on_message::<BlockCreateMessage>),
                 update_reverse_connections.run_if(on_message::<UpdateReverseConnections>),
-                update_block_color.after(finish_hover),
-                delete_selection_shortcut::<Block>,
             ),
         );
         app.add_systems(
@@ -563,4 +561,35 @@ impl Plugin for BlockPlugin {
             ),
         );
     }
+}
+
+pub struct BlockEditorPlugin;
+
+impl Plugin for BlockEditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(SelectablePlugin::<Block>::new());
+        app.add_plugins(InspectorPlugin::<Block>::new());
+        app.add_observer(add_block_shape);
+        app.add_systems(
+            Update,
+            (
+                update_block_color.after(finish_hover),
+                delete_selection_shortcut::<Block>,
+            ),
+        );
+    }
+}
+
+fn add_block_shape(trigger: On<Add, Block>, blocks: Query<&Block>, mut commands: Commands) {
+    let block = blocks.get(trigger.entity).unwrap();
+    let shape = generate_block_shape(block.section());
+    let shape = ShapeBuilder::with(&shape)
+        .stroke(Stroke {
+            color: Color::from(GREEN),
+            options: StrokeOptions::default()
+                .with_line_width(BLOCK_WIDTH)
+                .with_line_cap(LineCap::Round),
+        })
+        .build();
+    commands.entity(trigger.entity).insert(shape);
 }
