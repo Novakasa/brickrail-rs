@@ -117,6 +117,20 @@ Responsibilities:
 - Inspector UI for modifying layout properties
 - Keyboard/mouse shortcuts for creating/deleting elements
 
+## Plugin Dependencies
+
+### Dependency Rules Between Tiers
+
+```
+Editor ──depends on──► Lifecycle
+Editor ──depends on──► Simulation State (for rendering control state)
+Sim Logic ──depends on──► Simulation State (reads state, emits events)
+Sim State ──depends on──► Lifecycle (entities must exist before state attaches)
+```
+
+No plugin tier depends "upward": lifecycle never depends on simulation or editor, simulation state never depends on simulation logic or editor.
+
+
 ## App Layer
 
 Both server and client need an app-level plugin that manages mode transitions and controls which plugins are active. This replaces the current `EditorState` which conflates editor and simulation concerns.
