@@ -185,7 +185,7 @@ pub struct HubReady;
 pub struct HubPrepared;
 
 #[derive(Component, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct BroadcasterHub;
+pub struct BroadcasterHub {}
 
 #[derive(Component, Debug)]
 pub struct ManualReady;
@@ -496,7 +496,7 @@ impl BLEHub {
                 {
                     let entity = entity_map.hubs[&hub.id];
                     if maybe_broadcaster.is_none() {
-                        commands.entity(entity).insert(BroadcasterHub);
+                        commands.entity(entity).insert(BroadcasterHub {});
                     } else {
                         commands.entity(entity).remove::<BroadcasterHub>();
                     }
@@ -657,7 +657,7 @@ fn spawn_hub(
             commands.entity(entity).insert(observer);
         }
         if event.broadcaster {
-            commands.entity(entity).insert(BroadcasterHub);
+            commands.entity(entity).insert(BroadcasterHub {});
         }
 
         if is_marked_downloaded_in_settings {
@@ -1476,7 +1476,7 @@ pub fn ensure_broadcaster_hub(
                 "Marking hub as broadcaster hub {:?}",
                 hub.name.as_ref().unwrap()
             );
-            commands.entity(entity).insert(BroadcasterHub);
+            commands.entity(entity).insert(BroadcasterHub {});
         }
     }
 }
@@ -1549,11 +1549,11 @@ mod tests {
     use super::*;
 
     #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-    struct EmptyStruct;
+    struct EmptyStruct {}
 
     #[test]
     fn test_serialization() {
-        let maybe_broadcaster = Some(EmptyStruct);
+        let maybe_broadcaster = Some(EmptyStruct {});
         let serialized = serde_json::to_string(&maybe_broadcaster).unwrap();
         let deserialized: Option<EmptyStruct> = serde_json::from_str(&serialized).unwrap();
         assert_eq!(maybe_broadcaster, deserialized);
