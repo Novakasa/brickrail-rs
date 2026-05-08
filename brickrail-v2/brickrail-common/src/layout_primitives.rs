@@ -393,6 +393,26 @@ pub enum TrainSpeed {
     Fast,
 }
 
+/// Whether a train's sensor is on the leading or trailing side relative to travel direction.
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Deserialize,
+)]
+pub enum Facing {
+    #[default]
+    Forward,
+    Backward,
+}
+
+impl Facing {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Facing::Forward => Facing::Backward,
+            Facing::Backward => Facing::Forward,
+        }
+    }
+}
+
 /// Numeric train identifier. Human-readable name is stored in `TrainData`.
 #[derive(
     Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,

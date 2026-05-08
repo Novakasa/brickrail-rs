@@ -4,5 +4,6 @@ pub mod layout;
 pub mod layout_primitives;
 pub mod lifecycle;
 pub mod marker;
+pub mod route;
 pub mod track;
 pub mod train;
