@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::lifecycle::LayoutType;
 use crate::track::Track;
 
 /// Serializable layout format. Handed from client to server when entering control mode.
@@ -8,6 +9,12 @@ use crate::track::Track;
 pub struct Layout {
     pub tracks: Vec<Track>,
 }
+
+/// Marker component for the server-side layout instance.
+#[derive(Component, Default)]
+pub struct ServerLayout;
+
+impl LayoutType for ServerLayout {}
 
 /// Command: enter control mode with a serialized layout.
 #[derive(Message, Clone)]

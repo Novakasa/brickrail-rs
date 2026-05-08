@@ -33,7 +33,7 @@ fn enter_control_mode_spawns_layout() {
     app.update();
 
     // All tracks should be spawned and registered
-    let registry = app.world().resource::<Registry<Track>>();
+    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
     assert_eq!(registry.len(), 3);
 
     // State transition via NextState takes effect next frame
@@ -60,7 +60,7 @@ fn exit_control_mode_cleans_up() {
     app.update();
 
     // Registry should be empty
-    let registry = app.world().resource::<Registry<Track>>();
+    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
     assert_eq!(registry.len(), 0);
 
     // State should be back to Idle (may need another update for state transition)
@@ -76,16 +76,28 @@ fn round_trip_enter_exit_enter() {
 
     // First enter
     app.world_mut()
-        .write_message(EnterControlMode { layout: layout.clone() });
+        .write_message(EnterControlMode {
+            layout: layout.clone(),
+        });
     app.update();
-    assert_eq!(app.world().resource::<Registry<Track>>().len(), 3);
+    assert_eq!(
+        app.world()
+            .resource::<Registry<Track, ServerLayout>>()
+            .len(),
+        3
+    );
 
     app.update();
 
     // Exit
     app.world_mut().write_message(ExitControlMode);
     app.update();
-    assert_eq!(app.world().resource::<Registry<Track>>().len(), 0);
+    assert_eq!(
+        app.world()
+            .resource::<Registry<Track, ServerLayout>>()
+            .len(),
+        0
+    );
 
     app.update();
 
@@ -93,5 +105,10 @@ fn round_trip_enter_exit_enter() {
     app.world_mut()
         .write_message(EnterControlMode { layout });
     app.update();
-    assert_eq!(app.world().resource::<Registry<Track>>().len(), 3);
+    assert_eq!(
+        app.world()
+            .resource::<Registry<Track, ServerLayout>>()
+            .len(),
+        3
+    );
 }
