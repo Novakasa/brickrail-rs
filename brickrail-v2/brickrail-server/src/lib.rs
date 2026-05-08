@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use brickrail_common::connection::Connection;
+use brickrail_common::connection::{Connection, ConnectionLifecyclePlugin};
 use brickrail_common::layout::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::track::Track;
@@ -51,6 +51,7 @@ impl Plugin for ServerPlugin {
         app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
         app.add_plugins(LifecyclePlugin::<Track, ServerLayout>::new());
         app.add_plugins(LifecyclePlugin::<Connection, ServerLayout>::new());
+        app.add_plugins(ConnectionLifecyclePlugin::<ServerLayout>::new());
         app.add_message::<EnterControlMode>();
         app.add_message::<ExitControlMode>();
         app.add_systems(

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use brickrail_common::layout::*;
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::connection::Connection;
+use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::track::Track;
 use brickrail_server::ServerPlugin;
 
@@ -49,6 +49,14 @@ fn enter_control_mode_spawns_layout() {
     let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
     assert_eq!(conn_registry.len(), 2);
 
+    // Connection graph should reflect the topology
+    let graph = app.world().resource::<ConnectionGraph<ServerLayout>>();
+    assert_eq!(graph.graph.node_count(), 3);
+    assert_eq!(graph.graph.edge_count(), 2);
+    // Middle track should have 2 connections
+    let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+    assert_eq!(graph.connections_from(t1).len(), 2);
+
     // State transition via NextState takes effect next frame
     app.update();
     let state = app.world().resource::<State<ServerState>>();
@@ -75,6 +83,8 @@ fn exit_control_mode_cleans_up() {
     assert_eq!(registry.len(), 0);
     let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
     assert_eq!(conn_registry.len(), 0);
+    let graph = app.world().resource::<ConnectionGraph<ServerLayout>>();
+    assert_eq!(graph.graph.edge_count(), 0);
 
     // State should be back to Idle
     app.update();
