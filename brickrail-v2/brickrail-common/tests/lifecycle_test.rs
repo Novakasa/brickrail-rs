@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use brickrail_common::layout::ServerLayout;
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::track::Track;
+use brickrail_common::track::{Track, TrackData};
 
 fn make_app() -> App {
     let mut app = App::new();
@@ -17,10 +17,12 @@ fn spawn_track_via_message() {
     let mut app = make_app();
 
     let track_id = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
-    let track = Track::new(track_id);
 
     app.world_mut()
-        .write_message(SpawnElement::<Track, ServerLayout>::new(track));
+        .write_message(SpawnElement::<Track, ServerLayout>::new(
+            track_id,
+            TrackData,
+        ));
     app.update();
 
     // Entity should be registered
@@ -28,12 +30,12 @@ fn spawn_track_via_message() {
     assert_eq!(registry.len(), 1);
     let entity = registry.get(&track_id).expect("track should be in registry");
 
-    // Entity should have the Track component
-    let track_component = app
+    // Entity should have the ElementId component
+    let element_id = app
         .world()
-        .get::<Track>(entity)
-        .expect("entity should have Track");
-    assert_eq!(track_component.id, track_id);
+        .get::<ElementId<Track>>(entity)
+        .expect("entity should have ElementId<Track>");
+    assert_eq!(element_id.0, track_id);
 }
 
 #[test]
@@ -41,11 +43,13 @@ fn despawn_track_via_entity_event() {
     let mut app = make_app();
 
     let track_id = TrackID::new(CellID::new(1, 2, 0), Orientation::NS);
-    let track = Track::new(track_id);
 
     // Spawn
     app.world_mut()
-        .write_message(SpawnElement::<Track, ServerLayout>::new(track));
+        .write_message(SpawnElement::<Track, ServerLayout>::new(
+            track_id,
+            TrackData,
+        ));
     app.update();
 
     let entity = app
@@ -82,7 +86,7 @@ fn spawn_multiple_tracks() {
 
     for id in &ids {
         app.world_mut()
-            .write_message(SpawnElement::<Track, ServerLayout>::new(Track::new(*id)));
+            .write_message(SpawnElement::<Track, ServerLayout>::new(*id, TrackData));
     }
     app.update();
 

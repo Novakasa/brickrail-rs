@@ -16,9 +16,9 @@ fn make_app() -> App {
 fn test_layout() -> Layout {
     Layout {
         tracks: vec![
-            Track::new(TrackID::new(CellID::new(0, 0, 0), Orientation::EW)),
-            Track::new(TrackID::new(CellID::new(1, 0, 0), Orientation::EW)),
-            Track::new(TrackID::new(CellID::new(2, 0, 0), Orientation::NE)),
+            ElementEntry::new(TrackID::new(CellID::new(0, 0, 0), Orientation::EW), Default::default()),
+            ElementEntry::new(TrackID::new(CellID::new(1, 0, 0), Orientation::EW), Default::default()),
+            ElementEntry::new(TrackID::new(CellID::new(2, 0, 0), Orientation::NE), Default::default()),
         ],
     }
 }
@@ -51,8 +51,6 @@ fn exit_control_mode_cleans_up() {
     app.world_mut()
         .write_message(EnterControlMode { layout });
     app.update();
-
-    // State transition happens next frame
     app.update();
 
     // Exit
@@ -63,7 +61,7 @@ fn exit_control_mode_cleans_up() {
     let registry = app.world().resource::<Registry<Track, ServerLayout>>();
     assert_eq!(registry.len(), 0);
 
-    // State should be back to Idle (may need another update for state transition)
+    // State should be back to Idle
     app.update();
     let state = app.world().resource::<State<ServerState>>();
     assert_eq!(*state.get(), ServerState::Idle);

@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::lifecycle::LayoutType;
+use crate::lifecycle::{ElementEntry, LayoutType};
 use crate::track::Track;
 
 /// Serializable layout format. Handed from client to server when entering control mode.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Layout {
-    pub tracks: Vec<Track>,
+    pub tracks: Vec<ElementEntry<Track>>,
 }
 
 /// Marker component for the server-side layout instance.

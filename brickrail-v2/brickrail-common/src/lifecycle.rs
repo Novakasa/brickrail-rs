@@ -6,16 +6,27 @@ use bevy::prelude::*;
 // --- Trait bounds ---
 
 /// Trait for types that participate in the layout lifecycle (spawn/register/despawn).
-pub trait LayoutElement: Component + Clone {
+/// Not a component itself — the lifecycle plugin wraps the ID and data in generic components.
+pub trait LayoutElement: Send + Sync + 'static {
     /// The ID type used to look up entities of this element type.
-    type ID: Send + Sync + Clone + Eq + std::hash::Hash + std::fmt::Debug + 'static;
+    type ID: Send + Sync + Copy + Eq + std::hash::Hash + std::fmt::Debug + 'static;
 
-    /// Extract the ID from this element's data.
-    fn id(&self) -> Self::ID;
+    /// The layout data for this element type. Wrapped in `ElementData<T>` on the entity.
+    type Data: Send + Sync + Clone + Default + std::fmt::Debug + 'static;
 }
 
 /// Marker trait for layout instance types (e.g. `ServerLayout`, `ClientLayout`).
 pub trait LayoutType: Component + Default {}
+
+// --- Generic wrapper components ---
+
+/// Component storing the typed ID for an element entity.
+#[derive(Component, Clone, Debug)]
+pub struct ElementId<T: LayoutElement>(pub T::ID);
+
+/// Component storing the layout data for an element entity.
+#[derive(Component, Clone, Debug, Deref, DerefMut)]
+pub struct ElementData<T: LayoutElement>(pub T::Data);
 
 // --- Non-generic relationships ---
 
@@ -106,21 +117,48 @@ pub struct RegistryEntity<T: LayoutElement, L: LayoutType> {
     _marker: PhantomData<(T, L)>,
 }
 
+// --- Serializable element entry ---
+
+/// Generic serializable entry pairing an element's ID with its layout data.
+/// Used in the `Layout` format and converts directly into `SpawnElement` messages.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "T::ID: serde::Serialize, T::Data: serde::Serialize",
+    deserialize = "T::ID: serde::Deserialize<'de>, T::Data: serde::Deserialize<'de>",
+))]
+pub struct ElementEntry<T: LayoutElement> {
+    pub id: T::ID,
+    #[serde(default)]
+    pub data: T::Data,
+}
+
+impl<T: LayoutElement> ElementEntry<T> {
+    pub fn new(id: T::ID, data: T::Data) -> Self {
+        Self { id, data }
+    }
+}
+
 // --- Typed messages ---
 
 /// Generic spawn message. Send one of these to spawn an element.
 #[derive(Message, Clone)]
 pub struct SpawnElement<T: LayoutElement, L: LayoutType> {
-    pub element: T,
+    pub id: T::ID,
+    pub data: T::Data,
     _marker: PhantomData<L>,
 }
 
 impl<T: LayoutElement, L: LayoutType> SpawnElement<T, L> {
-    pub fn new(element: T) -> Self {
+    pub fn new(id: T::ID, data: T::Data) -> Self {
         Self {
-            element,
+            id,
+            data,
             _marker: PhantomData,
         }
+    }
+
+    pub fn from_entry(entry: &ElementEntry<T>) -> Self {
+        Self::new(entry.id, entry.data.clone())
     }
 }
 
@@ -184,10 +222,13 @@ fn spawn_element<T: LayoutElement, L: LayoutType>(
     registry_entity: Res<RegistryEntity<T, L>>,
 ) {
     for msg in messages.read() {
-        let element = msg.element.clone();
-        let id = element.id();
+        let id = msg.id;
         let entity = commands
-            .spawn((element, RegisteredIn(registry_entity.entity)))
+            .spawn((
+                ElementId::<T>(id),
+                ElementData::<T>(msg.data.clone()),
+                RegisteredIn(registry_entity.entity),
+            ))
             .id();
         registry.insert(id, entity);
     }
@@ -195,13 +236,13 @@ fn spawn_element<T: LayoutElement, L: LayoutType>(
 
 fn on_despawn_element<T: LayoutElement, L: LayoutType>(
     trigger: On<DespawnElement>,
-    query: Query<&T>,
+    query: Query<&ElementId<T>>,
     mut registry: ResMut<Registry<T, L>>,
     mut commands: Commands,
 ) {
     let entity = trigger.event().entity;
-    if let Ok(element) = query.get(entity) {
-        registry.remove(&element.id());
+    if let Ok(element_id) = query.get(entity) {
+        registry.remove(&element_id.0);
         commands.entity(entity).despawn();
     }
 }

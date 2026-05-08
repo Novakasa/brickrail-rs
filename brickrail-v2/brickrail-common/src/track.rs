@@ -1,25 +1,17 @@
-use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::layout_primitives::TrackID;
 use crate::lifecycle::LayoutElement;
 
-/// Layout data component for a track segment.
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
-pub struct Track {
-    pub id: TrackID,
-}
+/// Marker type for the track element kind. Not a component itself.
+#[derive(Clone, Debug)]
+pub struct Track;
 
-impl Track {
-    pub fn new(id: TrackID) -> Self {
-        Self { id }
-    }
-}
+/// Layout data for a track segment. Currently empty — all identity is in the ID.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct TrackData;
 
 impl LayoutElement for Track {
     type ID = TrackID;
-
-    fn id(&self) -> TrackID {
-        self.id
-    }
+    type Data = TrackData;
 }

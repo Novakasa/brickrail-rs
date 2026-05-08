@@ -10,8 +10,8 @@ fn enter_control_mode(
     mut next_state: ResMut<NextState<ServerState>>,
 ) {
     for msg in messages.read() {
-        for track in &msg.layout.tracks {
-            spawn_tracks.write(SpawnElement::new(track.clone()));
+        for entry in &msg.layout.tracks {
+            spawn_tracks.write(SpawnElement::from_entry(entry));
         }
         next_state.set(ServerState::Running);
     }
