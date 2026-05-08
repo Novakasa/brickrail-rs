@@ -47,10 +47,22 @@ A train's relationship to a block has 4 states:
 3. **Entered** — entire train is within the block.
 4. **Leaving** — the train's leading end has crossed the far boundary, trailing end hasn't fully left.
 
-These states are defined in terms of the train body relative to the block, not the sensor. How the sensor detects these transitions depends on **facing**: whether the sensor is on the leading or trailing side of the train relative to travel direction.
+These states are defined in terms of the train body relative to the block, not the sensor.
 
-- **Facing forward** (sensor on leading side): the sensor crosses a boundary *before* the train body fully crosses it. Sensor detection directly signals the leading-end transitions.
-- **Facing backward** (sensor on trailing side): the sensor crosses a boundary *after* the train body has already started crossing. Sensor detection signals trailing-end transitions instead, so markers must be interpreted with a shift of -1 to infer leading-end events earlier.
+### Canonical Enter Marker
+
+Each block has two endpoint markers: **marker A** (on the first track of the section) and **marker B** (on the last track). The **canonical enter marker** — the marker whose detection signals the "entered" state transition — depends on both **travel direction** and **facing**:
+
+| Travel direction       | Facing   | Enter marker |
+|------------------------|----------|--------------|
+| Aligned with section   | Forward  | B (far end)  |
+| Aligned with section   | Backward | A (near end) |
+| Against section        | Forward  | A (near end) |
+| Against section        | Backward | B (far end)  |
+
+The logic: the "entered" marker is the one the sensor crosses when the train body has fully entered the block. A forward-facing sensor is on the leading side, so it crosses the far boundary first. A backward-facing sensor is on the trailing side, so it crosses the near boundary only after the body has already moved deep into the block.
+
+All other marker roles in a route leg are defined by their position **relative to** this canonical enter marker — not by a fixed index shift. Markers before the enter marker (in travel order) may signal "entering" or speed changes; markers after it may signal "leaving". If additional markers exist inside the block section (between A and B), they naturally fall into the correct role based on which side of the enter marker they sit on.
 
 ## Trains
 
@@ -62,7 +74,7 @@ A **train** is a physical or virtual train entity.
 
 ### Train Facing
 
-A train has a **facing** relative to its travel direction. Since trains typically have a sensor only at the front, a train going backwards needs to handle markers differently — it reacts to them later (the sensor is at the rear of the train body).
+A train has a **facing** relative to its travel direction — it determines whether the sensor is on the leading or trailing side of the train. Facing affects which marker serves as the canonical enter marker for a given block (see Canonical Enter Marker above).
 
 ## Routes
 
@@ -78,18 +90,15 @@ A route is composed of **route legs**. Each route leg has three stages:
 
 ### Marker Collection and Roles
 
-During route resolution, markers are collected from all three stages of each leg into an ordered list. Marker roles are assigned **relative to the "forward enter" marker** of the target block:
+During route resolution, markers are collected from all three stages of each leg into an ordered list. The **canonical enter marker** of the target block (determined by travel direction and facing, see above) anchors the role assignment.
 
-- **Forward-facing train**: roles assigned directly from the ordered marker list.
-- **Backward-facing train**: roles shifted by **-1** (react one marker earlier, because the sensor is at the rear of the train body).
+Markers in a route leg fall into three tiers, all defined relative to the canonical enter marker:
 
-Markers in a route leg fall into three tiers, all defined relative to the **"entered" marker** of the target block:
-
-1. **Primary**: the "entered" marker itself — anchors block state transitions.
-2. **Secondary**: markers with roles relative to the entered marker (e.g. triggering lock release, speed changes). Their positions are defined by offset from the primary marker.
+1. **Primary**: the canonical enter marker itself — anchors block state transitions.
+2. **Secondary**: markers with specific roles based on their position relative to the enter marker (e.g. triggering lock release, speed changes).
 3. **Tertiary**: all remaining markers — used only for visual progress interpolation.
 
-Marker roles are a **route leg concern**, not a property of the marker itself. The same physical marker can have different roles in different route legs — e.g. a marker in a shared travel section may be secondary in one leg (near the target block boundary) but tertiary in another (far from a different target).
+Marker roles are a **route leg concern**, not a property of the marker itself. The same physical marker can have different roles in different route legs — e.g. a marker in a shared travel section may be secondary in one leg (near the target block boundary) but tertiary in another (far from a different target). The same marker can even serve as the canonical enter marker for one route leg but be tertiary in another.
 
 ### Travel Section Markers
 
