@@ -6,12 +6,6 @@ use crate::layout_primitives::*;
 use crate::logical_graph::LogicalGraph;
 use crate::lifecycle::{LayoutType, Registry};
 
-/// A resolved route: an ordered sequence of route legs from one block to another.
-#[derive(Clone, Debug)]
-pub struct Route {
-    pub legs: Vec<RouteLeg>,
-}
-
 /// A resolved route leg with three stages and collected markers.
 #[derive(Clone, Debug)]
 pub struct RouteLeg {
@@ -133,7 +127,7 @@ pub fn build_route<L: LayoutType>(
     logical_graph: &LogicalGraph<L>,
     block_registry: &Registry<Block, L>,
     block_data_map: &HashMap<BlockID, BlockData>,
-) -> Option<Route> {
+) -> Option<Vec<RouteLeg>> {
     let start_data = block_data_map.get(&start.block)?;
     let target_data = block_data_map.get(&target.block)?;
 
@@ -253,7 +247,7 @@ fn split_path_into_legs(
     _target: LogicalBlockID,
     track_to_block: &HashMap<TrackID, BlockID>,
     block_data_map: &HashMap<BlockID, BlockData>,
-) -> Option<Route> {
+) -> Option<Vec<RouteLeg>> {
     let segments = split_path_into_segments(path, start.block, track_to_block)?;
     let mut legs = Vec::new();
     let mut current_start = start;
@@ -265,6 +259,6 @@ fn split_path_into_legs(
     if legs.is_empty() {
         return None;
     }
-    Some(Route { legs })
+    Some(legs)
 }
 

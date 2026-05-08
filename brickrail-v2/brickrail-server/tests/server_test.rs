@@ -293,12 +293,12 @@ fn build_route_between_two_blocks() {
         facing: Facing::Forward,
     };
 
-    let route = build_route(start, target, logical_graph, block_registry, &block_data_map)
+    let legs = build_route(start, target, logical_graph, block_registry, &block_data_map)
         .expect("should find a route");
 
-    assert_eq!(route.legs.len(), 1);
+    assert_eq!(legs.len(), 1);
 
-    let leg = &route.legs[0];
+    let leg = &legs[0];
     assert_eq!(leg.facing, Facing::Forward);
     assert_eq!(leg.start_block.block_id, block_a);
     assert_eq!(leg.target_block.block_id, block_b);
