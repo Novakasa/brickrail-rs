@@ -158,6 +158,94 @@ pub fn build_route<L: LayoutType>(
     split_path_into_legs(&path, start, target, &track_to_block, block_data_map)
 }
 
+/// A raw segment of the path between two consecutive blocks.
+/// Contains only what the path walk directly observes — no resolved block data.
+struct PathSegment {
+    /// Travel tracks between the two blocks (not belonging to either block).
+    travel: Vec<DirectedTrackID>,
+    /// The logical track that entered the target block (determines direction and facing).
+    target_entry: LogicalTrackID,
+    /// The target block ID.
+    target_block: BlockID,
+}
+
+/// Split a path of logical tracks into raw segments at block boundaries.
+fn split_path_into_segments(
+    path: &[LogicalTrackID],
+    start_block: BlockID,
+    track_to_block: &HashMap<TrackID, BlockID>,
+) -> Option<Vec<PathSegment>> {
+    if path.is_empty() {
+        return None;
+    }
+
+    let mut segments = Vec::new();
+    let mut current_block = start_block;
+    let mut travel = Vec::new();
+
+    for logical in path {
+        let track_id = logical.track();
+        let in_block = track_to_block.get(&track_id).copied();
+
+        match in_block {
+            Some(blk) if blk == current_block => {
+                // Still in the current block — skip
+            }
+            Some(blk) => {
+                segments.push(PathSegment {
+                    travel: std::mem::take(&mut travel),
+                    target_entry: *logical,
+                    target_block: blk,
+                });
+                current_block = blk;
+            }
+            None => {
+                travel.push(logical.directed);
+            }
+        }
+    }
+
+    if segments.is_empty() {
+        return None;
+    }
+
+    Some(segments)
+}
+
+/// Build a route leg from a path segment and the start logical block.
+/// Returns the leg and the logical block ID for the target (used as start of the next leg).
+fn build_leg(
+    start: LogicalBlockID,
+    segment: PathSegment,
+    block_data_map: &HashMap<BlockID, BlockData>,
+) -> Option<(RouteLeg, LogicalBlockID)> {
+    let start_data = block_data_map.get(&start.block)?;
+    let target_data = block_data_map.get(&segment.target_block)?;
+    let target_direction = block_direction_for(target_data, segment.target_entry.directed)?;
+
+    let target = LogicalBlockID {
+        block: segment.target_block,
+        direction: target_direction,
+        facing: segment.target_entry.facing,
+    };
+
+    let leg = RouteLeg {
+        facing: start.facing,
+        start_block: RouteLegBlock {
+            block_id: start.block,
+            section: oriented_section(start_data, start.direction),
+        },
+        travel: segment.travel,
+        target_block: RouteLegBlock {
+            block_id: target.block,
+            section: oriented_section(target_data, target_direction),
+        },
+        markers: Vec::new(), // TODO: marker collection
+    };
+
+    Some((leg, target))
+}
+
 /// Split a path of logical tracks into route legs at block boundaries.
 fn split_path_into_legs(
     path: &[LogicalTrackID],
@@ -166,73 +254,17 @@ fn split_path_into_legs(
     track_to_block: &HashMap<TrackID, BlockID>,
     block_data_map: &HashMap<BlockID, BlockData>,
 ) -> Option<Route> {
-    if path.is_empty() {
-        return None;
-    }
-
-    // Collect the sequence of (block_id, direction) visited, plus travel tracks between them.
-    // Start with the start block.
-    struct LegBuilder {
-        start_block: BlockID,
-        start_direction: BlockDirection,
-        travel: Vec<DirectedTrackID>,
-        facing: Facing,
-    }
-
+    let segments = split_path_into_segments(path, start.block, track_to_block)?;
     let mut legs = Vec::new();
-    let mut current = LegBuilder {
-        start_block: start.block,
-        start_direction: start.direction,
-        travel: Vec::new(),
-        facing: start.facing,
-    };
-
-    for logical in path {
-        let track_id = logical.track();
-        let in_block = track_to_block.get(&track_id).copied();
-
-        match in_block {
-            Some(blk) if blk == current.start_block => {
-                // Still in (or re-entering) the current start block — skip
-            }
-            Some(blk) => {
-                // Entered a new block — this is the target of the current leg
-                let block_data = block_data_map.get(&blk)?;
-                let direction = block_direction_for(block_data, logical.directed)?;
-
-                legs.push(RouteLeg {
-                    facing: current.facing,
-                    start_block: RouteLegBlock {
-                        block_id: current.start_block,
-                        section: oriented_section(
-                            block_data_map.get(&current.start_block)?,
-                            current.start_direction,
-                        ),
-                    },
-                    travel: std::mem::take(&mut current.travel),
-                    target_block: RouteLegBlock {
-                        block_id: blk,
-                        section: oriented_section(block_data, direction),
-                    },
-                    markers: Vec::new(), // TODO: marker collection
-                });
-
-                // This block becomes the start of the next leg
-                current.start_block = blk;
-                current.start_direction = direction;
-                current.facing = logical.facing;
-            }
-            None => {
-                // Travel section
-                current.travel.push(logical.directed);
-            }
-        }
+    let mut current_start = start;
+    for segment in segments {
+        let (leg, next_start) = build_leg(current_start, segment, block_data_map)?;
+        legs.push(leg);
+        current_start = next_start;
     }
-
     if legs.is_empty() {
         return None;
     }
-
     Some(Route { legs })
 }
 
