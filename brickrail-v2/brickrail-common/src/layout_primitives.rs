@@ -383,6 +383,34 @@ impl BlockID {
     }
 }
 
+/// Travel direction through a block relative to its stored section direction.
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
+)]
+pub enum BlockDirection {
+    /// Traveling in the same direction as the block's `Vec<DirectedTrackID>`.
+    Aligned,
+    /// Traveling opposite to the block's stored section direction.
+    Against,
+}
+
+impl BlockDirection {
+    pub fn opposite(&self) -> Self {
+        match self {
+            BlockDirection::Aligned => BlockDirection::Against,
+            BlockDirection::Against => BlockDirection::Aligned,
+        }
+    }
+}
+
+/// A block with travel direction and facing resolved. Used as input to pathfinding.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+pub struct LogicalBlockID {
+    pub block: BlockID,
+    pub direction: BlockDirection,
+    pub facing: Facing,
+}
+
 /// Discrete speed level for trains.
 #[derive(
     Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
@@ -410,6 +438,33 @@ impl Facing {
             Facing::Forward => Facing::Backward,
             Facing::Backward => Facing::Forward,
         }
+    }
+}
+
+/// A track with travel direction and train facing resolved.
+/// This is the node type for the logical graph used in pathfinding.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize)]
+pub struct LogicalTrackID {
+    pub directed: DirectedTrackID,
+    pub facing: Facing,
+}
+
+impl LogicalTrackID {
+    pub fn new(directed: DirectedTrackID, facing: Facing) -> Self {
+        Self { directed, facing }
+    }
+
+    /// Returns the same physical track with opposite direction and facing.
+    /// Represents the train flipping its motor direction.
+    pub fn reversed(&self) -> Self {
+        Self {
+            directed: self.directed.opposite(),
+            facing: self.facing.opposite(),
+        }
+    }
+
+    pub fn track(&self) -> TrackID {
+        self.directed.track
     }
 }
 
