@@ -1,14 +1,20 @@
 use bevy::prelude::*;
+use brickrail_common::block::Block;
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
 use brickrail_common::lifecycle::*;
+use brickrail_common::marker::Marker;
 use brickrail_common::track::Track;
+use brickrail_common::train::Train;
 
 /// Handles entering control mode: loads the layout by spawning elements.
 fn enter_control_mode(
     mut messages: MessageReader<EnterControlMode>,
     mut spawn_tracks: MessageWriter<SpawnElement<Track, ServerLayout>>,
     mut spawn_connections: MessageWriter<SpawnElement<Connection, ServerLayout>>,
+    mut spawn_markers: MessageWriter<SpawnElement<Marker, ServerLayout>>,
+    mut spawn_blocks: MessageWriter<SpawnElement<Block, ServerLayout>>,
+    mut spawn_trains: MessageWriter<SpawnElement<Train, ServerLayout>>,
     mut next_state: ResMut<NextState<ServerState>>,
 ) {
     for msg in messages.read() {
@@ -17,6 +23,15 @@ fn enter_control_mode(
         }
         for entry in &msg.layout.connections {
             spawn_connections.write(SpawnElement::from_entry(entry));
+        }
+        for entry in &msg.layout.markers {
+            spawn_markers.write(SpawnElement::from_entry(entry));
+        }
+        for entry in &msg.layout.blocks {
+            spawn_blocks.write(SpawnElement::from_entry(entry));
+        }
+        for entry in &msg.layout.trains {
+            spawn_trains.write(SpawnElement::from_entry(entry));
         }
         next_state.set(ServerState::Running);
     }
@@ -51,6 +66,9 @@ impl Plugin for ServerPlugin {
         app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
         app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
         app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
+        app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
+        app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
+        app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
         app.add_message::<EnterControlMode>();
         app.add_message::<ExitControlMode>();
         app.add_systems(

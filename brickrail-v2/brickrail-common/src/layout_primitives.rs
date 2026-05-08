@@ -347,6 +347,59 @@ impl TrackConnectionID {
     }
 }
 
+/// Color of a physical marker tile. Used by the train's color sensor for
+/// detection and validation. `None` acts as a wildcard (any color matches).
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Deserialize,
+)]
+pub enum MarkerColor {
+    #[default]
+    None,
+    Red,
+    Yellow,
+    Green,
+    Blue,
+    Cyan,
+    White,
+    Black,
+}
+
+/// Identifies a block by the endpoint tracks of its section. Normalized: track_a <= track_b.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize)]
+pub struct BlockID {
+    pub track_a: TrackID,
+    pub track_b: TrackID,
+}
+
+impl BlockID {
+    /// Creates a normalized block ID (track_a <= track_b).
+    pub fn new(a: TrackID, b: TrackID) -> Self {
+        if a <= b {
+            Self { track_a: a, track_b: b }
+        } else {
+            Self { track_a: b, track_b: a }
+        }
+    }
+}
+
+/// Discrete speed level for trains.
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
+)]
+pub enum TrainSpeed {
+    Slow,
+    Cruise,
+    Fast,
+}
+
+/// Numeric train identifier. Human-readable name is stored in `TrainData`.
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Deserialize,
+)]
+pub struct TrainID(pub u32);
+
 #[cfg(test)]
 mod tests {
     use super::*;

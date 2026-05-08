@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::block::Block;
 use crate::connection::Connection;
 use crate::lifecycle::{ElementEntry, LayoutType};
+use crate::marker::Marker;
 use crate::track::Track;
+use crate::train::Train;
 
 /// Serializable layout format. Handed from client to server when entering control mode.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -12,6 +15,12 @@ pub struct Layout {
     /// All physical connections (both adjacent and portal).
     #[serde(default)]
     pub connections: Vec<ElementEntry<Connection>>,
+    #[serde(default)]
+    pub markers: Vec<ElementEntry<Marker>>,
+    #[serde(default)]
+    pub blocks: Vec<ElementEntry<Block>>,
+    #[serde(default)]
+    pub trains: Vec<ElementEntry<Train>>,
 }
 
 /// Marker component for the server-side layout instance.
