@@ -124,3 +124,33 @@ Locks are **not** released progressively as the train's rear clears each section
 3. Each leg resolves its three stages (start block, travel, target block).
 4. Markers are collected from each leg's tracks (via marker-track relationships).
 5. Marker roles are assigned based on the train's facing and travel direction.
+
+## Train Control Hierarchy
+
+Train behavior is driven by a layered abstraction, from low-level to high-level:
+
+### Route Legs
+
+The **route leg** is the atomic unit of train movement — one block-to-block traversal. A train is always assigned to a route leg. A stationary train has a single-block "idle" leg (no travel section, no target block — just occupying a block).
+
+### Routes
+
+A **route** is a mutable queue of route legs. The train executes legs in order, advancing to the next leg as it enters each target block. Routes are not immutable — upcoming legs can be removed or replaced while the train is in transit. Only the currently active leg (and any already-locked sections) are committed.
+
+### Destinations
+
+A **destination** is a target the train wants to reach. It can be:
+- A single block
+- A set of acceptable blocks (any one satisfies the destination)
+- Optionally constrained by target direction and/or facing
+
+A destination drives route computation: the system pathfinds from the train's current position to the destination and produces a route. If the current route becomes blocked (e.g. another train holds a lock), the system may recompute the route with different legs that reach the same destination via a free path. This is why routes are mutable queues — they serve the destination, not the other way around.
+
+### Strategies
+
+The highest level of control assigns **destinations** to trains over time. A **strategy** is a pluggable policy that produces destinations:
+- A **schedule strategy** assigns a fixed sequence of destinations (e.g. stop A → stop B → stop C → repeat).
+- A **random strategy** assigns arbitrary destinations periodically.
+- Other strategies can be added (e.g. demand-driven, priority-based).
+
+Strategies only produce destinations — they don't interact with routes or legs directly.
