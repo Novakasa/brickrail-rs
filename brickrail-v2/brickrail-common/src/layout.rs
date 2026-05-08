@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::connection::Connection;
 use crate::lifecycle::{ElementEntry, LayoutType};
 use crate::track::Track;
 
@@ -8,6 +9,9 @@ use crate::track::Track;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Layout {
     pub tracks: Vec<ElementEntry<Track>>,
+    /// All physical connections (both adjacent and portal).
+    #[serde(default)]
+    pub connections: Vec<ElementEntry<Connection>>,
 }
 
 /// Marker component for the server-side layout instance.

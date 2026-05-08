@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::track::Track;
@@ -7,11 +8,15 @@ use brickrail_common::track::Track;
 fn enter_control_mode(
     mut messages: MessageReader<EnterControlMode>,
     mut spawn_tracks: MessageWriter<SpawnElement<Track, ServerLayout>>,
+    mut spawn_connections: MessageWriter<SpawnElement<Connection, ServerLayout>>,
     mut next_state: ResMut<NextState<ServerState>>,
 ) {
     for msg in messages.read() {
         for entry in &msg.layout.tracks {
             spawn_tracks.write(SpawnElement::from_entry(entry));
+        }
+        for entry in &msg.layout.connections {
+            spawn_connections.write(SpawnElement::from_entry(entry));
         }
         next_state.set(ServerState::Running);
     }
@@ -45,6 +50,7 @@ impl Plugin for ServerPlugin {
         app.init_state::<ServerState>();
         app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
         app.add_plugins(LifecyclePlugin::<Track, ServerLayout>::new());
+        app.add_plugins(LifecyclePlugin::<Connection, ServerLayout>::new());
         app.add_message::<EnterControlMode>();
         app.add_message::<ExitControlMode>();
         app.add_systems(

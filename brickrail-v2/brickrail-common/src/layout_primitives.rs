@@ -269,7 +269,7 @@ impl<'de> Deserialize<'de> for TrackID {
 
 /// A track with a travel direction. The direction indicates which cardinal end
 /// the travel is heading toward (First = first cardinal of orientation, Last = second).
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -305,7 +305,7 @@ impl DirectedTrackID {
 /// Identifies a physical connection between two tracks at a shared cell edge.
 /// Both directed tracks point toward each other across the shared edge.
 /// Normalized: track_a < track_b to avoid duplicate connections.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
 pub struct TrackConnectionID {
     pub track_a: DirectedTrackID,
     pub track_b: DirectedTrackID,
@@ -330,6 +330,20 @@ impl TrackConnectionID {
         } else {
             None
         }
+    }
+
+    /// A connection is continuous (non-portal) if the two tracks are in adjacent cells
+    /// and both face the shared edge. Portal connections link tracks that aren't
+    /// spatially adjacent.
+    pub fn is_continuous(&self) -> bool {
+        let Some(cardinal) = self.track_a.track.cell.cardinal_to(&self.track_b.track.cell) else {
+            return false;
+        };
+        self.track_a.to_cardinal() == cardinal && self.track_b.to_cardinal() == cardinal.opposite()
+    }
+
+    pub fn is_portal(&self) -> bool {
+        !self.is_continuous()
     }
 }
 
@@ -377,5 +391,30 @@ mod tests {
         let conn_a = t1.get_connection_to(t2).unwrap();
         let conn_b = t2.get_connection_to(t1).unwrap();
         assert_eq!(conn_a, conn_b);
+    }
+
+    #[test]
+    fn adjacent_connection_is_continuous() {
+        let t1 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+        let t2 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+        let conn = t1.get_connection_to(t2).unwrap();
+        assert!(conn.is_continuous());
+        assert!(!conn.is_portal());
+    }
+
+    #[test]
+    fn portal_connection_is_not_continuous() {
+        // Manually construct a connection between non-adjacent tracks (a portal)
+        let t1 = DirectedTrackID::new(
+            TrackID::new(CellID::new(0, 0, 0), Orientation::EW),
+            TrackDirection::First,
+        );
+        let t2 = DirectedTrackID::new(
+            TrackID::new(CellID::new(5, 5, 0), Orientation::EW),
+            TrackDirection::Last,
+        );
+        let conn = TrackConnectionID::new(t1, t2);
+        assert!(!conn.is_continuous());
+        assert!(conn.is_portal());
     }
 }

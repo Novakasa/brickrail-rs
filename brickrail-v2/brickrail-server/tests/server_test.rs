@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use brickrail_common::layout::*;
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
+use brickrail_common::connection::Connection;
 use brickrail_common::track::Track;
 use brickrail_server::ServerPlugin;
 
@@ -14,11 +15,19 @@ fn make_app() -> App {
 }
 
 fn test_layout() -> Layout {
+    let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+    let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+    let t2 = TrackID::new(CellID::new(2, 0, 0), Orientation::EW);
+
     Layout {
         tracks: vec![
-            ElementEntry::new(TrackID::new(CellID::new(0, 0, 0), Orientation::EW), Default::default()),
-            ElementEntry::new(TrackID::new(CellID::new(1, 0, 0), Orientation::EW), Default::default()),
-            ElementEntry::new(TrackID::new(CellID::new(2, 0, 0), Orientation::NE), Default::default()),
+            ElementEntry::new(t0, Default::default()),
+            ElementEntry::new(t1, Default::default()),
+            ElementEntry::new(t2, Default::default()),
+        ],
+        connections: vec![
+            ElementEntry::new(t0.get_connection_to(t1).unwrap(), Default::default()),
+            ElementEntry::new(t1.get_connection_to(t2).unwrap(), Default::default()),
         ],
     }
 }
@@ -35,6 +44,10 @@ fn enter_control_mode_spawns_layout() {
     // All tracks should be spawned and registered
     let registry = app.world().resource::<Registry<Track, ServerLayout>>();
     assert_eq!(registry.len(), 3);
+
+    // Connections from layout should be spawned
+    let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
+    assert_eq!(conn_registry.len(), 2);
 
     // State transition via NextState takes effect next frame
     app.update();
@@ -57,9 +70,11 @@ fn exit_control_mode_cleans_up() {
     app.world_mut().write_message(ExitControlMode);
     app.update();
 
-    // Registry should be empty
+    // Registries should be empty
     let registry = app.world().resource::<Registry<Track, ServerLayout>>();
     assert_eq!(registry.len(), 0);
+    let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
+    assert_eq!(conn_registry.len(), 0);
 
     // State should be back to Idle
     app.update();
