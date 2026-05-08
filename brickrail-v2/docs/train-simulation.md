@@ -34,9 +34,11 @@ Blocks are the **lockable unit** of the simulation: they define which sections n
 - Which sections to lock ahead of the train
 - When to release locks behind the train (only after the train has **entered the target block**, not merely when it has "left" the source block — because travel sections between blocks are not guaranteed to be long enough to contain the train)
 
-### Passthrough Speed
+### Per-Direction Configuration
 
-A block can have a **passthrough speed** — a target speed that applies when a train passes through the block without intending to stop. During route resolution, if a block is not the train's destination, the passthrough speed is applied to the markers within that block's section. This allows modeling speed adjustments for track features — slowing down for curves, or speeding up to climb ramps.
+Blocks have configuration that varies by **travel direction** (aligned or against the section direction). This is stored as two `DirectedBlockConfig` values on the block data.
+
+Currently this includes **passthrough speed** — a target speed that applies when a train passes through the block without intending to stop. During route resolution, if a block is not the train's destination, the passthrough speed for the relevant travel direction is applied. This allows modeling speed adjustments for track features — slowing down for curves, or speeding up to climb ramps (where one direction needs fast and the other slow).
 
 ### Train-Block Position States
 

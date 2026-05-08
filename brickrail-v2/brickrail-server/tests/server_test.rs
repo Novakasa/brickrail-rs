@@ -46,7 +46,7 @@ fn test_layout() -> Layout {
                         t1.get_directed_to(Cardinal::E).unwrap(),
                         t2.get_directed_to(Cardinal::W).unwrap(),
                     ],
-                    passthrough_speed: None,
+                    ..Default::default()
                 },
             ),
         ],
