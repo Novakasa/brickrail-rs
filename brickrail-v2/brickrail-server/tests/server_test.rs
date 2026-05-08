@@ -4,6 +4,7 @@ use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::block::Block;
 use brickrail_common::connection::{Connection, ConnectionGraph};
+use brickrail_common::logical_graph::LogicalGraph;
 use brickrail_common::marker::Marker;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -98,6 +99,14 @@ fn enter_control_mode_spawns_layout() {
     // Train should be spawned
     let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
     assert_eq!(train_registry.len(), 1);
+
+    // Logical graph should be built (runs in Last schedule)
+    // 3 tracks × 2 directions × 2 facings = 12 logical track nodes
+    // But only nodes with edges are in the graph.
+    // 2 connections × 4 directed edges = 8 normal edges
+    // 1 block × 2 flip edges (bidirectional) = 4 flip edges
+    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    assert_eq!(logical_graph.graph.edge_count(), 12);
 
     // State transition via NextState takes effect next frame
     app.update();

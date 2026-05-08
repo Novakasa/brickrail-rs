@@ -3,6 +3,7 @@ use brickrail_common::block::Block;
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
 use brickrail_common::lifecycle::*;
+use brickrail_common::logical_graph::LogicalGraphPlugin;
 use brickrail_common::marker::Marker;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -69,6 +70,7 @@ impl Plugin for ServerPlugin {
         app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
         app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
         app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
+        app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
         app.add_message::<EnterControlMode>();
         app.add_message::<ExitControlMode>();
         app.add_systems(
