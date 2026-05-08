@@ -13,6 +13,11 @@ pub trait LayoutElement: Send + Sync + 'static {
 
     /// The layout data for this element type. Wrapped in `ElementData<T>` on the entity.
     type Data: Send + Sync + Clone + Default + std::fmt::Debug + 'static;
+
+    /// Register type-specific lifecycle plugins (structural side effects).
+    /// Called by `ElementPlugin` after the generic lifecycle plugin is added.
+    /// Default: no additional plugins.
+    fn build_lifecycle<L: LayoutType>(_app: &mut App) {}
 }
 
 /// Marker trait for layout instance types (e.g. `ServerLayout`, `ClientLayout`).
@@ -267,6 +272,31 @@ impl<T: LayoutElement, L: LayoutType> Plugin for LifecyclePlugin<T, L> {
             spawn_element::<T, L>.run_if(on_message::<SpawnElement<T, L>>),
         );
         app.add_observer(on_despawn_element::<T, L>);
+    }
+}
+
+// --- Element plugin (unified entry point) ---
+
+/// Unified plugin for a layout element type. Adds the generic lifecycle plugin
+/// and calls `T::build_lifecycle` for type-specific structural side effects.
+pub struct ElementPlugin<T: LayoutElement, L: LayoutType>(PhantomData<(T, L)>);
+
+impl<T: LayoutElement, L: LayoutType> Default for ElementPlugin<T, L> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<T: LayoutElement, L: LayoutType> ElementPlugin<T, L> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<T: LayoutElement, L: LayoutType> Plugin for ElementPlugin<T, L> {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(LifecyclePlugin::<T, L>::new());
+        T::build_lifecycle::<L>(app);
     }
 }
 

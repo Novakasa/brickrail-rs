@@ -18,6 +18,10 @@ pub struct ConnectionData;
 impl LayoutElement for Connection {
     type ID = TrackConnectionID;
     type Data = ConnectionData;
+
+    fn build_lifecycle<L: LayoutType>(app: &mut App) {
+        app.add_plugins(ConnectionGraphPlugin::<L>::new());
+    }
 }
 
 /// Undirected structural graph of track connections.
@@ -48,15 +52,15 @@ impl<L: LayoutType> ConnectionGraph<L> {
 
 /// Plugin that maintains the `ConnectionGraph` resource, updating it
 /// reactively as connection entities are added or removed.
-pub struct ConnectionLifecyclePlugin<L: LayoutType>(PhantomData<L>);
+pub struct ConnectionGraphPlugin<L: LayoutType>(PhantomData<L>);
 
-impl<L: LayoutType> Default for ConnectionLifecyclePlugin<L> {
+impl<L: LayoutType> Default for ConnectionGraphPlugin<L> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<L: LayoutType> ConnectionLifecyclePlugin<L> {
+impl<L: LayoutType> ConnectionGraphPlugin<L> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -84,7 +88,7 @@ fn on_connection_removed<L: LayoutType>(
     }
 }
 
-impl<L: LayoutType> Plugin for ConnectionLifecyclePlugin<L> {
+impl<L: LayoutType> Plugin for ConnectionGraphPlugin<L> {
     fn build(&self, app: &mut App) {
         app.init_resource::<ConnectionGraph<L>>();
         app.add_observer(on_connection_added::<L>);

@@ -8,7 +8,7 @@ fn make_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-    app.add_plugins(LifecyclePlugin::<Track, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
     app
 }
 
