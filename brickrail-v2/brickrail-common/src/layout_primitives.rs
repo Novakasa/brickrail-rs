@@ -17,6 +17,18 @@ impl CellID {
     pub fn new(x: i32, y: i32, l: i32) -> Self {
         Self { x, y, l }
     }
+
+    pub fn get_neighbor(&self, cardinal: Cardinal) -> Self {
+        Self {
+            x: self.x + cardinal.dx(),
+            y: self.y + cardinal.dy(),
+            l: self.l,
+        }
+    }
+
+    pub fn cardinal_to(&self, other: &Self) -> Option<Cardinal> {
+        Cardinal::from_deltas(other.x - self.x, other.y - self.y)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -34,6 +46,32 @@ impl Cardinal {
             Cardinal::S => Cardinal::N,
             Cardinal::E => Cardinal::W,
             Cardinal::W => Cardinal::E,
+        }
+    }
+
+    pub fn dx(&self) -> i32 {
+        match self {
+            Cardinal::E => 1,
+            Cardinal::W => -1,
+            _ => 0,
+        }
+    }
+
+    pub fn dy(&self) -> i32 {
+        match self {
+            Cardinal::N => 1,
+            Cardinal::S => -1,
+            _ => 0,
+        }
+    }
+
+    pub fn from_deltas(dx: i32, dy: i32) -> Option<Self> {
+        match (dx, dy) {
+            (0, 1) => Some(Cardinal::N),
+            (0, -1) => Some(Cardinal::S),
+            (1, 0) => Some(Cardinal::E),
+            (-1, 0) => Some(Cardinal::W),
+            _ => None,
         }
     }
 }
@@ -60,6 +98,18 @@ impl Orientation {
             Orientation::SW => (Cardinal::S, Cardinal::W),
             Orientation::EW => (Cardinal::E, Cardinal::W),
         }
+    }
+
+    /// Returns which direction (First/Last) faces the given cardinal, if any.
+    pub fn get_direction_to(&self, cardinal: Cardinal) -> Option<TrackDirection> {
+        let (card1, card2) = self.get_cardinals();
+        if cardinal == card1 {
+            return Some(TrackDirection::First);
+        }
+        if cardinal == card2 {
+            return Some(TrackDirection::Last);
+        }
+        None
     }
 
     pub fn get_name(&self) -> &'static str {
@@ -184,6 +234,26 @@ impl FromStr for TrackID {
     }
 }
 
+impl TrackID {
+    /// Returns this track directed toward the given cardinal, if the orientation faces it.
+    pub fn get_directed_to(&self, cardinal: Cardinal) -> Option<DirectedTrackID> {
+        Some(DirectedTrackID {
+            track: *self,
+            direction: self.orientation.get_direction_to(cardinal)?,
+        })
+    }
+
+    /// Returns the connection between this track and another, if they are in adjacent cells
+    /// and both have orientations facing the shared edge.
+    /// Both directed tracks in the result point toward each other across the shared edge.
+    pub fn get_connection_to(&self, other: TrackID) -> Option<TrackConnectionID> {
+        let cardinal = self.cell.cardinal_to(&other.cell)?;
+        let track_a = self.get_directed_to(cardinal)?;
+        let track_b = other.get_directed_to(cardinal.opposite())?;
+        Some(TrackConnectionID::new(track_a, track_b))
+    }
+}
+
 impl Serialize for TrackID {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.to_string())
@@ -197,6 +267,72 @@ impl<'de> Deserialize<'de> for TrackID {
     }
 }
 
+/// A track with a travel direction. The direction indicates which cardinal end
+/// the travel is heading toward (First = first cardinal of orientation, Last = second).
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect)]
+pub struct DirectedTrackID {
+    pub track: TrackID,
+    pub direction: TrackDirection,
+}
+
+impl DirectedTrackID {
+    pub fn new(track: TrackID, direction: TrackDirection) -> Self {
+        Self { track, direction }
+    }
+
+    /// The cardinal direction this directed track is heading toward.
+    pub fn to_cardinal(&self) -> Cardinal {
+        let (card1, card2) = self.track.orientation.get_cardinals();
+        match self.direction {
+            TrackDirection::First => card1,
+            TrackDirection::Last => card2,
+        }
+    }
+
+    /// The cardinal direction this directed track is coming from.
+    pub fn from_cardinal(&self) -> Cardinal {
+        self.to_cardinal().opposite()
+    }
+
+    pub fn opposite(&self) -> Self {
+        Self {
+            track: self.track,
+            direction: self.direction.opposite(),
+        }
+    }
+}
+
+/// Identifies a physical connection between two tracks at a shared cell edge.
+/// Both directed tracks point toward each other across the shared edge.
+/// Normalized: track_a < track_b to avoid duplicate connections.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect)]
+pub struct TrackConnectionID {
+    pub track_a: DirectedTrackID,
+    pub track_b: DirectedTrackID,
+}
+
+impl TrackConnectionID {
+    /// Creates a normalized connection ID (track_a <= track_b).
+    pub fn new(a: DirectedTrackID, b: DirectedTrackID) -> Self {
+        if a.track <= b.track {
+            Self { track_a: a, track_b: b }
+        } else {
+            Self { track_a: b, track_b: a }
+        }
+    }
+
+    /// Returns the other directed track in this connection.
+    pub fn other(&self, track: TrackID) -> Option<DirectedTrackID> {
+        if self.track_a.track == track {
+            Some(self.track_b)
+        } else if self.track_b.track == track {
+            Some(self.track_a)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,5 +341,41 @@ mod tests {
     fn track_id_round_trip() {
         let track = TrackID::new(CellID::new(33, 30, -53), Orientation::NE);
         assert_eq!(track, TrackID::from_name(&track.get_name()).unwrap());
+    }
+
+    #[test]
+    fn adjacent_tracks_connect() {
+        let t1 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+        let t2 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+        let conn = t1.get_connection_to(t2).expect("should connect");
+        // t1 points east (Last for EW), t2 points west (First for EW, but actually Last..?)
+        // EW cardinals are (E, W). t1 directed toward E = First direction.
+        // t2 directed toward W (opposite of E) = Last direction.
+        assert_eq!(conn.track_a.track, t1);
+        assert_eq!(conn.track_b.track, t2);
+    }
+
+    #[test]
+    fn non_adjacent_tracks_no_connection() {
+        let t1 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+        let t2 = TrackID::new(CellID::new(2, 0, 0), Orientation::EW);
+        assert!(t1.get_connection_to(t2).is_none());
+    }
+
+    #[test]
+    fn incompatible_orientation_no_connection() {
+        // NS track can't connect eastward
+        let t1 = TrackID::new(CellID::new(0, 0, 0), Orientation::NS);
+        let t2 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+        assert!(t1.get_connection_to(t2).is_none());
+    }
+
+    #[test]
+    fn connection_id_normalized() {
+        let t1 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+        let t2 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+        let conn_a = t1.get_connection_to(t2).unwrap();
+        let conn_b = t2.get_connection_to(t1).unwrap();
+        assert_eq!(conn_a, conn_b);
     }
 }
