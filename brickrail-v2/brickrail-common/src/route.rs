@@ -1,10 +1,10 @@
 use bevy::platform::collections::HashMap;
 use petgraph::algo::astar;
 
-use crate::block::{Block, BlockData};
+use crate::block::BlockData;
 use crate::layout_primitives::*;
 use crate::logical_graph::LogicalGraph;
-use crate::lifecycle::{LayoutType, Registry};
+use crate::lifecycle::LayoutType;
 use crate::marker::MarkerData;
 
 /// A resolved route leg with three stages and collected markers.
@@ -61,22 +61,6 @@ pub enum MarkerRole {
 
 // --- Route building ---
 
-/// Build a track-to-block lookup from block data.
-fn build_track_to_block(
-    block_registry: &Registry<Block, impl LayoutType>,
-    block_data: &HashMap<BlockID, BlockData>,
-) -> HashMap<TrackID, BlockID> {
-    let mut map = HashMap::new();
-    for (id, _) in block_registry.iter() {
-        if let Some(data) = block_data.get(id) {
-            for directed in &data.section {
-                map.insert(directed.track, *id);
-            }
-        }
-    }
-    map
-}
-
 /// Returns the enter logical track for a logical block.
 /// This is the canonical enter marker track with the given facing.
 fn enter_logical_track(data: &BlockData, direction: BlockDirection, facing: Facing) -> LogicalTrackID {
@@ -99,25 +83,48 @@ fn enter_logical_track(data: &BlockData, direction: BlockDirection, facing: Faci
     }
 }
 
-/// Determine the block direction for a given track traversal within a block.
-fn block_direction_for(data: &BlockData, directed: DirectedTrackID) -> Option<BlockDirection> {
-    // Check if this directed track matches the section direction (aligned)
-    if data.section.contains(&directed) {
-        return Some(BlockDirection::Aligned);
-    }
-    // Check if the opposite matches (against)
-    if data.section.contains(&directed.opposite()) {
-        return Some(BlockDirection::Against);
-    }
-    None
-}
-
 /// Returns the full block section in travel order for a given direction.
 fn oriented_section(data: &BlockData, direction: BlockDirection) -> Vec<DirectedTrackID> {
     match direction {
         BlockDirection::Aligned => data.section.clone(),
         BlockDirection::Against => data.section.iter().rev().map(|d| d.opposite()).collect(),
     }
+}
+
+/// Build a map from logical track → logical block for all canonical enter markers.
+fn build_enter_marker_map(
+    block_data_map: &HashMap<BlockID, BlockData>,
+) -> HashMap<LogicalTrackID, LogicalBlockID> {
+    let mut map = HashMap::new();
+    for (&block_id, data) in block_data_map {
+        for direction in [BlockDirection::Aligned, BlockDirection::Against] {
+            for facing in [Facing::Forward, Facing::Backward] {
+                let logical_track = enter_logical_track(data, direction, facing);
+                map.insert(logical_track, LogicalBlockID { block: block_id, direction, facing });
+            }
+        }
+    }
+    map
+}
+
+/// Split a path at enter marker boundaries, returning overlapping slices.
+/// Each slice runs from one enter marker to the next (inclusive on both ends).
+fn split_path_at_enter_markers<'a>(
+    path: &'a [LogicalTrackID],
+    enter_marker_map: &HashMap<LogicalTrackID, LogicalBlockID>,
+) -> Option<Vec<&'a [LogicalTrackID]>> {
+    let enter_indices: Vec<usize> = path.iter().enumerate()
+        .filter(|(_, lt)| enter_marker_map.contains_key(*lt))
+        .map(|(i, _)| i)
+        .collect();
+
+    if enter_indices.len() < 2 {
+        return None;
+    }
+
+    Some(enter_indices.windows(2)
+        .map(|w| &path[w[0]..=w[1]])
+        .collect())
 }
 
 /// Build a route from a start logical block to a target logical block.
@@ -127,7 +134,6 @@ pub fn build_route<L: LayoutType>(
     start: LogicalBlockID,
     target: LogicalBlockID,
     logical_graph: &LogicalGraph<L>,
-    block_registry: &Registry<Block, L>,
     block_data_map: &HashMap<BlockID, BlockData>,
     marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Option<Vec<RouteLeg>> {
@@ -146,89 +152,71 @@ pub fn build_route<L: LayoutType>(
         |_| 0u32,
     )?;
 
-    let track_to_block = build_track_to_block(block_registry, block_data_map);
+    let enter_marker_map = build_enter_marker_map(block_data_map);
+    let segments = split_path_at_enter_markers(&path, &enter_marker_map)?;
 
-    // Split path into legs.
-    // The path goes from the enter marker of the start block to the enter marker of the
-    // target block. We walk the path, identify which tracks belong to blocks vs travel,
-    // and split at block boundaries. Block sections come from block data, not from the path.
-    split_path_into_legs(&path, start, target, &track_to_block, block_data_map, marker_data_map)
+    segments.iter()
+        .map(|slice| build_leg(slice, &enter_marker_map, block_data_map, marker_data_map))
+        .collect()
 }
 
-/// A raw segment of the path between two consecutive blocks.
-/// Contains only what the path walk directly observes — no resolved block data.
-struct PathSegment {
-    /// Travel tracks between the two blocks (not belonging to either block).
-    travel: Vec<DirectedTrackID>,
-    /// The logical track that entered the target block (determines direction and facing).
-    target_entry: LogicalTrackID,
-    /// The target block ID.
-    target_block: BlockID,
+/// Build a route leg from a path slice (enter marker to enter marker).
+/// Resolves block sections, travel tracks, and markers.
+fn build_leg(
+    path_slice: &[LogicalTrackID],
+    enter_marker_map: &HashMap<LogicalTrackID, LogicalBlockID>,
+    block_data_map: &HashMap<BlockID, BlockData>,
+    marker_data_map: &HashMap<TrackID, MarkerData>,
+) -> Option<RouteLeg> {
+    let start = *enter_marker_map.get(path_slice.first()?)?;
+    let target = *enter_marker_map.get(path_slice.last()?)?;
+
+    let start_data = block_data_map.get(&start.block)?;
+    let target_data = block_data_map.get(&target.block)?;
+
+    let start_section = oriented_section(start_data, start.direction);
+    let target_section = oriented_section(target_data, target.direction);
+
+    // Travel tracks: everything in the slice that isn't in either block's section
+    let start_tracks: bevy::platform::collections::HashSet<TrackID> =
+        start_data.section.iter().map(|d| d.track).collect();
+    let target_tracks: bevy::platform::collections::HashSet<TrackID> =
+        target_data.section.iter().map(|d| d.track).collect();
+    let travel: Vec<DirectedTrackID> = path_slice.iter()
+        .filter(|lt| !start_tracks.contains(&lt.track()) && !target_tracks.contains(&lt.track()))
+        .map(|lt| lt.directed)
+        .collect();
+
+    let markers = collect_markers(path_slice, marker_data_map);
+
+    Some(RouteLeg {
+        facing: start.facing,
+        start_block: RouteLegBlock {
+            block_id: start.block,
+            section: start_section,
+        },
+        travel,
+        target_block: RouteLegBlock {
+            block_id: target.block,
+            section: target_section,
+        },
+        markers,
+    })
 }
 
-/// Split a path of logical tracks into raw segments at block boundaries.
-fn split_path_into_segments(
-    path: &[LogicalTrackID],
-    start_block: BlockID,
-    track_to_block: &HashMap<TrackID, BlockID>,
-) -> Option<Vec<PathSegment>> {
-    if path.is_empty() {
-        return None;
-    }
-
-    let mut segments = Vec::new();
-    let mut current_block = start_block;
-    let mut travel = Vec::new();
-
-    for logical in path {
-        let track_id = logical.track();
-        let in_block = track_to_block.get(&track_id).copied();
-
-        match in_block {
-            Some(blk) if blk == current_block => {
-                // Still in the current block — skip
-            }
-            Some(blk) => {
-                segments.push(PathSegment {
-                    travel: std::mem::take(&mut travel),
-                    target_entry: *logical,
-                    target_block: blk,
-                });
-                current_block = blk;
-            }
-            None => {
-                travel.push(logical.directed);
-            }
-        }
-    }
-
-    if segments.is_empty() {
-        return None;
-    }
-
-    Some(segments)
-}
-
-/// Collect markers from all tracks in a leg, assigning roles by position.
+/// Collect markers along the sensor's trajectory (the path slice), assigning roles by position.
 /// Roles: first marker = Exiting, last = Entered, marker before last = Entering.
 fn collect_markers(
-    start_section: &[DirectedTrackID],
-    travel: &[DirectedTrackID],
-    target_section: &[DirectedTrackID],
+    path_slice: &[LogicalTrackID],
     marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Vec<RouteLegMarker> {
-    let total_tracks = start_section.len() + travel.len() + target_section.len();
+    let total_tracks = path_slice.len();
 
-    let all_tracks = start_section.iter()
-        .chain(travel.iter())
-        .chain(target_section.iter());
-
-    // First pass: collect markers with positions, roles assigned after.
     let mut markers: Vec<(TrackID, MarkerColor, f32)> = Vec::new();
-    for (i, directed) in all_tracks.enumerate() {
-        if let Some(data) = marker_data_map.get(&directed.track) {
+    for (i, logical) in path_slice.iter().enumerate() {
+        if let Some(data) = marker_data_map.get(&logical.track()) {
             let position = i as f32 / (total_tracks - 1).max(1) as f32;
-            markers.push((directed.track, data.color, position));
+            markers.push((logical.track(), data.color, position));
         }
     }
 
@@ -242,73 +230,5 @@ fn collect_markers(
         };
         RouteLegMarker { track, color, role, position }
     }).collect()
-}
-
-/// Build a route leg from a path segment and the start logical block.
-/// Returns the leg and the logical block ID for the target (used as start of the next leg).
-fn build_leg(
-    start: LogicalBlockID,
-    segment: PathSegment,
-    block_data_map: &HashMap<BlockID, BlockData>,
-    marker_data_map: &HashMap<TrackID, MarkerData>,
-) -> Option<(RouteLeg, LogicalBlockID)> {
-    let start_data = block_data_map.get(&start.block)?;
-    let target_data = block_data_map.get(&segment.target_block)?;
-    let target_direction = block_direction_for(target_data, segment.target_entry.directed)?;
-
-    let target = LogicalBlockID {
-        block: segment.target_block,
-        direction: target_direction,
-        facing: segment.target_entry.facing,
-    };
-
-    let start_section = oriented_section(start_data, start.direction);
-    let target_section = oriented_section(target_data, target_direction);
-
-    let markers = collect_markers(
-        &start_section,
-        &segment.travel,
-        &target_section,
-        marker_data_map,
-    );
-
-    let leg = RouteLeg {
-        facing: start.facing,
-        start_block: RouteLegBlock {
-            block_id: start.block,
-            section: start_section,
-        },
-        travel: segment.travel,
-        target_block: RouteLegBlock {
-            block_id: target.block,
-            section: target_section,
-        },
-        markers,
-    };
-
-    Some((leg, target))
-}
-
-/// Split a path of logical tracks into route legs at block boundaries.
-fn split_path_into_legs(
-    path: &[LogicalTrackID],
-    start: LogicalBlockID,
-    _target: LogicalBlockID,
-    track_to_block: &HashMap<TrackID, BlockID>,
-    block_data_map: &HashMap<BlockID, BlockData>,
-    marker_data_map: &HashMap<TrackID, MarkerData>,
-) -> Option<Vec<RouteLeg>> {
-    let segments = split_path_into_segments(path, start.block, track_to_block)?;
-    let mut legs = Vec::new();
-    let mut current_start = start;
-    for segment in segments {
-        let (leg, next_start) = build_leg(current_start, segment, block_data_map, marker_data_map)?;
-        legs.push(leg);
-        current_start = next_start;
-    }
-    if legs.is_empty() {
-        return None;
-    }
-    Some(legs)
 }
 

@@ -82,17 +82,24 @@ A train has a **facing** relative to its travel direction — it determines whet
 
 A **route** describes a path a train takes from one block to another.
 
+### Sensor Trajectory and Train Body
+
+Pathfinding operates on the **sensor trajectory** — the path the train's sensor follows from one block's canonical enter marker to the next. This is the primary data for each route leg. Markers are collected along this trajectory, since the sensor is what detects them.
+
+However, the train has non-zero length — its body extends behind the sensor. A route leg therefore also stores the **full block sections** (start and target) from block data, even though the sensor may only traverse part of them. These sections are needed for **locking**: the entire block must be reserved to ensure the train body fits, not just the tracks the sensor crosses.
+
 ### Route Legs
 
-A route is composed of **route legs**. Each route leg has three stages:
+A route is composed of **route legs**. Each route leg stores:
 
-1. **Start block section** — the portion of the starting block the train traverses to exit.
-2. **Travel section** — the tracks between the start and target blocks.
-3. **Target block section** — the portion of the target block the train enters.
+1. **Start block section** — the full section of the starting block (for locking).
+2. **Travel section** — the tracks between the start and target blocks (from the sensor trajectory).
+3. **Target block section** — the full section of the target block (for locking).
+4. **Markers** — collected along the sensor trajectory, not from the full block sections.
 
 ### Marker Collection and Roles
 
-During route resolution, markers are collected from all three stages of each leg into an ordered list. Each leg has at most one marker of each role (or none if there aren't enough markers). The three marker roles align with the train-block states:
+Markers are collected along the sensor trajectory (enter marker to enter marker) and assigned roles by position. Each leg has at most one marker of each role (or none if there aren't enough markers). The three marker roles align with the train-block states:
 
 - **Exiting**: the first marker in the leg — the canonical enter marker of the start block. The train starts here and is exiting the start block.
 - **Entering**: the marker immediately before the Entered marker in travel order — signals the train's leading end is crossing into the target block area.
@@ -127,11 +134,11 @@ Locks are **not** released progressively as the train's rear clears each section
 
 ## Route Resolution
 
-1. A route is defined by pathfinding between specific markers (or blocks).
-2. The resulting path of tracks is split into **route legs** at block boundaries.
-3. Each leg resolves its three stages (start block, travel, target block).
-4. Markers are collected from each leg's tracks (via marker-track relationships).
-5. Marker roles are assigned based on the train's facing and travel direction.
+1. Pathfinding (A* on the logical graph) produces a path of logical tracks — the **sensor trajectory** from the start block's enter marker to the target block's enter marker.
+2. The path is split into **route legs** at canonical enter markers (using a logical track → logical block lookup).
+3. Each leg resolves its full block sections from block data (for locking) and extracts travel tracks from the path slice.
+4. Markers are collected along the sensor trajectory (the path slice, not the full block sections).
+5. Marker roles are assigned by position within the leg.
 
 ## Train Control Hierarchy
 
