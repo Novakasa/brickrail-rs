@@ -44,12 +44,12 @@ Currently this includes **passthrough speed** — a target speed that applies wh
 
 A train's relationship to a block has 4 states:
 
-1. **Not in block** — train is elsewhere.
+1. **Outside** — train is elsewhere.
 2. **Entering** — the train's leading end has crossed the boundary, trailing end hasn't fully entered.
 3. **Entered** — entire train is within the block.
-4. **Leaving** — the train's leading end has crossed the far boundary, trailing end hasn't fully left.
+4. **Exiting** — the train's leading end has crossed the far boundary, trailing end hasn't fully left.
 
-These states are defined in terms of the train body relative to the block, not the sensor.
+These states are defined in terms of the train body relative to the block, not the sensor. Note that the marker role names (Entering, Entered, Exited) are related but distinct — they name the *event* that a marker triggers, not the ongoing train-block state. The Entered marker fires at the moment the train transitions from Entering to Entered state. The Exited marker fires in the *next leg's* context, signaling that the train has left the previous block.
 
 ### Canonical Enter Marker
 
@@ -92,20 +92,28 @@ A route is composed of **route legs**. Each route leg has three stages:
 
 ### Marker Collection and Roles
 
-During route resolution, markers are collected from all three stages of each leg into an ordered list. The **canonical enter marker** of the target block (determined by travel direction and facing, see above) anchors the role assignment.
+During route resolution, markers are collected from all three stages of each leg into an ordered list. Each leg has at most one marker of each role (or none if there aren't enough markers). The three marker roles align with the train-block states:
 
-Markers in a route leg fall into three tiers, all defined relative to the canonical enter marker:
+- **Exiting**: the first marker in the leg — the canonical enter marker of the start block. The train starts here and is exiting the start block.
+- **Entering**: the marker immediately before the Entered marker in travel order — signals the train's leading end is crossing into the target block area.
+- **Entered**: the last marker in the leg — the canonical enter marker of the target block. Signals the train has fully entered the target block. Anchors lock release.
 
-1. **Primary**: the canonical enter marker itself — anchors block state transitions.
-2. **Secondary**: markers with specific roles based on their position relative to the enter marker (e.g. triggering lock release, speed changes).
-3. **Tertiary**: all remaining markers — used only for visual progress interpolation.
+A typical leg's marker sequence:
 
-Marker roles are a **route leg concern**, not a property of the marker itself. The same physical marker can have different roles in different route legs — e.g. a marker in a shared travel section may be secondary in one leg (near the target block boundary) but tertiary in another (far from a different target). The same marker can even serve as the canonical enter marker for one route leg but be tertiary in another.
+```
+[Exiting] → ...no role... → [Entering] → [Entered]
+```
+
+The same physical marker is **Entered** at the end of one leg and **Exiting** at the start of the next — its role depends on which leg it belongs to.
+
+All remaining markers (those between Exiting and Entering) have **no role**, corresponding to the **Outside** train-block state — the train is between blocks. These markers are used only for visual progress interpolation.
+
+Marker roles are a **route leg concern**, not a property of the marker itself. The same physical marker can have different roles in different route legs.
 
 ### Travel Section Markers
 
 - Travel sections can have **0 to many** markers.
-- If a travel section has no markers near a block boundary, the adjacent block's own boundary marker is used instead. This is a **conservative fallback** — the train will be in the "entering" and "leaving" states for longer, but correctness is preserved.
+- If a travel section has no markers near a block boundary, the adjacent block's boundary marker serves as the Exited or Entering marker instead. This is a **conservative fallback** — the train will be in transitional states for longer, but correctness is preserved.
 - Extra markers in travel sections (beyond the minimum needed) help with showing visual progress but don't change block state logic.
 
 ### Locking
@@ -115,7 +123,7 @@ When a train travels a route leg, it locks all three stages:
 - The **travel section**
 - The **target block section**
 
-Locks are **not** released progressively as the train's rear clears each section. Instead, a section is only unlocked once the train has **entered the target block**. This is because travel sections between blocks are not guaranteed to be long enough to contain the train — only blocks provide that guarantee. Once the train has entered the target block, the start block and travel section can be released together.
+Locks are **not** released progressively as the train's rear clears each section. Instead, a section is only unlocked once the train has **entered** the target block (i.e. the Entered marker fires). This is because travel sections between blocks are not guaranteed to be long enough to contain the train — only blocks provide that guarantee. Once the Entered marker fires, the start block and travel section can be released together.
 
 ## Route Resolution
 

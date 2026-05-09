@@ -5,6 +5,7 @@ use crate::block::{Block, BlockData};
 use crate::layout_primitives::*;
 use crate::logical_graph::LogicalGraph;
 use crate::lifecycle::{LayoutType, Registry};
+use crate::marker::MarkerData;
 
 /// A resolved route leg with three stages and collected markers.
 #[derive(Clone, Debug)]
@@ -46,15 +47,16 @@ pub struct RouteLegMarker {
 }
 
 /// The role a marker plays within a specific route leg.
-/// Markers without a role (`None`) are used only for visual progress interpolation.
+/// Roles align with train-block states. Markers without a role correspond
+/// to the Outside state and are used only for visual progress interpolation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MarkerRole {
-    /// The canonical enter marker — signals the train has entered the target block.
-    Enter,
-    /// Signals the train is leaving the start block.
-    Leaving,
-    /// Signals the train is entering the target block (but not yet fully entered).
+    /// First marker — the train is exiting the start block.
+    Exiting,
+    /// Marker before Entered — the train is entering the target block.
     Entering,
+    /// Last marker — the train has fully entered the target block. Triggers lock release.
+    Entered,
 }
 
 // --- Route building ---
@@ -127,6 +129,7 @@ pub fn build_route<L: LayoutType>(
     logical_graph: &LogicalGraph<L>,
     block_registry: &Registry<Block, L>,
     block_data_map: &HashMap<BlockID, BlockData>,
+    marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Option<Vec<RouteLeg>> {
     let start_data = block_data_map.get(&start.block)?;
     let target_data = block_data_map.get(&target.block)?;
@@ -149,7 +152,7 @@ pub fn build_route<L: LayoutType>(
     // The path goes from the enter marker of the start block to the enter marker of the
     // target block. We walk the path, identify which tracks belong to blocks vs travel,
     // and split at block boundaries. Block sections come from block data, not from the path.
-    split_path_into_legs(&path, start, target, &track_to_block, block_data_map)
+    split_path_into_legs(&path, start, target, &track_to_block, block_data_map, marker_data_map)
 }
 
 /// A raw segment of the path between two consecutive blocks.
@@ -206,12 +209,48 @@ fn split_path_into_segments(
     Some(segments)
 }
 
+/// Collect markers from all tracks in a leg, assigning roles by position.
+/// Roles: first marker = Exiting, last = Entered, marker before last = Entering.
+fn collect_markers(
+    start_section: &[DirectedTrackID],
+    travel: &[DirectedTrackID],
+    target_section: &[DirectedTrackID],
+    marker_data_map: &HashMap<TrackID, MarkerData>,
+) -> Vec<RouteLegMarker> {
+    let total_tracks = start_section.len() + travel.len() + target_section.len();
+
+    let all_tracks = start_section.iter()
+        .chain(travel.iter())
+        .chain(target_section.iter());
+
+    // First pass: collect markers with positions, roles assigned after.
+    let mut markers: Vec<(TrackID, MarkerColor, f32)> = Vec::new();
+    for (i, directed) in all_tracks.enumerate() {
+        if let Some(data) = marker_data_map.get(&directed.track) {
+            let position = i as f32 / (total_tracks - 1).max(1) as f32;
+            markers.push((directed.track, data.color, position));
+        }
+    }
+
+    let len = markers.len();
+    markers.into_iter().enumerate().map(|(idx, (track, color, position))| {
+        let role = match idx {
+            0 if len >= 2 => Some(MarkerRole::Exiting),
+            i if i == len - 1 && len >= 2 => Some(MarkerRole::Entered),
+            i if i == len - 2 && len >= 3 => Some(MarkerRole::Entering),
+            _ => None,
+        };
+        RouteLegMarker { track, color, role, position }
+    }).collect()
+}
+
 /// Build a route leg from a path segment and the start logical block.
 /// Returns the leg and the logical block ID for the target (used as start of the next leg).
 fn build_leg(
     start: LogicalBlockID,
     segment: PathSegment,
     block_data_map: &HashMap<BlockID, BlockData>,
+    marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Option<(RouteLeg, LogicalBlockID)> {
     let start_data = block_data_map.get(&start.block)?;
     let target_data = block_data_map.get(&segment.target_block)?;
@@ -223,18 +262,28 @@ fn build_leg(
         facing: segment.target_entry.facing,
     };
 
+    let start_section = oriented_section(start_data, start.direction);
+    let target_section = oriented_section(target_data, target_direction);
+
+    let markers = collect_markers(
+        &start_section,
+        &segment.travel,
+        &target_section,
+        marker_data_map,
+    );
+
     let leg = RouteLeg {
         facing: start.facing,
         start_block: RouteLegBlock {
             block_id: start.block,
-            section: oriented_section(start_data, start.direction),
+            section: start_section,
         },
         travel: segment.travel,
         target_block: RouteLegBlock {
             block_id: target.block,
-            section: oriented_section(target_data, target_direction),
+            section: target_section,
         },
-        markers: Vec::new(), // TODO: marker collection
+        markers,
     };
 
     Some((leg, target))
@@ -247,12 +296,13 @@ fn split_path_into_legs(
     _target: LogicalBlockID,
     track_to_block: &HashMap<TrackID, BlockID>,
     block_data_map: &HashMap<BlockID, BlockData>,
+    marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Option<Vec<RouteLeg>> {
     let segments = split_path_into_segments(path, start.block, track_to_block)?;
     let mut legs = Vec::new();
     let mut current_start = start;
     for segment in segments {
-        let (leg, next_start) = build_leg(current_start, segment, block_data_map)?;
+        let (leg, next_start) = build_leg(current_start, segment, block_data_map, marker_data_map)?;
         legs.push(leg);
         current_start = next_start;
     }

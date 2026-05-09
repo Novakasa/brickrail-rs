@@ -7,7 +7,7 @@ use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::block::BlockData;
 use brickrail_common::logical_graph::LogicalGraph;
 use brickrail_common::marker::Marker;
-use brickrail_common::route::build_route;
+use brickrail_common::route::{build_route, MarkerRole};
 use bevy::platform::collections::HashMap;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -276,8 +276,16 @@ fn build_route_between_two_blocks() {
     let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
     let mut block_data_map = HashMap::new();
     for (id, &entity) in block_registry.iter() {
-        let data = app.world().get::<ElementData<Block>>(entity).unwrap();
+        let data = app.world().get::<ElementData<Block>>(entity).unwrap(;
         block_data_map.insert(*id, data.0.clone());
+    }
+
+    // Build marker data map
+    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let mut marker_data_map = HashMap::new();
+    for (id, &entity) in marker_registry.iter() {
+        let data = app.world().get::<ElementData<Marker>>(entity).unwrap();
+        marker_data_map.insert(*id, data.0.clone());
     }
 
     let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
@@ -293,7 +301,7 @@ fn build_route_between_two_blocks() {
         facing: Facing::Forward,
     };
 
-    let legs = build_route(start, target, logical_graph, block_registry, &block_data_map)
+    let legs = build_route(start, target, logical_graph, block_registry, &block_data_map, &marker_data_map)
         .expect("should find a route");
 
     assert_eq!(legs.len(), 1);
@@ -316,4 +324,20 @@ fn build_route_between_two_blocks() {
     assert_eq!(leg.target_block.section.len(), 2);
     assert_eq!(leg.target_block.section[0].track, t3);
     assert_eq!(leg.target_block.section[1].track, t4);
+
+    // Markers: t0 (Exiting), t1 (no role), t3 (Entering), t4 (Entered)
+    // t2 has no marker in this layout
+    assert_eq!(leg.markers.len(), 4);
+    assert_eq!(leg.markers[0].track, t0);
+    assert_eq!(leg.markers[0].role, Some(MarkerRole::Exiting));
+    assert_eq!(leg.markers[1].track, t1);
+    assert_eq!(leg.markers[1].role, None);
+    assert_eq!(leg.markers[2].track, t3);
+    assert_eq!(leg.markers[2].role, Some(MarkerRole::Entering));
+    assert_eq!(leg.markers[3].track, t4);
+    assert_eq!(leg.markers[3].role, Some(MarkerRole::Entered));
+
+    // Positions should span 0.0 to 1.0
+    assert_eq!(leg.markers[0].position, 0.0);
+    assert_eq!(leg.markers[3].position, 1.0);
 }
