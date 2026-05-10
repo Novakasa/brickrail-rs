@@ -117,6 +117,18 @@ All remaining markers (those between Exiting and Entering) have **no role**, cor
 
 Marker roles are a **route leg concern**, not a property of the marker itself. The same physical marker can have different roles in different route legs.
 
+### Marker Speed
+
+Each marker in a route leg has a **baked-in speed** (`TrainSpeed`: `Slow | Cruise | Fast`) resolved at leg construction time. This is the target speed the train should travel at after passing this marker. The speed is determined by the marker's role:
+
+- **Exiting** — passthrough speed of the **start block** (for the relevant travel direction).
+- **Entering** / **Entered** — passthrough speed of the **target block** (for the relevant travel direction).
+- **No role** — `Cruise` (default speed for travel sections between blocks).
+
+Speeds are resolved once when the leg is built, not looked up dynamically at runtime. This keeps the leg self-contained — the driver (virtual or BLE) receives exactly the speeds it needs without consulting block metadata.
+
+When a train intends to stop at the current leg (i.e. no next leg is queued), the driver overrides the baked-in speeds: it slows down after the **Entering** marker and stops after the **Entered** marker, regardless of the speeds assigned to those markers. The baked-in speeds only apply during pass-through.
+
 ### Travel Section Markers
 
 - Travel sections can have **0 to many** markers.
@@ -183,3 +195,69 @@ The highest level of control assigns **destinations** to trains over time. A **s
 - Other strategies can be added (e.g. demand-driven, priority-based).
 
 Strategies only produce destinations — they don't interact with routes or legs directly.
+
+## Train Driver
+
+The **train driver** is the abstraction that bridges the simulation logic and the physical (or simulated) train. It receives leg data and autonomously executes it, reporting events back to the simulation state layer.
+
+### Why an Abstraction?
+
+The simulation state layer (`TrainPosition`, `TrainLegState`, `TrainMarkerHit`, `AdvanceLeg`) is hardware-agnostic — it reacts to events without knowing what produced them. The driver is what produces those events. A consistent interface means the simulation logic works identically whether trains are physical BLE devices or virtual simulations.
+
+### Interface
+
+**Simulation logic → Driver:**
+- Append a leg to the driver's queue (with marker data and facing)
+
+**Driver → Simulation state:**
+- `TrainMarkerHit` — the train passed a marker
+
+The driver does not report leg advancement — the simulation logic infers leg transitions from marker events (specifically, when the Entered marker is hit and a next leg exists). The BLE train may advance legs locally for latency reasons, but the server derives its own state independently from marker hits. A debug assertion can verify they stay in sync.
+
+### Driver Behavior
+
+The driver maintains a queue of legs. Each leg contains a sequence of markers with metadata (role, speed, color/position) and a facing direction. Its behavior is simple:
+
+1. Execute the current leg — advance through its markers in order.
+2. Marker metadata determines speed behavior — e.g. slow down at Entering, stop at Entered.
+3. When the current leg is complete (all markers passed):
+   - **If another leg is queued** → advance to it immediately (pass through).
+   - **If no next leg** → stop.
+4. Report each marker hit back to the simulation.
+
+The driver's leg data is a thin subset of a `RouteLeg` — just markers and facing. It doesn't include block sections, block IDs, or locking information. Those stay in the simulation layer.
+
+This means the simulation logic controls when the train can proceed by controlling when it sends legs. In practice, the logic only sends a leg once the required locks are acquired. The driver doesn't know about locks — it just knows whether it has more legs to execute.
+
+### BLE Hardware Driver
+
+BLE trains run MicroPython and are semi-autonomous. Due to BLE latency (especially with many trains), the train must react to sensor detections locally without round-tripping to the control PC.
+
+The control PC downloads legs to the BLE train's queue. Each leg encodes:
+- Marker sequence (expected colors for sensor validation)
+- Marker roles (which markers trigger speed changes)
+- Facing/direction
+
+The BLE train's onboard logic handles:
+- Sensor reading and color matching
+- Speed control (accelerate, cruise, slow down, stop) based on marker roles
+- Autonomous leg advancement when the next leg is already queued
+- Stopping when no next leg is available
+
+The train reports events back to the control PC asynchronously:
+- Marker passed (with index)
+- Unexpected marker (color mismatch — safety event)
+
+Only legs with acquired locks are sent to the train. This replaces the previous design where all legs were sent and each had a dynamic `intent_stop` flag that could be toggled remotely. The new approach is simpler: if a leg is on the train, it's safe to traverse.
+
+### Virtual Driver
+
+The virtual driver simulates the same behavior without hardware. It uses the leg's marker positions and a simulated speed to advance through markers. Marker positions reflect actual layout distances so that simulated travel times are consistent across legs of different lengths.
+
+Each simulation tick:
+1. Advance the train's continuous position by `speed × delta_time`.
+2. If the position crosses the next marker's position, emit `TrainMarkerHit`.
+3. If the current leg is complete and a next leg exists, advance to it.
+4. If the current leg is complete and no next leg exists, stop.
+
+The virtual driver receives the same leg data as the BLE driver and produces the same events. The simulation logic doesn't distinguish between the two.
