@@ -1,12 +1,10 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 use petgraph::graphmap::DiGraphMap;
 
 use crate::block::Block;
 use crate::connection::ConnectionGraph;
 use crate::layout_primitives::*;
-use crate::lifecycle::{ElementData, LayoutType, Registry};
+use crate::lifecycle::{ElementData, Registry};
 
 /// Directed graph of logical tracks (DirectedTrackID + Facing).
 /// Used for pathfinding that respects facing constraints.
@@ -15,25 +13,15 @@ use crate::lifecycle::{ElementData, LayoutType, Registry};
 /// - **Normal edges**: physical connections, preserving facing (4 per physical connection).
 /// - **Flip edges**: at block enter markers, connecting a logical track to its reversed
 ///   variant (2 per block).
-#[derive(Resource)]
-pub struct LogicalGraph<L: LayoutType> {
+#[derive(Resource, Default)]
+pub struct LogicalGraph {
     pub graph: DiGraphMap<LogicalTrackID, ()>,
-    _marker: PhantomData<L>,
-}
-
-impl<L: LayoutType> Default for LogicalGraph<L> {
-    fn default() -> Self {
-        Self {
-            graph: DiGraphMap::new(),
-            _marker: PhantomData,
-        }
-    }
 }
 
 /// Rebuilds the logical graph from the connection graph and block data.
-pub fn build_logical_graph<L: LayoutType>(
-    conn_graph: &ConnectionGraph<L>,
-    block_registry: &Registry<Block, L>,
+pub fn build_logical_graph(
+    conn_graph: &ConnectionGraph,
+    block_registry: &Registry<Block>,
     block_data: &Query<&ElementData<Block>>,
 ) -> DiGraphMap<LogicalTrackID, ()> {
     let mut graph = DiGraphMap::new();
@@ -93,34 +81,22 @@ pub fn build_logical_graph<L: LayoutType>(
 }
 
 /// Plugin that maintains the `LogicalGraph` resource.
-pub struct LogicalGraphPlugin<L: LayoutType>(PhantomData<L>);
-
-impl<L: LayoutType> Default for LogicalGraphPlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> LogicalGraphPlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
+pub struct LogicalGraphPlugin;
 
 /// System that rebuilds the logical graph. Run after layout elements are spawned.
-fn rebuild_logical_graph<L: LayoutType>(
-    conn_graph: Res<ConnectionGraph<L>>,
-    block_registry: Res<Registry<Block, L>>,
+fn rebuild_logical_graph(
+    conn_graph: Res<ConnectionGraph>,
+    block_registry: Res<Registry<Block>>,
     block_data: Query<&ElementData<Block>>,
-    mut logical_graph: ResMut<LogicalGraph<L>>,
+    mut logical_graph: ResMut<LogicalGraph>,
 ) {
     logical_graph.graph = build_logical_graph(&conn_graph, &block_registry, &block_data);
 }
 
-impl<L: LayoutType> Plugin for LogicalGraphPlugin<L> {
+impl Plugin for LogicalGraphPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LogicalGraph<L>>();
+        app.init_resource::<LogicalGraph>();
         // Rebuild in Last schedule to ensure ConnectionGraph and blocks are up to date.
-        app.add_systems(Last, rebuild_logical_graph::<L>);
+        app.add_systems(Last, rebuild_logical_graph);
     }
 }

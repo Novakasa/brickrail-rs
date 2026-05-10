@@ -1,32 +1,17 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 
-use crate::lifecycle::LayoutType;
 use crate::route::RouteStatePlugin;
 use crate::train_position::TrainPositionStatePlugin;
 
 /// Top-level simulation state plugin. Both server and client include this.
 /// Internally adds domain-specific sub-plugins for organizational purposes.
 /// The app adds this one plugin — never the sub-plugins directly.
-pub struct SimulationStatePlugin<L: LayoutType>(PhantomData<L>);
+pub struct SimulationStatePlugin;
 
-impl<L: LayoutType> Default for SimulationStatePlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> SimulationStatePlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl<L: LayoutType> Plugin for SimulationStatePlugin<L> {
+impl Plugin for SimulationStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(RouteStatePlugin::<L>::new());
-        app.add_plugins(TrainPositionStatePlugin::<L>::new());
-        // Future: app.add_plugins(LockStatePlugin::<L>::new());
+        app.add_plugins(RouteStatePlugin);
+        app.add_plugins(TrainPositionStatePlugin);
+        // Future: app.add_plugins(LockStatePlugin);
     }
 }

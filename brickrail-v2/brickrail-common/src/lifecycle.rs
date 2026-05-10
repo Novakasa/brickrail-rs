@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
@@ -17,11 +15,8 @@ pub trait LayoutElement: Send + Sync + 'static {
     /// Register type-specific lifecycle plugins (structural side effects).
     /// Called by `ElementPlugin` after the generic lifecycle plugin is added.
     /// Default: no additional plugins.
-    fn build_lifecycle<L: LayoutType>(_app: &mut App) {}
+    fn build_lifecycle(_app: &mut App) {}
 }
-
-/// Marker trait for layout instance types (e.g. `ServerLayout`, `ClientLayout`).
-pub trait LayoutType: Component + Default {}
 
 // --- Generic wrapper components ---
 
@@ -61,7 +56,7 @@ pub struct RegisteredEntities(Vec<Entity>);
 
 /// Entity event: trigger on an element entity to despawn it.
 /// Non-generic — any code can trigger this without knowing the element type.
-/// Each `LifecyclePlugin<T, L>` observes this and handles type-specific cleanup.
+/// Each `LifecyclePlugin<T>` observes this and handles type-specific cleanup.
 #[derive(EntityEvent)]
 pub struct DespawnElement {
     pub entity: Entity,
@@ -69,23 +64,21 @@ pub struct DespawnElement {
 
 // --- Typed registry resource ---
 
-/// Per-type, per-layout registry mapping element IDs to their ECS entities.
+/// Per-type registry mapping element IDs to their ECS entities.
 #[derive(Resource)]
-pub struct Registry<T: LayoutElement, L: LayoutType> {
+pub struct Registry<T: LayoutElement> {
     map: HashMap<T::ID, Entity>,
-    _marker: PhantomData<L>,
 }
 
-impl<T: LayoutElement, L: LayoutType> Default for Registry<T, L> {
+impl<T: LayoutElement> Default for Registry<T> {
     fn default() -> Self {
         Self {
             map: HashMap::new(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<T: LayoutElement, L: LayoutType> Registry<T, L> {
+impl<T: LayoutElement> Registry<T> {
     pub fn insert(&mut self, id: T::ID, entity: Entity) {
         self.map.insert(id, entity);
     }
@@ -115,11 +108,11 @@ impl<T: LayoutElement, L: LayoutType> Registry<T, L> {
     }
 }
 
-/// Resource storing the registry entity for a given (T, L) pair.
+/// Resource storing the registry entity for a given element type.
 #[derive(Resource)]
-pub struct RegistryEntity<T: LayoutElement, L: LayoutType> {
+pub struct RegistryEntity<T: LayoutElement> {
     pub entity: Entity,
-    _marker: PhantomData<(T, L)>,
+    _marker: std::marker::PhantomData<T>,
 }
 
 // --- Serializable element entry ---
@@ -147,19 +140,14 @@ impl<T: LayoutElement> ElementEntry<T> {
 
 /// Generic spawn message. Send one of these to spawn an element.
 #[derive(Message, Clone)]
-pub struct SpawnElement<T: LayoutElement, L: LayoutType> {
+pub struct SpawnElement<T: LayoutElement> {
     pub id: T::ID,
     pub data: T::Data,
-    _marker: PhantomData<L>,
 }
 
-impl<T: LayoutElement, L: LayoutType> SpawnElement<T, L> {
+impl<T: LayoutElement> SpawnElement<T> {
     pub fn new(id: T::ID, data: T::Data) -> Self {
-        Self {
-            id,
-            data,
-            _marker: PhantomData,
-        }
+        Self { id, data }
     }
 
     pub fn from_entry(entry: &ElementEntry<T>) -> Self {
@@ -169,62 +157,45 @@ impl<T: LayoutElement, L: LayoutType> SpawnElement<T, L> {
 
 // --- Layout instance plugin ---
 
-/// Plugin that creates a layout instance entity with the `L` marker component.
-/// Add this once per layout type (e.g. `LayoutInstancePlugin::<ServerLayout>`).
-pub struct LayoutInstancePlugin<L: LayoutType>(PhantomData<L>);
+/// Plugin that creates a layout instance entity.
+/// Add this once per app/SubApp that hosts layout elements.
+pub struct LayoutInstancePlugin;
 
-impl<L: LayoutType> Default for LayoutInstancePlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> LayoutInstancePlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-/// Resource storing the layout instance entity for a given layout type.
+/// Resource storing the layout instance entity.
 #[derive(Resource)]
-pub struct LayoutInstance<L: LayoutType> {
+pub struct LayoutInstance {
     pub entity: Entity,
-    _marker: PhantomData<L>,
 }
 
-impl<L: LayoutType> Plugin for LayoutInstancePlugin<L> {
+impl Plugin for LayoutInstancePlugin {
     fn build(&self, app: &mut App) {
-        let entity = app.world_mut().spawn(L::default()).id();
-        app.insert_resource(LayoutInstance::<L> {
-            entity,
-            _marker: PhantomData,
-        });
+        let entity = app.world_mut().spawn_empty().id();
+        app.insert_resource(LayoutInstance { entity });
     }
 }
 
 // --- Lifecycle plugin ---
 
-/// Generic lifecycle plugin. Handles spawn/register/despawn for any `LayoutElement` type
-/// within a specific layout type.
-pub struct LifecyclePlugin<T: LayoutElement, L: LayoutType>(PhantomData<(T, L)>);
+/// Generic lifecycle plugin. Handles spawn/register/despawn for any `LayoutElement` type.
+pub struct LifecyclePlugin<T: LayoutElement>(std::marker::PhantomData<T>);
 
-impl<T: LayoutElement, L: LayoutType> Default for LifecyclePlugin<T, L> {
+impl<T: LayoutElement> Default for LifecyclePlugin<T> {
     fn default() -> Self {
-        Self(PhantomData)
+        Self(std::marker::PhantomData)
     }
 }
 
-impl<T: LayoutElement, L: LayoutType> LifecyclePlugin<T, L> {
+impl<T: LayoutElement> LifecyclePlugin<T> {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-fn spawn_element<T: LayoutElement, L: LayoutType>(
+fn spawn_element<T: LayoutElement>(
     mut commands: Commands,
-    mut messages: MessageReader<SpawnElement<T, L>>,
-    mut registry: ResMut<Registry<T, L>>,
-    registry_entity: Res<RegistryEntity<T, L>>,
+    mut messages: MessageReader<SpawnElement<T>>,
+    mut registry: ResMut<Registry<T>>,
+    registry_entity: Res<RegistryEntity<T>>,
 ) {
     for msg in messages.read() {
         let id = msg.id;
@@ -239,10 +210,10 @@ fn spawn_element<T: LayoutElement, L: LayoutType>(
     }
 }
 
-fn on_despawn_element<T: LayoutElement, L: LayoutType>(
+fn on_despawn_element<T: LayoutElement>(
     trigger: On<DespawnElement>,
     query: Query<&ElementId<T>>,
-    mut registry: ResMut<Registry<T, L>>,
+    mut registry: ResMut<Registry<T>>,
     mut commands: Commands,
 ) {
     let entity = trigger.event().entity;
@@ -252,26 +223,26 @@ fn on_despawn_element<T: LayoutElement, L: LayoutType>(
     }
 }
 
-impl<T: LayoutElement, L: LayoutType> Plugin for LifecyclePlugin<T, L> {
+impl<T: LayoutElement> Plugin for LifecyclePlugin<T> {
     fn build(&self, app: &mut App) {
         // Create the per-type registry entity, linked to the layout instance
-        let layout_entity = app.world().resource::<LayoutInstance<L>>().entity;
+        let layout_entity = app.world().resource::<LayoutInstance>().entity;
         let registry_entity = app
             .world_mut()
             .spawn(RegistryOf(layout_entity))
             .id();
-        app.insert_resource(RegistryEntity::<T, L> {
+        app.insert_resource(RegistryEntity::<T> {
             entity: registry_entity,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         });
 
-        app.init_resource::<Registry<T, L>>();
-        app.add_message::<SpawnElement<T, L>>();
+        app.init_resource::<Registry<T>>();
+        app.add_message::<SpawnElement<T>>();
         app.add_systems(
             PostUpdate,
-            spawn_element::<T, L>.run_if(on_message::<SpawnElement<T, L>>),
+            spawn_element::<T>.run_if(on_message::<SpawnElement<T>>),
         );
-        app.add_observer(on_despawn_element::<T, L>);
+        app.add_observer(on_despawn_element::<T>);
     }
 }
 
@@ -279,24 +250,24 @@ impl<T: LayoutElement, L: LayoutType> Plugin for LifecyclePlugin<T, L> {
 
 /// Unified plugin for a layout element type. Adds the generic lifecycle plugin
 /// and calls `T::build_lifecycle` for type-specific structural side effects.
-pub struct ElementPlugin<T: LayoutElement, L: LayoutType>(PhantomData<(T, L)>);
+pub struct ElementPlugin<T: LayoutElement>(std::marker::PhantomData<T>);
 
-impl<T: LayoutElement, L: LayoutType> Default for ElementPlugin<T, L> {
+impl<T: LayoutElement> Default for ElementPlugin<T> {
     fn default() -> Self {
-        Self(PhantomData)
+        Self(std::marker::PhantomData)
     }
 }
 
-impl<T: LayoutElement, L: LayoutType> ElementPlugin<T, L> {
+impl<T: LayoutElement> ElementPlugin<T> {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl<T: LayoutElement, L: LayoutType> Plugin for ElementPlugin<T, L> {
+impl<T: LayoutElement> Plugin for ElementPlugin<T> {
     fn build(&self, app: &mut App) {
-        app.add_plugins(LifecyclePlugin::<T, L>::new());
-        T::build_lifecycle::<L>(app);
+        app.add_plugins(LifecyclePlugin::<T>::new());
+        T::build_lifecycle(app);
     }
 }
 

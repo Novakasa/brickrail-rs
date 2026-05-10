@@ -1,9 +1,7 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 
 use crate::layout_primitives::*;
-use crate::lifecycle::{LayoutType, Registry};
+use crate::lifecycle::Registry;
 use crate::route::{MarkerRole, RouteLeg, TrainLegs};
 use bevy::ecs::relationship::RelationshipTarget;
 use crate::train::Train;
@@ -50,21 +48,17 @@ pub struct TrainPosition {
     pub marker_index: usize,
 }
 
-/// State event: a train hit a marker. Increments marker_index and updates block_state
+/// State event: a train hit a marker. Increments marker_index and updates leg_state
 /// based on the role of the next marker in the current leg.
 /// No leg advancement — that's handled by `AdvanceLeg`.
 #[derive(Message, Clone)]
-pub struct TrainMarkerHit<L: LayoutType> {
+pub struct TrainMarkerHit {
     pub train: TrainID,
-    _marker: PhantomData<L>,
 }
 
-impl<L: LayoutType> TrainMarkerHit<L> {
+impl TrainMarkerHit {
     pub fn new(train: TrainID) -> Self {
-        Self {
-            train,
-            _marker: PhantomData,
-        }
+        Self { train }
     }
 }
 
@@ -74,55 +68,39 @@ impl<L: LayoutType> TrainMarkerHit<L> {
 /// a trailing idle leg when building a route.
 /// Despawns the old leg and resets marker_index to 0.
 #[derive(Message, Clone)]
-pub struct AdvanceLeg<L: LayoutType> {
+pub struct AdvanceLeg {
     pub train: TrainID,
-    _marker: PhantomData<L>,
 }
 
-impl<L: LayoutType> AdvanceLeg<L> {
+impl AdvanceLeg {
     pub fn new(train: TrainID) -> Self {
-        Self {
-            train,
-            _marker: PhantomData,
-        }
+        Self { train }
     }
 }
 
 /// Train position simulation state sub-plugin.
 /// Registers TrainMarkerHit and AdvanceLeg state events.
 /// TrainPosition creation is handled by AppendLegs in route.rs.
-pub struct TrainPositionStatePlugin<L: LayoutType>(PhantomData<L>);
+pub struct TrainPositionStatePlugin;
 
-impl<L: LayoutType> Default for TrainPositionStatePlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> TrainPositionStatePlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl<L: LayoutType> Plugin for TrainPositionStatePlugin<L> {
+impl Plugin for TrainPositionStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<TrainMarkerHit<L>>();
-        app.add_message::<AdvanceLeg<L>>();
+        app.add_message::<TrainMarkerHit>();
+        app.add_message::<AdvanceLeg>();
         app.add_systems(
             Update,
             (
-                handle_train_marker_hit::<L>.run_if(on_message::<TrainMarkerHit<L>>),
-                handle_advance_leg::<L>.run_if(on_message::<AdvanceLeg<L>>),
+                handle_train_marker_hit.run_if(on_message::<TrainMarkerHit>),
+                handle_advance_leg.run_if(on_message::<AdvanceLeg>),
             ),
         );
     }
 }
 
 /// Mutation system for TrainMarkerHit. Increments marker_index and updates leg_state.
-fn handle_train_marker_hit<L: LayoutType>(
-    mut messages: MessageReader<TrainMarkerHit<L>>,
-    train_registry: Res<Registry<Train, L>>,
+fn handle_train_marker_hit(
+    mut messages: MessageReader<TrainMarkerHit>,
+    train_registry: Res<Registry<Train>>,
     mut train_position_query: Query<&mut TrainPosition>,
     train_legs_query: Query<&TrainLegs>,
     leg_query: Query<&RouteLeg>,
@@ -154,10 +132,10 @@ fn handle_train_marker_hit<L: LayoutType>(
 
 /// Mutation system for AdvanceLeg. Despawns the current (first) leg, making the next leg current.
 /// Resets marker_index and sets leg_state from the new current leg's first marker.
-fn handle_advance_leg<L: LayoutType>(
+fn handle_advance_leg(
     mut commands: Commands,
-    mut messages: MessageReader<AdvanceLeg<L>>,
-    train_registry: Res<Registry<Train, L>>,
+    mut messages: MessageReader<AdvanceLeg>,
+    train_registry: Res<Registry<Train>>,
     mut train_position_query: Query<&mut TrainPosition>,
     train_legs_query: Query<&TrainLegs>,
     leg_query: Query<&RouteLeg>,

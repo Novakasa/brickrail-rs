@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::block::Block;
 use crate::connection::Connection;
-use crate::lifecycle::{ElementEntry, LayoutType};
+use crate::lifecycle::ElementEntry;
 use crate::marker::Marker;
 use crate::track::Track;
 use crate::train::Train;
@@ -22,12 +22,6 @@ pub struct Layout {
     #[serde(default)]
     pub trains: Vec<ElementEntry<Train>>,
 }
-
-/// Marker component for the server-side layout instance.
-#[derive(Component, Default)]
-pub struct ServerLayout;
-
-impl LayoutType for ServerLayout {}
 
 /// Command: enter control mode with a serialized layout.
 #[derive(Message, Clone)]

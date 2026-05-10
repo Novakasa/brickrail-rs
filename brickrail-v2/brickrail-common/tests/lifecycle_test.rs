@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use brickrail_common::layout::ServerLayout;
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::track::{Track, TrackData};
@@ -7,8 +6,8 @@ use brickrail_common::track::{Track, TrackData};
 fn make_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
+    app.add_plugins(LayoutInstancePlugin);
+    app.add_plugins(ElementPlugin::<Track>::new());
     app
 }
 
@@ -19,14 +18,14 @@ fn spawn_track_via_message() {
     let track_id = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
 
     app.world_mut()
-        .write_message(SpawnElement::<Track, ServerLayout>::new(
+        .write_message(SpawnElement::<Track>::new(
             track_id,
             TrackData,
         ));
     app.update();
 
     // Entity should be registered
-    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
+    let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 1);
     let entity = registry.get(&track_id).expect("track should be in registry");
 
@@ -46,7 +45,7 @@ fn despawn_track_via_entity_event() {
 
     // Spawn
     app.world_mut()
-        .write_message(SpawnElement::<Track, ServerLayout>::new(
+        .write_message(SpawnElement::<Track>::new(
             track_id,
             TrackData,
         ));
@@ -54,7 +53,7 @@ fn despawn_track_via_entity_event() {
 
     let entity = app
         .world()
-        .resource::<Registry<Track, ServerLayout>>()
+        .resource::<Registry<Track>>()
         .get(&track_id)
         .unwrap();
 
@@ -67,7 +66,7 @@ fn despawn_track_via_entity_event() {
     app.update();
 
     // Registry should be empty
-    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
+    let registry = app.world().resource::<Registry<Track>>();
     assert!(registry.is_empty());
 
     // Entity should be gone
@@ -86,11 +85,11 @@ fn spawn_multiple_tracks() {
 
     for id in &ids {
         app.world_mut()
-            .write_message(SpawnElement::<Track, ServerLayout>::new(*id, TrackData));
+            .write_message(SpawnElement::<Track>::new(*id, TrackData));
     }
     app.update();
 
-    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
+    let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 3);
 
     for id in &ids {

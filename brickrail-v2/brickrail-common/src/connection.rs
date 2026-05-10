@@ -1,10 +1,8 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 use petgraph::graphmap::UnGraphMap;
 
 use crate::layout_primitives::{TrackConnectionID, TrackID};
-use crate::lifecycle::{DespawnElement, ElementId, LayoutElement, LayoutType};
+use crate::lifecycle::{DespawnElement, ElementId, LayoutElement};
 
 /// Marker type for the connection element kind.
 #[derive(Clone, Debug)]
@@ -19,28 +17,18 @@ impl LayoutElement for Connection {
     type ID = TrackConnectionID;
     type Data = ConnectionData;
 
-    fn build_lifecycle<L: LayoutType>(app: &mut App) {
-        app.add_plugins(ConnectionGraphPlugin::<L>::new());
+    fn build_lifecycle(app: &mut App) {
+        app.add_plugins(ConnectionGraphPlugin);
     }
 }
 
 /// Undirected structural graph of track connections.
-#[derive(Resource)]
-pub struct ConnectionGraph<L: LayoutType> {
+#[derive(Resource, Default)]
+pub struct ConnectionGraph {
     pub graph: UnGraphMap<TrackID, TrackConnectionID>,
-    _marker: PhantomData<L>,
 }
 
-impl<L: LayoutType> Default for ConnectionGraph<L> {
-    fn default() -> Self {
-        Self {
-            graph: UnGraphMap::new(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<L: LayoutType> ConnectionGraph<L> {
+impl ConnectionGraph {
     /// Returns all connections from a given track.
     pub fn connections_from(&self, track: TrackID) -> Vec<TrackConnectionID> {
         self.graph
@@ -52,24 +40,12 @@ impl<L: LayoutType> ConnectionGraph<L> {
 
 /// Plugin that maintains the `ConnectionGraph` resource, updating it
 /// reactively as connection entities are added or removed.
-pub struct ConnectionGraphPlugin<L: LayoutType>(PhantomData<L>);
+pub struct ConnectionGraphPlugin;
 
-impl<L: LayoutType> Default for ConnectionGraphPlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> ConnectionGraphPlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-fn on_connection_added<L: LayoutType>(
+fn on_connection_added(
     trigger: On<Add, ElementId<Connection>>,
     query: Query<&ElementId<Connection>>,
-    mut graph: ResMut<ConnectionGraph<L>>,
+    mut graph: ResMut<ConnectionGraph>,
 ) {
     if let Ok(id) = query.get(trigger.event().entity) {
         let conn = id.0;
@@ -77,10 +53,10 @@ fn on_connection_added<L: LayoutType>(
     }
 }
 
-fn on_connection_removed<L: LayoutType>(
+fn on_connection_removed(
     trigger: On<DespawnElement>,
     query: Query<&ElementId<Connection>>,
-    mut graph: ResMut<ConnectionGraph<L>>,
+    mut graph: ResMut<ConnectionGraph>,
 ) {
     if let Ok(id) = query.get(trigger.event().entity) {
         let conn = id.0;
@@ -88,10 +64,10 @@ fn on_connection_removed<L: LayoutType>(
     }
 }
 
-impl<L: LayoutType> Plugin for ConnectionGraphPlugin<L> {
+impl Plugin for ConnectionGraphPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ConnectionGraph<L>>();
-        app.add_observer(on_connection_added::<L>);
-        app.add_observer(on_connection_removed::<L>);
+        app.init_resource::<ConnectionGraph>();
+        app.add_observer(on_connection_added);
+        app.add_observer(on_connection_removed);
     }
 }

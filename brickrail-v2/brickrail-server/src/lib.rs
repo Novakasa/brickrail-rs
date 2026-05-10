@@ -12,11 +12,11 @@ use brickrail_common::train::Train;
 /// Handles entering control mode: loads the layout by spawning elements.
 fn enter_control_mode(
     mut messages: MessageReader<EnterControlMode>,
-    mut spawn_tracks: MessageWriter<SpawnElement<Track, ServerLayout>>,
-    mut spawn_connections: MessageWriter<SpawnElement<Connection, ServerLayout>>,
-    mut spawn_markers: MessageWriter<SpawnElement<Marker, ServerLayout>>,
-    mut spawn_blocks: MessageWriter<SpawnElement<Block, ServerLayout>>,
-    mut spawn_trains: MessageWriter<SpawnElement<Train, ServerLayout>>,
+    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
+    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
+    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
+    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
+    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
     mut next_state: ResMut<NextState<ServerState>>,
 ) {
     for msg in messages.read() {
@@ -42,7 +42,7 @@ fn enter_control_mode(
 /// Handles exiting control mode: despawns all elements via relationship traversal.
 fn exit_control_mode(
     mut messages: MessageReader<ExitControlMode>,
-    layout_instance: Res<LayoutInstance<ServerLayout>>,
+    layout_instance: Res<LayoutInstance>,
     registries: Query<&RegisteredEntities>,
     layout_registries: Query<&Registries>,
     mut commands: Commands,
@@ -65,14 +65,14 @@ pub struct ServerPlugin;
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<ServerState>();
-        app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-        app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
-        app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
-        app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
-        app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
-        app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
-        app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
-        app.add_plugins(SimulationStatePlugin::<ServerLayout>::new());
+        app.add_plugins(LayoutInstancePlugin);
+        app.add_plugins(ElementPlugin::<Track>::new());
+        app.add_plugins(ElementPlugin::<Connection>::new());
+        app.add_plugins(ElementPlugin::<Marker>::new());
+        app.add_plugins(ElementPlugin::<Block>::new());
+        app.add_plugins(ElementPlugin::<Train>::new());
+        app.add_plugins(LogicalGraphPlugin);
+        app.add_plugins(SimulationStatePlugin);
         app.add_message::<EnterControlMode>();
         app.add_message::<ExitControlMode>();
         app.add_systems(

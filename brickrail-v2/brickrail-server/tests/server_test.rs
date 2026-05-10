@@ -33,8 +33,8 @@ fn make_app() -> App {
 fn tracks_only_app_works() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
+    app.add_plugins(LayoutInstancePlugin);
+    app.add_plugins(ElementPlugin::<Track>::new());
     app.update(); // should not panic
 }
 
@@ -42,13 +42,13 @@ fn tracks_only_app_works() {
 fn full_layout_without_simulation_works() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
-    app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
+    app.add_plugins(LayoutInstancePlugin);
+    app.add_plugins(ElementPlugin::<Track>::new());
+    app.add_plugins(ElementPlugin::<Connection>::new());
+    app.add_plugins(ElementPlugin::<Marker>::new());
+    app.add_plugins(ElementPlugin::<Block>::new());
+    app.add_plugins(ElementPlugin::<Train>::new());
+    app.add_plugins(LogicalGraphPlugin);
     app.update(); // should not panic — no SimulationStatePlugin needed
 }
 
@@ -56,14 +56,14 @@ fn full_layout_without_simulation_works() {
 fn simulation_state_without_logic_works() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
-    app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
-    app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
-    app.add_plugins(SimulationStatePlugin::<ServerLayout>::new());
+    app.add_plugins(LayoutInstancePlugin);
+    app.add_plugins(ElementPlugin::<Track>::new());
+    app.add_plugins(ElementPlugin::<Connection>::new());
+    app.add_plugins(ElementPlugin::<Marker>::new());
+    app.add_plugins(ElementPlugin::<Block>::new());
+    app.add_plugins(ElementPlugin::<Train>::new());
+    app.add_plugins(LogicalGraphPlugin);
+    app.add_plugins(SimulationStatePlugin);
     app.update(); // should not panic — no SimulationLogicPlugin needed
 }
 
@@ -71,7 +71,7 @@ fn simulation_state_without_logic_works() {
 fn build_route(
     start: LogicalBlockID,
     target: LogicalBlockID,
-    logical_graph: &LogicalGraph<ServerLayout>,
+    logical_graph: &LogicalGraph,
     block_data_map: &HashMap<BlockID, BlockData>,
     marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Option<Vec<RouteLeg>> {
@@ -140,15 +140,15 @@ fn enter_control_mode_spawns_layout() {
     app.update();
 
     // All tracks should be spawned and registered
-    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
+    let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 3);
 
     // Connections from layout should be spawned
-    let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
+    let conn_registry = app.world().resource::<Registry<Connection>>();
     assert_eq!(conn_registry.len(), 2);
 
     // Connection graph should reflect the topology
-    let graph = app.world().resource::<ConnectionGraph<ServerLayout>>();
+    let graph = app.world().resource::<ConnectionGraph>();
     assert_eq!(graph.graph.node_count(), 3);
     assert_eq!(graph.graph.edge_count(), 2);
     // Middle track should have 2 connections
@@ -156,11 +156,11 @@ fn enter_control_mode_spawns_layout() {
     assert_eq!(graph.connections_from(t1).len(), 2);
 
     // Markers should be spawned
-    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let marker_registry = app.world().resource::<Registry<Marker>>();
     assert_eq!(marker_registry.len(), 2);
 
     // Block should be spawned with correct data
-    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let block_registry = app.world().resource::<Registry<Block>>();
     assert_eq!(block_registry.len(), 1);
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t2 = TrackID::new(CellID::new(2, 0, 0), Orientation::EW);
@@ -170,7 +170,7 @@ fn enter_control_mode_spawns_layout() {
     assert_eq!(block_data.name, Some("Main".to_string()));
 
     // Train should be spawned
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     assert_eq!(train_registry.len(), 1);
 
     // Logical graph should be built (runs in Last schedule)
@@ -178,7 +178,7 @@ fn enter_control_mode_spawns_layout() {
     // But only nodes with edges are in the graph.
     // 2 connections × 4 directed edges = 8 normal edges
     // 1 block × 2 flip edges (bidirectional) = 4 flip edges
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
     assert_eq!(logical_graph.graph.edge_count(), 12);
 
     // State transition via NextState takes effect next frame
@@ -203,17 +203,17 @@ fn exit_control_mode_cleans_up() {
     app.update();
 
     // Registries should be empty
-    let registry = app.world().resource::<Registry<Track, ServerLayout>>();
+    let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 0);
-    let conn_registry = app.world().resource::<Registry<Connection, ServerLayout>>();
+    let conn_registry = app.world().resource::<Registry<Connection>>();
     assert_eq!(conn_registry.len(), 0);
-    let graph = app.world().resource::<ConnectionGraph<ServerLayout>>();
+    let graph = app.world().resource::<ConnectionGraph>();
     assert_eq!(graph.graph.edge_count(), 0);
-    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let marker_registry = app.world().resource::<Registry<Marker>>();
     assert_eq!(marker_registry.len(), 0);
-    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let block_registry = app.world().resource::<Registry<Block>>();
     assert_eq!(block_registry.len(), 0);
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     assert_eq!(train_registry.len(), 0);
 
     // State should be back to Idle
@@ -235,7 +235,7 @@ fn round_trip_enter_exit_enter() {
     app.update();
     assert_eq!(
         app.world()
-            .resource::<Registry<Track, ServerLayout>>()
+            .resource::<Registry<Track>>()
             .len(),
         3
     );
@@ -247,7 +247,7 @@ fn round_trip_enter_exit_enter() {
     app.update();
     assert_eq!(
         app.world()
-            .resource::<Registry<Track, ServerLayout>>()
+            .resource::<Registry<Track>>()
             .len(),
         0
     );
@@ -260,7 +260,7 @@ fn round_trip_enter_exit_enter() {
     app.update();
     assert_eq!(
         app.world()
-            .resource::<Registry<Track, ServerLayout>>()
+            .resource::<Registry<Track>>()
             .len(),
         3
     );
@@ -343,7 +343,7 @@ fn build_route_between_two_blocks() {
     let block_b = BlockID::new(t3, t4);
 
     // Build block data map
-    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let block_registry = app.world().resource::<Registry<Block>>();
     let mut block_data_map = HashMap::new();
     for (id, &entity) in block_registry.iter() {
         let data = app.world().get::<ElementData<Block>>(entity).unwrap();
@@ -351,14 +351,14 @@ fn build_route_between_two_blocks() {
     }
 
     // Build marker data map
-    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let marker_registry = app.world().resource::<Registry<Marker>>();
     let mut marker_data_map = HashMap::new();
     for (id, &entity) in marker_registry.iter() {
         let data = app.world().get::<ElementData<Marker>>(entity).unwrap();
         marker_data_map.insert(*id, data.0.clone());
     }
 
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
 
     let start = LogicalBlockID {
         block: block_a,
@@ -429,19 +429,19 @@ fn append_legs_spawns_leg_entities() {
     let block_b = BlockID::new(t3, t4);
 
     // Build legs externally (as strategy code would)
-    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let block_registry = app.world().resource::<Registry<Block>>();
     let mut block_data_map = HashMap::new();
     for (id, &entity) in block_registry.iter() {
         let data = app.world().get::<ElementData<Block>>(entity).unwrap();
         block_data_map.insert(*id, data.0.clone());
     }
-    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let marker_registry = app.world().resource::<Registry<Marker>>();
     let mut marker_data_map = HashMap::new();
     for (id, &entity) in marker_registry.iter() {
         let data = app.world().get::<ElementData<Marker>>(entity).unwrap();
         marker_data_map.insert(*id, data.0.clone());
     }
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
 
     let start = LogicalBlockID {
         block: block_a,
@@ -459,11 +459,11 @@ fn append_legs_spawns_leg_entities() {
 
     // Append the legs via state event message
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), legs));
+        .write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
 
     // Resolve train entity from registry for assertions
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
 
     // Query spawned leg entities
@@ -486,7 +486,7 @@ fn append_legs_spawns_leg_entities() {
 // --- Helper: extract data maps from ECS ---
 
 fn extract_block_data_map(app: &App) -> HashMap<BlockID, BlockData> {
-    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let block_registry = app.world().resource::<Registry<Block>>();
     let mut map = HashMap::new();
     for (id, &entity) in block_registry.iter() {
         let data = app.world().get::<ElementData<Block>>(entity).unwrap();
@@ -496,7 +496,7 @@ fn extract_block_data_map(app: &App) -> HashMap<BlockID, BlockData> {
 }
 
 fn extract_marker_data_map(app: &App) -> HashMap<TrackID, MarkerData> {
-    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let marker_registry = app.world().resource::<Registry<Marker>>();
     let mut map = HashMap::new();
     for (id, &entity) in marker_registry.iter() {
         let data = app.world().get::<ElementData<Marker>>(entity).unwrap();
@@ -539,11 +539,11 @@ fn append_idle_creates_position() {
 
     // Append the idle leg
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), vec![idle_leg]));
+        .write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
     app.update();
 
     // TrainPosition should now exist
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
     let position = app.world().get::<TrainPosition>(train_entity)
         .expect("TrainPosition should exist after first AppendLegs");
@@ -568,7 +568,7 @@ fn advance_off_idle_to_route() {
 
     let block_data_map = extract_block_data_map(&app);
     let marker_data_map = extract_marker_data_map(&app);
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
 
     // Build idle leg at block A
     let logical_a = LogicalBlockID {
@@ -592,22 +592,22 @@ fn advance_off_idle_to_route() {
 
     // Append idle, then route + trailing idle
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), vec![idle_leg]));
+        .write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
     app.update();
 
     let mut route_with_trailing = route_legs;
     route_with_trailing.push(trailing_idle);
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), route_with_trailing));
+        .write_message(AppendLegs::new(TrainID(0), route_with_trailing));
     app.update();
 
     // Advance off idle
     app.world_mut()
-        .write_message(AdvanceLeg::<ServerLayout>::new(TrainID(0)));
+        .write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // TrainPosition should point to the route leg, not idle
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
     let position = app.world().get::<TrainPosition>(train_entity).unwrap();
 
@@ -645,7 +645,7 @@ fn marker_hit_increments_and_updates_state() {
 
     let block_data_map = extract_block_data_map(&app);
     let marker_data_map = extract_marker_data_map(&app);
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
 
     let logical_a = LogicalBlockID {
         block: block_a,
@@ -664,25 +664,25 @@ fn marker_hit_increments_and_updates_state() {
     legs.push(RouteLeg::idle(logical_b, &block_data_map, &marker_data_map).unwrap());
 
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), vec![idle]));
+        .write_message(AppendLegs::new(TrainID(0), vec![idle]));
     app.update();
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), legs));
+        .write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
     app.world_mut()
-        .write_message(AdvanceLeg::<ServerLayout>::new(TrainID(0)));
+        .write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // Route leg has 3 markers: [0]=Exiting, [1]=Entering, [2]=Entered
     // Train starts at marker_index=0 (already past the Exiting marker).
     // Each TrainMarkerHit increments marker_index and reads the new marker's role.
 
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
 
     // First hit: marker_index 0→1, markers[1].role = Entering
     app.world_mut()
-        .write_message(TrainMarkerHit::<ServerLayout>::new(TrainID(0)));
+        .write_message(TrainMarkerHit::new(TrainID(0)));
     app.update();
     let position = app.world().get::<TrainPosition>(train_entity).unwrap();
     assert_eq!(position.marker_index, 1);
@@ -690,7 +690,7 @@ fn marker_hit_increments_and_updates_state() {
 
     // Second hit: marker_index 1→2, markers[2].role = Entered
     app.world_mut()
-        .write_message(TrainMarkerHit::<ServerLayout>::new(TrainID(0)));
+        .write_message(TrainMarkerHit::new(TrainID(0)));
     app.update();
     let position = app.world().get::<TrainPosition>(train_entity).unwrap();
     assert_eq!(position.marker_index, 2);
@@ -713,7 +713,7 @@ fn advance_leg_moves_to_next() {
 
     let block_data_map = extract_block_data_map(&app);
     let marker_data_map = extract_marker_data_map(&app);
-    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+    let logical_graph = app.world().resource::<LogicalGraph>();
 
     let logical_a = LogicalBlockID {
         block: block_a,
@@ -732,23 +732,23 @@ fn advance_leg_moves_to_next() {
     legs.push(RouteLeg::idle(logical_b, &block_data_map, &marker_data_map).unwrap());
 
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), vec![idle]));
+        .write_message(AppendLegs::new(TrainID(0), vec![idle]));
     app.update();
     app.world_mut()
-        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), legs));
+        .write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
 
     // Advance off idle → route leg
     app.world_mut()
-        .write_message(AdvanceLeg::<ServerLayout>::new(TrainID(0)));
+        .write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // Advance off route leg → trailing idle
     app.world_mut()
-        .write_message(AdvanceLeg::<ServerLayout>::new(TrainID(0)));
+        .write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
-    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_registry = app.world().resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
     let position = app.world().get::<TrainPosition>(train_entity).unwrap();
 

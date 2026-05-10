@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::block::BlockData;
 use crate::layout_primitives::*;
-use crate::lifecycle::{LayoutType, Registry};
+use crate::lifecycle::Registry;
 use crate::marker::MarkerData;
 use crate::train::Train;
 use crate::train_position::{TrainLegState, TrainPosition};
@@ -165,44 +163,27 @@ pub struct TrainLegs(Vec<Entity>);
 /// (if the train already has legs). Legs are spawned in traversal order.
 /// Uses TrainID (domain ID) — resolved to Entity via Registry at application time.
 #[derive(Message, Clone)]
-pub struct AppendLegs<L: LayoutType> {
+pub struct AppendLegs {
     pub train: TrainID,
     pub legs: Vec<RouteLeg>,
-    _marker: PhantomData<L>,
 }
 
-impl<L: LayoutType> AppendLegs<L> {
+impl AppendLegs {
     pub fn new(train: TrainID, legs: Vec<RouteLeg>) -> Self {
-        Self {
-            train,
-            legs,
-            _marker: PhantomData,
-        }
+        Self { train, legs }
     }
 }
 
 /// Route simulation state sub-plugin. Registers route state events and mutation systems.
 /// Added by SimulationStatePlugin — not directly by the app.
-pub struct RouteStatePlugin<L: LayoutType>(PhantomData<L>);
+pub struct RouteStatePlugin;
 
-impl<L: LayoutType> Default for RouteStatePlugin<L> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<L: LayoutType> RouteStatePlugin<L> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl<L: LayoutType> Plugin for RouteStatePlugin<L> {
+impl Plugin for RouteStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<AppendLegs<L>>();
+        app.add_message::<AppendLegs>();
         app.add_systems(
             Update,
-            handle_append_legs::<L>.run_if(on_message::<AppendLegs<L>>),
+            handle_append_legs.run_if(on_message::<AppendLegs>),
         );
     }
 }
@@ -210,13 +191,13 @@ impl<L: LayoutType> Plugin for RouteStatePlugin<L> {
 /// Mutation system for AppendLegs state events. Resolves TrainID → Entity via registry,
 /// validates leg continuity, spawns leg entities with train relationships,
 /// and creates TrainPosition on first-time placement.
-fn handle_append_legs<L: LayoutType>(
+fn handle_append_legs(
     mut commands: Commands,
-    mut messages: MessageReader<AppendLegs<L>>,
+    mut messages: MessageReader<AppendLegs>,
     leg_query: Query<&RouteLeg>,
     train_legs_query: Query<&TrainLegs>,
     train_position_query: Query<&TrainPosition>,
-    train_registry: Res<Registry<Train, L>>,
+    train_registry: Res<Registry<Train>>,
 ) {
     for msg in messages.read() {
         if msg.legs.is_empty() {
