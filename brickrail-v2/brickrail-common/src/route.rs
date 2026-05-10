@@ -8,6 +8,7 @@ use crate::layout_primitives::*;
 use crate::lifecycle::{LayoutType, Registry};
 use crate::marker::MarkerData;
 use crate::train::Train;
+use crate::train_position::{TrainLegState, TrainPosition};
 
 /// A resolved route leg with three stages and collected markers.
 #[derive(Component, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -49,15 +50,16 @@ pub struct RouteLegMarker {
 }
 
 /// The role a marker plays within a specific route leg.
-/// Roles align with train-block states. Markers without a role correspond
-/// to the Outside state and are used only for visual progress interpolation.
+/// Assigned by priority: Entered (always last), Entering (second-to-last),
+/// Exiting (first). Markers without a role mean the train is Outside
+/// and are used only for visual progress interpolation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MarkerRole {
-    /// First marker — the train is exiting the start block.
+    /// First marker (requires 3+ markers) — the train is exiting the start block.
     Exiting,
-    /// Marker before Entered — the train is entering the target block.
+    /// Second-to-last marker (requires 2+ markers) — the train is entering the target block.
     Entering,
-    /// Last marker — the train has fully entered the target block. Triggers lock release.
+    /// Last marker (always present) — the train has fully entered the target block.
     Entered,
 }
 
@@ -79,6 +81,25 @@ impl RouteLeg {
             .collect()
     }
 
+    /// Build an idle leg for a train sitting in a block.
+    /// Uses the regular `build` path with a single-element slice (the block's enter logical track).
+    /// Since first == last, start and target resolve to the same block.
+    pub fn idle(
+        logical_block: LogicalBlockID,
+        block_data_map: &HashMap<BlockID, BlockData>,
+        marker_data_map: &HashMap<TrackID, MarkerData>,
+    ) -> Option<RouteLeg> {
+        let data = block_data_map.get(&logical_block.block)?;
+        let enter_track = data.enter_logical_track(logical_block.direction, logical_block.facing);
+        let enter_marker_map = build_enter_marker_map(block_data_map);
+        Self::build(
+            &[enter_track],
+            &enter_marker_map,
+            block_data_map,
+            marker_data_map,
+        )
+    }
+
     /// Build a single leg from a path slice (enter marker to enter marker).
     /// Resolves block sections, travel tracks, and markers.
     fn build(
@@ -93,8 +114,8 @@ impl RouteLeg {
         let start_data = block_data_map.get(&start.block)?;
         let target_data = block_data_map.get(&target.block)?;
 
-        let start_section = oriented_section(start_data, start.direction);
-        let target_section = oriented_section(target_data, target.direction);
+        let start_section = start_data.directed_section(start.direction);
+        let target_section = target_data.directed_section(target.direction);
 
         // Travel tracks: everything in the slice that isn't in either block's section
         let start_tracks: bevy::platform::collections::HashSet<TrackID> =
@@ -187,12 +208,14 @@ impl<L: LayoutType> Plugin for RouteStatePlugin<L> {
 }
 
 /// Mutation system for AppendLegs state events. Resolves TrainID → Entity via registry,
-/// validates leg continuity, and spawns leg entities with train relationships.
+/// validates leg continuity, spawns leg entities with train relationships,
+/// and creates TrainPosition on first-time placement.
 fn handle_append_legs<L: LayoutType>(
     mut commands: Commands,
     mut messages: MessageReader<AppendLegs<L>>,
     leg_query: Query<&RouteLeg>,
     train_legs_query: Query<&TrainLegs>,
+    train_position_query: Query<&TrainPosition>,
     train_registry: Res<Registry<Train, L>>,
 ) {
     for msg in messages.read() {
@@ -206,7 +229,7 @@ fn handle_append_legs<L: LayoutType>(
 
         // Check compatibility with last existing leg
         if let Ok(existing_legs) = train_legs_query.get(train_entity) {
-            if let Some(&last_leg_entity) = existing_legs.0.last() {
+            if let Some(last_leg_entity) = existing_legs.iter().last() {
                 if let Ok(last_leg) = leg_query.get(last_leg_entity) {
                     let first_new = &msg.legs[0];
                     assert_eq!(
@@ -221,47 +244,24 @@ fn handle_append_legs<L: LayoutType>(
             }
         }
 
+        let mut spawned_entities = Vec::with_capacity(msg.legs.len());
         for leg in &msg.legs {
-            commands.spawn((leg.clone(), LegOf(train_entity)));
+            let id = commands.spawn((leg.clone(), LegOf(train_entity))).id();
+            spawned_entities.push(id);
+        }
+
+        // Create TrainPosition on first-time placement
+        if train_position_query.get(train_entity).is_err() {
+            let first_leg = &msg.legs[0];
+            commands.entity(train_entity).insert(TrainPosition {
+                leg_state: TrainLegState::from_marker_role(first_leg.markers[0].role),
+                marker_index: 0,
+            });
         }
     }
 }
 
 // --- Route building ---
-
-/// Returns the enter logical track for a logical block.
-/// This is the canonical enter marker track with the given facing.
-pub fn enter_logical_track(
-    data: &BlockData,
-    direction: BlockDirection,
-    facing: Facing,
-) -> LogicalTrackID {
-    // From the canonical enter marker table:
-    // Aligned + Forward → B (last), Aligned + Backward → A (first)
-    // Against + Forward → A (first, opposite dir), Against + Backward → B (last, opposite dir)
-    match (direction, facing) {
-        (BlockDirection::Aligned, Facing::Forward) => {
-            LogicalTrackID::new(*data.section.last().unwrap(), Facing::Forward)
-        }
-        (BlockDirection::Aligned, Facing::Backward) => {
-            LogicalTrackID::new(*data.section.first().unwrap(), Facing::Backward)
-        }
-        (BlockDirection::Against, Facing::Forward) => {
-            LogicalTrackID::new(data.section.first().unwrap().opposite(), Facing::Forward)
-        }
-        (BlockDirection::Against, Facing::Backward) => {
-            LogicalTrackID::new(data.section.last().unwrap().opposite(), Facing::Backward)
-        }
-    }
-}
-
-/// Returns the full block section in travel order for a given direction.
-fn oriented_section(data: &BlockData, direction: BlockDirection) -> Vec<DirectedTrackID> {
-    match direction {
-        BlockDirection::Aligned => data.section.clone(),
-        BlockDirection::Against => data.section.iter().rev().map(|d| d.opposite()).collect(),
-    }
-}
 
 /// Build a map from logical track → logical block for all canonical enter markers.
 fn build_enter_marker_map(
@@ -271,7 +271,7 @@ fn build_enter_marker_map(
     for (&block_id, data) in block_data_map {
         for direction in [BlockDirection::Aligned, BlockDirection::Against] {
             for facing in [Facing::Forward, Facing::Backward] {
-                let logical_track = enter_logical_track(data, direction, facing);
+                let logical_track = data.enter_logical_track(direction, facing);
                 map.insert(
                     logical_track,
                     LogicalBlockID {
@@ -311,8 +311,11 @@ fn split_path_at_enter_markers<'a>(
     )
 }
 
-/// Collect markers along the sensor's trajectory (the path slice), assigning roles by position.
-/// Roles: first marker = Exiting, last = Entered, marker before last = Entering.
+/// Collect markers along the sensor's trajectory (the path slice), assigning roles by priority:
+/// 1. Entered  — always the last marker (guaranteed present).
+/// 2. Entering — second-to-last marker, if at least 2 markers.
+/// 3. Exiting  — first marker, if at least 3 markers.
+/// 4. No role  — all remaining markers (train is Outside when passing them).
 fn collect_markers(
     path_slice: &[LogicalTrackID],
     marker_data_map: &HashMap<TrackID, MarkerData>,
@@ -332,11 +335,14 @@ fn collect_markers(
         .into_iter()
         .enumerate()
         .map(|(idx, (track, color, position))| {
-            let role = match idx {
-                0 if len >= 2 => Some(MarkerRole::Exiting),
-                i if i == len - 1 && len >= 2 => Some(MarkerRole::Entered),
-                i if i == len - 2 && len >= 3 => Some(MarkerRole::Entering),
-                _ => None,
+            let role = if idx == len - 1 {
+                Some(MarkerRole::Entered)
+            } else if len >= 2 && idx == len - 2 {
+                Some(MarkerRole::Entering)
+            } else if len >= 3 && idx == 0 {
+                Some(MarkerRole::Exiting)
+            } else {
+                None
             };
             RouteLegMarker {
                 track,

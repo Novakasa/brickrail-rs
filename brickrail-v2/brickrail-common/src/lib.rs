@@ -9,3 +9,4 @@ pub mod route;
 pub mod simulation;
 pub mod track;
 pub mod train;
+pub mod train_position;

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::lifecycle::LayoutType;
 use crate::route::RouteStatePlugin;
+use crate::train_position::TrainPositionStatePlugin;
 
 /// Top-level simulation state plugin. Both server and client include this.
 /// Internally adds domain-specific sub-plugins for organizational purposes.
@@ -25,7 +26,7 @@ impl<L: LayoutType> SimulationStatePlugin<L> {
 impl<L: LayoutType> Plugin for SimulationStatePlugin<L> {
     fn build(&self, app: &mut App) {
         app.add_plugins(RouteStatePlugin::<L>::new());
+        app.add_plugins(TrainPositionStatePlugin::<L>::new());
         // Future: app.add_plugins(LockStatePlugin::<L>::new());
-        // Future: app.add_plugins(TrainSimStatePlugin::<L>::new());
     }
 }
