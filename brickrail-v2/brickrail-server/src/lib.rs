@@ -73,6 +73,7 @@ impl Plugin for ServerPlugin {
         );
 
         sub_app.add_plugins(LayoutAppPlugin);
+        sub_app.add_plugins(brickrail_common::simulation::SimulationLogicPlugin);
         sub_app.add_plugins(StatesPlugin);
         sub_app.init_state::<ServerState>();
         sub_app.add_message::<EnterControlMode>();

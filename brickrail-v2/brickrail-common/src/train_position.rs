@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use crate::layout_primitives::*;
 use crate::lifecycle::Registry;
 use crate::route::{MarkerRole, RouteLeg, TrainLegs};
-use bevy::ecs::relationship::RelationshipTarget;
+use crate::simulation::SimulationSet;
 use crate::train::Train;
+use bevy::ecs::relationship::RelationshipTarget;
 
 /// The train's state within its current leg.
 /// Variants explicitly name which block (start or target) they reference.
@@ -92,7 +93,8 @@ impl Plugin for TrainPositionStatePlugin {
             (
                 handle_train_marker_hit.run_if(on_message::<TrainMarkerHit>),
                 handle_advance_leg.run_if(on_message::<AdvanceLeg>),
-            ),
+            )
+                .in_set(SimulationSet::StateMutation),
         );
     }
 }

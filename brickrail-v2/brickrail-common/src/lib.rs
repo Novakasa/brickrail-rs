@@ -1,5 +1,6 @@
 pub mod block;
 pub mod connection;
+pub mod driver;
 pub mod layout;
 pub mod layout_primitives;
 pub mod lifecycle;
@@ -10,3 +11,4 @@ pub mod simulation;
 pub mod track;
 pub mod train;
 pub mod train_position;
+pub mod virtual_driver;

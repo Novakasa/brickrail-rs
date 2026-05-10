@@ -5,6 +5,7 @@ use crate::block::BlockData;
 use crate::layout_primitives::*;
 use crate::lifecycle::Registry;
 use crate::marker::MarkerData;
+use crate::simulation::SimulationSet;
 use crate::train::Train;
 use crate::train_position::{TrainLegState, TrainPosition};
 
@@ -148,6 +149,13 @@ impl RouteLeg {
 
 // --- ECS relationships and messages ---
 
+/// Marker component: this leg has been locked (reserved for exclusive use).
+/// Adding `Locked` triggers dispatch to the driver via observer.
+/// For now, all new legs are locked immediately on spawn.
+/// Later, a separate locking system will decide which legs to lock.
+#[derive(Component)]
+pub struct Locked;
+
 /// Relationship: a route leg entity belongs to a train entity.
 #[derive(Component)]
 #[relationship(relationship_target = TrainLegs)]
@@ -183,7 +191,9 @@ impl Plugin for RouteStatePlugin {
         app.add_message::<AppendLegs>();
         app.add_systems(
             Update,
-            handle_append_legs.run_if(on_message::<AppendLegs>),
+            handle_append_legs
+                .run_if(on_message::<AppendLegs>)
+                .in_set(SimulationSet::StateMutation),
         );
     }
 }
@@ -227,7 +237,7 @@ fn handle_append_legs(
 
         let mut spawned_entities = Vec::with_capacity(msg.legs.len());
         for leg in &msg.legs {
-            let id = commands.spawn((leg.clone(), LegOf(train_entity))).id();
+            let id = commands.spawn((leg.clone(), LegOf(train_entity), Locked)).id();
             spawned_entities.push(id);
         }
 
