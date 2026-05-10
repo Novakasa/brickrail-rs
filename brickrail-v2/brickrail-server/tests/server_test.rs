@@ -418,9 +418,10 @@ fn build_route_between_two_blocks() {
     assert_eq!(leg.markers[2].track, t4);
     assert_eq!(leg.markers[2].role, Some(MarkerRole::Entered));
 
-    // Positions should span 0.0 to 1.0
+    // Positions are marker-count units (0, 1, 2, ...)
     assert_eq!(leg.markers[0].position, 0.0);
-    assert_eq!(leg.markers[2].position, 1.0);
+    assert_eq!(leg.markers[1].position, 1.0);
+    assert_eq!(leg.markers[2].position, 2.0);
 }
 
 #[test]

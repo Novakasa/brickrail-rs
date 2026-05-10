@@ -44,7 +44,8 @@ pub struct RouteLegMarker {
     /// The role of this marker in this route leg, if any.
     /// `None` means the marker is only used for visual progress interpolation.
     pub role: Option<MarkerRole>,
-    /// Normalized position within the leg (0.0 = start, 1.0 = end).
+    /// Position within the leg in marker-count units (0.0, 1.0, 2.0, ...).
+    /// A leg with N markers has positions 0 through N-1.
     pub position: f32,
 }
 
@@ -311,12 +312,10 @@ fn collect_markers(
     path_slice: &[LogicalTrackID],
     marker_data_map: &HashMap<TrackID, MarkerData>,
 ) -> Vec<RouteLegMarker> {
-    let total_tracks = path_slice.len();
-
     let mut markers: Vec<(TrackID, MarkerColor, f32)> = Vec::new();
-    for (i, logical) in path_slice.iter().enumerate() {
+    for logical in path_slice {
         if let Some(data) = marker_data_map.get(&logical.track()) {
-            let position = i as f32 / (total_tracks - 1).max(1) as f32;
+            let position = markers.len() as f32;
             markers.push((logical.track(), data.color, position));
         }
     }
