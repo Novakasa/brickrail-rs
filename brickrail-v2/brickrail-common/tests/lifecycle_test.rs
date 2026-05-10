@@ -6,7 +6,6 @@ use brickrail_common::track::{Track, TrackData};
 fn make_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    app.add_plugins(LayoutInstancePlugin);
     app.add_plugins(ElementPlugin::<Track>::new());
     app
 }

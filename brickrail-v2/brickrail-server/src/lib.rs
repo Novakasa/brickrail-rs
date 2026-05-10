@@ -1,11 +1,14 @@
+use bevy::app::{Main, MainSchedulePlugin, SubApp};
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
+use bevy::state::app::StatesPlugin;
 use brickrail_common::block::Block;
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
-use brickrail_common::lifecycle::*;
-use brickrail_common::logical_graph::LogicalGraphPlugin;
+use brickrail_common::lifecycle::{
+    despawn_all_elements, RegisteredEntities, SpawnElement,
+};
 use brickrail_common::marker::Marker;
-use brickrail_common::simulation::SimulationStatePlugin;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
 
@@ -39,48 +42,48 @@ fn enter_control_mode(
     }
 }
 
-/// Handles exiting control mode: despawns all elements via relationship traversal.
+/// Handles exiting control mode: despawns all elements.
 fn exit_control_mode(
     mut messages: MessageReader<ExitControlMode>,
-    layout_instance: Res<LayoutInstance>,
     registries: Query<&RegisteredEntities>,
-    layout_registries: Query<&Registries>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<ServerState>>,
 ) {
     for _msg in messages.read() {
-        despawn_all_in_layout(
-            layout_instance.entity,
-            &registries,
-            &layout_registries,
-            &mut commands,
-        );
+        despawn_all_elements(&registries, &mut commands);
         next_state.set(ServerState::Idle);
     }
 }
 
-/// Server app plugin. Manages the control mode state machine.
+/// Server app plugin. Creates a layout SubApp with the control mode state machine.
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<ServerState>();
-        app.add_plugins(LayoutInstancePlugin);
-        app.add_plugins(ElementPlugin::<Track>::new());
-        app.add_plugins(ElementPlugin::<Connection>::new());
-        app.add_plugins(ElementPlugin::<Marker>::new());
-        app.add_plugins(ElementPlugin::<Block>::new());
-        app.add_plugins(ElementPlugin::<Train>::new());
-        app.add_plugins(LogicalGraphPlugin);
-        app.add_plugins(SimulationStatePlugin);
-        app.add_message::<EnterControlMode>();
-        app.add_message::<ExitControlMode>();
-        app.add_systems(
+        let mut sub_app = SubApp::new();
+        sub_app.update_schedule = Some(Main.intern());
+
+        // Bootstrap the SubApp with standard Bevy schedules and message plumbing.
+        sub_app.add_plugins(MainSchedulePlugin);
+        sub_app.add_systems(
+            First,
+            bevy::ecs::message::message_update_system
+                .in_set(bevy::ecs::message::MessageUpdateSystems)
+                .run_if(bevy::ecs::message::message_update_condition),
+        );
+
+        sub_app.add_plugins(LayoutAppPlugin);
+        sub_app.add_plugins(StatesPlugin);
+        sub_app.init_state::<ServerState>();
+        sub_app.add_message::<EnterControlMode>();
+        sub_app.add_message::<ExitControlMode>();
+        sub_app.add_systems(
             Update,
             (
                 enter_control_mode.run_if(on_message::<EnterControlMode>),
                 exit_control_mode.run_if(on_message::<ExitControlMode>),
             ),
         );
+        app.insert_sub_app(LayoutSubApp, sub_app);
     }
 }

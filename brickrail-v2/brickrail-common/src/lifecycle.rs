@@ -30,17 +30,6 @@ pub struct ElementData<T: LayoutElement>(pub T::Data);
 
 // --- Non-generic relationships ---
 
-/// Relationship: a per-type registry entity belongs to a layout instance entity.
-/// Registry entity → Layout instance entity.
-#[derive(Component)]
-#[relationship(relationship_target = Registries)]
-pub struct RegistryOf(pub Entity);
-
-/// Relationship target: a layout instance entity has many registry entities.
-#[derive(Component)]
-#[relationship_target(relationship = RegistryOf)]
-pub struct Registries(Vec<Entity>);
-
 /// Relationship: an element entity is registered in a per-type registry entity.
 /// Element entity → Registry entity.
 #[derive(Component)]
@@ -155,25 +144,6 @@ impl<T: LayoutElement> SpawnElement<T> {
     }
 }
 
-// --- Layout instance plugin ---
-
-/// Plugin that creates a layout instance entity.
-/// Add this once per app/SubApp that hosts layout elements.
-pub struct LayoutInstancePlugin;
-
-/// Resource storing the layout instance entity.
-#[derive(Resource)]
-pub struct LayoutInstance {
-    pub entity: Entity,
-}
-
-impl Plugin for LayoutInstancePlugin {
-    fn build(&self, app: &mut App) {
-        let entity = app.world_mut().spawn_empty().id();
-        app.insert_resource(LayoutInstance { entity });
-    }
-}
-
 // --- Lifecycle plugin ---
 
 /// Generic lifecycle plugin. Handles spawn/register/despawn for any `LayoutElement` type.
@@ -225,12 +195,7 @@ fn on_despawn_element<T: LayoutElement>(
 
 impl<T: LayoutElement> Plugin for LifecyclePlugin<T> {
     fn build(&self, app: &mut App) {
-        // Create the per-type registry entity, linked to the layout instance
-        let layout_entity = app.world().resource::<LayoutInstance>().entity;
-        let registry_entity = app
-            .world_mut()
-            .spawn(RegistryOf(layout_entity))
-            .id();
+        let registry_entity = app.world_mut().spawn_empty().id();
         app.insert_resource(RegistryEntity::<T> {
             entity: registry_entity,
             _marker: std::marker::PhantomData,
@@ -271,21 +236,15 @@ impl<T: LayoutElement> Plugin for ElementPlugin<T> {
     }
 }
 
-/// Despawn all entities registered under a layout instance.
-/// Walks the relationship tree and triggers `DespawnElement` on each leaf entity.
-pub fn despawn_all_in_layout(
-    layout_entity: Entity,
+/// Despawn all registered element entities.
+/// Iterates all registry entities and triggers `DespawnElement` on each element.
+pub fn despawn_all_elements(
     registries: &Query<&RegisteredEntities>,
-    layout_registries: &Query<&Registries>,
     commands: &mut Commands,
 ) {
-    if let Ok(regs) = layout_registries.get(layout_entity) {
-        for &registry_entity in regs.0.iter() {
-            if let Ok(registered) = registries.get(registry_entity) {
-                for &element_entity in registered.0.iter() {
-                    commands.entity(element_entity).trigger(|entity| DespawnElement { entity });
-                }
-            }
+    for registered in registries.iter() {
+        for &element_entity in registered.0.iter() {
+            commands.entity(element_entity).trigger(|entity| DespawnElement { entity });
         }
     }
 }
