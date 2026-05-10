@@ -9,3 +9,4 @@ bevy = { version = "0.18", default-features = false, features = ["serialize"] }
 
 [dev-dependencies]
 bevy = { version = "0.18", default-features = false, features = ["serialize", "bevy_state"] }
+petgraph = "0.8"

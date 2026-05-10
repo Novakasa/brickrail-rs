@@ -6,8 +6,9 @@ use brickrail_common::block::Block;
 use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::block::BlockData;
 use brickrail_common::logical_graph::LogicalGraph;
-use brickrail_common::marker::Marker;
-use brickrail_common::route::{build_route, MarkerRole};
+use brickrail_common::marker::{Marker, MarkerData};
+use brickrail_common::route::{AppendLegs, LegOf, MarkerRole, RouteLeg};
+use petgraph::algo::astar;
 use bevy::platform::collections::HashMap;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -19,6 +20,32 @@ fn make_app() -> App {
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.add_plugins(ServerPlugin);
     app
+}
+
+/// Test helper: A* pathfinding + leg building in one call.
+fn build_route(
+    start: LogicalBlockID,
+    target: LogicalBlockID,
+    logical_graph: &LogicalGraph<ServerLayout>,
+    block_data_map: &HashMap<BlockID, BlockData>,
+    marker_data_map: &HashMap<TrackID, MarkerData>,
+) -> Option<Vec<RouteLeg>> {
+    use brickrail_common::route::enter_logical_track;
+
+    let start_data = block_data_map.get(&start.block)?;
+    let target_data = block_data_map.get(&target.block)?;
+    let start_track = enter_logical_track(start_data, start.direction, start.facing);
+    let target_track = enter_logical_track(target_data, target.direction, target.facing);
+
+    let (_cost, path) = astar(
+        &logical_graph.graph,
+        start_track,
+        |n| n == target_track,
+        |_| 1u32,
+        |_| 0u32,
+    )?;
+
+    RouteLeg::build_from_path(&path, block_data_map, marker_data_map)
 }
 
 fn test_layout() -> Layout {
@@ -339,4 +366,75 @@ fn build_route_between_two_blocks() {
     // Positions should span 0.0 to 1.0
     assert_eq!(leg.markers[0].position, 0.0);
     assert_eq!(leg.markers[2].position, 1.0);
+}
+
+#[test]
+fn append_legs_spawns_leg_entities() {
+    let mut app = make_app();
+    let layout = two_block_layout();
+
+    app.world_mut()
+        .write_message(EnterControlMode { layout });
+    app.update();
+
+    let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
+    let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
+    let t3 = TrackID::new(CellID::new(3, 0, 0), Orientation::EW);
+    let t4 = TrackID::new(CellID::new(4, 0, 0), Orientation::EW);
+
+    let block_a = BlockID::new(t0, t1);
+    let block_b = BlockID::new(t3, t4);
+
+    // Build legs externally (as strategy code would)
+    let block_registry = app.world().resource::<Registry<Block, ServerLayout>>();
+    let mut block_data_map = HashMap::new();
+    for (id, &entity) in block_registry.iter() {
+        let data = app.world().get::<ElementData<Block>>(entity).unwrap();
+        block_data_map.insert(*id, data.0.clone());
+    }
+    let marker_registry = app.world().resource::<Registry<Marker, ServerLayout>>();
+    let mut marker_data_map = HashMap::new();
+    for (id, &entity) in marker_registry.iter() {
+        let data = app.world().get::<ElementData<Marker>>(entity).unwrap();
+        marker_data_map.insert(*id, data.0.clone());
+    }
+    let logical_graph = app.world().resource::<LogicalGraph<ServerLayout>>();
+
+    let start = LogicalBlockID {
+        block: block_a,
+        direction: BlockDirection::Aligned,
+        facing: Facing::Forward,
+    };
+    let target = LogicalBlockID {
+        block: block_b,
+        direction: BlockDirection::Aligned,
+        facing: Facing::Forward,
+    };
+
+    let legs = build_route(start, target, logical_graph, &block_data_map, &marker_data_map)
+        .expect("should find a route");
+
+    // Spawn a train entity and append the legs via message
+    let train_entity = app.world_mut().spawn_empty().id();
+    app.world_mut().write_message(AppendLegs {
+        train: train_entity,
+        legs,
+    });
+    app.update();
+
+    // Query spawned leg entities
+    let spawned: Vec<_> = app
+        .world_mut()
+        .query::<(&RouteLeg, &LegOf)>()
+        .iter(app.world())
+        .collect();
+
+    assert_eq!(spawned.len(), 1);
+
+    let (leg, leg_of) = spawned[0];
+    assert_eq!(leg_of.0, train_entity);
+    assert_eq!(leg.start_block.block_id, block_a);
+    assert_eq!(leg.target_block.block_id, block_b);
+    assert_eq!(leg.facing, Facing::Forward);
+    assert_eq!(leg.markers.len(), 3);
 }

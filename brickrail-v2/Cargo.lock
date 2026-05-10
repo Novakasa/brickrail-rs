@@ -1151,6 +1151,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "brickrail-common",
+ "petgraph",
 ]
 
 [[package]]
