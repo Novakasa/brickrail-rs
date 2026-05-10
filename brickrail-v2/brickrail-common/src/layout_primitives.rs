@@ -29,6 +29,10 @@ impl CellID {
     pub fn cardinal_to(&self, other: &Self) -> Option<Cardinal> {
         Cardinal::from_deltas(other.x - self.x, other.y - self.y)
     }
+
+    pub fn get_vec2(&self) -> Vec2 {
+        Vec2::new(self.x as f32, self.y as f32)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -63,6 +67,10 @@ impl Cardinal {
             Cardinal::S => -1,
             _ => 0,
         }
+    }
+
+    pub fn get_vec2(&self) -> Vec2 {
+        Vec2::new(self.dx() as f32, self.dy() as f32)
     }
 
     pub fn from_deltas(dx: i32, dy: i32) -> Option<Self> {
@@ -174,6 +182,13 @@ pub struct TrackID {
 impl TrackID {
     pub fn new(cell: CellID, orientation: Orientation) -> Self {
         Self { cell, orientation }
+    }
+
+    /// Slot positions (unscaled) — endpoints at cell center ± 0.5 in cardinal directions.
+    pub fn slot_positions(&self) -> (Vec2, Vec2) {
+        let (c1, c2) = self.orientation.get_cardinals();
+        let center = self.cell.get_vec2();
+        (center + 0.5 * c1.get_vec2(), center + 0.5 * c2.get_vec2())
     }
 
     pub fn get_name(&self) -> String {

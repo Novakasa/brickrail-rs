@@ -1,0 +1,9 @@
+[package]
+name = "brickrail-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+brickrail-common = { path = "../brickrail-common" }
+bevy = { version = "0.18", features = ["serialize"] }
+bevy_pancam = "0.20"
