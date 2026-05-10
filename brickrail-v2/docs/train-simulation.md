@@ -140,6 +140,20 @@ Locks are **not** released progressively as the train's rear clears each section
 4. Markers are collected along the sensor trajectory (the path slice, not the full block sections).
 5. Marker roles are assigned by position within the leg.
 
+## State Events
+
+Simulation state is **event-sourced**. The server holds the authoritative state and can only mutate it by emitting state events. These same events are forwarded to clients, who apply the same mutations to their own state copies.
+
+State events describe **resulting state changes**, not causes. The server's simulation logic decides what happens; the emitted events describe the outcome. This keeps mutation logic trivial — the client applies state deltas mechanically without understanding simulation logic.
+
+State events use **domain IDs** (`TrainID`, `BlockID`, `TrackID`), not ECS entities. Both server and client resolve IDs to entities via their own registries. This allows state events to be serialized and sent over the network.
+
+Examples of state events:
+- `AppendLegs` — append pre-built route legs to a train's queue
+- `LockAcquired` / `LockReleased` — block/track lock changes (future)
+- `TrainStateChanged` — train movement state transitions (future)
+- `MarkerPassed` — train sensor passed a marker (future)
+
 ## Train Control Hierarchy
 
 Train behavior is driven by a layered abstraction, from low-level to high-level:

@@ -6,5 +6,6 @@ pub mod lifecycle;
 pub mod logical_graph;
 pub mod marker;
 pub mod route;
+pub mod simulation;
 pub mod track;
 pub mod train;

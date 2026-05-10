@@ -5,9 +5,10 @@ use brickrail_common::lifecycle::*;
 use brickrail_common::block::Block;
 use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::block::BlockData;
-use brickrail_common::logical_graph::LogicalGraph;
+use brickrail_common::logical_graph::{LogicalGraph, LogicalGraphPlugin};
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{AppendLegs, LegOf, MarkerRole, RouteLeg};
+use brickrail_common::simulation::SimulationStatePlugin;
 use petgraph::algo::astar;
 use bevy::platform::collections::HashMap;
 use brickrail_common::track::Track;
@@ -20,6 +21,48 @@ fn make_app() -> App {
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.add_plugins(ServerPlugin);
     app
+}
+
+// --- Plugin isolation tests ---
+// These verify that plugin dependency chains are clean:
+// each tier works without higher tiers present.
+
+#[test]
+fn tracks_only_app_works() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
+    app.update(); // should not panic
+}
+
+#[test]
+fn full_layout_without_simulation_works() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
+    app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
+    app.update(); // should not panic — no SimulationStatePlugin needed
+}
+
+#[test]
+fn simulation_state_without_logic_works() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(LayoutInstancePlugin::<ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Track, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Connection, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Marker, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Block, ServerLayout>::new());
+    app.add_plugins(ElementPlugin::<Train, ServerLayout>::new());
+    app.add_plugins(LogicalGraphPlugin::<ServerLayout>::new());
+    app.add_plugins(SimulationStatePlugin::<ServerLayout>::new());
+    app.update(); // should not panic — no SimulationLogicPlugin needed
 }
 
 /// Test helper: A* pathfinding + leg building in one call.
@@ -277,7 +320,7 @@ fn two_block_layout() -> Layout {
                 },
             ),
         ],
-        trains: vec![],
+        trains: vec![ElementEntry::new(TrainID(0), Default::default())],
     }
 }
 
@@ -414,13 +457,14 @@ fn append_legs_spawns_leg_entities() {
     let legs = build_route(start, target, logical_graph, &block_data_map, &marker_data_map)
         .expect("should find a route");
 
-    // Spawn a train entity and append the legs via message
-    let train_entity = app.world_mut().spawn_empty().id();
-    app.world_mut().write_message(AppendLegs {
-        train: train_entity,
-        legs,
-    });
+    // Append the legs via state event message
+    app.world_mut()
+        .write_message(AppendLegs::<ServerLayout>::new(TrainID(0), legs));
     app.update();
+
+    // Resolve train entity from registry for assertions
+    let train_registry = app.world().resource::<Registry<Train, ServerLayout>>();
+    let train_entity = train_registry.get(&TrainID(0)).unwrap();
 
     // Query spawned leg entities
     let spawned: Vec<_> = app

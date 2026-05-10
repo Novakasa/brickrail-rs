@@ -86,28 +86,32 @@ Registries (`Registry<T>` mapping `T::ID -> Entity`) are still needed for ID-bas
 
 A generic `Registry<T>` resource per element type replaces the current monolithic `EntityMap`. A type-erased `GenericRegistry` maps `GenericID -> Entity` for cross-type lookups where needed. The generic lifecycle plugin inserts into both.
 
-### 2. Simulation State Plugin (shared, per-type)
+### 2. Simulation State Plugin (shared, one top-level)
 
-Manages simulation state for a given type. Lives in `brickrail-common`. Included by both server and client. The state is event-controlled: it is only mutated by applying state events through shared mutation logic. Both server and client run this plugin — the difference is who produces the events.
+A single `SimulationStatePlugin<L>` lives in `brickrail-common`. Both server and client include it. The app adds this one plugin — internally it adds domain-specific sub-plugins (`RouteStatePlugin`, `LockStatePlugin`, etc.) for organizational purposes, but the app never wires those directly.
+
+The state is event-controlled: it is only mutated by applying **state events** through shared mutation logic. State events describe resulting state changes, not causes — they use domain IDs (`TrainID`, `BlockID`), not ECS entities, so both server and client can resolve them independently against their own entity registries. Both server and client run the same mutation systems — the difference is who produces the events.
 
 Responsibilities:
-- Define simulation data components for the type
-- Define state event types
-- Apply state events to simulation data (trivial field-level mutations)
+- Define simulation data components (e.g. route leg entities, lock state)
+- Define state event message types (e.g. `AppendLegs`, `LockAcquired`)
+- Apply state events to simulation data (trivial mechanical mutations)
 - Initialize simulation state when entering control mode
 - Clean up simulation state when exiting control mode
 
-### 3. Simulation Logic Plugin (server-only, type-specific)
+### 3. Simulation Logic Plugin (server-only, one top-level)
 
-Contains the actual domain logic that drives the simulation. Reads simulation state, makes decisions, emits state events. Only runs on the server.
+A single `SimulationLogicPlugin<L>` lives in `brickrail-server`. Only the server includes it. Like the state plugin, it can add domain-specific sub-plugins internally (`RouteLogicPlugin`, `LockLogicPlugin`, etc.).
 
-Examples:
-- **Train:** route assignment, leg advancement, marker detection, speed control, waiting logic
-- **Block:** lock acquisition/release decisions
-- **Schedule:** time tracking, stop advancement, destination assignment
-- **Switch:** position management, motor control
+Contains the actual domain logic that drives the simulation. Reads simulation state, makes decisions, emits state events. The server also applies its own state events through the shared mutation path — simulation logic never writes to simulation state directly, it emits events.
 
-### 4. Editor Plugin (client-only, type-specific)
+Examples of domain logic:
+- Route strategy, pathfinding, leg assignment decisions
+- Lock acquisition/release arbitration
+- Marker detection, train state machine, speed control
+- Schedule tracking, destination assignment
+
+### 4. Editor Plugin (client-only, one top-level)
 
 Manages rendering, input handling, property editing, selection, and inspector UI. Only relevant when there is a graphical client.
 

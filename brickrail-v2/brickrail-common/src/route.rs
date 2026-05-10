@@ -5,11 +5,12 @@ use bevy::prelude::*;
 
 use crate::block::BlockData;
 use crate::layout_primitives::*;
-use crate::lifecycle::LayoutType;
+use crate::lifecycle::{LayoutType, Registry};
 use crate::marker::MarkerData;
+use crate::train::Train;
 
 /// A resolved route leg with three stages and collected markers.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RouteLeg {
     /// The train's facing during this leg. Can change between legs
     /// when travel direction reverses.
@@ -25,7 +26,7 @@ pub struct RouteLeg {
 }
 
 /// A block's participation in a route leg.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RouteLegBlock {
     pub block_id: BlockID,
     /// The block's section tracks as traversed in this leg (may be reversed
@@ -34,7 +35,7 @@ pub struct RouteLegBlock {
 }
 
 /// A marker within a resolved route leg, with its assigned role.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RouteLegMarker {
     /// The track this marker sits on.
     pub track: TrackID,
@@ -50,7 +51,7 @@ pub struct RouteLegMarker {
 /// The role a marker plays within a specific route leg.
 /// Roles align with train-block states. Markers without a role correspond
 /// to the Outside state and are used only for visual progress interpolation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MarkerRole {
     /// First marker — the train is exiting the start block.
     Exiting,
@@ -138,66 +139,90 @@ pub struct LegOf(pub Entity);
 #[relationship_target(relationship = LegOf)]
 pub struct TrainLegs(Vec<Entity>);
 
-/// Message to append pre-built route legs to a train's leg queue.
+/// State event: append pre-built route legs to a train's leg queue.
 /// The first new leg's start block must match the last existing leg's target block
 /// (if the train already has legs). Legs are spawned in traversal order.
+/// Uses TrainID (domain ID) — resolved to Entity via Registry at application time.
 #[derive(Message, Clone)]
-pub struct AppendLegs {
-    pub train: Entity,
+pub struct AppendLegs<L: LayoutType> {
+    pub train: TrainID,
     pub legs: Vec<RouteLeg>,
+    _marker: PhantomData<L>,
 }
 
-/// Plugin that registers the route leg management system.
-pub struct RoutePlugin<L: LayoutType>(PhantomData<L>);
+impl<L: LayoutType> AppendLegs<L> {
+    pub fn new(train: TrainID, legs: Vec<RouteLeg>) -> Self {
+        Self {
+            train,
+            legs,
+            _marker: PhantomData,
+        }
+    }
+}
 
-impl<L: LayoutType> Default for RoutePlugin<L> {
+/// Route simulation state sub-plugin. Registers route state events and mutation systems.
+/// Added by SimulationStatePlugin — not directly by the app.
+pub struct RouteStatePlugin<L: LayoutType>(PhantomData<L>);
+
+impl<L: LayoutType> Default for RouteStatePlugin<L> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<L: LayoutType> RoutePlugin<L> {
+impl<L: LayoutType> RouteStatePlugin<L> {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl<L: LayoutType> Plugin for RoutePlugin<L> {
+impl<L: LayoutType> Plugin for RouteStatePlugin<L> {
     fn build(&self, app: &mut App) {
-        app.add_message::<AppendLegs>();
-        app.add_systems(Update, handle_append_legs.run_if(on_message::<AppendLegs>));
+        app.add_message::<AppendLegs<L>>();
+        app.add_systems(
+            Update,
+            handle_append_legs::<L>.run_if(on_message::<AppendLegs<L>>),
+        );
     }
 }
 
-/// System that handles `AppendLegs` messages by spawning leg entities with train relationships.
-fn handle_append_legs(
+/// Mutation system for AppendLegs state events. Resolves TrainID → Entity via registry,
+/// validates leg continuity, and spawns leg entities with train relationships.
+fn handle_append_legs<L: LayoutType>(
     mut commands: Commands,
-    mut messages: MessageReader<AppendLegs>,
+    mut messages: MessageReader<AppendLegs<L>>,
     leg_query: Query<&RouteLeg>,
     train_legs_query: Query<&TrainLegs>,
+    train_registry: Res<Registry<Train, L>>,
 ) {
     for msg in messages.read() {
         if msg.legs.is_empty() {
             continue;
         }
 
+        let train_entity = train_registry
+            .get(&msg.train)
+            .expect("AppendLegs: train not found in registry");
+
         // Check compatibility with last existing leg
-        if let Ok(existing_legs) = train_legs_query.get(msg.train) {
+        if let Ok(existing_legs) = train_legs_query.get(train_entity) {
             if let Some(&last_leg_entity) = existing_legs.0.last() {
                 if let Ok(last_leg) = leg_query.get(last_leg_entity) {
                     let first_new = &msg.legs[0];
                     assert_eq!(
-                        last_leg.target_block.block_id, first_new.start_block.block_id,
+                        last_leg.target_block.block_id,
+                        first_new.start_block.block_id,
                         "New legs must start where existing legs end: \
                          last target {:?} != first start {:?}",
-                        last_leg.target_block.block_id, first_new.start_block.block_id,
+                        last_leg.target_block.block_id,
+                        first_new.start_block.block_id,
                     );
                 }
             }
         }
 
         for leg in &msg.legs {
-            commands.spawn((leg.clone(), LegOf(msg.train)));
+            commands.spawn((leg.clone(), LegOf(train_entity)));
         }
     }
 }
