@@ -171,7 +171,7 @@ pub struct TrainLegs(Vec<Entity>);
 /// The first new leg's start block must match the last existing leg's target block
 /// (if the train already has legs). Legs are spawned in traversal order.
 /// Uses TrainID (domain ID) — resolved to Entity via Registry at application time.
-#[derive(Message, Clone)]
+#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppendLegs {
     pub train: TrainID,
     pub legs: Vec<RouteLeg>,

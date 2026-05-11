@@ -52,7 +52,7 @@ pub struct TrainPosition {
 /// State event: a train hit a marker. Increments marker_index and updates leg_state
 /// based on the role of the next marker in the current leg.
 /// No leg advancement — that's handled by `AdvanceLeg`.
-#[derive(Message, Clone)]
+#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TrainMarkerHit {
     pub train: TrainID,
 }
@@ -68,7 +68,7 @@ impl TrainMarkerHit {
 /// Panics if no next leg exists — the strategy layer must always append
 /// a trailing idle leg when building a route.
 /// Despawns the old leg and resets marker_index to 0.
-#[derive(Message, Clone)]
+#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AdvanceLeg {
     pub train: TrainID,
 }

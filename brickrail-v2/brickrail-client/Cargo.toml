@@ -7,3 +7,4 @@ edition = "2024"
 brickrail-common = { path = "../brickrail-common" }
 bevy = { version = "0.18", features = ["serialize"] }
 bevy_pancam = "0.20"
+petgraph = "0.8"

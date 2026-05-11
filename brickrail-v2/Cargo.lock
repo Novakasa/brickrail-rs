@@ -1764,6 +1764,7 @@ dependencies = [
  "bevy",
  "bevy_pancam",
  "brickrail-common",
+ "petgraph",
 ]
 
 [[package]]
