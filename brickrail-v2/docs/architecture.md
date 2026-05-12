@@ -30,6 +30,29 @@ Two categories:
 
 The GUI maps user interactions (clicks, drags, menu selections) to commands. Property tests generate command sequences. Both exercise the same code path.
 
+### Command Lifecycle
+
+Commands are not fire-and-forget — they can fail (e.g. "send train to block" when no route exists). Each command is an ECS entity with a lifecycle:
+
+1. Caller spawns a command entity with the command data (state: **Pending**)
+2. A handler system processes it and transitions to **Completed** or **Failed(reason)**
+3. The caller holds the entity and can poll or observe the state change
+
+Commands resolve within 1–2 frames but not necessarily on the same frame they're issued, so they need trackable identity. A queue ensures well-defined ordering when multiple commands are issued in the same frame.
+
+### Command Categories
+
+Layout commands and control commands share the entity-per-command pattern and the Pending → Completed/Failed lifecycle, but differ in validity context and lifetime:
+
+| | Layout Commands | Control Commands |
+|---|---|---|
+| **Examples** | AddTrack, DeleteBlock, SaveLayout | SetRoute, StartTrain |
+| **Valid when** | Simulation stopped | Simulation running |
+| **Undoable** | Yes | No |
+| **Lifetime** | Preserved in undo history | Cleaned up after result is read |
+
+Layout commands are preserved as long as the undo history lives — the command entity contains the data needed to reverse the operation (plus a stored inverse or state snapshot). Control commands have no meaningful undo, so they're despawned once the caller has read the result.
+
 ## Layout State
 
 Static data that defines the physical layout: tracks, connections, markers, blocks, trains. Managed via the ECS lifecycle system (SpawnElement messages, registries). The layout is the same whether the simulation is running or not.
