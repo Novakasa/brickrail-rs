@@ -77,17 +77,51 @@ Bridges simulation logic and train execution (virtual or BLE hardware). Receives
 
 The command layer and simulation event layer are the two communication boundaries:
 
-- **Commands flow down**: from user/test → layout state and simulation.
-- **SimulationEvents flow up**: from simulation logic → clients.
+- **Commands flow down**: `SimulationCommandEnvelope` from client → simulation.
+- **SimulationEvents flow up**: `SimulationEvent` from simulation logic → clients.
+- **Responses flow up**: `CommandResponse` from simulation → client (correlated by `CommandId`).
 
-In an integrated binary, both directions use SubApp extract (same process). In a networked setup, both become network messages. The layers above and below the boundary don't change — only the transport.
+The transport is pluggable — SubApp extract or network — but the message types and the systems that produce/consume them are the same.
+
+## Plugin Structure
+
+Plugins are split into transport-agnostic core and transport-specific layers:
+
+### Core plugins (transport-agnostic)
+
+| Plugin | Side | Responsibility |
+|---|---|---|
+| `LayoutAppPlugin` | Both | Element lifecycle, registries, logical graph |
+| `SimulationStatePlugin` | Both | `SimulationEvent` fan-out, state mutation handlers |
+| `SimulationLogicPlugin` | Simulation | Leg advancement, driver dispatch, driver↔simulation translation |
+| `CommandPlugin` | Client | `CommandId`/`CommandState` lifecycle, `CommandResponse` handling |
+| `SimulationCommandPlugin` | Simulation | `SimulationCommandEnvelope` fan-out, command handler systems |
+| `VirtualDriverPlugin` | Simulation | Virtual driver tick, marker hit generation |
+
+These plugins consume and produce messages. They don't know how messages arrive or leave.
+
+### SubApp transport
+
+| Plugin | Side | Responsibility |
+|---|---|---|
+| `SubAppServerPlugin` | Simulation | Collects `SimulationEvent` + `CommandResponse` → queues for extraction |
+| `SubAppClientPlugin` | Client | Extract bridge: drains all queues bidirectionally (commands in, events + responses out) |
+
+### Future: Network transport
+
+| Plugin | Side | Responsibility |
+|---|---|---|
+| `NetworkServerPlugin` | Simulation | Sends `SimulationEvent` + `CommandResponse` over wire |
+| `NetworkClientPlugin` | Client | Network connection: sends commands, receives events + responses |
+
+Core plugins stay identical — only the transport plugins are swapped.
 
 ## Binary Compositions
 
 Different binaries compose these layers differently:
 
-- **Integrated** (current test client): All layers in one process. Simulation runs in a SubApp, events are extracted to the main app for rendering.
-- **Dedicated server**: Layout state + simulation + network server. No rendering.
-- **Editor-only client**: Layout state + rendering + network client. Receives SimulationEvents over the network, sends commands over the network.
+- **Integrated** (current test client): All layers in one process. Simulation runs in a SubApp with SubApp transport plugins. Extract bridge connects the worlds.
+- **Dedicated server**: Core simulation plugins + network transport plugins. No rendering.
+- **Editor-only client**: Core client plugins + network transport plugins. Receives SimulationEvents over the network, sends commands over the network.
 
-Each binary picks the plugins it needs. The communication layer (SubApp extract vs. network) is the interchangeable piece.
+Each binary picks core plugins + the appropriate transport plugins.
