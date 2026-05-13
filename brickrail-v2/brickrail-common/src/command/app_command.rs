@@ -5,14 +5,17 @@ use bevy::prelude::*;
 use crate::block::Block;
 use crate::connection::Connection;
 use crate::layout::Layout;
-use crate::lifecycle::SpawnElement;
+use crate::layout_primitives::LogicalBlockID;
+use crate::lifecycle::{ElementId, SpawnElement};
 use crate::marker::Marker;
+use crate::route::{RouteLeg, TrainLegs};
 use crate::track::Track;
 use crate::train::Train;
+use crate::train_position::{TrainLegState, TrainPosition};
 
 use super::{
-    CommandEnvelope, CommandId, CommandRegistry, CommandResponse, CommandState, SimulationCommand,
-    SubAppCommandInputQueue,
+    CommandEnvelope, CommandId, CommandRegistry, CommandResponse, CommandState,
+    ExitControlModeRequest, PlaceTrainAtBlockRequest, SimulationCommand, SubAppCommandInputQueue,
 };
 
 /// Top-level command enum for the client side.
@@ -21,9 +24,20 @@ use super::{
 pub enum AppCommand {
     /// Spawn layout elements in the main world (for rendering/editing).
     SpawnLayout(Layout),
+    /// Enter control mode: forwards to SubApp, then auto-places trains
+    /// that have a cached `TrainBlockPosition`.
+    EnterControlMode(Layout),
+    /// Exit control mode: extracts train positions into `TrainBlockPosition`
+    /// components, then forwards despawn to SubApp.
+    ExitControlMode,
     /// Forward a simulation command to the SubApp.
     Simulation(SimulationCommand),
 }
+
+/// Cached train block position. Inserted on main-world train entities
+/// when exiting control mode, used to restore position on re-enter.
+#[derive(Component, Clone, Debug)]
+pub struct TrainBlockPosition(pub LogicalBlockID);
 
 /// Domain request: spawn layout elements in the main world.
 #[derive(Clone, Debug)]
@@ -57,6 +71,19 @@ impl AppCommandQueue {
         self.queue.push_back(entity);
         entity
     }
+
+    /// Push a command using direct World access. Useful in tests.
+    pub fn push_world(world: &mut World, command: AppCommand) -> Entity {
+        world.resource_scope(|world, mut queue: Mut<AppCommandQueue>| {
+            world.resource_scope(|world, mut registry: Mut<CommandRegistry>| {
+                let cmd_id = registry.next_id();
+                let entity = world.spawn((cmd_id, CommandState::Pending, command)).id();
+                registry.insert(cmd_id, entity);
+                queue.queue.push_back(entity);
+                entity
+            })
+        })
+    }
 }
 
 /// Client-side command dispatch plugin.
@@ -86,6 +113,11 @@ fn dispatch_app_commands(
     entity_query: Query<(&CommandId, &CommandState, &AppCommand)>,
     mut cmd_queue: ResMut<SubAppCommandInputQueue>,
     mut spawn_layout_writer: MessageWriter<CommandEnvelope<SpawnLayoutRequest>>,
+    train_query: Query<(Entity, &ElementId<Train>, &TrainPosition, &TrainLegs)>,
+    leg_query: Query<&RouteLeg>,
+    cached_position_query: Query<(&ElementId<Train>, &TrainBlockPosition)>,
+    mut commands: Commands,
+    mut registry: ResMut<CommandRegistry>,
 ) {
     // Check if the in-flight command has completed.
     if let Some(in_flight) = queue.in_flight {
@@ -113,6 +145,47 @@ fn dispatch_app_commands(
             spawn_layout_writer.write(CommandEnvelope {
                 command_id: *cmd_id,
                 request: SpawnLayoutRequest { layout },
+            });
+        }
+        AppCommand::EnterControlMode(layout) => {
+            // Forward EnterControlMode to SubApp.
+            cmd_queue.0.push(CommandEnvelope {
+                command_id: *cmd_id,
+                request: SimulationCommand::EnterControlMode(super::EnterControlModeRequest {
+                    layout,
+                }),
+            });
+            // Auto-place trains that have cached positions.
+            for (train_id, cached_pos) in &cached_position_query {
+                queue.push(
+                    &mut commands,
+                    &mut registry,
+                    AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
+                        PlaceTrainAtBlockRequest {
+                            train: train_id.0,
+                            block: cached_pos.0,
+                        },
+                    )),
+                );
+            }
+        }
+        AppCommand::ExitControlMode => {
+            // Extract train positions from main-world mirror before despawn.
+            for (train_entity, _train_id, position, legs) in &train_query {
+                if position.leg_state == TrainLegState::EnteredTarget {
+                    if let Some(&leg_entity) = legs.collection().first() {
+                        if let Ok(leg) = leg_query.get(leg_entity) {
+                            commands
+                                .entity(train_entity)
+                                .insert(TrainBlockPosition(leg.target_logical_block_id()));
+                        }
+                    }
+                }
+            }
+            // Forward ExitControlMode to SubApp.
+            cmd_queue.0.push(CommandEnvelope {
+                command_id: *cmd_id,
+                request: SimulationCommand::ExitControlMode(ExitControlModeRequest),
             });
         }
         AppCommand::Simulation(cmd) => {

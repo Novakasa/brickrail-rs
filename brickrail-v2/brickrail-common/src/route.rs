@@ -29,6 +29,8 @@ pub struct RouteLeg {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RouteLegBlock {
     pub block_id: BlockID,
+    /// The direction the train traverses this block.
+    pub direction: BlockDirection,
     /// The block's section tracks as traversed in this leg (may be reversed
     /// relative to the block's stored section if travel is against section direction).
     pub section: Vec<DirectedTrackID>,
@@ -64,6 +66,16 @@ pub enum MarkerRole {
 }
 
 impl RouteLeg {
+    /// Returns the logical block ID of the target block, combining block ID,
+    /// direction, and the leg's facing. Useful for persisting train position.
+    pub fn target_logical_block_id(&self) -> LogicalBlockID {
+        LogicalBlockID {
+            block: self.target_block.block_id,
+            direction: self.target_block.direction,
+            facing: self.facing,
+        }
+    }
+
     /// Build route legs from a path (sensor trajectory).
     /// Splits the path at canonical enter markers and resolves each segment into a leg.
     /// Returns None if the path doesn't contain at least two enter markers.
@@ -136,11 +148,13 @@ impl RouteLeg {
             facing: start.facing,
             start_block: RouteLegBlock {
                 block_id: start.block,
+                direction: start.direction,
                 section: start_section,
             },
             travel,
             target_block: RouteLegBlock {
                 block_id: target.block,
+                direction: target.direction,
                 section: target_section,
             },
             markers,

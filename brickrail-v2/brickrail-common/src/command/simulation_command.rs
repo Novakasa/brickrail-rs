@@ -13,6 +13,7 @@ pub enum SimulationCommand {
     EnterControlMode(EnterControlModeRequest),
     PlaceTrainAtBlock(PlaceTrainAtBlockRequest),
     SendTrainToBlock(SendTrainToBlockRequest),
+    ExitControlMode(ExitControlModeRequest),
 }
 
 /// Domain request: enter control mode with a layout.
@@ -35,6 +36,10 @@ pub struct SendTrainToBlockRequest {
     pub train: TrainID,
     pub target_block: LogicalBlockID,
 }
+
+/// Domain request: exit control mode by despawning all layout elements.
+#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ExitControlModeRequest;
 
 // ---------------------------------------------------------------------------
 // SimulationCommandQueue
@@ -61,8 +66,8 @@ pub struct SimulationCommandPlugin;
 impl Plugin for SimulationCommandPlugin {
     fn build(&self, app: &mut App) {
         use crate::simulation::{
-            SimulationSet, handle_enter_control_mode, handle_place_train_at_block,
-            handle_send_train_to_block,
+            SimulationSet, handle_enter_control_mode, handle_exit_control_mode,
+            handle_place_train_at_block, handle_send_train_to_block,
         };
 
         app.init_resource::<SimulationCommandQueue>();
@@ -70,6 +75,7 @@ impl Plugin for SimulationCommandPlugin {
         app.add_message::<CommandEnvelope<EnterControlModeRequest>>();
         app.add_message::<CommandEnvelope<PlaceTrainAtBlockRequest>>();
         app.add_message::<CommandEnvelope<SendTrainToBlockRequest>>();
+        app.add_message::<CommandEnvelope<ExitControlModeRequest>>();
         app.add_systems(
             Update,
             (
@@ -81,6 +87,8 @@ impl Plugin for SimulationCommandPlugin {
                         .run_if(on_message::<CommandEnvelope<PlaceTrainAtBlockRequest>>),
                     handle_send_train_to_block
                         .run_if(on_message::<CommandEnvelope<SendTrainToBlockRequest>>),
+                    handle_exit_control_mode
+                        .run_if(on_message::<CommandEnvelope<ExitControlModeRequest>>),
                 ),
             )
                 .chain()
@@ -99,6 +107,7 @@ fn process_command_queue(
     mut enter_control_writer: MessageWriter<CommandEnvelope<EnterControlModeRequest>>,
     mut place_train_writer: MessageWriter<CommandEnvelope<PlaceTrainAtBlockRequest>>,
     mut send_train_writer: MessageWriter<CommandEnvelope<SendTrainToBlockRequest>>,
+    mut exit_control_writer: MessageWriter<CommandEnvelope<ExitControlModeRequest>>,
 ) {
     // Intake: queue incoming commands from the extract bridge,
     // preserving their client-assigned CommandIds.
@@ -134,6 +143,12 @@ fn process_command_queue(
             }
             SimulationCommand::SendTrainToBlock(request) => {
                 send_train_writer.write(CommandEnvelope {
+                    command_id: envelope.command_id,
+                    request,
+                });
+            }
+            SimulationCommand::ExitControlMode(request) => {
+                exit_control_writer.write(CommandEnvelope {
                     command_id: envelope.command_id,
                     request,
                 });

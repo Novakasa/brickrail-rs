@@ -5,13 +5,15 @@ use petgraph::algo::astar;
 
 use crate::block::{Block, BlockData};
 use crate::command::{
-    CommandEnvelope, CommandResponse, EnterControlModeRequest, PlaceTrainAtBlockRequest,
-    SendTrainToBlockRequest,
+    CommandEnvelope, CommandResponse, EnterControlModeRequest, ExitControlModeRequest,
+    PlaceTrainAtBlockRequest, SendTrainToBlockRequest,
 };
 use crate::connection::Connection;
 use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
-use crate::layout_primitives::{BlockDirection, BlockID, LogicalBlockID, TrackID};
-use crate::lifecycle::{ElementData, ElementId, Registry, SpawnElement};
+use crate::layout_primitives::{BlockID, TrackID};
+use crate::lifecycle::{
+    ElementData, ElementId, RegisteredEntities, Registry, SpawnElement, despawn_all_elements,
+};
 use crate::logical_graph::LogicalGraph;
 use crate::marker::{Marker, MarkerData};
 use crate::route::{AppendLegs, LegOf, Locked, RouteLeg, TrainLegs};
@@ -305,12 +307,7 @@ pub fn handle_send_train_to_block(
                 .map_err(|_| "current leg entity missing")?;
 
             // Determine start block from current leg's target block.
-            let start_block_id = current_leg.target_block.block_id;
-            let start = LogicalBlockID {
-                block: start_block_id,
-                direction: BlockDirection::Aligned,
-                facing: current_leg.facing,
-            };
+            let start = current_leg.target_logical_block_id();
 
             // Pathfind from start to target.
             let start_data = block_data_map
@@ -350,6 +347,35 @@ pub fn handle_send_train_to_block(
         response_writer.write(CommandResponse {
             command_id: envelope.command_id,
             result,
+        });
+    }
+}
+
+/// Command handler: exit control mode by despawning all layout elements,
+/// VirtualDrivers, and route leg entities.
+pub fn handle_exit_control_mode(
+    mut messages: MessageReader<CommandEnvelope<ExitControlModeRequest>>,
+    registries: Query<&RegisteredEntities>,
+    driver_query: Query<Entity, With<VirtualDriver>>,
+    leg_query: Query<Entity, With<RouteLeg>>,
+    mut commands: Commands,
+    mut response_writer: MessageWriter<CommandResponse>,
+) {
+    for envelope in messages.read() {
+        // Despawn all registry-tracked elements (tracks, blocks, trains, etc.)
+        despawn_all_elements(&registries, &mut commands);
+
+        // Despawn loose entities: VirtualDrivers and route legs
+        for entity in driver_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in leg_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        response_writer.write(CommandResponse {
+            command_id: envelope.command_id,
+            result: Ok(()),
         });
     }
 }

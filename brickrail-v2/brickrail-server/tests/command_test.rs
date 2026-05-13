@@ -1,11 +1,12 @@
 use bevy::prelude::*;
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
-    CommandPlugin, CommandRegistry, CommandState, EnterControlModeRequest,
-    PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
+    AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry, CommandState,
+    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand,
+    SubAppClientPlugin, TrainBlockPosition,
 };
 use brickrail_common::connection::Connection;
-use brickrail_common::layout::{Layout, LayoutSubApp};
+use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::marker::Marker;
@@ -314,4 +315,132 @@ fn send_train_to_block_end_to_end() {
         .get::<RouteLeg>(*legs.collection().first().unwrap())
         .unwrap();
     assert_eq!(current_leg.target_block.block_id, block_b().block);
+}
+
+/// Build a full client-level app with AppCommandQueue and main-world state mirror.
+fn make_client_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(CommandPlugin);
+    app.add_plugins(AppCommandPlugin);
+    app.add_plugins(LayoutAppPlugin);
+    app.add_plugins(SubAppClientPlugin);
+    app
+}
+
+#[test]
+fn exit_and_reenter_preserves_position() {
+    let mut app = make_client_app();
+    let layout = two_block_layout();
+
+    // Spawn layout in main world (for state mirror).
+    AppCommandQueue::push_world(app.world_mut(), AppCommand::SpawnLayout(layout.clone()));
+
+    // Enter control mode via AppCommand.
+    AppCommandQueue::push_world(
+        app.world_mut(),
+        AppCommand::EnterControlMode(layout.clone()),
+    );
+    // Place train at A and send to B via simulation commands.
+    AppCommandQueue::push_world(
+        app.world_mut(),
+        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
+            PlaceTrainAtBlockRequest {
+                train: TrainID(0),
+                block: block_a(),
+            },
+        )),
+    );
+    AppCommandQueue::push_world(
+        app.world_mut(),
+        AppCommand::Simulation(SimulationCommand::SendTrainToBlock(
+            SendTrainToBlockRequest {
+                train: TrainID(0),
+                target_block: block_b(),
+            },
+        )),
+    );
+
+    // Run enough frames for enter + place + send to complete.
+    for _ in 0..10 {
+        app.update();
+    }
+
+    // Boost VirtualDriver speed for fast traversal.
+    let sub_world = app.sub_app_mut(LayoutSubApp).world_mut();
+    for mut driver in sub_world.query::<&mut VirtualDriver>().iter_mut(sub_world) {
+        driver.speed = 1_000_000.0;
+    }
+
+    // Run many frames for the train to arrive.
+    for _ in 0..30 {
+        app.update();
+    }
+
+    // Verify train arrived at block B in SubApp.
+    {
+        let sub_world = app.sub_app(LayoutSubApp).world();
+        let train_registry = sub_world.resource::<Registry<Train>>();
+        let train_entity = train_registry.get(&TrainID(0)).unwrap();
+        let position = sub_world.get::<TrainPosition>(train_entity).unwrap();
+        assert_eq!(position.leg_state, TrainLegState::EnteredTarget);
+    }
+
+    // Exit control mode via AppCommand — should extract TrainBlockPosition.
+    let exit_cmd = AppCommandQueue::push_world(app.world_mut(), AppCommand::ExitControlMode);
+    for _ in 0..5 {
+        app.update();
+    }
+    let state = app.world().get::<CommandState>(exit_cmd).unwrap();
+    assert!(
+        matches!(state, CommandState::Completed),
+        "exit expected Completed, got {:?}",
+        state
+    );
+
+    // Verify TrainBlockPosition was cached on main-world train entity.
+    let main_world = app.world();
+    let train_registry = main_world.resource::<Registry<Train>>();
+    let train_entity = train_registry.get(&TrainID(0)).unwrap();
+    let cached = main_world.get::<TrainBlockPosition>(train_entity).unwrap();
+    assert_eq!(
+        cached.0.block,
+        block_b().block,
+        "cached position should be block B"
+    );
+
+    // Re-enter control mode — should auto-place train at cached position.
+    let enter_cmd =
+        AppCommandQueue::push_world(app.world_mut(), AppCommand::EnterControlMode(layout));
+    for _ in 0..10 {
+        app.update();
+    }
+    let state = app.world().get::<CommandState>(enter_cmd).unwrap();
+    assert!(
+        matches!(state, CommandState::Completed),
+        "re-enter expected Completed, got {:?}",
+        state
+    );
+
+    // Run a few more frames for the auto-placed PlaceTrainAtBlock to complete.
+    for _ in 0..5 {
+        app.update();
+    }
+
+    // Verify train is placed at block B in SubApp.
+    let sub_world = app.sub_app(LayoutSubApp).world();
+    let train_registry = sub_world.resource::<Registry<Train>>();
+    let train_entity = train_registry.get(&TrainID(0)).unwrap();
+    let position = sub_world.get::<TrainPosition>(train_entity).unwrap();
+    assert_eq!(position.leg_state, TrainLegState::EnteredTarget);
+
+    let legs = sub_world.get::<TrainLegs>(train_entity).unwrap();
+    let current_leg = sub_world
+        .get::<RouteLeg>(*legs.collection().first().unwrap())
+        .unwrap();
+    assert_eq!(
+        current_leg.target_block.block_id,
+        block_b().block,
+        "train should be at block B after round-trip"
+    );
 }
