@@ -121,7 +121,9 @@ fn handle_train_marker_hit(
         let legs = train_legs_query
             .get(train_entity)
             .expect("TrainMarkerHit: train has no TrainLegs");
-        let current_leg_entity = *legs.collection().first()
+        let current_leg_entity = *legs
+            .collection()
+            .first()
             .expect("TrainMarkerHit: train has no legs");
         let leg = leg_query
             .get(current_leg_entity)
@@ -155,9 +157,13 @@ fn handle_advance_leg(
             .get(train_entity)
             .expect("AdvanceLeg: train has no TrainLegs");
 
-        let current_leg_entity = *legs.collection().first()
+        let current_leg_entity = *legs
+            .collection()
+            .first()
             .expect("AdvanceLeg: train has no legs");
-        let next_leg_entity = *legs.collection().get(1)
+        let next_leg_entity = *legs
+            .collection()
+            .get(1)
             .expect("AdvanceLeg: no next leg — strategy layer must append trailing idle leg");
 
         let next_leg = leg_query

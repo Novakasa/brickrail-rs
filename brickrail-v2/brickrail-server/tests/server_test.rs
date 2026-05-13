@@ -1,21 +1,21 @@
+use bevy::ecs::relationship::RelationshipTarget;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use brickrail_common::block::Block;
+use brickrail_common::block::BlockData;
+use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::layout::*;
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::block::Block;
-use brickrail_common::connection::{Connection, ConnectionGraph};
-use brickrail_common::block::BlockData;
 use brickrail_common::logical_graph::{LogicalGraph, LogicalGraphPlugin};
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{AppendLegs, LegOf, MarkerRole, RouteLeg, TrainLegs};
-use bevy::ecs::relationship::RelationshipTarget;
-use brickrail_common::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
 use brickrail_common::simulation::SimulationStatePlugin;
-use petgraph::algo::astar;
-use bevy::platform::collections::HashMap;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
+use brickrail_common::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
 use brickrail_server::ServerPlugin;
+use petgraph::algo::astar;
 
 fn make_app() -> App {
     let mut app = App::new();
@@ -116,23 +116,19 @@ fn test_layout() -> Layout {
             ElementEntry::new(t0, Default::default()),
             ElementEntry::new(t2, Default::default()),
         ],
-        blocks: vec![
-            ElementEntry::new(
-                BlockID::new(t0, t2),
-                brickrail_common::block::BlockData {
-                    name: Some("Main".to_string()),
-                    section: vec![
-                        t0.get_directed_to(Cardinal::E).unwrap(),
-                        t1.get_directed_to(Cardinal::E).unwrap(),
-                        t2.get_directed_to(Cardinal::W).unwrap(),
-                    ],
-                    ..Default::default()
-                },
-            ),
-        ],
-        trains: vec![
-            ElementEntry::new(TrainID(0), Default::default()),
-        ],
+        blocks: vec![ElementEntry::new(
+            BlockID::new(t0, t2),
+            brickrail_common::block::BlockData {
+                name: Some("Main".to_string()),
+                section: vec![
+                    t0.get_directed_to(Cardinal::E).unwrap(),
+                    t1.get_directed_to(Cardinal::E).unwrap(),
+                    t2.get_directed_to(Cardinal::W).unwrap(),
+                ],
+                ..Default::default()
+            },
+        )],
+        trains: vec![ElementEntry::new(TrainID(0), Default::default())],
     }
 }
 
@@ -141,8 +137,7 @@ fn enter_control_mode_spawns_layout() {
     let mut app = make_app();
     let layout = test_layout();
 
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout });
+    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
     app.update();
 
     let world = layout_world(&app);
@@ -201,8 +196,7 @@ fn exit_control_mode_cleans_up() {
     let layout = test_layout();
 
     // Enter
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout });
+    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
     app.update();
     app.update();
 
@@ -238,42 +232,25 @@ fn round_trip_enter_exit_enter() {
     let layout = test_layout();
 
     // First enter
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode {
-            layout: layout.clone(),
-        });
+    layout_world_mut(&mut app).write_message(EnterControlMode {
+        layout: layout.clone(),
+    });
     app.update();
-    assert_eq!(
-        layout_world(&app)
-            .resource::<Registry<Track>>()
-            .len(),
-        3
-    );
+    assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 3);
 
     app.update();
 
     // Exit
     layout_world_mut(&mut app).write_message(ExitControlMode);
     app.update();
-    assert_eq!(
-        layout_world(&app)
-            .resource::<Registry<Track>>()
-            .len(),
-        0
-    );
+    assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 0);
 
     app.update();
 
     // Second enter
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout });
+    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
     app.update();
-    assert_eq!(
-        layout_world(&app)
-            .resource::<Registry<Track>>()
-            .len(),
-        3
-    );
+    assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 3);
 }
 
 /// Layout with two blocks and a travel section between them:
@@ -339,8 +316,7 @@ fn build_route_between_two_blocks() {
     let mut app = make_app();
     let layout = two_block_layout();
 
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout });
+    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -383,8 +359,14 @@ fn build_route_between_two_blocks() {
         facing: Facing::Forward,
     };
 
-    let legs = build_route(start, target, logical_graph, &block_data_map, &marker_data_map)
-        .expect("should find a route");
+    let legs = build_route(
+        start,
+        target,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .expect("should find a route");
 
     assert_eq!(legs.len(), 1);
 
@@ -429,8 +411,7 @@ fn append_legs_spawns_leg_entities() {
     let mut app = make_app();
     let layout = two_block_layout();
 
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout });
+    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -468,12 +449,17 @@ fn append_legs_spawns_leg_entities() {
         facing: Facing::Forward,
     };
 
-    let legs = build_route(start, target, logical_graph, &block_data_map, &marker_data_map)
-        .expect("should find a route");
+    let legs = build_route(
+        start,
+        target,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .expect("should find a route");
 
     // Append the legs via state event message
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), legs));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
 
     // Resolve train entity from registry for assertions
@@ -528,8 +514,9 @@ fn extract_marker_data_map(app: &App) -> HashMap<TrackID, MarkerData> {
 #[test]
 fn append_idle_creates_position() {
     let mut app = make_app();
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout: two_block_layout() });
+    layout_world_mut(&mut app).write_message(EnterControlMode {
+        layout: two_block_layout(),
+    });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -556,15 +543,15 @@ fn append_idle_creates_position() {
     assert_eq!(idle_leg.markers[0].role, Some(MarkerRole::Entered));
 
     // Append the idle leg
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
     app.update();
 
     // TrainPosition should now exist
     let world = layout_world(&app);
     let train_registry = world.resource::<Registry<Train>>();
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
-    let position = world.get::<TrainPosition>(train_entity)
+    let position = world
+        .get::<TrainPosition>(train_entity)
         .expect("TrainPosition should exist after first AppendLegs");
 
     assert_eq!(position.leg_state, TrainLegState::EnteredTarget);
@@ -574,8 +561,9 @@ fn append_idle_creates_position() {
 #[test]
 fn advance_off_idle_to_route() {
     let mut app = make_app();
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout: two_block_layout() });
+    layout_world_mut(&mut app).write_message(EnterControlMode {
+        layout: two_block_layout(),
+    });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -604,25 +592,28 @@ fn advance_off_idle_to_route() {
         direction: BlockDirection::Aligned,
         facing: Facing::Forward,
     };
-    let route_legs = build_route(logical_a, logical_b, logical_graph, &block_data_map, &marker_data_map)
-        .expect("should find route");
+    let route_legs = build_route(
+        logical_a,
+        logical_b,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .expect("should find route");
     let trailing_idle = RouteLeg::idle(logical_b, &block_data_map, &marker_data_map)
         .expect("should build trailing idle");
 
     // Append idle, then route + trailing idle
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), vec![idle_leg]));
     app.update();
 
     let mut route_with_trailing = route_legs;
     route_with_trailing.push(trailing_idle);
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), route_with_trailing));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), route_with_trailing));
     app.update();
 
     // Advance off idle
-    layout_world_mut(&mut app)
-        .write_message(AdvanceLeg::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // TrainPosition should point to the route leg, not idle
@@ -643,7 +634,8 @@ fn advance_off_idle_to_route() {
 
     // Should have 3 legs total now (idle despawned, route + trailing idle remain)
     let sub_app = app.sub_app_mut(LayoutSubApp);
-    let legs_count = sub_app.world_mut()
+    let legs_count = sub_app
+        .world_mut()
         .query::<&RouteLeg>()
         .iter(sub_app.world())
         .count();
@@ -653,8 +645,9 @@ fn advance_off_idle_to_route() {
 #[test]
 fn marker_hit_increments_and_updates_state() {
     let mut app = make_app();
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout: two_block_layout() });
+    layout_world_mut(&mut app).write_message(EnterControlMode {
+        layout: two_block_layout(),
+    });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -681,17 +674,21 @@ fn marker_hit_increments_and_updates_state() {
 
     // Place train with idle, append route + trailing idle, advance off idle
     let idle = RouteLeg::idle(logical_a, &block_data_map, &marker_data_map).unwrap();
-    let mut legs = build_route(logical_a, logical_b, logical_graph, &block_data_map, &marker_data_map).unwrap();
+    let mut legs = build_route(
+        logical_a,
+        logical_b,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .unwrap();
     legs.push(RouteLeg::idle(logical_b, &block_data_map, &marker_data_map).unwrap());
 
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), vec![idle]));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), vec![idle]));
     app.update();
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), legs));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
-    layout_world_mut(&mut app)
-        .write_message(AdvanceLeg::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // Route leg has 3 markers: [0]=Exiting, [1]=Entering, [2]=Entered
@@ -702,18 +699,20 @@ fn marker_hit_increments_and_updates_state() {
     let train_entity = train_registry.get(&TrainID(0)).unwrap();
 
     // First hit: marker_index 0→1, markers[1].role = Entering
-    layout_world_mut(&mut app)
-        .write_message(TrainMarkerHit::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(TrainMarkerHit::new(TrainID(0)));
     app.update();
-    let position = layout_world(&app).get::<TrainPosition>(train_entity).unwrap();
+    let position = layout_world(&app)
+        .get::<TrainPosition>(train_entity)
+        .unwrap();
     assert_eq!(position.marker_index, 1);
     assert_eq!(position.leg_state, TrainLegState::EnteringTarget);
 
     // Second hit: marker_index 1→2, markers[2].role = Entered
-    layout_world_mut(&mut app)
-        .write_message(TrainMarkerHit::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(TrainMarkerHit::new(TrainID(0)));
     app.update();
-    let position = layout_world(&app).get::<TrainPosition>(train_entity).unwrap();
+    let position = layout_world(&app)
+        .get::<TrainPosition>(train_entity)
+        .unwrap();
     assert_eq!(position.marker_index, 2);
     assert_eq!(position.leg_state, TrainLegState::EnteredTarget);
 }
@@ -721,8 +720,9 @@ fn marker_hit_increments_and_updates_state() {
 #[test]
 fn advance_leg_moves_to_next() {
     let mut app = make_app();
-    layout_world_mut(&mut app)
-        .write_message(EnterControlMode { layout: two_block_layout() });
+    layout_world_mut(&mut app).write_message(EnterControlMode {
+        layout: two_block_layout(),
+    });
     app.update();
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
@@ -749,24 +749,27 @@ fn advance_leg_moves_to_next() {
 
     // Build: idle at A, route A→B, trailing idle at B
     let idle = RouteLeg::idle(logical_a, &block_data_map, &marker_data_map).unwrap();
-    let mut legs = build_route(logical_a, logical_b, logical_graph, &block_data_map, &marker_data_map).unwrap();
+    let mut legs = build_route(
+        logical_a,
+        logical_b,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .unwrap();
     legs.push(RouteLeg::idle(logical_b, &block_data_map, &marker_data_map).unwrap());
 
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), vec![idle]));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), vec![idle]));
     app.update();
-    layout_world_mut(&mut app)
-        .write_message(AppendLegs::new(TrainID(0), legs));
+    layout_world_mut(&mut app).write_message(AppendLegs::new(TrainID(0), legs));
     app.update();
 
     // Advance off idle → route leg
-    layout_world_mut(&mut app)
-        .write_message(AdvanceLeg::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     // Advance off route leg → trailing idle
-    layout_world_mut(&mut app)
-        .write_message(AdvanceLeg::new(TrainID(0)));
+    layout_world_mut(&mut app).write_message(AdvanceLeg::new(TrainID(0)));
     app.update();
 
     let world = layout_world(&app);
@@ -788,7 +791,8 @@ fn advance_leg_moves_to_next() {
 
     // Only 1 leg entity remaining (the trailing idle)
     let sub_app = app.sub_app_mut(LayoutSubApp);
-    let legs_count = sub_app.world_mut()
+    let legs_count = sub_app
+        .world_mut()
         .query::<&RouteLeg>()
         .iter(sub_app.world())
         .count();

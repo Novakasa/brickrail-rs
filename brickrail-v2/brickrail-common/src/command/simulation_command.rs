@@ -61,8 +61,8 @@ pub struct SimulationCommandPlugin;
 impl Plugin for SimulationCommandPlugin {
     fn build(&self, app: &mut App) {
         use crate::simulation::{
-            handle_enter_control_mode, handle_place_train_at_block,
-            handle_send_train_to_block, SimulationSet,
+            SimulationSet, handle_enter_control_mode, handle_place_train_at_block,
+            handle_send_train_to_block,
         };
 
         app.init_resource::<SimulationCommandQueue>();

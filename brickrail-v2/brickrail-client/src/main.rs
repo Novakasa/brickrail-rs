@@ -4,8 +4,8 @@ use bevy_pancam::{PanCam, PanCamPlugin};
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
     AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry,
-    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest,
-    SimulationCommand, SubAppClientPlugin,
+    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand,
+    SubAppClientPlugin,
 };
 use brickrail_common::layout::{Layout, LayoutAppPlugin};
 use brickrail_common::layout_primitives::*;
@@ -67,35 +67,43 @@ fn queue_init_commands(
     };
 
     // 1. Spawn layout in main world (for rendering).
-    queue.push(&mut commands, &mut registry, AppCommand::SpawnLayout(layout.clone()));
+    queue.push(
+        &mut commands,
+        &mut registry,
+        AppCommand::SpawnLayout(layout.clone()),
+    );
 
     // 2. Enter control mode — syncs layout to SubApp + spawns VirtualDrivers.
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::Simulation(SimulationCommand::EnterControlMode(EnterControlModeRequest {
-            layout,
-        })),
+        AppCommand::Simulation(SimulationCommand::EnterControlMode(
+            EnterControlModeRequest { layout },
+        )),
     );
 
     // 3. Place train at block A.
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(PlaceTrainAtBlockRequest {
-            train: TrainID(0),
-            block: logical_a,
-        })),
+        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
+            PlaceTrainAtBlockRequest {
+                train: TrainID(0),
+                block: logical_a,
+            },
+        )),
     );
 
     // 4. Send train from A to B.
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::Simulation(SimulationCommand::SendTrainToBlock(SendTrainToBlockRequest {
-            train: TrainID(0),
-            target_block: logical_b,
-        })),
+        AppCommand::Simulation(SimulationCommand::SendTrainToBlock(
+            SendTrainToBlockRequest {
+                train: TrainID(0),
+                target_block: logical_b,
+            },
+        )),
     );
 }
 
@@ -152,11 +160,36 @@ fn test_layout() -> Layout {
             ElementEntry::new(t7.get_connection_to(t8).unwrap(), Default::default()),
         ],
         markers: vec![
-            ElementEntry::new(t0, MarkerData { color: MarkerColor::Red }),
-            ElementEntry::new(t1, MarkerData { color: MarkerColor::Blue }),
-            ElementEntry::new(t4, MarkerData { color: MarkerColor::Green }),
-            ElementEntry::new(t7, MarkerData { color: MarkerColor::Yellow }),
-            ElementEntry::new(t8, MarkerData { color: MarkerColor::Cyan }),
+            ElementEntry::new(
+                t0,
+                MarkerData {
+                    color: MarkerColor::Red,
+                },
+            ),
+            ElementEntry::new(
+                t1,
+                MarkerData {
+                    color: MarkerColor::Blue,
+                },
+            ),
+            ElementEntry::new(
+                t4,
+                MarkerData {
+                    color: MarkerColor::Green,
+                },
+            ),
+            ElementEntry::new(
+                t7,
+                MarkerData {
+                    color: MarkerColor::Yellow,
+                },
+            ),
+            ElementEntry::new(
+                t8,
+                MarkerData {
+                    color: MarkerColor::Cyan,
+                },
+            ),
         ],
         blocks: vec![
             ElementEntry::new(

@@ -284,7 +284,9 @@ impl<'de> Deserialize<'de> for TrackID {
 
 /// A track with a travel direction. The direction indicates which cardinal end
 /// the travel is heading toward (First = first cardinal of orientation, Last = second).
-#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct DirectedTrackID {
     pub track: TrackID,
     pub direction: TrackDirection,
@@ -330,9 +332,15 @@ impl TrackConnectionID {
     /// Creates a normalized connection ID (track_a <= track_b).
     pub fn new(a: DirectedTrackID, b: DirectedTrackID) -> Self {
         if a.track <= b.track {
-            Self { track_a: a, track_b: b }
+            Self {
+                track_a: a,
+                track_b: b,
+            }
         } else {
-            Self { track_a: b, track_b: a }
+            Self {
+                track_a: b,
+                track_b: a,
+            }
         }
     }
 
@@ -351,7 +359,12 @@ impl TrackConnectionID {
     /// and both face the shared edge. Portal connections link tracks that aren't
     /// spatially adjacent.
     pub fn is_continuous(&self) -> bool {
-        let Some(cardinal) = self.track_a.track.cell.cardinal_to(&self.track_b.track.cell) else {
+        let Some(cardinal) = self
+            .track_a
+            .track
+            .cell
+            .cardinal_to(&self.track_b.track.cell)
+        else {
             return false;
         };
         self.track_a.to_cardinal() == cardinal && self.track_b.to_cardinal() == cardinal.opposite()
@@ -365,7 +378,17 @@ impl TrackConnectionID {
 /// Color of a physical marker tile. Used by the train's color sensor for
 /// detection and validation. `None` acts as a wildcard (any color matches).
 #[derive(
-    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    Default,
+    Reflect,
+    Serialize,
     Deserialize,
 )]
 pub enum MarkerColor {
@@ -381,7 +404,9 @@ pub enum MarkerColor {
 }
 
 /// Identifies a block by the endpoint tracks of its section. Normalized: track_a <= track_b.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct BlockID {
     pub track_a: TrackID,
     pub track_b: TrackID,
@@ -391,9 +416,15 @@ impl BlockID {
     /// Creates a normalized block ID (track_a <= track_b).
     pub fn new(a: TrackID, b: TrackID) -> Self {
         if a <= b {
-            Self { track_a: a, track_b: b }
+            Self {
+                track_a: a,
+                track_b: b,
+            }
         } else {
-            Self { track_a: b, track_b: a }
+            Self {
+                track_a: b,
+                track_b: a,
+            }
         }
     }
 }
@@ -438,7 +469,17 @@ pub enum TrainSpeed {
 
 /// Whether a train's sensor is on the leading or trailing side relative to travel direction.
 #[derive(
-    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    Default,
+    Reflect,
+    Serialize,
     Deserialize,
 )]
 pub enum Facing {
@@ -458,7 +499,9 @@ impl Facing {
 
 /// A track with travel direction and train facing resolved.
 /// This is the node type for the logical graph used in pathfinding.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct LogicalTrackID {
     pub directed: DirectedTrackID,
     pub facing: Facing,
@@ -485,7 +528,17 @@ impl LogicalTrackID {
 
 /// Numeric train identifier. Human-readable name is stored in `TrainData`.
 #[derive(
-    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Reflect, Serialize,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    Default,
+    Reflect,
+    Serialize,
     Deserialize,
 )]
 pub struct TrainID(pub u32);

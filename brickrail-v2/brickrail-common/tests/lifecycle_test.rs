@@ -17,16 +17,15 @@ fn spawn_track_via_message() {
     let track_id = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
 
     app.world_mut()
-        .write_message(SpawnElement::<Track>::new(
-            track_id,
-            TrackData,
-        ));
+        .write_message(SpawnElement::<Track>::new(track_id, TrackData));
     app.update();
 
     // Entity should be registered
     let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 1);
-    let entity = registry.get(&track_id).expect("track should be in registry");
+    let entity = registry
+        .get(&track_id)
+        .expect("track should be in registry");
 
     // Entity should have the ElementId component
     let element_id = app
@@ -44,10 +43,7 @@ fn despawn_track_via_entity_event() {
 
     // Spawn
     app.world_mut()
-        .write_message(SpawnElement::<Track>::new(
-            track_id,
-            TrackData,
-        ));
+        .write_message(SpawnElement::<Track>::new(track_id, TrackData));
     app.update();
 
     let entity = app

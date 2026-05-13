@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use brickrail_common::block::{Block, BlockData};
-use brickrail_common::connection::Connection;
 use brickrail_common::command::{
     CommandPlugin, CommandRegistry, CommandState, EnterControlModeRequest,
     PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
 };
+use brickrail_common::connection::Connection;
 use brickrail_common::layout::{Layout, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
@@ -159,10 +159,7 @@ fn enter_control_mode() {
 
     // VirtualDrivers should have been spawned (one per train).
     let sub_world = app.sub_app_mut(LayoutSubApp).world_mut();
-    let driver_count = sub_world
-        .query::<&VirtualDriver>()
-        .iter(sub_world)
-        .count();
+    let driver_count = sub_world.query::<&VirtualDriver>().iter(sub_world).count();
     assert_eq!(driver_count, layout.trains.len());
 }
 
@@ -262,9 +259,7 @@ fn send_train_to_block_end_to_end() {
     // Enter control mode — spawns layout + VirtualDrivers.
     CommandRegistry::issue_world(
         app.world_mut(),
-        SimulationCommand::EnterControlMode(EnterControlModeRequest {
-            layout,
-        }),
+        SimulationCommand::EnterControlMode(EnterControlModeRequest { layout }),
     );
     for _ in 0..3 {
         app.update();
@@ -310,7 +305,11 @@ fn send_train_to_block_end_to_end() {
     assert_eq!(position.leg_state, TrainLegState::EnteredTarget);
 
     let legs = sub_world.get::<TrainLegs>(train_entity).unwrap();
-    assert_eq!(legs.collection().len(), 1, "only trailing idle should remain");
+    assert_eq!(
+        legs.collection().len(),
+        1,
+        "only trailing idle should remain"
+    );
     let current_leg = sub_world
         .get::<RouteLeg>(*legs.collection().first().unwrap())
         .unwrap();

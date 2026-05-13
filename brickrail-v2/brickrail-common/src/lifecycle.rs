@@ -238,13 +238,12 @@ impl<T: LayoutElement> Plugin for ElementPlugin<T> {
 
 /// Despawn all registered element entities.
 /// Iterates all registry entities and triggers `DespawnElement` on each element.
-pub fn despawn_all_elements(
-    registries: &Query<&RegisteredEntities>,
-    commands: &mut Commands,
-) {
+pub fn despawn_all_elements(registries: &Query<&RegisteredEntities>, commands: &mut Commands) {
     for registered in registries.iter() {
         for &element_entity in registered.0.iter() {
-            commands.entity(element_entity).trigger(|entity| DespawnElement { entity });
+            commands
+                .entity(element_entity)
+                .trigger(|entity| DespawnElement { entity });
         }
     }
 }

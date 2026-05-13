@@ -14,7 +14,9 @@ use bevy::prelude::*;
 // ---------------------------------------------------------------------------
 
 /// Unique command identifier for correlating requests with responses.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Component, Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct CommandId(pub u64);
 
 /// Lifecycle state of a command entity.
@@ -77,14 +79,15 @@ impl CommandRegistry {
     pub fn issue_world(world: &mut World, command: SimulationCommand) -> Entity {
         world.resource_scope(|world, mut registry: Mut<CommandRegistry>| {
             let cmd_id = registry.next_id();
-            let entity = world
-                .spawn((cmd_id, CommandState::Pending))
-                .id();
+            let entity = world.spawn((cmd_id, CommandState::Pending)).id();
             registry.insert(cmd_id, entity);
-            world.resource_mut::<SubAppCommandInputQueue>().0.push(CommandEnvelope {
-                command_id: cmd_id,
-                request: command,
-            });
+            world
+                .resource_mut::<SubAppCommandInputQueue>()
+                .0
+                .push(CommandEnvelope {
+                    command_id: cmd_id,
+                    request: command,
+                });
             entity
         })
     }

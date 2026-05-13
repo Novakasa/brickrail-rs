@@ -225,12 +225,10 @@ fn handle_append_legs(
                 if let Ok(last_leg) = leg_query.get(last_leg_entity) {
                     let first_new = &msg.legs[0];
                     assert_eq!(
-                        last_leg.target_block.block_id,
-                        first_new.start_block.block_id,
+                        last_leg.target_block.block_id, first_new.start_block.block_id,
                         "New legs must start where existing legs end: \
                          last target {:?} != first start {:?}",
-                        last_leg.target_block.block_id,
-                        first_new.start_block.block_id,
+                        last_leg.target_block.block_id, first_new.start_block.block_id,
                     );
                 }
             }
@@ -238,7 +236,9 @@ fn handle_append_legs(
 
         let mut spawned_entities = Vec::with_capacity(msg.legs.len());
         for leg in &msg.legs {
-            let id = commands.spawn((leg.clone(), LegOf(train_entity), Locked)).id();
+            let id = commands
+                .spawn((leg.clone(), LegOf(train_entity), Locked))
+                .id();
             spawned_entities.push(id);
         }
 

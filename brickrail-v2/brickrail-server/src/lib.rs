@@ -5,9 +5,7 @@ use bevy::state::app::StatesPlugin;
 use brickrail_common::block::Block;
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
-use brickrail_common::lifecycle::{
-    despawn_all_elements, RegisteredEntities, SpawnElement,
-};
+use brickrail_common::lifecycle::{RegisteredEntities, SpawnElement, despawn_all_elements};
 use brickrail_common::marker::Marker;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;

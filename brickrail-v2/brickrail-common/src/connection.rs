@@ -31,10 +31,7 @@ pub struct ConnectionGraph {
 impl ConnectionGraph {
     /// Returns all connections from a given track.
     pub fn connections_from(&self, track: TrackID) -> Vec<TrackConnectionID> {
-        self.graph
-            .edges(track)
-            .map(|(_, _, conn)| *conn)
-            .collect()
+        self.graph.edges(track).map(|(_, _, conn)| *conn).collect()
     }
 }
 
@@ -49,7 +46,9 @@ fn on_connection_added(
 ) {
     if let Ok(id) = query.get(trigger.event().entity) {
         let conn = id.0;
-        graph.graph.add_edge(conn.track_a.track, conn.track_b.track, conn);
+        graph
+            .graph
+            .add_edge(conn.track_a.track, conn.track_b.track, conn);
     }
 }
 
@@ -60,7 +59,9 @@ fn on_connection_removed(
 ) {
     if let Ok(id) = query.get(trigger.event().entity) {
         let conn = id.0;
-        graph.graph.remove_edge(conn.track_a.track, conn.track_b.track);
+        graph
+            .graph
+            .remove_edge(conn.track_a.track, conn.track_b.track);
     }
 }
 

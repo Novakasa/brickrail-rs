@@ -9,10 +9,10 @@ use brickrail_common::lifecycle::*;
 use brickrail_common::logical_graph::LogicalGraph;
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{AppendLegs, RouteLeg, TrainLegs};
+use brickrail_common::simulation::SimulationLogicPlugin;
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
 use brickrail_common::train_position::{TrainLegState, TrainPosition};
-use brickrail_common::simulation::SimulationLogicPlugin;
 use brickrail_common::virtual_driver::{VirtualDriver, VirtualDriverPlugin};
 use petgraph::algo::astar;
 
@@ -38,10 +38,11 @@ fn spawn_two_block_layout(app: &mut App) {
             .write_message(SpawnElement::<Track>::new(t, Default::default()));
     }
     for (a, b) in [(t0, t1), (t1, t2), (t2, t3), (t3, t4)] {
-        app.world_mut().write_message(SpawnElement::<Connection>::new(
-            a.get_connection_to(b).unwrap(),
-            Default::default(),
-        ));
+        app.world_mut()
+            .write_message(SpawnElement::<Connection>::new(
+                a.get_connection_to(b).unwrap(),
+                Default::default(),
+            ));
     }
     for t in [t0, t1, t3, t4] {
         app.world_mut()
@@ -149,9 +150,14 @@ fn virtual_driver_advances_through_route() {
 
     // Build idle leg at A, route A→B, trailing idle at B
     let idle = RouteLeg::idle(logical_a, &block_data_map, &marker_data_map).unwrap();
-    let mut route_legs =
-        build_route(logical_a, logical_b, logical_graph, &block_data_map, &marker_data_map)
-            .unwrap();
+    let mut route_legs = build_route(
+        logical_a,
+        logical_b,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .unwrap();
     route_legs.push(RouteLeg::idle(logical_b, &block_data_map, &marker_data_map).unwrap());
 
     // Spawn VirtualDriver as a separate entity
@@ -190,7 +196,11 @@ fn virtual_driver_advances_through_route() {
 
     // Current leg should be the trailing idle at block B
     let legs = app.world().get::<TrainLegs>(train_entity).unwrap();
-    assert_eq!(legs.collection().len(), 1, "only trailing idle should remain");
+    assert_eq!(
+        legs.collection().len(),
+        1,
+        "only trailing idle should remain"
+    );
     let current_leg_entity = *legs.collection().first().unwrap();
     let current_leg = app.world().get::<RouteLeg>(current_leg_entity).unwrap();
     assert_eq!(current_leg.start_block.block_id, block_b);
@@ -227,9 +237,14 @@ fn virtual_driver_stops_without_next_leg() {
 
     // Build idle + route WITHOUT trailing idle (train should stop at B)
     let idle = RouteLeg::idle(logical_a, &block_data_map, &marker_data_map).unwrap();
-    let route_legs =
-        build_route(logical_a, logical_b, logical_graph, &block_data_map, &marker_data_map)
-            .unwrap();
+    let route_legs = build_route(
+        logical_a,
+        logical_b,
+        logical_graph,
+        &block_data_map,
+        &marker_data_map,
+    )
+    .unwrap();
 
     // Spawn VirtualDriver as a separate entity
     app.world_mut()

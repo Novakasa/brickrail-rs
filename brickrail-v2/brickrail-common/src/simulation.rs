@@ -4,10 +4,13 @@ use bevy::prelude::*;
 use petgraph::algo::astar;
 
 use crate::block::{Block, BlockData};
-use crate::command::{CommandEnvelope, CommandResponse, EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest};
+use crate::command::{
+    CommandEnvelope, CommandResponse, EnterControlModeRequest, PlaceTrainAtBlockRequest,
+    SendTrainToBlockRequest,
+};
 use crate::connection::Connection;
-use crate::layout_primitives::{BlockDirection, BlockID, LogicalBlockID, TrackID};
 use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
+use crate::layout_primitives::{BlockDirection, BlockID, LogicalBlockID, TrackID};
 use crate::lifecycle::{ElementData, ElementId, Registry, SpawnElement};
 use crate::logical_graph::LogicalGraph;
 use crate::marker::{Marker, MarkerData};
@@ -15,8 +18,8 @@ use crate::route::{AppendLegs, LegOf, Locked, RouteLeg, TrainLegs};
 use crate::simulation_event::SimulationEvent;
 use crate::track::Track;
 use crate::train::Train;
-use crate::virtual_driver::VirtualDriver;
 use crate::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
+use crate::virtual_driver::VirtualDriver;
 
 /// System sets for ordering simulation systems within `Update`.
 /// State mutation runs first (processing messages), then logic reacts to the new state.
@@ -38,7 +41,10 @@ impl Plugin for SimulationStatePlugin {
         use crate::route::RouteStatePlugin;
         use crate::train_position::TrainPositionStatePlugin;
 
-        app.configure_sets(Update, SimulationSet::Logic.after(SimulationSet::StateMutation));
+        app.configure_sets(
+            Update,
+            SimulationSet::Logic.after(SimulationSet::StateMutation),
+        );
         app.add_message::<SimulationEvent>();
         app.add_systems(
             Update,
@@ -61,9 +67,15 @@ fn fan_out_simulation_events(
 ) {
     for event in event_reader.read() {
         match event {
-            SimulationEvent::AppendLegs(e) => { append_writer.write(e.clone()); }
-            SimulationEvent::TrainMarkerHit(e) => { marker_hit_writer.write(e.clone()); }
-            SimulationEvent::AdvanceLeg(e) => { advance_writer.write(e.clone()); }
+            SimulationEvent::AppendLegs(e) => {
+                append_writer.write(e.clone());
+            }
+            SimulationEvent::TrainMarkerHit(e) => {
+                marker_hit_writer.write(e.clone());
+            }
+            SimulationEvent::AdvanceLeg(e) => {
+                advance_writer.write(e.clone());
+            }
         }
     }
 }
@@ -132,7 +144,10 @@ fn dispatch_locked_leg(
     let Ok(train_element_id) = train_id_query.get(leg_of.0) else {
         return;
     };
-    queue_writer.write(QueueDriverLeg::new(train_element_id.0, DriverLeg::from(leg)));
+    queue_writer.write(QueueDriverLeg::new(
+        train_element_id.0,
+        DriverLeg::from(leg),
+    ));
 }
 
 /// Translation: converts `DriverMarkerHit` from the driver layer into
@@ -142,7 +157,9 @@ fn translate_driver_marker_hit(
     mut event_writer: MessageWriter<SimulationEvent>,
 ) {
     for hit in driver_hits.read() {
-        event_writer.write(SimulationEvent::TrainMarkerHit(TrainMarkerHit::new(hit.train)));
+        event_writer.write(SimulationEvent::TrainMarkerHit(TrainMarkerHit::new(
+            hit.train,
+        )));
     }
 }
 
@@ -303,10 +320,8 @@ pub fn handle_send_train_to_block(
                 .get(&req.target_block.block)
                 .ok_or_else(|| format!("target block {:?} not found", req.target_block.block))?;
             let start_track = start_data.enter_logical_track(start.direction, start.facing);
-            let target_track = target_data.enter_logical_track(
-                req.target_block.direction,
-                req.target_block.facing,
-            );
+            let target_track = target_data
+                .enter_logical_track(req.target_block.direction, req.target_block.facing);
 
             let (_cost, path) = astar(
                 &logical_graph.graph,
@@ -317,18 +332,17 @@ pub fn handle_send_train_to_block(
             )
             .ok_or("no path found")?;
 
-            let mut route_legs = RouteLeg::build_from_path(&path, &block_data_map, &marker_data_map)
-                .ok_or("failed to build route legs")?;
+            let mut route_legs =
+                RouteLeg::build_from_path(&path, &block_data_map, &marker_data_map)
+                    .ok_or("failed to build route legs")?;
 
             // Add trailing idle at target.
-            let trailing_idle =
-                RouteLeg::idle(req.target_block, &block_data_map, &marker_data_map)
-                    .ok_or("failed to build trailing idle")?;
+            let trailing_idle = RouteLeg::idle(req.target_block, &block_data_map, &marker_data_map)
+                .ok_or("failed to build trailing idle")?;
             route_legs.push(trailing_idle);
 
             event_writer.write(SimulationEvent::AppendLegs(AppendLegs::new(
-                req.train,
-                route_legs,
+                req.train, route_legs,
             )));
             Ok(())
         })();

@@ -71,8 +71,7 @@ impl Plugin for AppCommandPlugin {
             Update,
             (
                 dispatch_app_commands,
-                handle_spawn_layout
-                    .run_if(on_message::<CommandEnvelope<SpawnLayoutRequest>>),
+                handle_spawn_layout.run_if(on_message::<CommandEnvelope<SpawnLayoutRequest>>),
             )
                 .chain(),
         );
