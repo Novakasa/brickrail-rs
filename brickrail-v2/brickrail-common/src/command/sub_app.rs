@@ -3,10 +3,7 @@ use bevy::prelude::*;
 use crate::simulation::SimulationSet;
 use crate::simulation_event::{SimulationEvent, SimulationEventQueue};
 
-use super::{
-    CommandEnvelope, CommandId, CommandResponse, CommandState, Dispatched,
-    SimulationCommand, SimulationCommandPayload,
-};
+use super::{CommandEnvelope, CommandResponse, SimulationCommand};
 
 // ---------------------------------------------------------------------------
 // SubApp queue resources
@@ -27,32 +24,13 @@ pub struct SubAppCommandResponseQueue(pub Vec<CommandResponse>);
 // ---------------------------------------------------------------------------
 
 /// Client-side SubApp transport plugin.
-/// Dispatches pending simulation commands to the SubAppCommandInputQueue
-/// and sets up command infrastructure for the extract bridge.
+/// Sets up the SubAppCommandInputQueue for the extract bridge.
+/// Command dispatch is handled by `AppCommandPlugin`.
 pub struct SubAppClientPlugin;
 
 impl Plugin for SubAppClientPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SubAppCommandInputQueue>();
-        app.add_systems(Update, dispatch_simulation_commands);
-    }
-}
-
-/// Dispatches pending SimulationCommandPayload entities to the SubApp input queue.
-fn dispatch_simulation_commands(
-    mut commands: Commands,
-    query: Query<
-        (Entity, &CommandId, &SimulationCommandPayload),
-        (With<CommandState>, Without<Dispatched>),
-    >,
-    mut cmd_queue: ResMut<SubAppCommandInputQueue>,
-) {
-    for (entity, cmd_id, payload) in &query {
-        cmd_queue.0.push(CommandEnvelope {
-            command_id: *cmd_id,
-            request: payload.0.clone(),
-        });
-        commands.entity(entity).insert(Dispatched);
     }
 }
 

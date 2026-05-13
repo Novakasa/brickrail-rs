@@ -1,6 +1,8 @@
+mod app_command;
 mod simulation_command;
 mod sub_app;
 
+pub use app_command::*;
 pub use simulation_command::*;
 pub use sub_app::*;
 
@@ -22,10 +24,6 @@ pub enum CommandState {
     Completed,
     Failed(String),
 }
-
-/// Marker: this control command's request has been queued for the simulation.
-#[derive(Component)]
-pub struct Dispatched;
 
 /// Response from the simulation world, matched by CommandId.
 #[derive(Message, Clone, Debug)]
@@ -73,13 +71,22 @@ impl CommandRegistry {
         self.map.remove(id)
     }
 
-    pub fn issue(&mut self, commands: &mut Commands, command: SimulationCommand) -> Entity {
-        let cmd_id = self.next_id();
-        let entity = commands
-            .spawn((cmd_id, CommandState::Pending, SimulationCommandPayload(command)))
-            .id();
-        self.insert(cmd_id, entity);
-        entity
+    /// Issue a simulation command using direct World access and immediately
+    /// push it to the SubApp input queue. Useful in tests where you want to
+    /// bypass `AppCommandQueue` but still need the command to reach the SubApp.
+    pub fn issue_world(world: &mut World, command: SimulationCommand) -> Entity {
+        world.resource_scope(|world, mut registry: Mut<CommandRegistry>| {
+            let cmd_id = registry.next_id();
+            let entity = world
+                .spawn((cmd_id, CommandState::Pending))
+                .id();
+            registry.insert(cmd_id, entity);
+            world.resource_mut::<SubAppCommandInputQueue>().0.push(CommandEnvelope {
+                command_id: cmd_id,
+                request: command,
+            });
+            entity
+        })
     }
 }
 

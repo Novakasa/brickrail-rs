@@ -1,28 +1,25 @@
 use bevy::app::{Main, MainSchedulePlugin};
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::ecs::schedule::ScheduleLabel;
-use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy_pancam::{PanCam, PanCamPlugin};
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
-    CommandPlugin, CommandResponse, SimulationCommandPlugin, SubAppClientPlugin,
-    SubAppCommandInputQueue, SubAppCommandResponseQueue, SubAppServerPlugin,
+    AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry, CommandResponse,
+    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest,
+    SimulationCommand, SimulationCommandPlugin, SubAppClientPlugin, SubAppCommandInputQueue,
+    SubAppCommandResponseQueue, SubAppServerPlugin,
 };
-use brickrail_common::connection::Connection;
 use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
-use brickrail_common::lifecycle::{ElementData, ElementEntry, ElementId, SpawnElement};
-use brickrail_common::logical_graph::LogicalGraph;
+use brickrail_common::lifecycle::{ElementData, ElementEntry, ElementId};
 use brickrail_common::marker::{Marker, MarkerData};
-use brickrail_common::route::{AppendLegs, RouteLeg, TrainLegs};
-use brickrail_common::simulation::{SimulationLogicPlugin, SimulationSet};
+use brickrail_common::route::{RouteLeg, TrainLegs};
+use brickrail_common::simulation::SimulationLogicPlugin;
 use brickrail_common::simulation_event::{SimulationEvent, SimulationEventQueue};
 use brickrail_common::track::Track;
-use brickrail_common::train::Train;
 use brickrail_common::train_position::TrainPosition;
-use brickrail_common::virtual_driver::{VirtualDriver, VirtualDriverPlugin};
-use petgraph::algo::astar;
+use brickrail_common::virtual_driver::VirtualDriverPlugin;
 
 const LAYOUT_SCALE: f32 = 40.0;
 
@@ -32,7 +29,7 @@ fn main() {
         .add_plugins(PanCamPlugin)
         .add_plugins(LayoutAppPlugin)
         .add_plugins(ClientSimulationPlugin)
-        .add_systems(Startup, (spawn_camera, spawn_layout))
+        .add_systems(Startup, (spawn_camera, queue_init_commands))
         .add_systems(
             Update,
             (draw_tracks, draw_markers, draw_blocks, draw_trains),
@@ -45,8 +42,6 @@ struct ClientSimulationPlugin;
 
 impl Plugin for ClientSimulationPlugin {
     fn build(&self, app: &mut App) {
-        let layout = test_layout();
-
         let mut sub_app = SubApp::new();
         sub_app.update_schedule = Some(Main.intern());
 
@@ -66,18 +61,6 @@ impl Plugin for ClientSimulationPlugin {
         sub_app.add_plugins(SubAppServerPlugin);
         sub_app.add_plugins(bevy::time::TimePlugin);
         sub_app.add_plugins(VirtualDriverPlugin);
-
-        // Spawn layout elements in the SubApp.
-        spawn_layout_into(sub_app.world_mut(), &layout);
-
-        // Init resource: route building + simulation kickoff happens on second frame.
-        sub_app.insert_resource(SimulationInitNeeded(true));
-        sub_app.add_systems(
-            Update,
-            init_simulation
-                .run_if(|r: Res<SimulationInitNeeded>| r.0)
-                .in_set(SimulationSet::Logic),
-        );
 
         // Bidirectional extract bridge.
         sub_app.set_extract(|main_world, sub_world| {
@@ -104,156 +87,71 @@ impl Plugin for ClientSimulationPlugin {
         });
 
         app.add_plugins(CommandPlugin);
+        app.add_plugins(AppCommandPlugin);
         app.add_plugins(SubAppClientPlugin);
         app.insert_sub_app(LayoutSubApp, sub_app);
     }
 }
 
-/// Write SpawnElement messages for all layout elements into a world.
-fn spawn_layout_into(world: &mut World, layout: &Layout) {
-    for entry in &layout.tracks {
-        world.write_message(SpawnElement::<Track>::from_entry(entry));
-    }
-    for entry in &layout.connections {
-        world.write_message(SpawnElement::<Connection>::from_entry(entry));
-    }
-    for entry in &layout.markers {
-        world.write_message(SpawnElement::<Marker>::from_entry(entry));
-    }
-    for entry in &layout.blocks {
-        world.write_message(SpawnElement::<Block>::from_entry(entry));
-    }
-    for entry in &layout.trains {
-        world.write_message(SpawnElement::<Train>::from_entry(entry));
-    }
-}
-
-#[derive(Resource)]
-struct SimulationInitNeeded(bool);
-
-/// One-time init: build route and kick off simulation.
-/// Waits until layout elements are spawned and LogicalGraph is built.
-fn init_simulation(
-    mut needs_init: ResMut<SimulationInitNeeded>,
-    logical_graph: Res<LogicalGraph>,
-    block_registry: Res<brickrail_common::lifecycle::Registry<Block>>,
-    block_data_query: Query<&ElementData<Block>>,
-    marker_registry: Res<brickrail_common::lifecycle::Registry<Marker>>,
-    marker_data_query: Query<&ElementData<Marker>>,
+/// Queue all init commands at startup. The AppCommandQueue executes them sequentially.
+fn queue_init_commands(
+    mut queue: ResMut<AppCommandQueue>,
+    mut registry: ResMut<CommandRegistry>,
     mut commands: Commands,
-    mut event_writer: MessageWriter<SimulationEvent>,
 ) {
-    // Wait until registries are populated and LogicalGraph is built.
-    if block_registry.is_empty()
-        || marker_registry.is_empty()
-        || logical_graph.graph.node_count() == 0
-    {
-        return;
-    }
+    let layout = test_layout();
 
-    // Build data maps from ECS.
-    let mut block_data_map = HashMap::new();
-    for (id, &entity) in block_registry.iter() {
-        if let Ok(data) = block_data_query.get(entity) {
-            block_data_map.insert(*id, data.0.clone());
-        }
-    }
-    let mut marker_data_map = HashMap::new();
-    for (id, &entity) in marker_registry.iter() {
-        if let Ok(data) = marker_data_query.get(entity) {
-            marker_data_map.insert(*id, data.0.clone());
-        }
-    }
-
-    // Use blocks A and B from test_layout.
     let t0 = TrackID::new(CellID::new(0, 2, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 2, 0), Orientation::EW);
     let t7 = TrackID::new(CellID::new(2, -1, 0), Orientation::EW);
     let t8 = TrackID::new(CellID::new(1, -1, 0), Orientation::EW);
-    let block_a = BlockID::new(t0, t1);
-    let block_b = BlockID::new(t7, t8);
 
     let logical_a = LogicalBlockID {
-        block: block_a,
+        block: BlockID::new(t0, t1),
         direction: BlockDirection::Aligned,
         facing: Facing::Forward,
     };
     let logical_b = LogicalBlockID {
-        block: block_b,
+        block: BlockID::new(t7, t8),
         direction: BlockDirection::Aligned,
         facing: Facing::Forward,
     };
 
-    // Build idle at A, route A→B, trailing idle at B.
-    let idle = RouteLeg::idle(logical_a, &block_data_map, &marker_data_map)
-        .expect("should build idle leg at A");
+    // 1. Spawn layout in main world (for rendering).
+    queue.push(&mut commands, &mut registry, AppCommand::SpawnLayout(layout.clone()));
 
-    let start_data = block_data_map.get(&block_a).unwrap();
-    let target_data = block_data_map.get(&block_b).unwrap();
-    let start_track = start_data.enter_logical_track(logical_a.direction, logical_a.facing);
-    let target_track = target_data.enter_logical_track(logical_b.direction, logical_b.facing);
+    // 2. Enter control mode — syncs layout to SubApp + spawns VirtualDrivers.
+    queue.push(
+        &mut commands,
+        &mut registry,
+        AppCommand::Simulation(SimulationCommand::EnterControlMode(EnterControlModeRequest {
+            layout,
+        })),
+    );
 
-    let (_cost, path) = astar(
-        &logical_graph.graph,
-        start_track,
-        |n| n == target_track,
-        |_| 1u32,
-        |_| 0u32,
-    )
-    .expect("should find path A→B");
+    // 3. Place train at block A.
+    queue.push(
+        &mut commands,
+        &mut registry,
+        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(PlaceTrainAtBlockRequest {
+            train: TrainID(0),
+            block: logical_a,
+        })),
+    );
 
-    let mut route_legs =
-        RouteLeg::build_from_path(&path, &block_data_map, &marker_data_map)
-            .expect("should build route legs");
-    let trailing_idle = RouteLeg::idle(logical_b, &block_data_map, &marker_data_map)
-        .expect("should build trailing idle at B");
-    route_legs.push(trailing_idle);
-
-    // Combine: idle + route + trailing idle.
-    let mut all_legs = vec![idle];
-    all_legs.extend(route_legs);
-
-    // Spawn VirtualDriver (separate entity, SubApp only).
-    commands.spawn(VirtualDriver::new(TrainID(0), 1.0));
-
-    // Write AppendLegs via SimulationEvent so it gets collected and forwarded to client.
-    event_writer.write(SimulationEvent::AppendLegs(AppendLegs::new(
-        TrainID(0),
-        all_legs,
-    )));
-
-    // Mark init as done so this system doesn't run again.
-    needs_init.0 = false;
+    // 4. Send train from A to B.
+    queue.push(
+        &mut commands,
+        &mut registry,
+        AppCommand::Simulation(SimulationCommand::SendTrainToBlock(SendTrainToBlockRequest {
+            train: TrainID(0),
+            target_block: logical_b,
+        })),
+    );
 }
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((Camera2d::default(), PanCam::default()));
-}
-
-fn spawn_layout(
-    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
-    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
-    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
-    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
-    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
-) {
-    let layout = test_layout();
-
-    for entry in &layout.tracks {
-        spawn_tracks.write(SpawnElement::from_entry(entry));
-    }
-    for entry in &layout.connections {
-        spawn_connections.write(SpawnElement::from_entry(entry));
-    }
-    for entry in &layout.markers {
-        spawn_markers.write(SpawnElement::from_entry(entry));
-    }
-    for entry in &layout.blocks {
-        spawn_blocks.write(SpawnElement::from_entry(entry));
-    }
-    for entry in &layout.trains {
-        spawn_trains.write(SpawnElement::from_entry(entry));
-    }
 }
 
 /// Build a test layout: C-shaped path with two blocks.
