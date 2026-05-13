@@ -1,25 +1,19 @@
-use bevy::app::{Main, MainSchedulePlugin};
 use bevy::ecs::relationship::RelationshipTarget;
-use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy_pancam::{PanCam, PanCamPlugin};
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
-    AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry, CommandResponse,
+    AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry,
     EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest,
-    SimulationCommand, SimulationCommandPlugin, SubAppClientPlugin, SubAppCommandInputQueue,
-    SubAppCommandResponseQueue, SubAppServerPlugin,
+    SimulationCommand, SubAppClientPlugin,
 };
-use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
+use brickrail_common::layout::{Layout, LayoutAppPlugin};
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::{ElementData, ElementEntry, ElementId};
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{RouteLeg, TrainLegs};
-use brickrail_common::simulation::SimulationLogicPlugin;
-use brickrail_common::simulation_event::{SimulationEvent, SimulationEventQueue};
 use brickrail_common::track::Track;
 use brickrail_common::train_position::TrainPosition;
-use brickrail_common::virtual_driver::VirtualDriverPlugin;
 
 const LAYOUT_SCALE: f32 = 40.0;
 
@@ -37,59 +31,14 @@ fn main() {
         .run();
 }
 
-/// Plugin that sets up the simulation SubApp and extract bridge.
+/// Plugin that sets up the simulation SubApp and client-side command handling.
 struct ClientSimulationPlugin;
 
 impl Plugin for ClientSimulationPlugin {
     fn build(&self, app: &mut App) {
-        let mut sub_app = SubApp::new();
-        sub_app.update_schedule = Some(Main.intern());
-
-        // Bootstrap SubApp with standard Bevy schedules and message plumbing.
-        sub_app.add_plugins(MainSchedulePlugin);
-        sub_app.add_systems(
-            First,
-            bevy::ecs::message::message_update_system
-                .in_set(bevy::ecs::message::MessageUpdateSystems)
-                .run_if(bevy::ecs::message::message_update_condition),
-        );
-
-        sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
-        sub_app.add_plugins(LayoutAppPlugin);
-        sub_app.add_plugins(SimulationLogicPlugin);
-        sub_app.add_plugins(SimulationCommandPlugin);
-        sub_app.add_plugins(SubAppServerPlugin);
-        sub_app.add_plugins(bevy::time::TimePlugin);
-        sub_app.add_plugins(VirtualDriverPlugin);
-
-        // Bidirectional extract bridge.
-        sub_app.set_extract(|main_world, sub_world| {
-            // Output: simulation events → main app.
-            let mut event_queue = sub_world.resource_mut::<SimulationEventQueue>();
-            let events: Vec<SimulationEvent> = event_queue.0.drain(..).collect();
-            for event in events {
-                main_world.write_message(event);
-            }
-
-            // Output: command responses → main app.
-            let mut response_queue = sub_world.resource_mut::<SubAppCommandResponseQueue>();
-            let responses: Vec<CommandResponse> = response_queue.0.drain(..).collect();
-            for response in responses {
-                main_world.write_message(response);
-            }
-
-            // Input: simulation commands → SubApp.
-            let mut cmd_queue = main_world.resource_mut::<SubAppCommandInputQueue>();
-            let commands: Vec<_> = cmd_queue.0.drain(..).collect();
-            for cmd in commands {
-                sub_world.write_message(cmd);
-            }
-        });
-
         app.add_plugins(CommandPlugin);
         app.add_plugins(AppCommandPlugin);
         app.add_plugins(SubAppClientPlugin);
-        app.insert_sub_app(LayoutSubApp, sub_app);
     }
 }
 

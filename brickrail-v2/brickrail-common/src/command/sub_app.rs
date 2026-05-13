@@ -1,9 +1,12 @@
+use bevy::app::{Main, MainSchedulePlugin};
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 
-use crate::simulation::SimulationSet;
+use crate::layout::LayoutSubApp;
+use crate::simulation::SimulationPlugin;
 use crate::simulation_event::{SimulationEvent, SimulationEventQueue};
 
-use super::{CommandEnvelope, CommandResponse, SimulationCommand};
+use super::{CommandEnvelope, CommandResponse, SimulationCommand, SimulationCommandPlugin};
 
 // ---------------------------------------------------------------------------
 // SubApp queue resources
@@ -24,13 +27,59 @@ pub struct SubAppCommandResponseQueue(pub Vec<CommandResponse>);
 // ---------------------------------------------------------------------------
 
 /// Client-side SubApp transport plugin.
-/// Sets up the SubAppCommandInputQueue for the extract bridge.
-/// Command dispatch is handled by `AppCommandPlugin`.
+/// Creates the simulation SubApp, wires up the bidirectional extract bridge,
+/// and inserts it into the main app.
 pub struct SubAppClientPlugin;
 
 impl Plugin for SubAppClientPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SubAppCommandInputQueue>();
+
+        let mut sub_app = SubApp::new();
+        sub_app.update_schedule = Some(Main.intern());
+
+        // Bootstrap SubApp with standard Bevy schedules and message plumbing.
+        sub_app.add_plugins(MainSchedulePlugin);
+        sub_app.add_systems(
+            First,
+            bevy::ecs::message::message_update_system
+                .in_set(bevy::ecs::message::MessageUpdateSystems)
+                .run_if(bevy::ecs::message::message_update_condition),
+        );
+        sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
+
+        // Domain logic (communication-agnostic).
+        sub_app.add_plugins(SimulationPlugin);
+
+        // Command handling + response collection (transport-specific).
+        sub_app.add_plugins(SimulationCommandPlugin);
+        sub_app.add_plugins(SubAppServerPlugin);
+
+        // Bidirectional extract bridge.
+        sub_app.set_extract(|main_world, sub_world| {
+            // Output: simulation events → main app.
+            let mut event_queue = sub_world.resource_mut::<SimulationEventQueue>();
+            let events: Vec<SimulationEvent> = event_queue.0.drain(..).collect();
+            for event in events {
+                main_world.write_message(event);
+            }
+
+            // Output: command responses → main app.
+            let mut response_queue = sub_world.resource_mut::<SubAppCommandResponseQueue>();
+            let responses: Vec<CommandResponse> = response_queue.0.drain(..).collect();
+            for response in responses {
+                main_world.write_message(response);
+            }
+
+            // Input: simulation commands → SubApp.
+            let mut cmd_queue = main_world.resource_mut::<SubAppCommandInputQueue>();
+            let commands: Vec<_> = cmd_queue.0.drain(..).collect();
+            for cmd in commands {
+                sub_world.write_message(cmd);
+            }
+        });
+
+        app.insert_sub_app(LayoutSubApp, sub_app);
     }
 }
 
@@ -54,7 +103,7 @@ impl Plugin for SubAppServerPlugin {
                 collect_simulation_events.run_if(on_message::<SimulationEvent>),
                 collect_command_responses.run_if(on_message::<CommandResponse>),
             )
-                .after(SimulationSet::Logic),
+                .after(crate::simulation::SimulationSet::Logic),
         );
     }
 }

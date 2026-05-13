@@ -1,25 +1,19 @@
-use bevy::app::{Main, MainSchedulePlugin, SubApp};
-use bevy::ecs::relationship::RelationshipTarget;
-use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use brickrail_common::block::{Block, BlockData};
-use brickrail_common::command::{
-    CommandPlugin, CommandRegistry, CommandResponse, CommandState, EnterControlModeRequest,
-    PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand, SimulationCommandPlugin,
-    SubAppClientPlugin, SubAppCommandInputQueue, SubAppCommandResponseQueue, SubAppServerPlugin,
-};
 use brickrail_common::connection::Connection;
-use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
+use brickrail_common::command::{
+    CommandPlugin, CommandRegistry, CommandState, EnterControlModeRequest,
+    PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
+};
+use brickrail_common::layout::{Layout, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
 use brickrail_common::marker::Marker;
 use brickrail_common::route::{RouteLeg, TrainLegs};
-use brickrail_common::simulation::SimulationLogicPlugin;
-use brickrail_common::simulation_event::{SimulationEvent, SimulationEventQueue};
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
 use brickrail_common::train_position::{TrainLegState, TrainPosition};
-use brickrail_common::virtual_driver::{VirtualDriver, VirtualDriverPlugin};
+use brickrail_common::virtual_driver::VirtualDriver;
 
 /// Build a client+simulation app with bidirectional extract bridge.
 fn make_app() -> App {
@@ -27,45 +21,6 @@ fn make_app() -> App {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(CommandPlugin);
     app.add_plugins(SubAppClientPlugin);
-
-    let mut sub_app = SubApp::new();
-    sub_app.update_schedule = Some(Main.intern());
-    sub_app.add_plugins(MainSchedulePlugin);
-    sub_app.add_systems(
-        First,
-        bevy::ecs::message::message_update_system
-            .in_set(bevy::ecs::message::MessageUpdateSystems)
-            .run_if(bevy::ecs::message::message_update_condition),
-    );
-    sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
-    sub_app.add_plugins(LayoutAppPlugin);
-    sub_app.add_plugins(SimulationLogicPlugin);
-    sub_app.add_plugins(SimulationCommandPlugin);
-    sub_app.add_plugins(SubAppServerPlugin);
-    sub_app.add_plugins(bevy::time::TimePlugin);
-    sub_app.add_plugins(VirtualDriverPlugin);
-
-    sub_app.set_extract(|main_world, sub_world| {
-        let mut event_queue = sub_world.resource_mut::<SimulationEventQueue>();
-        let events: Vec<SimulationEvent> = event_queue.0.drain(..).collect();
-        for event in events {
-            main_world.write_message(event);
-        }
-
-        let mut response_queue = sub_world.resource_mut::<SubAppCommandResponseQueue>();
-        let responses: Vec<CommandResponse> = response_queue.0.drain(..).collect();
-        for response in responses {
-            main_world.write_message(response);
-        }
-
-        let mut cmd_queue = main_world.resource_mut::<SubAppCommandInputQueue>();
-        let commands: Vec<_> = cmd_queue.0.drain(..).collect();
-        for cmd in commands {
-            sub_world.write_message(cmd);
-        }
-    });
-
-    app.insert_sub_app(LayoutSubApp, sub_app);
     app
 }
 

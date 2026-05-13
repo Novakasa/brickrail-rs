@@ -68,6 +68,20 @@ fn fan_out_simulation_events(
     }
 }
 
+/// Top-level simulation plugin bundling all communication-agnostic domain logic.
+/// Does NOT include transport or command handling — those are added separately
+/// by the transport layer (e.g. `SubAppClientPlugin`).
+pub struct SimulationPlugin;
+
+impl Plugin for SimulationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(crate::layout::LayoutAppPlugin);
+        app.add_plugins(SimulationLogicPlugin);
+        app.add_plugins(bevy::time::TimePlugin);
+        app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
+    }
+}
+
 /// Simulation logic plugin. Server-side only.
 /// Contains logic systems that react to state and emit `SimulationEvent` messages:
 /// leg advancement, driver dispatch, and driver↔simulation translation.
