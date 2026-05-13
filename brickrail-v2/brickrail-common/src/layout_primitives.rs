@@ -419,7 +419,7 @@ impl BlockDirection {
 }
 
 /// A block with travel direction and facing resolved. Used as input to pathfinding.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct LogicalBlockID {
     pub block: BlockID,
     pub direction: BlockDirection,

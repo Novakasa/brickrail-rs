@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
 use crate::lifecycle::ElementId;
 use crate::route::{AppendLegs, LegOf, Locked, RouteLeg, TrainLegs};
-use crate::simulation_event::{SimulationEvent, SimulationEventQueue};
+use crate::simulation_event::SimulationEvent;
 use crate::train::Train;
 use crate::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
 
@@ -77,33 +77,6 @@ impl Plugin for SimulationLogicPlugin {
             )
                 .in_set(SimulationSet::Logic),
         );
-    }
-}
-
-/// Simulation event collector plugin. Server-side only.
-/// Collects `SimulationEvent` messages into `SimulationEventQueue` for
-/// extraction by the client (via SubApp extract or network).
-pub struct SimulationCollectorPlugin;
-
-impl Plugin for SimulationCollectorPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<SimulationEventQueue>();
-        app.add_systems(
-            Update,
-            collect_simulation_events
-                .run_if(on_message::<SimulationEvent>)
-                .in_set(SimulationSet::Logic),
-        );
-    }
-}
-
-/// Collects `SimulationEvent` messages into the extraction queue.
-fn collect_simulation_events(
-    mut event_reader: MessageReader<SimulationEvent>,
-    mut queue: ResMut<SimulationEventQueue>,
-) {
-    for event in event_reader.read() {
-        queue.0.push(event.clone());
     }
 }
 

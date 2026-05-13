@@ -1,4 +1,5 @@
 pub mod block;
+pub mod command;
 pub mod connection;
 pub mod driver;
 pub mod layout;

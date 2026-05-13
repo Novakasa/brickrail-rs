@@ -5,6 +5,10 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy_pancam::{PanCam, PanCamPlugin};
 use brickrail_common::block::{Block, BlockData};
+use brickrail_common::command::{
+    CommandPlugin, CommandResponse, SimulationCommandPlugin, SubAppClientPlugin,
+    SubAppCommandInputQueue, SubAppCommandResponseQueue, SubAppServerPlugin,
+};
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
@@ -12,9 +16,7 @@ use brickrail_common::lifecycle::{ElementData, ElementEntry, ElementId, SpawnEle
 use brickrail_common::logical_graph::LogicalGraph;
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{AppendLegs, RouteLeg, TrainLegs};
-use brickrail_common::simulation::{
-    SimulationCollectorPlugin, SimulationLogicPlugin, SimulationSet,
-};
+use brickrail_common::simulation::{SimulationLogicPlugin, SimulationSet};
 use brickrail_common::simulation_event::{SimulationEvent, SimulationEventQueue};
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -60,7 +62,8 @@ impl Plugin for ClientSimulationPlugin {
         sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
         sub_app.add_plugins(LayoutAppPlugin);
         sub_app.add_plugins(SimulationLogicPlugin);
-        sub_app.add_plugins(SimulationCollectorPlugin);
+        sub_app.add_plugins(SimulationCommandPlugin);
+        sub_app.add_plugins(SubAppServerPlugin);
         sub_app.add_plugins(bevy::time::TimePlugin);
         sub_app.add_plugins(VirtualDriverPlugin);
 
@@ -76,15 +79,32 @@ impl Plugin for ClientSimulationPlugin {
                 .in_set(SimulationSet::Logic),
         );
 
-        // Extract: drain SimulationEventQueue from SubApp → main app SimulationEvent messages.
+        // Bidirectional extract bridge.
         sub_app.set_extract(|main_world, sub_world| {
-            let mut queue = sub_world.resource_mut::<SimulationEventQueue>();
-            let events: Vec<SimulationEvent> = queue.0.drain(..).collect();
+            // Output: simulation events → main app.
+            let mut event_queue = sub_world.resource_mut::<SimulationEventQueue>();
+            let events: Vec<SimulationEvent> = event_queue.0.drain(..).collect();
             for event in events {
                 main_world.write_message(event);
             }
+
+            // Output: command responses → main app.
+            let mut response_queue = sub_world.resource_mut::<SubAppCommandResponseQueue>();
+            let responses: Vec<CommandResponse> = response_queue.0.drain(..).collect();
+            for response in responses {
+                main_world.write_message(response);
+            }
+
+            // Input: simulation commands → SubApp.
+            let mut cmd_queue = main_world.resource_mut::<SubAppCommandInputQueue>();
+            let commands: Vec<_> = cmd_queue.0.drain(..).collect();
+            for cmd in commands {
+                sub_world.write_message(cmd);
+            }
         });
 
+        app.add_plugins(CommandPlugin);
+        app.add_plugins(SubAppClientPlugin);
         app.insert_sub_app(LayoutSubApp, sub_app);
     }
 }
