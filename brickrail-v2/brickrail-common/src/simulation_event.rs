@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::route::AppendLegs;
+use crate::simulation::PlaceTrainAtBlock;
 use crate::train_position::{AdvanceLeg, TrainMarkerHit};
 
 /// Canonical simulation event message. Wraps all mutation event types into a single
@@ -11,6 +12,7 @@ pub enum SimulationEvent {
     AppendLegs(AppendLegs),
     TrainMarkerHit(TrainMarkerHit),
     AdvanceLeg(AdvanceLeg),
+    PlaceTrainAtBlock(PlaceTrainAtBlock),
 }
 
 /// Extraction resource: collects `SimulationEvent`s produced by logic systems

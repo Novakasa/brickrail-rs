@@ -5,8 +5,8 @@ use bevy::prelude::*;
 use crate::block::Block;
 use crate::connection::Connection;
 use crate::layout::Layout;
-use crate::layout_primitives::LogicalBlockID;
-use crate::lifecycle::{ElementId, SpawnElement};
+use crate::layout_primitives::{LogicalBlockID, TrainID};
+use crate::lifecycle::{ElementId, Registry, SpawnElement};
 use crate::marker::Marker;
 use crate::route::{RouteLeg, TrainLegs};
 use crate::track::Track;
@@ -15,7 +15,7 @@ use crate::train_position::{TrainLegState, TrainPosition};
 
 use super::{
     CommandEnvelope, CommandId, CommandRegistry, CommandResponse, CommandState,
-    ExitControlModeRequest, PlaceTrainAtBlockRequest, SimulationCommand, SubAppCommandInputQueue,
+    ExitControlModeRequest, SimulationCommand, SubAppCommandInputQueue,
 };
 
 /// Top-level command enum for the client side.
@@ -24,8 +24,12 @@ use super::{
 pub enum AppCommand {
     /// Spawn layout elements in the main world (for rendering/editing).
     SpawnLayout(Layout),
-    /// Enter control mode: forwards to SubApp, then auto-places trains
-    /// that have a cached `TrainBlockPosition`.
+    /// Set a train's cached position. Inserts `TrainBlockPosition` on the
+    /// main-world train entity. Used before `EnterControlMode` so the
+    /// simulation auto-places the train.
+    SetTrainPosition(TrainID, LogicalBlockID),
+    /// Enter control mode: forwards to SubApp with cached train positions.
+    /// Trains with `TrainBlockPosition` are auto-placed in the simulation.
     EnterControlMode(Layout),
     /// Exit control mode: extracts train positions into `TrainBlockPosition`
     /// components, then forwards despawn to SubApp.
@@ -116,8 +120,9 @@ fn dispatch_app_commands(
     train_query: Query<(Entity, &ElementId<Train>, &TrainPosition, &TrainLegs)>,
     leg_query: Query<&RouteLeg>,
     cached_position_query: Query<(&ElementId<Train>, &TrainBlockPosition)>,
+    train_registry: Res<Registry<Train>>,
     mut commands: Commands,
-    mut registry: ResMut<CommandRegistry>,
+    mut response_writer: MessageWriter<CommandResponse>,
 ) {
     // Check if the in-flight command has completed.
     if let Some(in_flight) = queue.in_flight {
@@ -147,27 +152,32 @@ fn dispatch_app_commands(
                 request: SpawnLayoutRequest { layout },
             });
         }
+        AppCommand::SetTrainPosition(train_id, block) => {
+            // Insert TrainBlockPosition on the main-world train entity.
+            if let Some(train_entity) = train_registry.get(&train_id) {
+                commands
+                    .entity(train_entity)
+                    .insert(TrainBlockPosition(block));
+            }
+            // Complete immediately via response.
+            response_writer.write(CommandResponse {
+                command_id: *cmd_id,
+                result: Ok(()),
+            });
+        }
         AppCommand::EnterControlMode(layout) => {
-            // Forward EnterControlMode to SubApp.
+            // Collect cached train positions and bundle into the request.
+            let train_positions: Vec<_> = cached_position_query
+                .iter()
+                .map(|(id, pos)| (id.0, pos.0))
+                .collect();
             cmd_queue.0.push(CommandEnvelope {
                 command_id: *cmd_id,
                 request: SimulationCommand::EnterControlMode(super::EnterControlModeRequest {
                     layout,
+                    train_positions,
                 }),
             });
-            // Auto-place trains that have cached positions.
-            for (train_id, cached_pos) in &cached_position_query {
-                queue.push(
-                    &mut commands,
-                    &mut registry,
-                    AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
-                        PlaceTrainAtBlockRequest {
-                            train: train_id.0,
-                            block: cached_pos.0,
-                        },
-                    )),
-                );
-            }
         }
         AppCommand::ExitControlMode => {
             // Extract train positions from main-world mirror before despawn.

@@ -45,21 +45,3 @@ pub struct Layout {
     #[serde(default)]
     pub trains: Vec<ElementEntry<Train>>,
 }
-
-/// Command: enter control mode with a serialized layout.
-#[derive(Message, Clone)]
-pub struct EnterControlMode {
-    pub layout: Layout,
-}
-
-/// Command: exit control mode.
-#[derive(Message, Clone)]
-pub struct ExitControlMode;
-
-/// Server state machine.
-#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ServerState {
-    #[default]
-    Idle,
-    Running,
-}

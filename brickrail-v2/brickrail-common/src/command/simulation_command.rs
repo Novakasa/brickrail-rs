@@ -11,23 +11,18 @@ use super::{CommandEnvelope, CommandId, CommandResponse};
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SimulationCommand {
     EnterControlMode(EnterControlModeRequest),
-    PlaceTrainAtBlock(PlaceTrainAtBlockRequest),
     SendTrainToBlock(SendTrainToBlockRequest),
     ExitControlMode(ExitControlModeRequest),
 }
 
-/// Domain request: enter control mode with a layout.
-/// Spawns all layout elements + a VirtualDriver per train.
+/// Domain request: enter control mode with a layout and optional cached train positions.
+/// The handler stores this data and transitions to `Entering` state; dedicated
+/// state-driven systems handle spawning and train placement.
 #[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EnterControlModeRequest {
     pub layout: Layout,
-}
-
-/// Domain request: place a train at a block (creates idle leg).
-#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PlaceTrainAtBlockRequest {
-    pub train: TrainID,
-    pub block: LogicalBlockID,
+    #[serde(default)]
+    pub train_positions: Vec<(TrainID, LogicalBlockID)>,
 }
 
 /// Domain request: send a train to a target block.
@@ -66,25 +61,27 @@ pub struct SimulationCommandPlugin;
 impl Plugin for SimulationCommandPlugin {
     fn build(&self, app: &mut App) {
         use crate::simulation::{
-            SimulationSet, handle_enter_control_mode, handle_exit_control_mode,
-            handle_place_train_at_block, handle_send_train_to_block,
+            SimulationSet, SimulationState, handle_enter_control_mode, handle_exit_control_mode,
+            handle_send_train_to_block,
         };
 
         app.init_resource::<SimulationCommandQueue>();
         app.add_message::<CommandEnvelope<SimulationCommand>>();
         app.add_message::<CommandEnvelope<EnterControlModeRequest>>();
-        app.add_message::<CommandEnvelope<PlaceTrainAtBlockRequest>>();
         app.add_message::<CommandEnvelope<SendTrainToBlockRequest>>();
         app.add_message::<CommandEnvelope<ExitControlModeRequest>>();
         app.add_systems(
             Update,
             (
-                process_command_queue,
+                intake_commands.run_if(on_message::<CommandEnvelope<SimulationCommand>>),
+                // Response clearing must always run so responses aren't lost
+                // while dispatch is gated during Entering state.
+                clear_completed_commands.run_if(on_message::<CommandResponse>),
+                dispatch_commands
+                    .run_if(in_state(SimulationState::Idle).or(in_state(SimulationState::Running))),
                 (
                     handle_enter_control_mode
                         .run_if(on_message::<CommandEnvelope<EnterControlModeRequest>>),
-                    handle_place_train_at_block
-                        .run_if(on_message::<CommandEnvelope<PlaceTrainAtBlockRequest>>),
                     handle_send_train_to_block
                         .run_if(on_message::<CommandEnvelope<SendTrainToBlockRequest>>),
                     handle_exit_control_mode
@@ -97,32 +94,42 @@ impl Plugin for SimulationCommandPlugin {
     }
 }
 
-/// Combined intake + dispatch: reads incoming command messages into the queue,
-/// checks if the in-flight command completed, and dispatches the next one.
-/// Runs as a single system to avoid ordering issues between intake and dispatch.
-fn process_command_queue(
+/// Intake: reads incoming command messages into the queue,
+/// preserving their client-assigned CommandIds.
+fn intake_commands(
     mut incoming: MessageReader<CommandEnvelope<SimulationCommand>>,
-    mut responses: MessageReader<CommandResponse>,
     mut queue: ResMut<SimulationCommandQueue>,
-    mut enter_control_writer: MessageWriter<CommandEnvelope<EnterControlModeRequest>>,
-    mut place_train_writer: MessageWriter<CommandEnvelope<PlaceTrainAtBlockRequest>>,
-    mut send_train_writer: MessageWriter<CommandEnvelope<SendTrainToBlockRequest>>,
-    mut exit_control_writer: MessageWriter<CommandEnvelope<ExitControlModeRequest>>,
 ) {
-    // Intake: queue incoming commands from the extract bridge,
-    // preserving their client-assigned CommandIds.
     for envelope in incoming.read() {
         queue.queue.push_back(envelope.clone());
     }
+}
 
-    // Check if the in-flight command has completed.
+/// Clears the in-flight command when its response arrives.
+/// Runs unconditionally so responses aren't lost while dispatch is gated
+/// during transitional states like Entering.
+fn clear_completed_commands(
+    mut responses: MessageReader<CommandResponse>,
+    mut queue: ResMut<SimulationCommandQueue>,
+) {
     if let Some(in_flight_id) = queue.in_flight {
-        let completed = responses.read().any(|r| r.command_id == in_flight_id);
-        if completed {
+        if responses.read().any(|r| r.command_id == in_flight_id) {
             queue.in_flight = None;
-        } else {
-            return; // Still waiting.
         }
+    }
+}
+
+/// Dispatch: pops the next command from the queue and fans out to typed
+/// envelopes. Gated on SimulationState (only runs in Idle or Running).
+fn dispatch_commands(
+    mut queue: ResMut<SimulationCommandQueue>,
+    mut enter_control_writer: MessageWriter<CommandEnvelope<EnterControlModeRequest>>,
+    mut send_train_writer: MessageWriter<CommandEnvelope<SendTrainToBlockRequest>>,
+    mut exit_control_writer: MessageWriter<CommandEnvelope<ExitControlModeRequest>>,
+) {
+    // Wait for in-flight command to complete.
+    if queue.in_flight.is_some() {
+        return;
     }
 
     // Dispatch the next command with fan-out to typed envelope.
@@ -131,12 +138,6 @@ fn process_command_queue(
         match envelope.request {
             SimulationCommand::EnterControlMode(request) => {
                 enter_control_writer.write(CommandEnvelope {
-                    command_id: envelope.command_id,
-                    request,
-                });
-            }
-            SimulationCommand::PlaceTrainAtBlock(request) => {
-                place_train_writer.write(CommandEnvelope {
                     command_id: envelope.command_id,
                     request,
                 });

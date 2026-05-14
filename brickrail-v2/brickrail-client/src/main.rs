@@ -4,8 +4,7 @@ use bevy_pancam::{PanCam, PanCamPlugin};
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
     AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry,
-    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand,
-    SubAppClientPlugin,
+    SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
 };
 use brickrail_common::layout::{Layout, LayoutAppPlugin};
 use brickrail_common::layout_primitives::*;
@@ -73,25 +72,18 @@ fn queue_init_commands(
         AppCommand::SpawnLayout(layout.clone()),
     );
 
-    // 2. Enter control mode — syncs layout to SubApp + spawns VirtualDrivers.
+    // 2. Set initial train position (cached for EnterControlMode).
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::Simulation(SimulationCommand::EnterControlMode(
-            EnterControlModeRequest { layout },
-        )),
+        AppCommand::SetTrainPosition(TrainID(0), logical_a),
     );
 
-    // 3. Place train at block A.
+    // 3. Enter control mode — syncs layout to SubApp + auto-places cached trains.
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
-            PlaceTrainAtBlockRequest {
-                train: TrainID(0),
-                block: logical_a,
-            },
-        )),
+        AppCommand::EnterControlMode(layout),
     );
 
     // 4. Send train from A to B.

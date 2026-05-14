@@ -49,6 +49,7 @@ impl Plugin for SubAppClientPlugin {
         sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
 
         // Domain logic (communication-agnostic).
+        // SimulationPlugin includes StatesPlugin and LayoutAppPlugin.
         sub_app.add_plugins(SimulationPlugin);
 
         // Command handling + response collection (transport-specific).

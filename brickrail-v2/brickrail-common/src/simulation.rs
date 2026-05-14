@@ -6,11 +6,12 @@ use petgraph::algo::astar;
 use crate::block::{Block, BlockData};
 use crate::command::{
     CommandEnvelope, CommandResponse, EnterControlModeRequest, ExitControlModeRequest,
-    PlaceTrainAtBlockRequest, SendTrainToBlockRequest,
+    SendTrainToBlockRequest,
 };
 use crate::connection::Connection;
 use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
-use crate::layout_primitives::{BlockID, TrackID};
+use crate::layout::Layout;
+use crate::layout_primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
 use crate::lifecycle::{
     ElementData, ElementId, RegisteredEntities, Registry, SpawnElement, despawn_all_elements,
 };
@@ -48,6 +49,7 @@ impl Plugin for SimulationStatePlugin {
             SimulationSet::Logic.after(SimulationSet::StateMutation),
         );
         app.add_message::<SimulationEvent>();
+        app.add_message::<PlaceTrainAtBlock>();
         app.add_systems(
             Update,
             fan_out_simulation_events
@@ -66,6 +68,7 @@ fn fan_out_simulation_events(
     mut append_writer: MessageWriter<AppendLegs>,
     mut marker_hit_writer: MessageWriter<TrainMarkerHit>,
     mut advance_writer: MessageWriter<AdvanceLeg>,
+    mut place_writer: MessageWriter<PlaceTrainAtBlock>,
 ) {
     for event in event_reader.read() {
         match event {
@@ -78,8 +81,42 @@ fn fan_out_simulation_events(
             SimulationEvent::AdvanceLeg(e) => {
                 advance_writer.write(e.clone());
             }
+            SimulationEvent::PlaceTrainAtBlock(e) => {
+                place_writer.write(e.clone());
+            }
         }
     }
+}
+
+/// Simulation state machine. Controls command queue gating and multi-frame setup.
+#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum SimulationState {
+    #[default]
+    Idle,
+    /// Elements spawned, waiting one frame for registries to populate,
+    /// then places cached trains and transitions to Running.
+    Entering,
+    Running,
+}
+
+/// Pending data from an EnterControlMode request.
+/// Stored by the command handler, consumed by the entering-state systems.
+#[derive(Resource, Default)]
+pub struct PendingEnterData {
+    pub layout: Option<Layout>,
+    pub train_positions: Vec<(TrainID, LogicalBlockID)>,
+    /// Trains that have been placed (events emitted) but haven't yet
+    /// received their TrainPosition. Cleared as trains get placed.
+    pub awaiting_placement: Vec<TrainID>,
+}
+
+/// Message: place a train at a block by creating an idle leg.
+/// Not a SimulationCommand — used internally by state-driven systems
+/// and can be sent directly (e.g. from editor).
+#[derive(Message, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PlaceTrainAtBlock {
+    pub train: TrainID,
+    pub block: LogicalBlockID,
 }
 
 /// Top-level simulation plugin bundling all communication-agnostic domain logic.
@@ -89,10 +126,24 @@ pub struct SimulationPlugin;
 
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.init_state::<SimulationState>();
+        app.init_resource::<PendingEnterData>();
         app.add_plugins(crate::layout::LayoutAppPlugin);
         app.add_plugins(SimulationLogicPlugin);
         app.add_plugins(bevy::time::TimePlugin);
         app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
+        // PlaceTrainAtBlock message is registered by SimulationStatePlugin (via LayoutAppPlugin).
+        app.add_systems(OnEnter(SimulationState::Entering), spawn_layout_on_enter);
+        app.add_systems(
+            Update,
+            (
+                place_trains_on_entering.run_if(in_state(SimulationState::Entering)),
+                handle_place_train_at_block.run_if(on_message::<PlaceTrainAtBlock>),
+            )
+                .chain()
+                .in_set(SimulationSet::StateMutation),
+        );
     }
 }
 
@@ -197,38 +248,18 @@ fn build_marker_data_map(
     map
 }
 
-/// Command handler: enter control mode by spawning layout elements + VirtualDrivers.
+/// Command handler: enter control mode. Thin trigger — stores request data
+/// and transitions to Entering state. Responds immediately.
 pub fn handle_enter_control_mode(
     mut messages: MessageReader<CommandEnvelope<EnterControlModeRequest>>,
-    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
-    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
-    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
-    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
-    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
-    mut commands: Commands,
+    mut pending: ResMut<PendingEnterData>,
+    mut next_state: ResMut<NextState<SimulationState>>,
     mut response_writer: MessageWriter<CommandResponse>,
 ) {
     for envelope in messages.read() {
-        let layout = &envelope.request.layout;
-        for entry in &layout.tracks {
-            spawn_tracks.write(SpawnElement::from_entry(entry));
-        }
-        for entry in &layout.connections {
-            spawn_connections.write(SpawnElement::from_entry(entry));
-        }
-        for entry in &layout.markers {
-            spawn_markers.write(SpawnElement::from_entry(entry));
-        }
-        for entry in &layout.blocks {
-            spawn_blocks.write(SpawnElement::from_entry(entry));
-        }
-        for entry in &layout.trains {
-            spawn_trains.write(SpawnElement::from_entry(entry));
-        }
-        // Spawn a VirtualDriver per train.
-        for entry in &layout.trains {
-            commands.spawn(VirtualDriver::new(entry.id, 1.0));
-        }
+        pending.layout = Some(envelope.request.layout.clone());
+        pending.train_positions = envelope.request.train_positions.clone();
+        next_state.set(SimulationState::Entering);
         response_writer.write(CommandResponse {
             command_id: envelope.command_id,
             result: Ok(()),
@@ -236,35 +267,102 @@ pub fn handle_enter_control_mode(
     }
 }
 
-/// Command handler: place a train at a block by creating an idle leg.
-pub fn handle_place_train_at_block(
-    mut messages: MessageReader<CommandEnvelope<PlaceTrainAtBlockRequest>>,
+/// OnEnter(Entering): spawn layout elements + VirtualDrivers from pending data.
+fn spawn_layout_on_enter(
+    pending: Res<PendingEnterData>,
+    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
+    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
+    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
+    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
+    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
+    mut commands: Commands,
+) {
+    let Some(layout) = &pending.layout else {
+        return;
+    };
+    for entry in &layout.tracks {
+        spawn_tracks.write(SpawnElement::from_entry(entry));
+    }
+    for entry in &layout.connections {
+        spawn_connections.write(SpawnElement::from_entry(entry));
+    }
+    for entry in &layout.markers {
+        spawn_markers.write(SpawnElement::from_entry(entry));
+    }
+    for entry in &layout.blocks {
+        spawn_blocks.write(SpawnElement::from_entry(entry));
+    }
+    for entry in &layout.trains {
+        spawn_trains.write(SpawnElement::from_entry(entry));
+    }
+    // Spawn a VirtualDriver per train.
+    for entry in &layout.trains {
+        commands.spawn(VirtualDriver::new(entry.id, 1.0));
+    }
+}
+
+/// Update system in Entering state: waits for train registry to populate,
+/// emits PlaceTrainAtBlock events for cached positions, then waits for
+/// all placed trains to have a TrainPosition before transitioning to Running.
+fn place_trains_on_entering(
+    mut pending: ResMut<PendingEnterData>,
+    mut next_state: ResMut<NextState<SimulationState>>,
+    train_registry: Res<Registry<Train>>,
+    train_position_query: Query<&TrainPosition>,
+    mut event_writer: MessageWriter<SimulationEvent>,
+) {
+    // Wait until train registry is populated (spawns happen in OnEnter,
+    // registries populate in PostUpdate).
+    if train_registry.is_empty() {
+        return;
+    }
+
+    // Emit PlaceTrainAtBlock events for any remaining cached positions.
+    if !pending.train_positions.is_empty() {
+        let positions: Vec<_> = pending.train_positions.drain(..).collect();
+        for (train, block) in positions {
+            pending.awaiting_placement.push(train);
+            event_writer.write(SimulationEvent::PlaceTrainAtBlock(PlaceTrainAtBlock {
+                train,
+                block,
+            }));
+        }
+        return;
+    }
+
+    // Check that all placed trains have received their TrainPosition.
+    let all_placed = pending.awaiting_placement.iter().all(|train_id| {
+        train_registry
+            .get(train_id)
+            .is_some_and(|entity| train_position_query.get(entity).is_ok())
+    });
+
+    if all_placed {
+        pending.layout = None;
+        pending.awaiting_placement.clear();
+        next_state.set(SimulationState::Running);
+    }
+}
+
+/// Message handler: place a train at a block by creating an idle leg.
+fn handle_place_train_at_block(
+    mut messages: MessageReader<PlaceTrainAtBlock>,
     block_registry: Res<Registry<Block>>,
     block_data_query: Query<&ElementData<Block>>,
     marker_registry: Res<Registry<Marker>>,
     marker_data_query: Query<&ElementData<Marker>>,
     mut event_writer: MessageWriter<SimulationEvent>,
-    mut response_writer: MessageWriter<CommandResponse>,
 ) {
     let block_data_map = build_block_data_map(&block_registry, &block_data_query);
     let marker_data_map = build_marker_data_map(&marker_registry, &marker_data_query);
 
-    for envelope in messages.read() {
-        let req = &envelope.request;
-        let result = match RouteLeg::idle(req.block, &block_data_map, &marker_data_map) {
-            Some(idle_leg) => {
-                event_writer.write(SimulationEvent::AppendLegs(AppendLegs::new(
-                    req.train,
-                    vec![idle_leg],
-                )));
-                Ok(())
-            }
-            None => Err(format!("block {:?} not found", req.block)),
-        };
-        response_writer.write(CommandResponse {
-            command_id: envelope.command_id,
-            result,
-        });
+    for msg in messages.read() {
+        if let Some(idle_leg) = RouteLeg::idle(msg.block, &block_data_map, &marker_data_map) {
+            event_writer.write(SimulationEvent::AppendLegs(AppendLegs::new(
+                msg.train,
+                vec![idle_leg],
+            )));
+        }
     }
 }
 
@@ -352,13 +450,14 @@ pub fn handle_send_train_to_block(
 }
 
 /// Command handler: exit control mode by despawning all layout elements,
-/// VirtualDrivers, and route leg entities.
+/// VirtualDrivers, and route leg entities. Transitions to Idle.
 pub fn handle_exit_control_mode(
     mut messages: MessageReader<CommandEnvelope<ExitControlModeRequest>>,
     registries: Query<&RegisteredEntities>,
     driver_query: Query<Entity, With<VirtualDriver>>,
     leg_query: Query<Entity, With<RouteLeg>>,
     mut commands: Commands,
+    mut next_state: ResMut<NextState<SimulationState>>,
     mut response_writer: MessageWriter<CommandResponse>,
 ) {
     for envelope in messages.read() {
@@ -373,6 +472,7 @@ pub fn handle_exit_control_mode(
             commands.entity(entity).despawn();
         }
 
+        next_state.set(SimulationState::Idle);
         response_writer.write(CommandResponse {
             command_id: envelope.command_id,
             result: Ok(()),

@@ -2,14 +2,11 @@ use bevy::prelude::*;
 use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
     AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry, CommandState,
-    EnterControlModeRequest, PlaceTrainAtBlockRequest, SendTrainToBlockRequest, SimulationCommand,
-    SubAppClientPlugin, TrainBlockPosition,
+    EnterControlModeRequest, SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
 };
-use brickrail_common::connection::Connection;
 use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
 use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::marker::Marker;
 use brickrail_common::route::{RouteLeg, TrainLegs};
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
@@ -23,26 +20,6 @@ fn make_app() -> App {
     app.add_plugins(CommandPlugin);
     app.add_plugins(SubAppClientPlugin);
     app
-}
-
-/// Spawn layout elements into the SubApp.
-fn spawn_layout(app: &mut App, layout: &Layout) {
-    let world = app.sub_app_mut(LayoutSubApp).world_mut();
-    for entry in &layout.tracks {
-        world.write_message(SpawnElement::<Track>::from_entry(entry));
-    }
-    for entry in &layout.connections {
-        world.write_message(SpawnElement::<Connection>::from_entry(entry));
-    }
-    for entry in &layout.markers {
-        world.write_message(SpawnElement::<Marker>::from_entry(entry));
-    }
-    for entry in &layout.blocks {
-        world.write_message(SpawnElement::<Block>::from_entry(entry));
-    }
-    for entry in &layout.trains {
-        world.write_message(SpawnElement::<Train>::from_entry(entry));
-    }
 }
 
 /// Two-block layout: [A: t0-t1] -- t2 -- [B: t3-t4]
@@ -130,10 +107,11 @@ fn enter_control_mode() {
         app.world_mut(),
         SimulationCommand::EnterControlMode(EnterControlModeRequest {
             layout: layout.clone(),
+            train_positions: vec![],
         }),
     );
 
-    for _ in 0..3 {
+    for _ in 0..5 {
         app.update();
     }
 
@@ -165,22 +143,21 @@ fn enter_control_mode() {
 }
 
 #[test]
-fn place_train_at_block() {
+fn enter_control_mode_with_train_placement() {
     let mut app = make_app();
-    spawn_layout(&mut app, &two_block_layout());
-    app.update(); // spawn layout elements
+    let layout = two_block_layout();
 
-    // Issue PlaceTrainAtBlock command.
+    // Enter control mode with train placed at block A.
     let cmd_entity = CommandRegistry::issue_world(
         app.world_mut(),
-        SimulationCommand::PlaceTrainAtBlock(PlaceTrainAtBlockRequest {
-            train: TrainID(0),
-            block: block_a(),
+        SimulationCommand::EnterControlMode(EnterControlModeRequest {
+            layout,
+            train_positions: vec![(TrainID(0), block_a())],
         }),
     );
 
-    // Pipeline: dispatch → extract → SubApp processes → extract response → apply
-    for _ in 0..3 {
+    // Pipeline: dispatch → enter → spawn → place trains → running
+    for _ in 0..5 {
         app.update();
     }
 
@@ -203,18 +180,16 @@ fn place_train_at_block() {
 #[test]
 fn send_train_to_block() {
     let mut app = make_app();
-    spawn_layout(&mut app, &two_block_layout());
-    app.update();
 
-    // Place train at block A first.
+    // Enter control mode with train placed at block A.
     CommandRegistry::issue_world(
         app.world_mut(),
-        SimulationCommand::PlaceTrainAtBlock(PlaceTrainAtBlockRequest {
-            train: TrainID(0),
-            block: block_a(),
+        SimulationCommand::EnterControlMode(EnterControlModeRequest {
+            layout: two_block_layout(),
+            train_positions: vec![(TrainID(0), block_a())],
         }),
     );
-    for _ in 0..3 {
+    for _ in 0..10 {
         app.update();
     }
 
@@ -257,12 +232,15 @@ fn send_train_to_block_end_to_end() {
     let mut app = make_app();
     let layout = two_block_layout();
 
-    // Enter control mode — spawns layout + VirtualDrivers.
+    // Enter control mode with train placed at block A.
     CommandRegistry::issue_world(
         app.world_mut(),
-        SimulationCommand::EnterControlMode(EnterControlModeRequest { layout }),
+        SimulationCommand::EnterControlMode(EnterControlModeRequest {
+            layout,
+            train_positions: vec![(TrainID(0), block_a())],
+        }),
     );
-    for _ in 0..3 {
+    for _ in 0..5 {
         app.update();
     }
 
@@ -270,18 +248,6 @@ fn send_train_to_block_end_to_end() {
     let sub_world = app.sub_app_mut(LayoutSubApp).world_mut();
     for mut driver in sub_world.query::<&mut VirtualDriver>().iter_mut(sub_world) {
         driver.speed = 1_000_000.0;
-    }
-
-    // Place train at block A.
-    CommandRegistry::issue_world(
-        app.world_mut(),
-        SimulationCommand::PlaceTrainAtBlock(PlaceTrainAtBlockRequest {
-            train: TrainID(0),
-            block: block_a(),
-        }),
-    );
-    for _ in 0..3 {
-        app.update();
     }
 
     // Send train to block B.
@@ -336,21 +302,17 @@ fn exit_and_reenter_preserves_position() {
     // Spawn layout in main world (for state mirror).
     AppCommandQueue::push_world(app.world_mut(), AppCommand::SpawnLayout(layout.clone()));
 
-    // Enter control mode via AppCommand.
+    // Set initial train position and enter control mode.
+    AppCommandQueue::push_world(
+        app.world_mut(),
+        AppCommand::SetTrainPosition(TrainID(0), block_a()),
+    );
     AppCommandQueue::push_world(
         app.world_mut(),
         AppCommand::EnterControlMode(layout.clone()),
     );
-    // Place train at A and send to B via simulation commands.
-    AppCommandQueue::push_world(
-        app.world_mut(),
-        AppCommand::Simulation(SimulationCommand::PlaceTrainAtBlock(
-            PlaceTrainAtBlockRequest {
-                train: TrainID(0),
-                block: block_a(),
-            },
-        )),
-    );
+
+    // Send train to block B via simulation command.
     AppCommandQueue::push_world(
         app.world_mut(),
         AppCommand::Simulation(SimulationCommand::SendTrainToBlock(
@@ -399,15 +361,18 @@ fn exit_and_reenter_preserves_position() {
     );
 
     // Verify TrainBlockPosition was cached on main-world train entity.
-    let main_world = app.world();
-    let train_registry = main_world.resource::<Registry<Train>>();
-    let train_entity = train_registry.get(&TrainID(0)).unwrap();
-    let cached = main_world.get::<TrainBlockPosition>(train_entity).unwrap();
-    assert_eq!(
-        cached.0.block,
-        block_b().block,
-        "cached position should be block B"
-    );
+    {
+        use brickrail_common::command::TrainBlockPosition;
+        let main_world = app.world();
+        let train_registry = main_world.resource::<Registry<Train>>();
+        let train_entity = train_registry.get(&TrainID(0)).unwrap();
+        let cached = main_world.get::<TrainBlockPosition>(train_entity).unwrap();
+        assert_eq!(
+            cached.0.block,
+            block_b().block,
+            "cached position should be block B"
+        );
+    }
 
     // Re-enter control mode — should auto-place train at cached position.
     let enter_cmd =

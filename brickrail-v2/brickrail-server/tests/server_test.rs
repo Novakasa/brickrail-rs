@@ -3,6 +3,9 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use brickrail_common::block::Block;
 use brickrail_common::block::BlockData;
+use brickrail_common::command::{
+    CommandEnvelope, CommandId, EnterControlModeRequest, ExitControlModeRequest, SimulationCommand,
+};
 use brickrail_common::connection::{Connection, ConnectionGraph};
 use brickrail_common::layout::*;
 use brickrail_common::layout_primitives::*;
@@ -10,12 +13,31 @@ use brickrail_common::lifecycle::*;
 use brickrail_common::logical_graph::{LogicalGraph, LogicalGraphPlugin};
 use brickrail_common::marker::{Marker, MarkerData};
 use brickrail_common::route::{AppendLegs, LegOf, MarkerRole, RouteLeg, TrainLegs};
-use brickrail_common::simulation::SimulationStatePlugin;
+use brickrail_common::simulation::{SimulationState, SimulationStatePlugin};
 use brickrail_common::track::Track;
 use brickrail_common::train::Train;
 use brickrail_common::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
 use brickrail_server::ServerPlugin;
 use petgraph::algo::astar;
+
+/// Helper: write an EnterControlMode command envelope to the SubApp.
+fn enter_control_mode(app: &mut App, layout: Layout) {
+    layout_world_mut(app).write_message(CommandEnvelope {
+        command_id: CommandId(0),
+        request: SimulationCommand::EnterControlMode(EnterControlModeRequest {
+            layout,
+            train_positions: vec![],
+        }),
+    });
+}
+
+/// Helper: write an ExitControlMode command envelope to the SubApp.
+fn exit_control_mode(app: &mut App) {
+    layout_world_mut(app).write_message(CommandEnvelope {
+        command_id: CommandId(0),
+        request: SimulationCommand::ExitControlMode(ExitControlModeRequest),
+    });
+}
 
 fn make_app() -> App {
     let mut app = App::new();
@@ -137,8 +159,11 @@ fn enter_control_mode_spawns_layout() {
     let mut app = make_app();
     let layout = test_layout();
 
-    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
-    app.update();
+    enter_control_mode(&mut app, layout);
+    // Command queue dispatch + state machine: intake → dispatch → handler → Entering → spawn → Running
+    for _ in 0..5 {
+        app.update();
+    }
 
     let world = layout_world(&app);
 
@@ -184,10 +209,9 @@ fn enter_control_mode_spawns_layout() {
     let logical_graph = world.resource::<LogicalGraph>();
     assert_eq!(logical_graph.graph.edge_count(), 12);
 
-    // State transition via NextState takes effect next frame
-    app.update();
-    let state = layout_world(&app).resource::<State<ServerState>>();
-    assert_eq!(*state.get(), ServerState::Running);
+    // State should be Running after going through Entering.
+    let state = layout_world(&app).resource::<State<SimulationState>>();
+    assert_eq!(*state.get(), SimulationState::Running);
 }
 
 #[test]
@@ -196,13 +220,16 @@ fn exit_control_mode_cleans_up() {
     let layout = test_layout();
 
     // Enter
-    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
-    app.update();
-    app.update();
+    enter_control_mode(&mut app, layout);
+    for _ in 0..5 {
+        app.update();
+    }
 
     // Exit
-    layout_world_mut(&mut app).write_message(ExitControlMode);
-    app.update();
+    exit_control_mode(&mut app);
+    for _ in 0..5 {
+        app.update();
+    }
 
     let world = layout_world(&app);
 
@@ -221,9 +248,8 @@ fn exit_control_mode_cleans_up() {
     assert_eq!(train_registry.len(), 0);
 
     // State should be back to Idle
-    app.update();
-    let state = layout_world(&app).resource::<State<ServerState>>();
-    assert_eq!(*state.get(), ServerState::Idle);
+    let state = layout_world(&app).resource::<State<SimulationState>>();
+    assert_eq!(*state.get(), SimulationState::Idle);
 }
 
 #[test]
@@ -232,24 +258,24 @@ fn round_trip_enter_exit_enter() {
     let layout = test_layout();
 
     // First enter
-    layout_world_mut(&mut app).write_message(EnterControlMode {
-        layout: layout.clone(),
-    });
-    app.update();
+    enter_control_mode(&mut app, layout.clone());
+    for _ in 0..5 {
+        app.update();
+    }
     assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 3);
 
-    app.update();
-
     // Exit
-    layout_world_mut(&mut app).write_message(ExitControlMode);
-    app.update();
+    exit_control_mode(&mut app);
+    for _ in 0..5 {
+        app.update();
+    }
     assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 0);
 
-    app.update();
-
     // Second enter
-    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
-    app.update();
+    enter_control_mode(&mut app, layout);
+    for _ in 0..5 {
+        app.update();
+    }
     assert_eq!(layout_world(&app).resource::<Registry<Track>>().len(), 3);
 }
 
@@ -316,8 +342,10 @@ fn build_route_between_two_blocks() {
     let mut app = make_app();
     let layout = two_block_layout();
 
-    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
-    app.update();
+    enter_control_mode(&mut app, layout);
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
@@ -411,8 +439,10 @@ fn append_legs_spawns_leg_entities() {
     let mut app = make_app();
     let layout = two_block_layout();
 
-    layout_world_mut(&mut app).write_message(EnterControlMode { layout });
-    app.update();
+    enter_control_mode(&mut app, layout);
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
@@ -514,10 +544,10 @@ fn extract_marker_data_map(app: &App) -> HashMap<TrackID, MarkerData> {
 #[test]
 fn append_idle_creates_position() {
     let mut app = make_app();
-    layout_world_mut(&mut app).write_message(EnterControlMode {
-        layout: two_block_layout(),
-    });
-    app.update();
+    enter_control_mode(&mut app, two_block_layout());
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
@@ -561,10 +591,10 @@ fn append_idle_creates_position() {
 #[test]
 fn advance_off_idle_to_route() {
     let mut app = make_app();
-    layout_world_mut(&mut app).write_message(EnterControlMode {
-        layout: two_block_layout(),
-    });
-    app.update();
+    enter_control_mode(&mut app, two_block_layout());
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
@@ -645,10 +675,10 @@ fn advance_off_idle_to_route() {
 #[test]
 fn marker_hit_increments_and_updates_state() {
     let mut app = make_app();
-    layout_world_mut(&mut app).write_message(EnterControlMode {
-        layout: two_block_layout(),
-    });
-    app.update();
+    enter_control_mode(&mut app, two_block_layout());
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
@@ -720,10 +750,10 @@ fn marker_hit_increments_and_updates_state() {
 #[test]
 fn advance_leg_moves_to_next() {
     let mut app = make_app();
-    layout_world_mut(&mut app).write_message(EnterControlMode {
-        layout: two_block_layout(),
-    });
-    app.update();
+    enter_control_mode(&mut app, two_block_layout());
+    for _ in 0..5 {
+        app.update();
+    }
 
     let t0 = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
     let t1 = TrackID::new(CellID::new(1, 0, 0), Orientation::EW);
