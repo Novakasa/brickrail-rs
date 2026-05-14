@@ -33,46 +33,43 @@ fn spawn_two_block_layout(app: &mut App) {
     let t3 = TrackID::new(CellID::new(3, 0, 0), Orientation::EW);
     let t4 = TrackID::new(CellID::new(4, 0, 0), Orientation::EW);
 
-    for t in [t0, t1, t2, t3, t4] {
-        app.world_mut()
-            .write_message(SpawnElement::<Track>::new(t, Default::default()));
+    {
+        let mut commands = app.world_mut().commands();
+        for t in [t0, t1, t2, t3, t4] {
+            commands.spawn_element::<Track>(t, Default::default());
+        }
+        for (a, b) in [(t0, t1), (t1, t2), (t2, t3), (t3, t4)] {
+            commands
+                .spawn_element::<Connection>(a.get_connection_to(b).unwrap(), Default::default());
+        }
+        for t in [t0, t1, t3, t4] {
+            commands.spawn_element::<Marker>(t, Default::default());
+        }
+        commands.spawn_element::<Block>(
+            BlockID::new(t0, t1),
+            BlockData {
+                name: Some("A".to_string()),
+                section: vec![
+                    t0.get_directed_to(Cardinal::E).unwrap(),
+                    t1.get_directed_to(Cardinal::E).unwrap(),
+                ],
+                ..Default::default()
+            },
+        );
+        commands.spawn_element::<Block>(
+            BlockID::new(t3, t4),
+            BlockData {
+                name: Some("B".to_string()),
+                section: vec![
+                    t3.get_directed_to(Cardinal::E).unwrap(),
+                    t4.get_directed_to(Cardinal::E).unwrap(),
+                ],
+                ..Default::default()
+            },
+        );
+        commands.spawn_element::<Train>(TrainID(0), Default::default());
     }
-    for (a, b) in [(t0, t1), (t1, t2), (t2, t3), (t3, t4)] {
-        app.world_mut()
-            .write_message(SpawnElement::<Connection>::new(
-                a.get_connection_to(b).unwrap(),
-                Default::default(),
-            ));
-    }
-    for t in [t0, t1, t3, t4] {
-        app.world_mut()
-            .write_message(SpawnElement::<Marker>::new(t, Default::default()));
-    }
-    app.world_mut().write_message(SpawnElement::<Block>::new(
-        BlockID::new(t0, t1),
-        BlockData {
-            name: Some("A".to_string()),
-            section: vec![
-                t0.get_directed_to(Cardinal::E).unwrap(),
-                t1.get_directed_to(Cardinal::E).unwrap(),
-            ],
-            ..Default::default()
-        },
-    ));
-    app.world_mut().write_message(SpawnElement::<Block>::new(
-        BlockID::new(t3, t4),
-        BlockData {
-            name: Some("B".to_string()),
-            section: vec![
-                t3.get_directed_to(Cardinal::E).unwrap(),
-                t4.get_directed_to(Cardinal::E).unwrap(),
-            ],
-            ..Default::default()
-        },
-    ));
-    app.world_mut()
-        .write_message(SpawnElement::<Train>::new(TrainID(0), Default::default()));
-
+    app.world_mut().flush();
     app.update();
 }
 

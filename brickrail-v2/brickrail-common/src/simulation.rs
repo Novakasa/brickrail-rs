@@ -13,7 +13,7 @@ use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
 use crate::layout::Layout;
 use crate::layout_primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
 use crate::lifecycle::{
-    ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry, SpawnElement,
+    ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry, SpawnLayoutElement,
     despawn_all_elements,
 };
 use crate::logical_graph::LogicalGraph;
@@ -139,7 +139,7 @@ impl Plugin for SimulationPlugin {
         app.add_systems(
             Update,
             (
-                place_trains_on_entering.run_if(in_state(SimulationState::Entering)),
+                transition_to_running.run_if(in_state(SimulationState::Entering)),
                 handle_place_train_at_block.run_if(on_message::<PlaceTrainAtBlock>),
             )
                 .chain()
@@ -268,80 +268,59 @@ pub fn handle_enter_control_mode(
     }
 }
 
-/// OnEnter(Entering): spawn layout elements from pending data.
-/// VirtualDrivers are spawned later in `place_trains_on_entering` once
-/// train entities exist in the registry.
+/// OnEnter(Entering): spawn layout elements, VirtualDrivers, and emit
+/// PlaceTrainAtBlock messages for cached train positions.
+/// Registries are populated immediately via observer, so placement
+/// messages can be processed in the same Update tick.
 fn spawn_layout_on_enter(
-    pending: Res<PendingEnterData>,
-    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
-    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
-    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
-    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
-    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
+    mut pending: ResMut<PendingEnterData>,
+    mut commands: Commands,
+    mut event_writer: MessageWriter<SimulationEvent>,
 ) {
     let Some(layout) = &pending.layout else {
         return;
     };
     for entry in &layout.tracks {
-        spawn_tracks.write(SpawnElement::from_entry(entry));
+        commands.spawn_element::<Track>(entry.id, entry.data.clone());
     }
     for entry in &layout.connections {
-        spawn_connections.write(SpawnElement::from_entry(entry));
+        commands.spawn_element::<Connection>(entry.id, entry.data.clone());
     }
     for entry in &layout.markers {
-        spawn_markers.write(SpawnElement::from_entry(entry));
+        commands.spawn_element::<Marker>(entry.id, entry.data.clone());
     }
     for entry in &layout.blocks {
-        spawn_blocks.write(SpawnElement::from_entry(entry));
+        commands.spawn_element::<Block>(entry.id, entry.data.clone());
     }
     for entry in &layout.trains {
-        spawn_trains.write(SpawnElement::from_entry(entry));
+        let train_entity = commands
+            .spawn_element::<Train>(entry.id, entry.data.clone())
+            .id();
+        commands.spawn((
+            VirtualDriver::new(entry.id, 1.0),
+            LifeCycleTiedTo(train_entity),
+        ));
+    }
+
+    // Emit PlaceTrainAtBlock for cached positions.
+    let positions: Vec<_> = pending.train_positions.drain(..).collect();
+    for (train, block) in &positions {
+        pending.awaiting_placement.push(*train);
+        event_writer.write(SimulationEvent::PlaceTrainAtBlock(PlaceTrainAtBlock {
+            train: *train,
+            block: *block,
+        }));
     }
 }
 
-/// Update system in Entering state: waits for train registry to populate,
-/// spawns VirtualDrivers (with lifecycle tied to train entity),
-/// emits PlaceTrainAtBlock events for cached positions, then waits for
-/// all placed trains to have a TrainPosition before transitioning to Running.
-fn place_trains_on_entering(
+/// Update system in Entering state: waits for all placed trains to have
+/// a TrainPosition, then transitions to Running.
+fn transition_to_running(
     mut pending: ResMut<PendingEnterData>,
     mut next_state: ResMut<NextState<SimulationState>>,
     train_registry: Res<Registry<Train>>,
     train_position_query: Query<&TrainPosition>,
-    driver_query: Query<&VirtualDriver>,
-    mut event_writer: MessageWriter<SimulationEvent>,
-    mut commands: Commands,
 ) {
-    // Wait until train registry is populated (spawns happen in OnEnter,
-    // registries populate in PostUpdate).
-    if train_registry.is_empty() {
-        return;
-    }
-
-    // Spawn VirtualDrivers once, now that train entities exist.
-    if driver_query.is_empty() {
-        for (&train_id, &train_entity) in train_registry.iter() {
-            commands.spawn((
-                VirtualDriver::new(train_id, 1.0),
-                LifeCycleTiedTo(train_entity),
-            ));
-        }
-    }
-
-    // Emit PlaceTrainAtBlock events for any remaining cached positions.
-    if !pending.train_positions.is_empty() {
-        let positions: Vec<_> = pending.train_positions.drain(..).collect();
-        for (train, block) in positions {
-            pending.awaiting_placement.push(train);
-            event_writer.write(SimulationEvent::PlaceTrainAtBlock(PlaceTrainAtBlock {
-                train,
-                block,
-            }));
-        }
-        return;
-    }
-
-    // Check that all placed trains have received their TrainPosition.
     let all_placed = pending.awaiting_placement.iter().all(|train_id| {
         train_registry
             .get(train_id)

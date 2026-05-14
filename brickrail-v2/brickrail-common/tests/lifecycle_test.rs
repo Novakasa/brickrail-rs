@@ -11,14 +11,15 @@ fn make_app() -> App {
 }
 
 #[test]
-fn spawn_track_via_message() {
+fn spawn_track_via_commands() {
     let mut app = make_app();
 
     let track_id = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
 
     app.world_mut()
-        .write_message(SpawnElement::<Track>::new(track_id, TrackData));
-    app.update();
+        .commands()
+        .spawn_element::<Track>(track_id, TrackData);
+    app.world_mut().flush();
 
     // Entity should be registered
     let registry = app.world().resource::<Registry<Track>>();
@@ -43,8 +44,9 @@ fn despawn_track_via_entity_event() {
 
     // Spawn
     app.world_mut()
-        .write_message(SpawnElement::<Track>::new(track_id, TrackData));
-    app.update();
+        .commands()
+        .spawn_element::<Track>(track_id, TrackData);
+    app.world_mut().flush();
 
     let entity = app
         .world()
@@ -80,9 +82,10 @@ fn spawn_multiple_tracks() {
 
     for id in &ids {
         app.world_mut()
-            .write_message(SpawnElement::<Track>::new(*id, TrackData));
+            .commands()
+            .spawn_element::<Track>(*id, TrackData);
     }
-    app.update();
+    app.world_mut().flush();
 
     let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 3);

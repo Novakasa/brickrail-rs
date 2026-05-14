@@ -6,7 +6,7 @@ use crate::block::Block;
 use crate::connection::Connection;
 use crate::layout::Layout;
 use crate::layout_primitives::{LogicalBlockID, TrainID};
-use crate::lifecycle::{ElementId, Registry, SpawnElement};
+use crate::lifecycle::{ElementId, Registry, SpawnLayoutElement};
 use crate::marker::Marker;
 use crate::route::{RouteLeg, TrainLegs};
 use crate::track::Track;
@@ -209,33 +209,29 @@ fn dispatch_app_commands(
     queue.in_flight = Some(entity);
 }
 
-/// Handles SpawnLayout commands: writes SpawnElement messages for all layout
-/// elements and immediately completes the command.
+/// Handles SpawnLayout commands: spawns all layout elements via the
+/// extension trait and immediately completes the command.
 fn handle_spawn_layout(
     mut messages: MessageReader<CommandEnvelope<SpawnLayoutRequest>>,
-    mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
-    mut spawn_connections: MessageWriter<SpawnElement<Connection>>,
-    mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
-    mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
-    mut spawn_trains: MessageWriter<SpawnElement<Train>>,
+    mut commands: Commands,
     mut response_writer: MessageWriter<CommandResponse>,
 ) {
     for envelope in messages.read() {
         let layout = &envelope.request.layout;
         for entry in &layout.tracks {
-            spawn_tracks.write(SpawnElement::from_entry(entry));
+            commands.spawn_element::<Track>(entry.id, entry.data.clone());
         }
         for entry in &layout.connections {
-            spawn_connections.write(SpawnElement::from_entry(entry));
+            commands.spawn_element::<Connection>(entry.id, entry.data.clone());
         }
         for entry in &layout.markers {
-            spawn_markers.write(SpawnElement::from_entry(entry));
+            commands.spawn_element::<Marker>(entry.id, entry.data.clone());
         }
         for entry in &layout.blocks {
-            spawn_blocks.write(SpawnElement::from_entry(entry));
+            commands.spawn_element::<Block>(entry.id, entry.data.clone());
         }
         for entry in &layout.trains {
-            spawn_trains.write(SpawnElement::from_entry(entry));
+            commands.spawn_element::<Train>(entry.id, entry.data.clone());
         }
         response_writer.write(CommandResponse {
             command_id: envelope.command_id,

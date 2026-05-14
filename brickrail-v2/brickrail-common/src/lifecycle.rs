@@ -123,7 +123,7 @@ pub struct RegistryEntity<T: LayoutElement> {
 // --- Serializable element entry ---
 
 /// Generic serializable entry pairing an element's ID with its layout data.
-/// Used in the `Layout` format and converts directly into `SpawnElement` messages.
+/// Used in the `Layout` format for serialization/deserialization.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
     serialize = "T::ID: serde::Serialize, T::Data: serde::Serialize",
@@ -141,22 +141,19 @@ impl<T: LayoutElement> ElementEntry<T> {
     }
 }
 
-// --- Typed messages ---
+// --- Commands extension trait ---
 
-/// Generic spawn message. Send one of these to spawn an element.
-#[derive(Message, Clone)]
-pub struct SpawnElement<T: LayoutElement> {
-    pub id: T::ID,
-    pub data: T::Data,
+/// Extension trait on `Commands` for spawning layout elements.
+/// Ensures `ElementId<T>` and `ElementData<T>` always co-locate on the same entity.
+/// Registration in the `Registry<T>` and `RegisteredIn` insertion happen automatically
+/// via the `on_element_added` observer in `LifecyclePlugin<T>`.
+pub trait SpawnLayoutElement {
+    fn spawn_element<T: LayoutElement>(&mut self, id: T::ID, data: T::Data) -> EntityCommands<'_>;
 }
 
-impl<T: LayoutElement> SpawnElement<T> {
-    pub fn new(id: T::ID, data: T::Data) -> Self {
-        Self { id, data }
-    }
-
-    pub fn from_entry(entry: &ElementEntry<T>) -> Self {
-        Self::new(entry.id, entry.data.clone())
+impl SpawnLayoutElement for Commands<'_, '_> {
+    fn spawn_element<T: LayoutElement>(&mut self, id: T::ID, data: T::Data) -> EntityCommands<'_> {
+        self.spawn((ElementId::<T>(id), ElementData::<T>(data)))
     }
 }
 
@@ -177,23 +174,21 @@ impl<T: LayoutElement> LifecyclePlugin<T> {
     }
 }
 
-fn spawn_element<T: LayoutElement>(
-    mut commands: Commands,
-    mut messages: MessageReader<SpawnElement<T>>,
+/// Observer: when `ElementId<T>` is added to an entity, register it in the
+/// typed registry and insert the `RegisteredIn` relationship.
+fn on_element_added<T: LayoutElement>(
+    trigger: On<Add, ElementId<T>>,
+    query: Query<&ElementId<T>>,
     mut registry: ResMut<Registry<T>>,
     registry_entity: Res<RegistryEntity<T>>,
+    mut commands: Commands,
 ) {
-    for msg in messages.read() {
-        let id = msg.id;
-        let entity = commands
-            .spawn((
-                ElementId::<T>(id),
-                ElementData::<T>(msg.data.clone()),
-                RegisteredIn(registry_entity.entity),
-            ))
-            .id();
-        registry.insert(id, entity);
-    }
+    let entity = trigger.event().entity;
+    let id = query.get(entity).unwrap().0;
+    registry.insert(id, entity);
+    commands
+        .entity(entity)
+        .insert(RegisteredIn(registry_entity.entity));
 }
 
 fn on_despawn_element<T: LayoutElement>(
@@ -218,11 +213,7 @@ impl<T: LayoutElement> Plugin for LifecyclePlugin<T> {
         });
 
         app.init_resource::<Registry<T>>();
-        app.add_message::<SpawnElement<T>>();
-        app.add_systems(
-            PostUpdate,
-            spawn_element::<T>.run_if(on_message::<SpawnElement<T>>),
-        );
+        app.add_observer(on_element_added::<T>);
         app.add_observer(on_despawn_element::<T>);
     }
 }
