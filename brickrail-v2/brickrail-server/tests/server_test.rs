@@ -247,6 +247,21 @@ fn exit_control_mode_cleans_up() {
     let train_registry = world.resource::<Registry<Train>>();
     assert_eq!(train_registry.len(), 0);
 
+    // Cascade-despawned dependents should be gone too
+    {
+        let world = layout_world_mut(&mut app);
+        let driver_count = world
+            .query::<&brickrail_common::virtual_driver::VirtualDriver>()
+            .iter(world)
+            .count();
+        assert_eq!(
+            driver_count, 0,
+            "VirtualDrivers should be cascade-despawned"
+        );
+        let leg_count = world.query::<&RouteLeg>().iter(world).count();
+        assert_eq!(leg_count, 0, "RoutLegs should be cascade-despawned");
+    }
+
     // State should be back to Idle
     let state = layout_world(&app).resource::<State<SimulationState>>();
     assert_eq!(*state.get(), SimulationState::Idle);

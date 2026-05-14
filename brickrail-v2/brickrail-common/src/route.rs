@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use crate::block::BlockData;
 use crate::layout_primitives::*;
-use crate::lifecycle::Registry;
+use crate::lifecycle::{LifeCycleTiedTo, Registry};
 use crate::marker::MarkerData;
 use crate::simulation::SimulationSet;
 use crate::train::Train;
@@ -251,7 +251,12 @@ fn handle_append_legs(
         let mut spawned_entities = Vec::with_capacity(msg.legs.len());
         for leg in &msg.legs {
             let id = commands
-                .spawn((leg.clone(), LegOf(train_entity), Locked))
+                .spawn((
+                    leg.clone(),
+                    LegOf(train_entity),
+                    LifeCycleTiedTo(train_entity),
+                    Locked,
+                ))
                 .id();
             spawned_entities.push(id);
         }

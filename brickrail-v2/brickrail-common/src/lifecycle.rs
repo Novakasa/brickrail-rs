@@ -41,11 +41,26 @@ pub struct RegisteredIn(pub Entity);
 #[relationship_target(relationship = RegisteredIn)]
 pub struct RegisteredEntities(Vec<Entity>);
 
+// --- Cascade lifecycle relationship ---
+
+/// Relationship: an entity's lifecycle is tied to a parent entity.
+/// When the parent is despawned (via `DespawnElement`), all dependents
+/// are automatically despawned by the cascade observer.
+#[derive(Component)]
+#[relationship(relationship_target = DependentEntities)]
+pub struct LifeCycleTiedTo(pub Entity);
+
+/// Relationship target: entities whose lifecycle is tied to this entity.
+#[derive(Component)]
+#[relationship_target(relationship = LifeCycleTiedTo)]
+pub struct DependentEntities(Vec<Entity>);
+
 // --- Non-generic entity event ---
 
 /// Entity event: trigger on an element entity to despawn it.
 /// Non-generic — any code can trigger this without knowing the element type.
 /// Each `LifecyclePlugin<T>` observes this and handles type-specific cleanup.
+/// Also cascades to any `DependentEntities` via `LifeCycleTiedTo`.
 #[derive(EntityEvent)]
 pub struct DespawnElement {
     pub entity: Entity,
@@ -238,6 +253,7 @@ impl<T: LayoutElement> Plugin for ElementPlugin<T> {
 
 /// Despawn all registered element entities.
 /// Iterates all registry entities and triggers `DespawnElement` on each element.
+/// Dependents linked via `LifeCycleTiedTo` are cascaded automatically.
 pub fn despawn_all_elements(registries: &Query<&RegisteredEntities>, commands: &mut Commands) {
     for registered in registries.iter() {
         for &element_entity in registered.0.iter() {
@@ -245,5 +261,32 @@ pub fn despawn_all_elements(registries: &Query<&RegisteredEntities>, commands: &
                 .entity(element_entity)
                 .trigger(|entity| DespawnElement { entity });
         }
+    }
+}
+
+// --- Cascade despawn observer ---
+
+/// Observer: when `DespawnElement` fires on an entity with `DependentEntities`,
+/// despawn all dependents. This handles orphan cleanup for VirtualDrivers,
+/// route legs, and any future entity types linked via `LifeCycleTiedTo`.
+fn cascade_despawn_dependents(
+    trigger: On<DespawnElement>,
+    query: Query<&DependentEntities>,
+    mut commands: Commands,
+) {
+    let entity = trigger.event().entity;
+    if let Ok(dependents) = query.get(entity) {
+        for &dep in dependents.0.iter() {
+            commands.entity(dep).despawn();
+        }
+    }
+}
+
+/// Plugin that registers the cascade despawn observer. Added once globally.
+pub struct CascadeDespawnPlugin;
+
+impl Plugin for CascadeDespawnPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_observer(cascade_despawn_dependents);
     }
 }

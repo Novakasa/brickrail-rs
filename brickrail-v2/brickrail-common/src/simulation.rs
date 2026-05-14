@@ -13,7 +13,8 @@ use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
 use crate::layout::Layout;
 use crate::layout_primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
 use crate::lifecycle::{
-    ElementData, ElementId, RegisteredEntities, Registry, SpawnElement, despawn_all_elements,
+    CascadeDespawnPlugin, ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry,
+    SpawnElement, despawn_all_elements,
 };
 use crate::logical_graph::LogicalGraph;
 use crate::marker::{Marker, MarkerData};
@@ -130,6 +131,7 @@ impl Plugin for SimulationPlugin {
         app.init_state::<SimulationState>();
         app.init_resource::<PendingEnterData>();
         app.add_plugins(crate::layout::LayoutAppPlugin);
+        app.add_plugins(CascadeDespawnPlugin);
         app.add_plugins(SimulationLogicPlugin);
         app.add_plugins(bevy::time::TimePlugin);
         app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
@@ -267,7 +269,9 @@ pub fn handle_enter_control_mode(
     }
 }
 
-/// OnEnter(Entering): spawn layout elements + VirtualDrivers from pending data.
+/// OnEnter(Entering): spawn layout elements from pending data.
+/// VirtualDrivers are spawned later in `place_trains_on_entering` once
+/// train entities exist in the registry.
 fn spawn_layout_on_enter(
     pending: Res<PendingEnterData>,
     mut spawn_tracks: MessageWriter<SpawnElement<Track>>,
@@ -275,7 +279,6 @@ fn spawn_layout_on_enter(
     mut spawn_markers: MessageWriter<SpawnElement<Marker>>,
     mut spawn_blocks: MessageWriter<SpawnElement<Block>>,
     mut spawn_trains: MessageWriter<SpawnElement<Train>>,
-    mut commands: Commands,
 ) {
     let Some(layout) = &pending.layout else {
         return;
@@ -295,13 +298,10 @@ fn spawn_layout_on_enter(
     for entry in &layout.trains {
         spawn_trains.write(SpawnElement::from_entry(entry));
     }
-    // Spawn a VirtualDriver per train.
-    for entry in &layout.trains {
-        commands.spawn(VirtualDriver::new(entry.id, 1.0));
-    }
 }
 
 /// Update system in Entering state: waits for train registry to populate,
+/// spawns VirtualDrivers (with lifecycle tied to train entity),
 /// emits PlaceTrainAtBlock events for cached positions, then waits for
 /// all placed trains to have a TrainPosition before transitioning to Running.
 fn place_trains_on_entering(
@@ -309,12 +309,24 @@ fn place_trains_on_entering(
     mut next_state: ResMut<NextState<SimulationState>>,
     train_registry: Res<Registry<Train>>,
     train_position_query: Query<&TrainPosition>,
+    driver_query: Query<&VirtualDriver>,
     mut event_writer: MessageWriter<SimulationEvent>,
+    mut commands: Commands,
 ) {
     // Wait until train registry is populated (spawns happen in OnEnter,
     // registries populate in PostUpdate).
     if train_registry.is_empty() {
         return;
+    }
+
+    // Spawn VirtualDrivers once, now that train entities exist.
+    if driver_query.is_empty() {
+        for (&train_id, &train_entity) in train_registry.iter() {
+            commands.spawn((
+                VirtualDriver::new(train_id, 1.0),
+                LifeCycleTiedTo(train_entity),
+            ));
+        }
     }
 
     // Emit PlaceTrainAtBlock events for any remaining cached positions.
@@ -449,29 +461,18 @@ pub fn handle_send_train_to_block(
     }
 }
 
-/// Command handler: exit control mode by despawning all layout elements,
-/// VirtualDrivers, and route leg entities. Transitions to Idle.
+/// Command handler: exit control mode by despawning all layout elements.
+/// Dependents (VirtualDrivers, route legs) are cascade-despawned via
+/// `LifeCycleTiedTo`. Transitions to Idle.
 pub fn handle_exit_control_mode(
     mut messages: MessageReader<CommandEnvelope<ExitControlModeRequest>>,
     registries: Query<&RegisteredEntities>,
-    driver_query: Query<Entity, With<VirtualDriver>>,
-    leg_query: Query<Entity, With<RouteLeg>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<SimulationState>>,
     mut response_writer: MessageWriter<CommandResponse>,
 ) {
     for envelope in messages.read() {
-        // Despawn all registry-tracked elements (tracks, blocks, trains, etc.)
         despawn_all_elements(&registries, &mut commands);
-
-        // Despawn loose entities: VirtualDrivers and route legs
-        for entity in driver_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in leg_query.iter() {
-            commands.entity(entity).despawn();
-        }
-
         next_state.set(SimulationState::Idle);
         response_writer.write(CommandResponse {
             command_id: envelope.command_id,
