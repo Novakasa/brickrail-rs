@@ -110,9 +110,6 @@ impl Plugin for AppCommandPlugin {
     }
 }
 
-/// Fan-out dispatch: pops the next command from the queue and writes a typed
-/// envelope. Client-local commands get typed envelopes handled by systems in
-/// this plugin. Simulation commands are forwarded to the SubApp input queue.
 /// System parameter bundle for collecting a `Layout` from ECS queries.
 #[derive(bevy::ecs::system::SystemParam)]
 struct LayoutCollector<'w, 's> {
@@ -143,6 +140,9 @@ impl LayoutCollector<'_, '_> {
     }
 }
 
+/// Fan-out dispatch: pops the next command from the queue and writes a typed
+/// envelope. Client-local commands get typed envelopes handled by systems in
+/// this plugin. Simulation commands are forwarded to the SubApp input queue.
 fn dispatch_app_commands(
     mut queue: ResMut<AppCommandQueue>,
     entity_query: Query<(&CommandId, &CommandState, &AppCommand)>,
