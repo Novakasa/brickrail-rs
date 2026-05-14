@@ -307,10 +307,7 @@ fn exit_and_reenter_preserves_position() {
         app.world_mut(),
         AppCommand::SetTrainPosition(TrainID(0), block_a()),
     );
-    AppCommandQueue::push_world(
-        app.world_mut(),
-        AppCommand::EnterControlMode(layout.clone()),
-    );
+    AppCommandQueue::push_world(app.world_mut(), AppCommand::EnterControlMode);
 
     // Send train to block B via simulation command.
     AppCommandQueue::push_world(
@@ -375,8 +372,7 @@ fn exit_and_reenter_preserves_position() {
     }
 
     // Re-enter control mode — should auto-place train at cached position.
-    let enter_cmd =
-        AppCommandQueue::push_world(app.world_mut(), AppCommand::EnterControlMode(layout));
+    let enter_cmd = AppCommandQueue::push_world(app.world_mut(), AppCommand::EnterControlMode);
     for _ in 0..10 {
         app.update();
     }

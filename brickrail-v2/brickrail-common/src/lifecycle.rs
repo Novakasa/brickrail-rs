@@ -139,6 +139,21 @@ impl<T: LayoutElement> ElementEntry<T> {
     pub fn new(id: T::ID, data: T::Data) -> Self {
         Self { id, data }
     }
+
+    /// Collect all entries from a registry and data query.
+    /// Usable from Bevy systems where `&World` isn't available.
+    pub fn collect_from_query(
+        registry: &Registry<T>,
+        data_query: &Query<&ElementData<T>>,
+    ) -> Vec<Self> {
+        registry
+            .iter()
+            .filter_map(|(&id, &entity)| {
+                let data = data_query.get(entity).ok()?;
+                Some(Self::new(id, data.0.clone()))
+            })
+            .collect()
+    }
 }
 
 // --- Commands extension trait ---

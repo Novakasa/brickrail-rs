@@ -69,7 +69,7 @@ fn queue_init_commands(
     queue.push(
         &mut commands,
         &mut registry,
-        AppCommand::SpawnLayout(layout.clone()),
+        AppCommand::SpawnLayout(layout),
     );
 
     // 2. Set initial train position (cached for EnterControlMode).
@@ -79,12 +79,8 @@ fn queue_init_commands(
         AppCommand::SetTrainPosition(TrainID(0), logical_a),
     );
 
-    // 3. Enter control mode — syncs layout to SubApp + auto-places cached trains.
-    queue.push(
-        &mut commands,
-        &mut registry,
-        AppCommand::EnterControlMode(layout),
-    );
+    // 3. Enter control mode — collects layout from ECS, syncs to SubApp + auto-places cached trains.
+    queue.push(&mut commands, &mut registry, AppCommand::EnterControlMode);
 
     // 4. Send train from A to B.
     queue.push(
