@@ -7,7 +7,7 @@ use bevy::prelude::*;
 /// Not a component itself — the lifecycle plugin wraps the ID and data in generic components.
 pub trait LayoutElement: Send + Sync + 'static {
     /// The ID type used to look up entities of this element type.
-    type ID: Send + Sync + Copy + Eq + std::hash::Hash + std::fmt::Debug + 'static;
+    type ID: Send + Sync + Copy + Eq + Ord + std::hash::Hash + std::fmt::Debug + 'static;
 
     /// The layout data for this element type. Wrapped in `ElementData<T>` on the entity.
     type Data: Send + Sync + Clone + Default + std::fmt::Debug + 'static;
@@ -140,19 +140,15 @@ impl<T: LayoutElement> ElementEntry<T> {
         Self { id, data }
     }
 
-    /// Collect all entries from a registry and data query.
-    /// Usable from Bevy systems where `&World` isn't available.
-    pub fn collect_from_query(
-        registry: &Registry<T>,
-        data_query: &Query<&ElementData<T>>,
-    ) -> Vec<Self> {
-        registry
+    /// Collect all entries from an ECS query over ElementId + ElementData.
+    /// Results are sorted by ID for deterministic serialization.
+    pub fn collect_from_query(query: &Query<(&ElementId<T>, &ElementData<T>)>) -> Vec<Self> {
+        let mut entries: Vec<_> = query
             .iter()
-            .filter_map(|(&id, &entity)| {
-                let data = data_query.get(entity).ok()?;
-                Some(Self::new(id, data.0.clone()))
-            })
-            .collect()
+            .map(|(id, data)| Self::new(id.0, data.0.clone()))
+            .collect();
+        entries.sort_by_key(|e| e.id);
+        entries
     }
 }
 

@@ -322,7 +322,9 @@ impl DirectedTrackID {
 /// Identifies a physical connection between two tracks at a shared cell edge.
 /// Both directed tracks point toward each other across the shared edge.
 /// Normalized: track_a < track_b to avoid duplicate connections.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Reflect, Serialize, Deserialize,
+)]
 pub struct TrackConnectionID {
     pub track_a: DirectedTrackID,
     pub track_b: DirectedTrackID,

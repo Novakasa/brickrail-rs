@@ -113,29 +113,28 @@ impl Plugin for AppCommandPlugin {
 /// System parameter bundle for collecting a `Layout` from ECS queries.
 #[derive(bevy::ecs::system::SystemParam)]
 struct LayoutCollector<'w, 's> {
-    track_registry: Res<'w, Registry<Track>>,
-    connection_registry: Res<'w, Registry<Connection>>,
-    marker_registry: Res<'w, Registry<Marker>>,
-    block_registry: Res<'w, Registry<Block>>,
-    train_registry: Res<'w, Registry<Train>>,
-    track_data: Query<'w, 's, &'static ElementData<Track>>,
-    connection_data: Query<'w, 's, &'static ElementData<Connection>>,
-    marker_data: Query<'w, 's, &'static ElementData<Marker>>,
-    block_data: Query<'w, 's, &'static ElementData<Block>>,
-    train_data: Query<'w, 's, &'static ElementData<Train>>,
+    tracks: Query<'w, 's, (&'static ElementId<Track>, &'static ElementData<Track>)>,
+    connections: Query<
+        'w,
+        's,
+        (
+            &'static ElementId<Connection>,
+            &'static ElementData<Connection>,
+        ),
+    >,
+    markers: Query<'w, 's, (&'static ElementId<Marker>, &'static ElementData<Marker>)>,
+    blocks: Query<'w, 's, (&'static ElementId<Block>, &'static ElementData<Block>)>,
+    trains: Query<'w, 's, (&'static ElementId<Train>, &'static ElementData<Train>)>,
 }
 
 impl LayoutCollector<'_, '_> {
     fn collect(&self) -> Layout {
         Layout {
-            tracks: ElementEntry::collect_from_query(&self.track_registry, &self.track_data),
-            connections: ElementEntry::collect_from_query(
-                &self.connection_registry,
-                &self.connection_data,
-            ),
-            markers: ElementEntry::collect_from_query(&self.marker_registry, &self.marker_data),
-            blocks: ElementEntry::collect_from_query(&self.block_registry, &self.block_data),
-            trains: ElementEntry::collect_from_query(&self.train_registry, &self.train_data),
+            tracks: ElementEntry::collect_from_query(&self.tracks),
+            connections: ElementEntry::collect_from_query(&self.connections),
+            markers: ElementEntry::collect_from_query(&self.markers),
+            blocks: ElementEntry::collect_from_query(&self.blocks),
+            trains: ElementEntry::collect_from_query(&self.trains),
         }
     }
 }
@@ -151,6 +150,7 @@ fn dispatch_app_commands(
     train_query: Query<(Entity, &ElementId<Train>, &TrainPosition, &TrainLegs)>,
     leg_query: Query<&RouteLeg>,
     cached_position_query: Query<(&ElementId<Train>, &TrainBlockPosition)>,
+    train_registry: Res<Registry<Train>>,
     layout_collector: LayoutCollector,
     mut commands: Commands,
     mut response_writer: MessageWriter<CommandResponse>,
@@ -185,7 +185,7 @@ fn dispatch_app_commands(
         }
         AppCommand::SetTrainPosition(train_id, block) => {
             // Insert TrainBlockPosition on the main-world train entity.
-            if let Some(train_entity) = layout_collector.train_registry.get(&train_id) {
+            if let Some(train_entity) = train_registry.get(&train_id) {
                 commands
                     .entity(train_entity)
                     .insert(TrainBlockPosition(block));
