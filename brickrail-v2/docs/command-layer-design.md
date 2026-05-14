@@ -2,7 +2,7 @@
 
 ## Context
 
-The system needs a formal command layer — the canonical entry point for all state mutations from GUI, tests, and scripts. Currently, mutations happen ad-hoc: `SpawnElement` messages for layout changes, `SimulationEvent` for simulation state, and direct `write_message` calls into the SubApp for control (e.g. `EnterControlMode`).
+The system needs a formal command layer — the canonical entry point for all state mutations from GUI, tests, and scripts. Currently, mutations happen ad-hoc: `Commands::spawn_element` calls for layout changes, `SimulationEvent` for simulation state, and direct `write_message` calls into the SubApp for control (e.g. `EnterControlMode`).
 
 The command layer introduces:
 - Trackable lifecycle per command (Pending → Completed/Failed)
@@ -295,11 +295,10 @@ pub struct AddTrack {
 fn handle_add_track(
     mut commands: Commands,
     query: Query<(Entity, &AddTrack, &CommandState)>,
-    mut spawn_writer: MessageWriter<SpawnElement<Track>>,
 ) {
     for (entity, payload, state) in &query {
         if !matches!(state, CommandState::Pending) { continue; }
-        spawn_writer.write(SpawnElement::new(payload.track_id, Default::default()));
+        commands.spawn_element::<Track>(payload.track_id, Default::default());
         commands.entity(entity).insert(CommandState::Completed);
     }
 }

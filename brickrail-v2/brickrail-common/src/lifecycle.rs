@@ -157,6 +157,23 @@ impl SpawnLayoutElement for Commands<'_, '_> {
     }
 }
 
+/// Extension trait on `World` for spawning layout elements with immediate flush.
+/// Convenient for tests where you don't have a `Commands` handle.
+pub trait WorldSpawnLayoutElement {
+    fn spawn_element<T: LayoutElement>(&mut self, id: T::ID, data: T::Data) -> Entity;
+}
+
+impl WorldSpawnLayoutElement for World {
+    fn spawn_element<T: LayoutElement>(&mut self, id: T::ID, data: T::Data) -> Entity {
+        let entity = self
+            .commands()
+            .spawn((ElementId::<T>(id), ElementData::<T>(data)))
+            .id();
+        self.flush();
+        entity
+    }
+}
+
 // --- Lifecycle plugin ---
 
 /// Generic lifecycle plugin. Handles spawn/register/despawn for any `LayoutElement` type.

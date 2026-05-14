@@ -55,7 +55,7 @@ Layout commands are preserved as long as the undo history lives — the command 
 
 ## Layout State
 
-Static data that defines the physical layout: tracks, connections, markers, blocks, trains. Managed via the ECS lifecycle system (SpawnElement messages, registries). The layout is the same whether the simulation is running or not.
+Static data that defines the physical layout: tracks, connections, markers, blocks, trains. Managed via the ECS lifecycle system (`Commands::spawn_element` extension trait, `On<Add, ElementId<T>>` observer for registry registration). The layout is the same whether the simulation is running or not.
 
 The layout is the serialization boundary — SaveLayout/LoadLayout operate here.
 

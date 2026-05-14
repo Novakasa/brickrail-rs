@@ -16,10 +16,7 @@ fn spawn_track_via_commands() {
 
     let track_id = TrackID::new(CellID::new(0, 0, 0), Orientation::EW);
 
-    app.world_mut()
-        .commands()
-        .spawn_element::<Track>(track_id, TrackData);
-    app.world_mut().flush();
+    app.world_mut().spawn_element::<Track>(track_id, TrackData);
 
     // Entity should be registered
     let registry = app.world().resource::<Registry<Track>>();
@@ -43,16 +40,7 @@ fn despawn_track_via_entity_event() {
     let track_id = TrackID::new(CellID::new(1, 2, 0), Orientation::NS);
 
     // Spawn
-    app.world_mut()
-        .commands()
-        .spawn_element::<Track>(track_id, TrackData);
-    app.world_mut().flush();
-
-    let entity = app
-        .world()
-        .resource::<Registry<Track>>()
-        .get(&track_id)
-        .unwrap();
+    let entity = app.world_mut().spawn_element::<Track>(track_id, TrackData);
 
     // Despawn via entity event
     app.world_mut()
@@ -81,11 +69,8 @@ fn spawn_multiple_tracks() {
     ];
 
     for id in &ids {
-        app.world_mut()
-            .commands()
-            .spawn_element::<Track>(*id, TrackData);
+        app.world_mut().spawn_element::<Track>(*id, TrackData);
     }
-    app.world_mut().flush();
 
     let registry = app.world().resource::<Registry<Track>>();
     assert_eq!(registry.len(), 3);
