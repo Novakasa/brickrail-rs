@@ -1,5 +1,5 @@
-use crate::layout_primitives::TrainID;
 use crate::lifecycle::LayoutElement;
+use crate::primitives::TrainID;
 
 /// Marker type for the train element kind.
 #[derive(Clone, Debug)]

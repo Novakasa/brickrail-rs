@@ -1,22 +1,23 @@
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use brickrail_common::block::Block;
-use brickrail_common::block::BlockData;
 use brickrail_common::command::{
     CommandEnvelope, CommandId, EnterControlModeRequest, ExitControlModeRequest, SimulationCommand,
 };
-use brickrail_common::connection::{Connection, ConnectionGraph};
+use brickrail_common::layout::block::{Block, BlockData};
+use brickrail_common::layout::connection::{Connection, ConnectionGraph};
+use brickrail_common::layout::logical_graph::{LogicalGraph, LogicalGraphPlugin};
+use brickrail_common::layout::marker::{Marker, MarkerData};
+use brickrail_common::layout::track::Track;
+use brickrail_common::layout::train::Train;
 use brickrail_common::layout::*;
-use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::logical_graph::{LogicalGraph, LogicalGraphPlugin};
-use brickrail_common::marker::{Marker, MarkerData};
-use brickrail_common::route::{AppendLegs, LegOf, MarkerRole, RouteLeg, TrainLegs};
+use brickrail_common::primitives::*;
+use brickrail_common::simulation::route::{AppendLegs, LegOf, MarkerRole, RouteLeg, TrainLegs};
+use brickrail_common::simulation::train_position::{
+    AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition,
+};
 use brickrail_common::simulation::{SimulationState, SimulationStatePlugin};
-use brickrail_common::track::Track;
-use brickrail_common::train::Train;
-use brickrail_common::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
 use brickrail_server::ServerPlugin;
 use petgraph::algo::astar;
 
@@ -140,7 +141,7 @@ fn test_layout() -> Layout {
         ],
         blocks: vec![ElementEntry::new(
             BlockID::new(t0, t2),
-            brickrail_common::block::BlockData {
+            brickrail_common::layout::block::BlockData {
                 name: Some("Main".to_string()),
                 section: vec![
                     t0.get_directed_to(Cardinal::E).unwrap(),
@@ -251,7 +252,7 @@ fn exit_control_mode_cleans_up() {
     {
         let world = layout_world_mut(&mut app);
         let driver_count = world
-            .query::<&brickrail_common::virtual_driver::VirtualDriver>()
+            .query::<&brickrail_common::simulation::virtual_driver::VirtualDriver>()
             .iter(world)
             .count();
         assert_eq!(

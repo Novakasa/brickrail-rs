@@ -1,13 +1,13 @@
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
-use crate::block::BlockData;
-use crate::layout_primitives::*;
+use super::SimulationSet;
+use super::train_position::{TrainLegState, TrainPosition};
+use crate::layout::block::BlockData;
+use crate::layout::marker::MarkerData;
+use crate::layout::train::Train;
 use crate::lifecycle::{LifeCycleTiedTo, Registry};
-use crate::marker::MarkerData;
-use crate::simulation::SimulationSet;
-use crate::train::Train;
-use crate::train_position::{TrainLegState, TrainPosition};
+use crate::primitives::*;
 
 /// A resolved route leg with three stages and collected markers.
 #[derive(Component, Clone, Debug, serde::Serialize, serde::Deserialize)]

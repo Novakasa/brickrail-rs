@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::route::AppendLegs;
-use crate::simulation::PlaceTrainAtBlock;
-use crate::train_position::{AdvanceLeg, TrainMarkerHit};
+use super::PlaceTrainAtBlock;
+use super::route::AppendLegs;
+use super::train_position::{AdvanceLeg, TrainMarkerHit};
 
 /// Canonical simulation event message. Wraps all mutation event types into a single
 /// serializable enum. Logic systems write these; the fan-out system in

@@ -1,5 +1,5 @@
-use crate::layout_primitives::{MarkerColor, TrackID};
 use crate::lifecycle::LayoutElement;
+use crate::primitives::{MarkerColor, TrackID};
 
 /// Marker type for the marker element kind.
 #[derive(Clone, Debug)]

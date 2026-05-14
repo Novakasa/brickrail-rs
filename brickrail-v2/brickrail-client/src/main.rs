@@ -1,18 +1,18 @@
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::prelude::*;
 use bevy_pancam::{PanCam, PanCamPlugin};
-use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
     AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry,
     SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
 };
+use brickrail_common::layout::block::{Block, BlockData};
+use brickrail_common::layout::marker::{Marker, MarkerData};
+use brickrail_common::layout::track::Track;
 use brickrail_common::layout::{Layout, LayoutAppPlugin};
-use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::{ElementData, ElementEntry, ElementId};
-use brickrail_common::marker::{Marker, MarkerData};
-use brickrail_common::route::{RouteLeg, TrainLegs};
-use brickrail_common::track::Track;
-use brickrail_common::train_position::TrainPosition;
+use brickrail_common::primitives::*;
+use brickrail_common::simulation::route::{RouteLeg, TrainLegs};
+use brickrail_common::simulation::train_position::TrainPosition;
 
 const LAYOUT_SCALE: f32 = 40.0;
 

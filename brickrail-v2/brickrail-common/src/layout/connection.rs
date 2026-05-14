@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use petgraph::graphmap::UnGraphMap;
 
-use crate::layout_primitives::{TrackConnectionID, TrackID};
 use crate::lifecycle::{DespawnElement, ElementId, LayoutElement};
+use crate::primitives::{TrackConnectionID, TrackID};
 
 /// Marker type for the connection element kind.
 #[derive(Clone, Debug)]

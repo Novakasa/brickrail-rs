@@ -1,15 +1,22 @@
+pub mod block;
+pub mod connection;
+pub mod logical_graph;
+pub mod marker;
+pub mod track;
+pub mod train;
+
 use bevy::app::AppLabel;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::block::Block;
-use crate::connection::Connection;
 use crate::lifecycle::{ElementEntry, ElementPlugin};
-use crate::logical_graph::LogicalGraphPlugin;
-use crate::marker::Marker;
 use crate::simulation::SimulationStatePlugin;
-use crate::track::Track;
-use crate::train::Train;
+use block::Block;
+use connection::Connection;
+use logical_graph::LogicalGraphPlugin;
+use marker::Marker;
+use track::Track;
+use train::Train;
 
 /// Label for the layout SubApp.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, AppLabel)]

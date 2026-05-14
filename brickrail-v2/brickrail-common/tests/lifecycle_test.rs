@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use brickrail_common::layout_primitives::*;
+use brickrail_common::layout::track::{Track, TrackData};
 use brickrail_common::lifecycle::*;
-use brickrail_common::track::{Track, TrackData};
+use brickrail_common::primitives::*;
 
 fn make_app() -> App {
     let mut app = App::new();

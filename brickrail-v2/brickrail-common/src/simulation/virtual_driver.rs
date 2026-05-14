@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
-use crate::layout_primitives::TrainID;
+use super::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
+use crate::primitives::TrainID;
 
 /// Virtual train driver component. Lives on its own entity (not the train entity).
 /// Simulates a train advancing through driver legs by tracking continuous position

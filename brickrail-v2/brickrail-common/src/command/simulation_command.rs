@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use bevy::prelude::*;
 
 use crate::layout::Layout;
-use crate::layout_primitives::{LogicalBlockID, TrainID};
+use crate::primitives::{LogicalBlockID, TrainID};
 
 use super::{CommandEnvelope, CommandId, CommandResponse};
 

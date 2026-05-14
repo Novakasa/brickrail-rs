@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::layout_primitives::{Facing, MarkerColor, TrainID};
-use crate::route::{MarkerRole, RouteLeg, RouteLegMarker};
+use super::route::{MarkerRole, RouteLeg, RouteLegMarker};
+use crate::primitives::{Facing, MarkerColor, TrainID};
 
 /// A driver-facing route leg. Contains only the information a driver needs:
 /// facing direction and ordered marker positions with colors.

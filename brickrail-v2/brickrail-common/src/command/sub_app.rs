@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::layout::LayoutSubApp;
 use crate::simulation::SimulationPlugin;
-use crate::simulation_event::{SimulationEvent, SimulationEventQueue};
+use crate::simulation::event::{SimulationEvent, SimulationEventQueue};
 
 use super::{CommandEnvelope, CommandResponse, SimulationCommand, SimulationCommandPlugin};
 

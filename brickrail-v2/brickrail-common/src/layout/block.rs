@@ -1,7 +1,7 @@
-use crate::layout_primitives::{
+use crate::lifecycle::LayoutElement;
+use crate::primitives::{
     BlockDirection, BlockID, DirectedTrackID, Facing, LogicalTrackID, TrainSpeed,
 };
-use crate::lifecycle::LayoutElement;
 
 /// Marker type for the block element kind.
 #[derive(Clone, Debug)]

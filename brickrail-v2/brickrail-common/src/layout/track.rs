@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::layout_primitives::TrackID;
 use crate::lifecycle::LayoutElement;
+use crate::primitives::TrackID;
 
 /// Marker type for the track element kind. Not a component itself.
 #[derive(Clone, Debug)]

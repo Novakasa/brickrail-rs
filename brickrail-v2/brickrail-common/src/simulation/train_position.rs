@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::layout_primitives::*;
+use super::SimulationSet;
+use super::route::{MarkerRole, RouteLeg, TrainLegs};
+use crate::layout::train::Train;
 use crate::lifecycle::Registry;
-use crate::route::{MarkerRole, RouteLeg, TrainLegs};
-use crate::simulation::SimulationSet;
-use crate::train::Train;
+use crate::primitives::*;
 use bevy::ecs::relationship::RelationshipTarget;
 
 /// The train's state within its current leg.

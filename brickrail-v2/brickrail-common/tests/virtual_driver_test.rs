@@ -1,19 +1,19 @@
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use brickrail_common::block::{Block, BlockData};
-use brickrail_common::connection::Connection;
 use brickrail_common::layout::LayoutAppPlugin;
-use brickrail_common::layout_primitives::*;
+use brickrail_common::layout::block::{Block, BlockData};
+use brickrail_common::layout::connection::Connection;
+use brickrail_common::layout::logical_graph::LogicalGraph;
+use brickrail_common::layout::marker::{Marker, MarkerData};
+use brickrail_common::layout::track::Track;
+use brickrail_common::layout::train::Train;
 use brickrail_common::lifecycle::*;
-use brickrail_common::logical_graph::LogicalGraph;
-use brickrail_common::marker::{Marker, MarkerData};
-use brickrail_common::route::{AppendLegs, RouteLeg, TrainLegs};
+use brickrail_common::primitives::*;
 use brickrail_common::simulation::SimulationLogicPlugin;
-use brickrail_common::track::Track;
-use brickrail_common::train::Train;
-use brickrail_common::train_position::{TrainLegState, TrainPosition};
-use brickrail_common::virtual_driver::{VirtualDriver, VirtualDriverPlugin};
+use brickrail_common::simulation::route::{AppendLegs, RouteLeg, TrainLegs};
+use brickrail_common::simulation::train_position::{TrainLegState, TrainPosition};
+use brickrail_common::simulation::virtual_driver::{VirtualDriver, VirtualDriverPlugin};
 use petgraph::algo::astar;
 
 fn make_app() -> App {

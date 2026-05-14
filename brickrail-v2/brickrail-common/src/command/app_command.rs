@@ -2,16 +2,16 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use crate::block::Block;
-use crate::connection::Connection;
 use crate::layout::Layout;
-use crate::layout_primitives::{LogicalBlockID, TrainID};
+use crate::layout::block::Block;
+use crate::layout::connection::Connection;
+use crate::layout::marker::Marker;
+use crate::layout::track::Track;
+use crate::layout::train::Train;
 use crate::lifecycle::{ElementData, ElementEntry, ElementId, Registry, SpawnLayoutElement};
-use crate::marker::Marker;
-use crate::route::{RouteLeg, TrainLegs};
-use crate::track::Track;
-use crate::train::Train;
-use crate::train_position::{TrainLegState, TrainPosition};
+use crate::primitives::{LogicalBlockID, TrainID};
+use crate::simulation::route::{RouteLeg, TrainLegs};
+use crate::simulation::train_position::{TrainLegState, TrainPosition};
 
 use super::{
     CommandEnvelope, CommandId, CommandRegistry, CommandResponse, CommandState,

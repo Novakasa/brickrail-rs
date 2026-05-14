@@ -1,17 +1,17 @@
 use bevy::prelude::*;
-use brickrail_common::block::{Block, BlockData};
 use brickrail_common::command::{
     AppCommand, AppCommandPlugin, AppCommandQueue, CommandPlugin, CommandRegistry, CommandState,
     EnterControlModeRequest, SendTrainToBlockRequest, SimulationCommand, SubAppClientPlugin,
 };
+use brickrail_common::layout::block::{Block, BlockData};
+use brickrail_common::layout::track::Track;
+use brickrail_common::layout::train::Train;
 use brickrail_common::layout::{Layout, LayoutAppPlugin, LayoutSubApp};
-use brickrail_common::layout_primitives::*;
 use brickrail_common::lifecycle::*;
-use brickrail_common::route::{RouteLeg, TrainLegs};
-use brickrail_common::track::Track;
-use brickrail_common::train::Train;
-use brickrail_common::train_position::{TrainLegState, TrainPosition};
-use brickrail_common::virtual_driver::VirtualDriver;
+use brickrail_common::primitives::*;
+use brickrail_common::simulation::route::{RouteLeg, TrainLegs};
+use brickrail_common::simulation::train_position::{TrainLegState, TrainPosition};
+use brickrail_common::simulation::virtual_driver::VirtualDriver;
 
 /// Build a client+simulation app with bidirectional extract bridge.
 fn make_app() -> App {

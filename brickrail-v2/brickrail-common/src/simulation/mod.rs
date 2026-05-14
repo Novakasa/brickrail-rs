@@ -1,29 +1,35 @@
+pub mod driver;
+pub mod event;
+pub mod route;
+pub mod train_position;
+pub mod virtual_driver;
+
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use petgraph::algo::astar;
 
-use crate::block::{Block, BlockData};
 use crate::command::{
     CommandEnvelope, CommandResponse, EnterControlModeRequest, ExitControlModeRequest,
     SendTrainToBlockRequest,
 };
-use crate::connection::Connection;
-use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
 use crate::layout::Layout;
-use crate::layout_primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
+use crate::layout::block::{Block, BlockData};
+use crate::layout::connection::Connection;
+use crate::layout::logical_graph::LogicalGraph;
+use crate::layout::marker::{Marker, MarkerData};
+use crate::layout::track::Track;
+use crate::layout::train::Train;
 use crate::lifecycle::{
     ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry, SpawnLayoutElement,
     despawn_all_elements,
 };
-use crate::logical_graph::LogicalGraph;
-use crate::marker::{Marker, MarkerData};
-use crate::route::{AppendLegs, LegOf, Locked, RouteLeg, TrainLegs};
-use crate::simulation_event::SimulationEvent;
-use crate::track::Track;
-use crate::train::Train;
-use crate::train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
-use crate::virtual_driver::VirtualDriver;
+use crate::primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
+use driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
+use event::SimulationEvent;
+use route::{AppendLegs, LegOf, Locked, RouteLeg, TrainLegs};
+use train_position::{AdvanceLeg, TrainLegState, TrainMarkerHit, TrainPosition};
+use virtual_driver::VirtualDriver;
 
 /// System sets for ordering simulation systems within `Update`.
 /// State mutation runs first (processing messages), then logic reacts to the new state.
@@ -42,8 +48,8 @@ pub struct SimulationStatePlugin;
 
 impl Plugin for SimulationStatePlugin {
     fn build(&self, app: &mut App) {
-        use crate::route::RouteStatePlugin;
-        use crate::train_position::TrainPositionStatePlugin;
+        use route::RouteStatePlugin;
+        use train_position::TrainPositionStatePlugin;
 
         app.configure_sets(
             Update,
@@ -133,7 +139,7 @@ impl Plugin for SimulationPlugin {
         app.add_plugins(crate::layout::LayoutAppPlugin);
         app.add_plugins(SimulationLogicPlugin);
         app.add_plugins(bevy::time::TimePlugin);
-        app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
+        app.add_plugins(virtual_driver::VirtualDriverPlugin);
         // PlaceTrainAtBlock message is registered by SimulationStatePlugin (via LayoutAppPlugin).
         app.add_systems(OnEnter(SimulationState::Entering), spawn_layout_on_enter);
         app.add_systems(

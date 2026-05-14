@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use petgraph::graphmap::DiGraphMap;
 
-use crate::block::Block;
-use crate::connection::ConnectionGraph;
-use crate::layout_primitives::*;
+use super::block::Block;
+use super::connection::ConnectionGraph;
 use crate::lifecycle::{ElementData, Registry};
+use crate::primitives::*;
 
 /// Directed graph of logical tracks (DirectedTrackID + Facing).
 /// Used for pathfinding that respects facing constraints.
