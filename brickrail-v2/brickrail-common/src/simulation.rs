@@ -13,8 +13,8 @@ use crate::driver::{DriverLeg, DriverMarkerHit, QueueDriverLeg};
 use crate::layout::Layout;
 use crate::layout_primitives::{BlockID, LogicalBlockID, TrackID, TrainID};
 use crate::lifecycle::{
-    CascadeDespawnPlugin, ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry,
-    SpawnElement, despawn_all_elements,
+    ElementData, ElementId, LifeCycleTiedTo, RegisteredEntities, Registry, SpawnElement,
+    despawn_all_elements,
 };
 use crate::logical_graph::LogicalGraph;
 use crate::marker::{Marker, MarkerData};
@@ -131,7 +131,6 @@ impl Plugin for SimulationPlugin {
         app.init_state::<SimulationState>();
         app.init_resource::<PendingEnterData>();
         app.add_plugins(crate::layout::LayoutAppPlugin);
-        app.add_plugins(CascadeDespawnPlugin);
         app.add_plugins(SimulationLogicPlugin);
         app.add_plugins(bevy::time::TimePlugin);
         app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
