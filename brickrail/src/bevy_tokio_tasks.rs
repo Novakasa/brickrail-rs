@@ -2,8 +2,8 @@
 // original crate does not support bevy 0.12 yet
 
 use std::future::Future;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use bevy::prelude::*;
 use tokio::{runtime::Runtime, task::JoinHandle};

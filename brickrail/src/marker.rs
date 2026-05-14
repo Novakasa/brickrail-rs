@@ -245,11 +245,7 @@ pub fn spawn_marker(
                 .extend(25.0),
         );
         let entity = commands
-            .spawn((
-                transform,
-                marker,
-                MarkerAt(entity_map.tracks[&track_id]),
-            ))
+            .spawn((transform, marker, MarkerAt(entity_map.tracks[&track_id])))
             .id();
         entity_map.add_marker(track_id, entity);
     }

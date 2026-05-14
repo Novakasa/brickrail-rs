@@ -906,10 +906,7 @@ impl Plugin for TrackPlugin {
         app.add_message::<SpawnConnectionMessage>();
         app.add_message::<DespawnMessage<Track>>();
         app.add_observer(update_path_track);
-        app.add_systems(
-            Update,
-            (despawn_track,),
-        );
+        app.add_systems(Update, (despawn_track,));
         app.add_systems(
             PostUpdate,
             (

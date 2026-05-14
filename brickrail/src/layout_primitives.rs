@@ -1843,17 +1843,26 @@ mod test {
         assert_eq!(track1.cell().y, 2);
         assert_eq!(track1.cell().l, 0);
         assert_eq!(track1.facing, Facing::Forward);
-        assert_eq!(track1, LogicalTrackID::from_str(&track1.to_string()).unwrap());
+        assert_eq!(
+            track1,
+            LogicalTrackID::from_str(&track1.to_string()).unwrap()
+        );
 
         let track2 = LogicalTrackID::from_name("-2,2,0|WE<").unwrap();
         assert_eq!(track2.facing, Facing::Backward);
         assert_ne!(track1.facing, track2.facing);
-        assert_eq!(track2, LogicalTrackID::from_str(&track2.to_string()).unwrap());
+        assert_eq!(
+            track2,
+            LogicalTrackID::from_str(&track2.to_string()).unwrap()
+        );
 
         let dirtrack = DirectedTrackID::from_name("-2,2,0|NS").unwrap();
         let dirtrack2 = DirectedTrackID::from_name("-2,2,0|SN").unwrap();
         assert_eq!(dirtrack, dirtrack2.opposite());
-        assert_eq!(dirtrack, DirectedTrackID::from_str(&dirtrack.to_string()).unwrap());
+        assert_eq!(
+            dirtrack,
+            DirectedTrackID::from_str(&dirtrack.to_string()).unwrap()
+        );
 
         let block = LogicalBlockID::from_str("LB[(-1,0,0|SN)>(-1,3,0|SN)]").unwrap();
         assert_eq!(

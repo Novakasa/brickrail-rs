@@ -550,9 +550,6 @@ impl Plugin for SwitchEditorPlugin {
         app.add_plugins(SelectablePlugin::<Switch>::new());
         app.add_plugins(InspectorPlugin::<Switch>::new());
         app.add_plugins(TrackMeshPlugin::<SwitchConnection>::default());
-        app.add_systems(
-            Update,
-            (update_switch_shapes.after(finish_hover),),
-        );
+        app.add_systems(Update, (update_switch_shapes.after(finish_hover),));
     }
 }

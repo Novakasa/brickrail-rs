@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 use brickrail_rs::{
+    block::BlockPlugin,
+    destination::DestinationPlugin,
     editor::{EditorCorePlugin, LoadLayoutMessage},
     layout::LayoutPlugin,
-    block::BlockPlugin,
-    track::TrackPlugin,
-    train::TrainPlugin,
+    layout_devices::LayoutDevicePlugin,
     marker::MarkerPlugin,
+    materials::MaterialsPlugin,
+    persistent_hub_state::SettingsPlugin,
+    route_modular::ModularRoutePlugin,
+    schedule::SchedulePlugin,
     switch::SwitchPlugin,
     switch_motor::PulseMotorPlugin,
-    layout_devices::LayoutDevicePlugin,
-    schedule::SchedulePlugin,
-    destination::DestinationPlugin,
-    route_modular::ModularRoutePlugin,
-    persistent_hub_state::SettingsPlugin,
-    materials::MaterialsPlugin,
+    track::TrackPlugin,
+    train::TrainPlugin,
 };
 
 fn make_app() -> App {
@@ -42,10 +42,11 @@ fn make_app() -> App {
 fn train_advances_through_route_legs() {
     let mut app = make_app();
 
-    let layout_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/layouts/simple.json");
+    let layout_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/layouts/simple.json");
 
-    app.world_mut().write_message(LoadLayoutMessage { path: layout_path });
+    app.world_mut()
+        .write_message(LoadLayoutMessage { path: layout_path });
 
     // run a few ticks to let the layout load and systems settle
     for _ in 0..10 {

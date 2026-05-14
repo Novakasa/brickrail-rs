@@ -616,9 +616,6 @@ pub struct ModularRouteEditorPlugin;
 
 impl Plugin for ModularRouteEditorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (draw_route, debug_draw_train),
-        );
+        app.add_systems(Update, (draw_route, debug_draw_train));
     }
 }
