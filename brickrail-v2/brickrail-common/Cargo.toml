@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.18", default-features = false, features = ["serialize", "bevy_state"] }
+bevy = { version = "0.19", default-features = false, features = ["serialize", "bevy_state"] }
 petgraph = "0.8"
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-bevy = { version = "0.18", default-features = false, features = ["serialize", "bevy_state"] }
+bevy = { version = "0.19", default-features = false, features = ["serialize", "bevy_state"] }
