@@ -38,14 +38,9 @@ impl Plugin for SubAppClientPlugin {
         let mut sub_app = SubApp::new();
         sub_app.update_schedule = Some(Main.intern());
 
-        // Bootstrap SubApp with standard Bevy schedules and message plumbing.
+        // Bootstrap the SubApp with the standard Bevy schedules. `SubApp::default()`
+        // already schedules `message_update_system` in `First` as of bevy 0.19.
         sub_app.add_plugins(MainSchedulePlugin);
-        sub_app.add_systems(
-            First,
-            bevy::ecs::message::message_update_system
-                .in_set(bevy::ecs::message::MessageUpdateSystems)
-                .run_if(bevy::ecs::message::message_update_condition),
-        );
         sub_app.init_resource::<bevy::ecs::reflect::AppTypeRegistry>();
 
         // Domain logic (communication-agnostic).
