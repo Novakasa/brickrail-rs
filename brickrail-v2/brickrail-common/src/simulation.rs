@@ -1,6 +1,7 @@
 use bevy::ecs::relationship::RelationshipTarget;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy_plugin_graph::AddOwned;
 use petgraph::algo::astar;
 
 use crate::block::{Block, BlockData};
@@ -52,8 +53,8 @@ impl Plugin for SimulationStatePlugin {
                 .run_if(on_message::<SimulationEvent>)
                 .before(SimulationSet::StateMutation),
         );
-        app.add_plugins(RouteStatePlugin);
-        app.add_plugins(TrainPositionStatePlugin);
+        app.add_owned(RouteStatePlugin);
+        app.add_owned(TrainPositionStatePlugin);
     }
 }
 
@@ -87,10 +88,10 @@ pub struct SimulationPlugin;
 
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(crate::layout::LayoutAppPlugin);
-        app.add_plugins(SimulationLogicPlugin);
+        app.add_owned(crate::layout::LayoutAppPlugin);
+        app.add_owned(SimulationLogicPlugin);
         app.add_plugins(bevy::time::TimePlugin);
-        app.add_plugins(crate::virtual_driver::VirtualDriverPlugin);
+        app.add_owned(crate::virtual_driver::VirtualDriverPlugin);
     }
 }
 

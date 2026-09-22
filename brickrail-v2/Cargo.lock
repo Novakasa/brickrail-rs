@@ -1291,6 +1291,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_plugin_graph"
+version = "0.1.0"
+source = "git+https://github.com/Novakasa/bevy-plugin-graph?rev=f37ed89ea7eac16d8cd678a7c931c7cc2dccdbd4#f37ed89ea7eac16d8cd678a7c931c7cc2dccdbd4"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bevy_post_process"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1914,6 +1925,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_pancam",
+ "bevy_plugin_graph",
  "brickrail-common",
  "petgraph",
 ]
@@ -1923,6 +1935,7 @@ name = "brickrail-common"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_plugin_graph",
  "petgraph",
  "serde",
 ]
@@ -1932,6 +1945,7 @@ name = "brickrail-server"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_plugin_graph",
  "brickrail-common",
  "petgraph",
 ]

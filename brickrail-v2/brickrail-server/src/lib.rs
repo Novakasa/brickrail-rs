@@ -2,6 +2,7 @@ use bevy::app::{Main, MainSchedulePlugin, SubApp};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
+use bevy_plugin_graph::{AddOwned, PluginGraphPlugin};
 use brickrail_common::block::Block;
 use brickrail_common::connection::Connection;
 use brickrail_common::layout::*;
@@ -65,11 +66,12 @@ impl Plugin for ServerPlugin {
         // already schedules `message_update_system` in `First` as of bevy 0.19.
         sub_app.add_plugins(MainSchedulePlugin);
 
-        sub_app.add_plugins(LayoutAppPlugin);
-        sub_app.add_plugins(brickrail_common::simulation::SimulationLogicPlugin);
-        sub_app.add_plugins(brickrail_common::command::SimulationCommandPlugin);
-        sub_app.add_plugins(brickrail_common::command::SubAppServerPlugin);
+        sub_app.add_owned(LayoutAppPlugin);
+        sub_app.add_owned(brickrail_common::simulation::SimulationLogicPlugin);
+        sub_app.add_owned(brickrail_common::command::SimulationCommandPlugin);
+        sub_app.add_owned(brickrail_common::command::SubAppServerPlugin);
         sub_app.add_plugins(StatesPlugin);
+        sub_app.add_plugins(PluginGraphPlugin::new("ServerSim"));
         sub_app.init_state::<ServerState>();
         sub_app.add_message::<EnterControlMode>();
         sub_app.add_message::<ExitControlMode>();

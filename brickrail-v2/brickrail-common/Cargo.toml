@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.19", default-features = false, features = ["serialize", "bevy_state"] }
+bevy_plugin_graph = { git = "https://github.com/Novakasa/bevy-plugin-graph", rev = "f37ed89ea7eac16d8cd678a7c931c7cc2dccdbd4" }
 petgraph = "0.8"
 serde = { version = "1", features = ["derive"] }
 

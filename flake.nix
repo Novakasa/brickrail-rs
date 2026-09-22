@@ -35,6 +35,12 @@
                 ];
               })
               pkg-config
+
+              # Task runner; see the justfile (`just` to list recipes)
+              just
+              # Renders the plugin graphs dumped by bevy_plugin_graph (`just view`)
+              mermaid-cli
+              xdg-utils
             ]
             ++ lib.optionals (lib.strings.hasInfix "linux" system) [
               # for Linux
